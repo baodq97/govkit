@@ -178,6 +178,20 @@ describe("runVerify — --changed report scoping (RFC-0004)", () => {
     expect(problems).not.toContain("ADR-0003");
   });
 
+  it("ALWAYS-REPORT residue: a pre-existing duplicate among UNTOUCHED docs still surfaces", () => {
+    // The accepted tradeoff of always-reporting global-integrity kinds: it cannot mask a NEW
+    // collision (good), but it also cannot suppress a PRE-EXISTING one — so a repo carrying
+    // legacy duplicate-ids can't get a green `check --changed` until it fixes that debt, even
+    // on a PR that touched none of the colliding docs. Documented here, not hidden.
+    write("ADR-0005-a.md", { id: "ADR-0005", status: "proposed", ...base }); // untouched dup
+    write("ADR-0005-b.md", { id: "ADR-0005", status: "proposed", ...base }); // untouched dup
+    write("ADR-0009-x.md", { id: "ADR-0009", status: "proposed", ...base }); // the only changed doc
+    indexRows("ADR-0005", "ADR-0009");
+
+    const result = runVerify({ root, config: CONFIG, changed: changedSet("ADR-0009-x.md") });
+    expect(result.violations.some((v) => v.kind === "duplicate")).toBe(true); // flood-by-design
+  });
+
   it("suppresses a per-doc violation when no doc in its type changed", () => {
     write("ADR-0001-x.md", { id: "ADR-0001", status: "bogus", ...base }); // untouched, bad status
     indexRows("ADR-0001");

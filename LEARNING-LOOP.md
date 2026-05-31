@@ -326,10 +326,27 @@ so a shallow CI clone would pass green having scoped to nothing (worse than the 
 warns loud. And the git path (`resolveChangedBase`/`gitChangedDocs`), previously covered only by
 manual e2e, got real temp-repo unit tests.
 
+**Audit conclusion, corrected (the audit itself was an overclaim — round five caught in round four).**
+A follow-up review challenged "checkIndex was the only remaining aggregate instance." Not quite:
+`checkIndex` was the only aggregate check scoped **wrongly**. `checkDuplicateIds` (aggregate-per-id)
+and `checkReferences` are the **same class**, resolved deliberately the *other* way — **always-report**
+— because for hard-corruption checks no-masking beats flood-resistance: scoping a duplicate by its
+reported file would mask a *new* doc colliding with an untouched one (the reported file is the
+untouched, first-sorted doc), and a changed doc renaming an id breaks an *untouched* referrer. So the
+lumping is correct; the *characterization* "audit complete" was not. **The accepted, named cost:** a
+repo carrying pre-existing duplicate-ids (or, once `refs` are configured, dangling refs) **cannot get
+a green `check --changed` until it fixes that specific debt** — even on a PR that touched none of the
+colliding docs. That is a narrow but real seam in "the whole gate is adoptable," and a flood-by-design
+test now documents it. True closure exists (have `checkDuplicateIds` carry the colliding-file set so
+`scopeToChanged` can keep-if-any-colliding-doc-changed, killing both mask and flood) but is a refactor
+of the `Violation` shape for a narrow case — **deferred as speculative**, to be pulled only if a real
+repo hits it. **Lesson: "I audited the class" is itself a claim to verify, not a conclusion to assert —
+the same review reflex that catches feature overclaims has to be turned on the meta-claims too.**
+
 **Round-4 verdict:** the loop did what it was asked — the gap Round 3 *named* is the gap Round 4
-*closed* — but the round's real value was the review catching that "mechanically correct" still hid a
-scale-only defect (the flood is invisible at 1–2 docs and on a repo with complete INDEX rows, which
-is why every prior check passed). Four rounds in, the discipline that compounds is not the engine
-features; it is **closing named gaps in order, auditing the whole class when one instance is found,
-and refusing to round "mechanically correct" up to "done" — especially when the author's own tests
-can't see the gap.**
+*closed* — but the round's real value was two review passes catching, in sequence, (1) a scale-only
+defect invisible to the author's tests (the INDEX flood) and (2) an overclaim in the *fix's own
+post-mortem* (the "audit complete" framing). Four rounds in, the discipline that compounds is not the
+engine features; it is **closing named gaps in order, auditing the whole class when one instance is
+found, refusing to round "mechanically correct" up to "done," and turning that same skepticism on
+your own audit claims — especially when your own tests can't see the gap.**
