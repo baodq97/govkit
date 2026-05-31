@@ -161,6 +161,23 @@ describe("runVerify — --changed report scoping (RFC-0004)", () => {
     expect(result.violations.some((v) => v.kind === "index")).toBe(true);
   });
 
+  it("does NOT flood untouched docs' missing-row entries through the INDEX check", () => {
+    // The adoption scenario: many legacy docs with ids but no INDEX rows. Touching ONE
+    // must not surface the whole type's INDEX backlog (that backfill is the retrofit
+    // --changed exists to defer). Only the changed doc's missing row is the PR's concern.
+    write("ADR-0001-touched.md", { id: "ADR-0001", status: "proposed", ...base }); // changed
+    write("ADR-0002-legacy.md", { id: "ADR-0002", status: "proposed", ...base }); // untouched
+    write("ADR-0003-legacy.md", { id: "ADR-0003", status: "proposed", ...base }); // untouched
+    indexRows(); // empty INDEX → all three lack rows
+
+    const result = runVerify({ root, config: CONFIG, changed: changedSet("ADR-0001-touched.md") });
+    const idx = result.violations.filter((v) => v.kind === "index");
+    const problems = idx.flatMap((v) => v.problems).join("\n");
+    expect(problems).toContain("ADR-0001"); // the touched doc's missing row IS reported
+    expect(problems).not.toContain("ADR-0002"); // untouched legacy rows are NOT flooded
+    expect(problems).not.toContain("ADR-0003");
+  });
+
   it("suppresses a per-doc violation when no doc in its type changed", () => {
     write("ADR-0001-x.md", { id: "ADR-0001", status: "bogus", ...base }); // untouched, bad status
     indexRows("ADR-0001");

@@ -160,7 +160,15 @@ async function main(argv: string[]): Promise<number> {
     }
     const root = values.root ?? process.cwd();
     try {
-      const ref = resolveChangedBase(root, values.base);
+      const { ref, implicitFallback } = resolveChangedBase(root, values.base);
+      if (implicitFallback) {
+        // origin/main did not resolve and no --base was given. HEAD scopes to working-tree
+        // + untracked only — on a shallow CI clone that is nothing, a silent pass. Warn loud.
+        process.stderr.write(
+          "govkit --changed: 'origin/main' did not resolve; falling back to HEAD " +
+            "(scopes to uncommitted + untracked only). Pass --base <ref> explicitly in CI.\n",
+        );
+      }
       changed = { files: gitChangedDocs(root, ref), ref };
     } catch (err) {
       process.stderr.write(`${err instanceof Error ? err.message : String(err)}\n`);

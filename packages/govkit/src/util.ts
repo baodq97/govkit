@@ -37,8 +37,14 @@ function git(root: string, args: string[]): string {
 /** Resolve the base ref for `--changed`. An explicit ref must resolve (else a clear
  *  error — never a silent full-scan fallback, which would re-introduce the avalanche
  *  the flag exists to prevent). With no explicit ref: prefer `origin/main`, else fall
- *  back to `HEAD` (a repo with no upstream — `HEAD` scopes to working-tree + untracked). */
-export function resolveChangedBase(root: string, requested?: string): string {
+ *  back to `HEAD` — but report that fallback (`implicitFallback`) so the caller can warn:
+ *  on a shallow CI clone where `origin/main` was never fetched, an unwarned `HEAD` fallback
+ *  scopes to nothing and the gate passes green having checked nothing — failing open, worse
+ *  than the avalanche. The caller surfaces it; passing `--base` explicitly silences it. */
+export function resolveChangedBase(
+  root: string,
+  requested?: string,
+): { ref: string; implicitFallback: boolean } {
   const resolves = (ref: string): boolean => {
     try {
       execFileSync("git", ["rev-parse", "--verify", "--quiet", `${ref}^{commit}`], {
@@ -54,9 +60,11 @@ export function resolveChangedBase(root: string, requested?: string): string {
     if (!resolves(requested)) {
       throw new Error(`govkit --changed: base ref '${requested}' does not resolve to a commit`);
     }
-    return requested;
+    return { ref: requested, implicitFallback: false };
   }
-  return resolves("origin/main") ? "origin/main" : "HEAD";
+  return resolves("origin/main")
+    ? { ref: "origin/main", implicitFallback: false }
+    : { ref: "HEAD", implicitFallback: true };
 }
 
 /** The set of governed-doc candidate paths (absolute) that are new-or-modified relative

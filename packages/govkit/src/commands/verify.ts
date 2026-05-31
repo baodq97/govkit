@@ -214,14 +214,34 @@ function checkReferences(docs: Doc[], types: Record<string, DocType>): Violation
 // exists to prevent, so the no-mask floor wins over tighter scoping for these two kinds.
 function scopeToChanged(violations: Violation[], docs: Doc[], changed: Set<string>): Violation[] {
   const changedTypes = new Set<string>();
+  const changedIds = new Set<string>();
   for (const doc of docs) {
-    if (changed.has(doc.file)) changedTypes.add(doc.type);
+    if (!changed.has(doc.file)) continue;
+    changedTypes.add(doc.type);
+    const id = str(doc.data.id);
+    if (id) changedIds.add(id);
   }
-  return violations.filter((v) => {
-    if (v.kind === "duplicate" || v.kind === "reference") return true;
-    if (v.kind === "index") return changedTypes.has(v.type);
-    return changed.has(v.file);
-  });
+  const scoped: Violation[] = [];
+  for (const v of violations) {
+    if (v.kind === "duplicate" || v.kind === "reference") {
+      scoped.push(v); // global integrity — always reported, never masked
+    } else if (v.kind === "index") {
+      // An INDEX check emits ONE violation per type listing EVERY doc missing/stale, so
+      // keeping it whole would flood untouched legacy docs' rows through --changed (the
+      // very backfill the flag exists to defer). Filter its problems to the changed docs:
+      // a per-doc problem opens with the doc id (`ADR-0001 (...) has no row` / `... stale`);
+      // the file-level `missing INDEX.md` problem names no id and is the changed doc's own
+      // concern, so it's kept when this type has a changed doc.
+      if (!changedTypes.has(v.type)) continue;
+      const problems = v.problems.filter(
+        (p) => p.startsWith("missing INDEX.md") || changedIds.has(p.split(" ")[0] ?? ""),
+      );
+      if (problems.length > 0) scoped.push({ ...v, problems });
+    } else if (changed.has(v.file)) {
+      scoped.push(v); // per-doc check (frontmatter, status, id, placeholder)
+    }
+  }
+  return scoped;
 }
 
 // The read-only governance gate: structural quality control across every governed
