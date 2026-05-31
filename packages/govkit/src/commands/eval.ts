@@ -63,10 +63,12 @@ function headingLines(prose: string): string[] {
 }
 
 // Compile + test a user-supplied pattern; a malformed pattern is treated as "no match"
-// (the rule simply fails) rather than crashing the whole eval.
+// (the rule simply fails) rather than crashing the whole eval. Multiline so `^`/`$`
+// anchor to line starts (e.g. the `testable` checkbox rule `^\s*\[ \]`), not just the
+// document start; case-insensitive throughout.
 function matches(pattern: string, text: string): boolean {
   try {
-    return new RegExp(pattern, "i").test(text);
+    return new RegExp(pattern, "im").test(text);
   } catch {
     // safe to ignore: a bad rubric regex fails its rule (visible in `missed`), never a crash.
     return false;

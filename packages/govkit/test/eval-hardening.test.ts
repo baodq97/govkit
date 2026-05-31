@@ -72,6 +72,22 @@ function evalAdr(body: string, config: GovkitConfig = CFG): ArtifactScore {
   }
 }
 
+// Score one US body under a config (defaults to the shipped rubric).
+function evalUs(body: string, config: GovkitConfig = repoConfig): ArtifactScore {
+  const root = mkdtempSync(join(tmpdir(), "govkit-eval-us-"));
+  mkdirSync(join(root, "docs", "issues"), { recursive: true });
+  const fm =
+    "---\nid: US-0001\ntitle: t\nstatus: open\nowner: TBD\ndate: 2026-05-31\npriority: P1\n---\n\n";
+  writeFileSync(join(root, "docs", "issues", "US-0001-x.md"), fm + body);
+  try {
+    const r = runEval({ root, config });
+    if (!r.artifacts[0]) throw new Error("no artifact scored");
+    return r.artifacts[0];
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+}
+
 const sectionPasses = (a: ArtifactScore): number =>
   a.rules.filter((r) => ["context", "decision", "consequences"].includes(r.id) && r.passed).length;
 
@@ -154,5 +170,16 @@ describe("eval hardening — zero false-positive on legitimate ADR styles (shipp
       repoConfig,
     );
     expect(a.requiredOk).toBe(true); // must NOT be blocked by the length floor
+  });
+
+  it("credits checkbox-only acceptance criteria (testable rule is line-anchored)", () => {
+    // No Gherkin words — the checkbox branch alone must satisfy `testable`. This pins
+    // the `^…checkbox` rule to LINE start (multiline), not document start.
+    const a = evalUs(
+      `As a user I want CSV export.\n\n## Acceptance criteria\n\n` +
+        `- [ ] The export button is visible to a signed-in user.\n` +
+        `- [ ] The downloaded CSV has one row per metered event.\n\n${W(15)}`,
+    );
+    expect(a.rules.find((r) => r.id === "testable")?.passed).toBe(true);
   });
 });
