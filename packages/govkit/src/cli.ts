@@ -1,4 +1,5 @@
 import { parseArgs } from "node:util";
+import { type AdoptResult, runAdopt } from "./commands/adopt";
 import { type AuditDecision, auditWrite, type HookInput } from "./commands/audit-write";
 import { type EvalResult, runEval } from "./commands/eval";
 import { type InitResult, runInit } from "./commands/init";
@@ -9,6 +10,7 @@ const HELP = `govkit — deterministic docs-as-code governance engine
 
 Usage:
   govkit init         [--root <dir>] [--force]
+  govkit init --adopt [--root <dir>] [--apply]  (migrate existing prose metadata → front-matter)
   govkit check        [--root <dir>] [--changed [--base <ref>]]  (verify + eval — the no-key CI gate)
   govkit verify       [--root <dir>] [--json] [--changed [--base <ref>]]
   govkit eval         [--root <dir>] [--json] [--changed [--base <ref>]]
@@ -17,6 +19,11 @@ Usage:
 Commands:
   init         Scaffold govkit governance into a repo (govkit.yml, the PreToolUse
                hook, and docs/{product,rfc,adr,issues}/INDEX.md). Idempotent.
+               With --adopt: instead of scaffolding, migrate EXISTING docs that lack
+               front-matter — extract declared prose metadata (e.g. **Status**: X)
+               into a YAML block, sentinel anything not found so it still fails the
+               gate (never asserts unverified metadata), and report status values
+               outside your enum as a suggested govkit.yml patch. Dry-run unless --apply.
   check        Run verify then eval — the single no-API-key gate a CI calls. Exits
                non-zero if either the structural gate or the eval floor fails.
   verify       Structural GATE: front-matter, status enum, id convention, INDEX
@@ -34,6 +41,8 @@ Options:
                checks (only the report is scoped, so a new duplicate id / dangling ref is
                still caught); eval scores only the changed docs. Requires git.
   --base       Base ref for --changed (default: origin/main, else HEAD).
+  --adopt      Migration mode for init (see above). Dry-run unless --apply.
+  --apply      Write the proposed front-matter to disk (init --adopt only).
   --force      Overwrite existing files (init only).
   -h, --help   Show this help.
 `;
@@ -123,6 +132,48 @@ function printInit(result: InitResult): void {
   );
 }
 
+function printAdopt(result: AdoptResult): void {
+  const out = process.stdout;
+  // Lane 1: docs lacking front-matter, with the block adopt proposes. A "preview", not a
+  // "diff" — naming it honestly (it is a prepend, shown for review), per the no-silent-scope
+  // discipline the rest of the CLI holds.
+  for (const p of result.planned) {
+    const tail = p.hasMissing ? "  ← has NEEDS-REVIEW fields (will still fail verify)" : "";
+    out.write(`\n${p.file} [${p.type}]${tail}\n`);
+    for (const line of p.block.split("\n")) if (line) out.write(`  ${line}\n`);
+  }
+  const needHuman = result.planned.filter((p) => p.hasMissing).length;
+  if (result.planned.length === 0) {
+    out.write("govkit init --adopt: no docs lacking front-matter — nothing to migrate.\n");
+  } else if (result.applied) {
+    out.write(
+      `\ngovkit init --adopt: wrote front-matter to ${result.planned.length} doc(s)` +
+        (needHuman > 0 ? `; ${needHuman} still need a human to fill NEEDS-REVIEW fields.` : ".") +
+        "\n",
+    );
+  } else {
+    out.write(
+      `\ngovkit init --adopt: ${result.planned.length} doc(s) would get front-matter` +
+        (needHuman > 0 ? ` (${needHuman} with NEEDS-REVIEW fields)` : "") +
+        " — nothing written; pass --apply to write.\n",
+    );
+  }
+  // Boundary, stated out loud: docs that already HAVE front-matter but are missing keys are
+  // out of adopt's scope — that is a human edit, not a migration.
+  out.write(
+    "  (docs that already have a front-matter block are left untouched, even if incomplete.)\n",
+  );
+
+  // Lane 2: vocabulary drift — a SUGGESTED govkit.yml patch, never applied.
+  for (const d of result.drift) {
+    out.write(
+      `\ngovkit init --adopt: '${d.type}' has status value(s) outside its enum: ${d.unknown.join(", ")}\n` +
+        `  suggested govkit.yml — docs.types.${d.type}.statuses: [${d.suggested.join(", ")}]\n` +
+        "  (not applied — govkit.yml is your contract; edit it yourself if you agree.)\n",
+    );
+  }
+}
+
 async function main(argv: string[]): Promise<number> {
   const { values, positionals } = parseArgs({
     args: argv,
@@ -132,6 +183,8 @@ async function main(argv: string[]): Promise<number> {
       json: { type: "boolean", default: false },
       changed: { type: "boolean", default: false },
       base: { type: "string" },
+      adopt: { type: "boolean", default: false },
+      apply: { type: "boolean", default: false },
       force: { type: "boolean", default: false },
       help: { type: "boolean", short: "h", default: false },
     },
@@ -146,6 +199,17 @@ async function main(argv: string[]): Promise<number> {
   if (!command) {
     process.stderr.write(HELP);
     return 1;
+  }
+
+  // `--adopt`/`--apply` are init-only (RFC-0006). Reject misuse loudly rather than silently
+  // ignoring a flag the user clearly intended to do something.
+  if (values.adopt && command !== "init") {
+    process.stderr.write("govkit: --adopt is only valid for init\n");
+    return 2;
+  }
+  if (values.apply && !values.adopt) {
+    process.stderr.write("govkit: --apply is only valid with init --adopt\n");
+    return 2;
   }
 
   // `--changed` adoption scoping (RFC-0004/0005): resolved ONCE here, shared by verify,
@@ -178,6 +242,16 @@ async function main(argv: string[]): Promise<number> {
 
   switch (command) {
     case "init": {
+      // --adopt switches init from greenfield scaffolding to migrating an EXISTING corpus
+      // (RFC-0006). The two modes do not mix: adopt never scaffolds, --force is init-only,
+      // --apply is adopt-only. Dry-run unless --apply, and the exit code reflects whether any
+      // migrated doc would still fail the gate (a missing-field sentinel) so CI can't mistake
+      // a preview for a clean migration.
+      if (values.adopt) {
+        const result = runAdopt({ root: values.root ?? process.cwd(), apply: values.apply });
+        printAdopt(result);
+        return result.planned.some((p) => p.hasMissing) ? 1 : 0;
+      }
       const result = runInit({ root: values.root ?? process.cwd(), force: values.force });
       printInit(result);
       return 0;
