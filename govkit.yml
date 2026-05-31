@@ -30,12 +30,17 @@ docs:
       idPrefix: ADR
       startStatus: proposed
       statuses: [proposed, accepted, rejected, superseded]
+      # Chain referential-integrity (RFC-0003): an ADR's optional `parent` must resolve to a
+      # real id. Resolve-only — empty `parent` (a root ADR) is skipped, `type` is advisory.
+      refs: [{ key: parent, type: rfc }]
     us:
       dir: docs/issues
       required: [id, title, status, owner, date, priority]
       idPrefix: US
       startStatus: open
       statuses: [open, in-progress, blocked, done, wontfix]
+      # A US's `parent` (the RFC/ADR it implements) must resolve to a real id.
+      refs: [{ key: parent, type: rfc }]
 
 # ── Layer 2: the quality EVAL (`govkit eval`) ────────────────────────────────
 # An HONEST deterministic, no-API-key layer. It is a STRUCTURAL FLOOR, not a

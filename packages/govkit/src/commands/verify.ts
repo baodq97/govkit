@@ -4,7 +4,14 @@ import { type DocType, type GovkitConfig, loadConfig } from "../config";
 import { parseFrontMatter } from "../frontmatter";
 import { listMarkdown, str } from "../util";
 
-export type ViolationKind = "frontmatter" | "index" | "status" | "id" | "duplicate" | "placeholder";
+export type ViolationKind =
+  | "frontmatter"
+  | "index"
+  | "status"
+  | "id"
+  | "duplicate"
+  | "placeholder"
+  | "reference";
 
 export interface Violation {
   file: string;
@@ -154,9 +161,42 @@ function checkDuplicateIds(docs: Doc[]): Violation[] {
   return violations;
 }
 
+// Chain referential-integrity (RFC-0003): the cross-artifact edge a single-doc gate misses.
+// For every doc that declares a configured `refs` key with a NON-EMPTY value, that value must
+// resolve to a known doc id anywhere in the chain — else a dangling reference (a `parent`
+// pointing at an id that was renamed or never existed). Resolve-only: empty/absent values are
+// optional links and skipped; `ref.type` is recorded in config but not enforced here; a ref is
+// a single scalar id (arrays are a future extension). Builds its own id Set for membership
+// (duplicate detection keeps an id→docs Map for collision reporting — a different shape, not
+// shared) — same deterministic, no-key category as INDEX-sync / unique-ids.
+function checkReferences(docs: Doc[], types: Record<string, DocType>): Violation[] {
+  const ids = new Set<string>();
+  for (const doc of docs) {
+    const id = str(doc.data.id);
+    if (id) ids.add(id);
+  }
+  const violations: Violation[] = [];
+  for (const doc of docs) {
+    const refs = types[doc.type]?.refs;
+    if (!refs || refs.length === 0) continue;
+    const problems: string[] = [];
+    for (const ref of refs) {
+      const value = str(doc.data[ref.key]);
+      if (value === "") continue; // empty → optional link, not a dangling one
+      if (!ids.has(value)) {
+        problems.push(`reference '${ref.key}: ${value}' does not resolve to any known doc id`);
+      }
+    }
+    if (problems.length > 0) {
+      violations.push({ file: doc.file, type: doc.type, kind: "reference", problems });
+    }
+  }
+  return violations;
+}
+
 // The read-only governance gate: structural quality control across every governed
 // doc — front-matter completeness, status-enum, id convention, INDEX sync, globally
-// unique ids, and no unresolved placeholders. Pure w.r.t. its inputs (reads fs,
+// unique ids, no unresolved placeholders, and chain referential-integrity. Pure w.r.t. its inputs (reads fs,
 // returns a result) so the CLI owns printing/exit codes and tests own assertions.
 // CI calls this with no API key; `audit-write` is its per-write twin; `eval` is the
 // graded quality layer that runs ON TOP of a passing gate.
@@ -214,5 +254,6 @@ export function runVerify(opts: VerifyOptions): VerifyResult {
   }
 
   violations.push(...checkDuplicateIds(allDocs));
+  violations.push(...checkReferences(allDocs, types));
   return { ok: violations.length === 0, checked, violations };
 }

@@ -18,6 +18,7 @@ const CONFIG: GovkitConfig = {
         required: ["id", "title", "status", "owner", "date"],
         idPrefix: "ADR",
         statuses: ["proposed", "accepted", "rejected", "superseded"],
+        refs: [{ key: "parent" }],
       },
     },
   },
@@ -90,6 +91,22 @@ describe("runVerify — duplicate ids", () => {
     const dup = result.violations.filter((v) => v.kind === "duplicate");
     expect(dup).toHaveLength(1);
     expect(dup[0]?.problems.join(" ")).toContain("ADR-0001");
+  });
+});
+
+describe("runVerify — chain referential-integrity (RFC-0003)", () => {
+  it("resolves a real parent, flags a dangling one, skips an absent one", () => {
+    write("ADR-0001-root.md", { id: "ADR-0001", status: "proposed", ...base }); // root, no parent
+    write("ADR-0002-child.md", { id: "ADR-0002", status: "proposed", parent: "ADR-0001", ...base }); // resolves
+    write("ADR-0003-bad.md", { id: "ADR-0003", status: "proposed", parent: "ADR-9999", ...base }); // dangling
+    indexRows("ADR-0001", "ADR-0002", "ADR-0003");
+
+    const result = runVerify({ root, config: CONFIG });
+    const refs = result.violations.filter((v) => v.kind === "reference");
+    expect(refs).toHaveLength(1);
+    expect(refs[0]?.file).toContain("ADR-0003");
+    expect(refs[0]?.problems.join(" ")).toContain("parent: ADR-9999");
+    expect(refs[0]?.problems.join(" ")).toContain("does not resolve");
   });
 });
 

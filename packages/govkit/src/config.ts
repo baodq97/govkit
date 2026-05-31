@@ -11,6 +11,15 @@ export interface DocType {
   statuses?: string[];
   /** Required id prefix (e.g. "ADR"). When set, `verify` enforces id + filename convention. */
   idPrefix?: string;
+  /**
+   * Cross-artifact references. Each entry names a front-matter key whose value, WHEN
+   * non-empty, must resolve to an existing doc id anywhere in the governed chain — this is
+   * how `verify` makes "governs the whole chain" literally true (see RFC-0003). Resolve-only
+   * (v1): empty/absent values are skipped (an optional link is not a dangling one), `type` is
+   * recorded but NOT enforced, there is no required-ref or transitive/cycle walking, and a ref
+   * is a SINGLE SCALAR id per key (arrays are a future extension).
+   */
+  refs?: { key: string; type?: string }[];
 }
 
 // Deterministic, no-API-key quality scorers. Each rule contributes its weight when it
