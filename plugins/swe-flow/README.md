@@ -19,6 +19,16 @@ Everything **calls** `npx govkit verify` to validate — nothing embeds the dete
   correct front-matter + INDEX row, then self-validate via `npx govkit verify`. Discovers doc
   dirs + required keys from the consumer's `govkit.yml`.
 
+**Skill — the orchestration layer:**
+
+- **`skills/workflow-author`** — scaffold a reusable, deterministic **dynamic workflow**
+  (`.claude/workflows/<name>.js`) from a description of a repeatable process. Composes the
+  **existing** swe-flow agents + `npx govkit verify` into one of three proven shapes (pipeline
+  review→verify · fan-out in dependency waves · loop-until-done), embeds a mandatory manual
+  fallback, and validates the result with `node --check`. *Authors orchestration that composes
+  what exists — it never generates new agents or teams.* Lets any team build their own governed
+  flow instead of copy-editing `sdlc.js`.
+
 **Agents** (plugin-namespaced — usable from the `sdlc` workflow):
 
 - **`agents/implementer`** — write-only fan-out member; builds one file-disjoint work package
