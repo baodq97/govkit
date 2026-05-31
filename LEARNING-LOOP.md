@@ -439,3 +439,74 @@ And the sixth instance of the overclaim reflex was caught in this very record, p
 draft generalized "migration not authoring" from an n=2 sample to all 114 failures — softened to the
 existence proof it actually is. `init --adopt` (prose → front-matter migration, plus repo-fitted status
 vocabulary) is the data-motivated next move — named, not built; to be pulled by the user, not assumed.
+
+---
+
+## Round 6 — RFC-0006 (`init --adopt`): build the move Round 5 motivated
+
+The loop closed on itself in one arc: Round 5's field test surfaced a finding (metadata exists, wrong
+syntax) → it motivated `init --adopt` → the user accepted RFC-0006 and asked to implement in the same
+session. The whole provenance chain ran clean: draft committed, owner-authorized accept committed
+separately (the flip is a human act), then implementation RED-first. `--changed` *defers* the legacy
+backlog; `--adopt` *cheapens paying down one doc* — it attacks the first-touch cost Round 4 named and
+Round 5 measured. The two compose; neither replaces the other.
+
+**The design's whole point is a single asymmetry, and naming it correctly was the round.** The obvious
+framing — "extract metadata, fill in the front-matter" — is the trap: it makes `--adopt` an *autofiller*,
+and an auto-filled doc that passes the gate is the exact `looks-governed-but-isn't` leak govkit exists
+to kill. So the rule is **extract and surface, never assert.** But the load-bearing risk inside that
+rule is subtler than it first looks, and an adversarial review caught me underweighting it *before* any
+code existed: a **missing** field failing loud is the *easy, safe* half (the sentinel handles it); a
+**wrong** extraction silently passing is the *real* leak, and the sentinel does nothing for it. The
+governing asymmetry: **a missed extraction costs a human one diff line; a wrong extraction costs the
+leak — so when uncertain, emit the sentinel, never guess.** That turned into this round's load-bearing
+test (the analogue of every prior round's no-mask floor): a status word sitting in body prose
+("we chose the *proposed* approach") with no `Status:` line must come out as the **sentinel**, not
+extracted as `proposed`. Extraction is therefore restricted to *declared, anchored shapes* (bold
+`**Key**:`, line-start `Key:`, `# Heading`, idPrefix filename) — never a word lifted from a sentence.
+**Lesson: when a feature's reason to exist is "don't do the unsafe-but-obvious thing," the load-bearing
+test is the one that proves the unsafe thing *doesn't happen* — not the one that proves the happy path
+works.**
+
+**Two real-data hazards, both pinned RED-first — one of them the exact Round-5 lesson applied
+*proactively* for once.** (1) The sentinel had to fail `verify` for **every** required key. The RFC's
+illustrative token (`__GOVKIT_ADOPT_MISSING__`) only fails keys with an enum/convention — but
+`owner`/`title`/`date` have neither, so a token there would *pass*. An **angle-bracket** sentinel
+(`<MISSING — fill in>`) reuses the existing `checkPlaceholder` (`/<[^>]*>/`), which runs on every
+required key, so absence stays loud universally. Divergence from the RFC's illustrative code recorded
+in the commit — *the RFC's example is a hypothesis; the no-assert floor is the spec*, the same
+RFC↔code discipline as Rounds 3–4. (2) A real heading is `# Connector: Secrets — …` — an unquoted
+`title:` would be malformed YAML the tool itself corrupted. So every extracted value is double-quoted,
+and the linchpin test is **end-to-end**: `--apply` → re-parse → re-verify, proving both that the colon
+round-trips *and* that the missing-field sentinel survives serialization to trip the gate. The
+colon-in-title fixture is precisely the "real malformation your fixtures don't think to write" that bit
+me in Round 5 — written deliberately this time, before the real data could.
+
+**Dogfooded on real data, not just fixtures.** Ran the built CLI against a throwaway copy of an actual
+a-real-repo spec (`# a feature spec — Encryption & key-management (detailed spec)`, `**Status**: Proposed ·
+**Date**: 2026-05-29 · **Owner**: Platform`). It extracted title (em-dash + colon, quoted), status
+(lowercased), owner, date — and **sentinelled `id`** (the filename carries no id convention), exiting
+non-zero because the doc would still fail the gate. `--apply` then `verify` → fails loud on
+`unresolved placeholder in 'id'`, exactly as designed; a re-run is a no-op. The never-assert floor
+holds on real prose, not just synthetic.
+
+**What is NOT closed (named, round six).** (1) **Coverage is bounded by design** — extraction reads
+only declared shapes; HTML-table and YAML-in-comment metadata, multi-line owners, and config
+auto-patching are explicit v1 non-goals. A repo whose metadata lives only in tables gets sentinels, not
+extraction — correct (no guessing), but it means `--adopt` lightens the cost, never zeroes it. (2)
+**Self-attestation residue recurs, third time** (Round 2, Round 5, now): the migration's git commit is
+the human governing act, *auditable* but not *independently verifiable* — nothing proves the committer
+actually reviewed each `# extracted from prose` value versus rubber-stamping the diff. `--adopt` narrows
+honest review to a readable diff; it cannot enforce that the review happened. (3) **Dogfood was n=1** —
+one real spec, not a run across the whole 86-doc corpus; the extraction heuristics are proven to read
+*that* shape honestly, not measured for coverage across the repo's full variety. Named, not rounded up.
+
+**Round-6 verdict:** the loop did the thing it was built to do — a friction signal from the field
+(Round 5) became an accepted RFC and a shipped, tested feature (Round 6) in one governed arc, provenance
+intact. The round's real value was the review catching, *before code*, that the safe half (missing →
+loud) was masking the dangerous half (wrong → silent), so the load-bearing test guards the leak rather
+than the happy path — and that the Round-5 lesson (fixtures are blind to real malformations) got applied
+*proactively*, with the colon-in-title hazard written into the suite before real data could surface it.
+Six rounds in, the discipline that compounds is unchanged and sharper: **name the asymmetry the feature
+exists to protect, test that the unsafe thing cannot happen, and turn the previous round's
+hard-won blindness into this round's fixture.**
