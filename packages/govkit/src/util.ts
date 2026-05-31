@@ -21,6 +21,18 @@ export function str(value: unknown): string {
   return value != null ? String(value).trim() : "";
 }
 
+/** Strip non-prose (fenced code, HTML comments) before any content match. Shared by `eval`
+ *  (so rubric regex/minWords measure prose, not a pasted table, and can't be gamed by signal
+ *  words hidden in a fence) and by `adopt` (so a front-matter EXAMPLE shown in a code fence is
+ *  not lifted as the doc's real metadata — the same "never assert a wrong value" floor).
+ *  Front-matter itself is already removed upstream by parseFrontMatter. */
+export function stripNonProse(body: string): string {
+  return body
+    .replace(/```[\s\S]*?```/g, " ")
+    .replace(/~~~[\s\S]*?~~~/g, " ")
+    .replace(/<!--[\s\S]*?-->/g, " ");
+}
+
 function git(root: string, args: string[]): string {
   try {
     return execFileSync("git", args, {

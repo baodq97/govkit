@@ -2,7 +2,7 @@ import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { type GovkitConfig, loadConfig, type RubricRule } from "../config";
 import { parseFrontMatter } from "../frontmatter";
-import { listMarkdown, str } from "../util";
+import { listMarkdown, str, stripNonProse } from "../util";
 
 export interface RuleResult {
   id: string;
@@ -55,16 +55,6 @@ export interface EvalOptions {
    *  check, so scoping the scored set (not just the report) is safe: there is no global
    *  violation that could be masked by quieting an untouched file. */
   changed?: { files: Set<string>; ref: string };
-}
-
-// Strip non-prose before any match: fenced code, HTML comments. (Front-matter is
-// already removed by parseFrontMatter.) Closes the "smuggle signal words inside a
-// code fence" gaming vector and keeps minWords measuring prose, not pasted tables.
-function stripNonProse(body: string): string {
-  return body
-    .replace(/```[\s\S]*?```/g, " ")
-    .replace(/~~~[\s\S]*?~~~/g, " ")
-    .replace(/<!--[\s\S]*?-->/g, " ");
 }
 
 function headingLines(prose: string): string[] {

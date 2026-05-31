@@ -2,7 +2,7 @@ import { readFileSync, writeFileSync } from "node:fs";
 import { basename, join } from "node:path";
 import { type DocType, type GovkitConfig, loadConfig } from "../config";
 import { parseFrontMatter } from "../frontmatter";
-import { listMarkdown, str } from "../util";
+import { listMarkdown, str, stripNonProse } from "../util";
 
 // The sentinel for a field that could not be extracted (or was uncertain). It is an
 // ANGLE-BRACKET placeholder on purpose: `verify`'s checkPlaceholder flags `/<[^>]*>/` on
@@ -155,8 +155,11 @@ export function runAdopt(opts: AdoptOptions): AdoptResult {
       // Lane 1: no block → propose one. Trigger predicate is exactly verify's "missing YAML
       // front-matter", so adopt targets precisely the docs verify flags — and is idempotent
       // (after --apply the doc has a block, so the next run skips it here).
+      // Strip fenced code / comments before extraction (same as eval): a doc showing a
+      // front-matter EXAMPLE in a fence must not have that example lifted as its real metadata.
+      const prose = stripNonProse(content);
       const fields: AdoptField[] = required.map((key) => {
-        const v = extractField(key, content, file, def);
+        const v = extractField(key, prose, file, def);
         return v
           ? { key, value: v, source: "extracted" as const }
           : { key, value: MISSING, source: "missing" as const };

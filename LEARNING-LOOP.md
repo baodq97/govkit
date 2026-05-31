@@ -463,7 +463,8 @@ leak — so when uncertain, emit the sentinel, never guess.** That turned into t
 test (the analogue of every prior round's no-mask floor): a status word sitting in body prose
 ("we chose the *proposed* approach") with no `Status:` line must come out as the **sentinel**, not
 extracted as `proposed`. Extraction is therefore restricted to *declared, anchored shapes* (bold
-`**Key**:`, line-start `Key:`, `# Heading`, idPrefix filename) — never a word lifted from a sentence.
+`**Key**:`, line-start `Key:`, `# Heading`, idPrefix filename) — never a word lifted from a sentence,
+and (after a done-check review caught the gap, below) never one lifted from a **code fence** either.
 **Lesson: when a feature's reason to exist is "don't do the unsafe-but-obvious thing," the load-bearing
 test is the one that proves the unsafe thing *doesn't happen* — not the one that proves the happy path
 works.**
@@ -490,6 +491,21 @@ non-zero because the doc would still fail the gate. `--apply` then `verify` → 
 `unresolved placeholder in 'id'`, exactly as designed; a re-run is a no-op. The never-assert floor
 holds on real prose, not just synthetic.
 
+**A seventh masking-class instance, caught at the done-check.** A review just before "done" found that
+extraction ran on **raw file content** — `eval` strips code fences before matching (its own anti-gaming
+floor), but `adopt` didn't, so a doc showing a front-matter *example* in a fenced block
+(```` ```\n**Status**: accepted\n``` ````) would have that example **lifted as its real status** — a
+wrong extraction, the exact class the CONSERVATISM FLOOR test guards, in a shape that test didn't probe
+(it covered a sentence, not a fence — again the Round-5 "fixtures miss the real malformation" pattern,
+this time in *my own new test*). It was a false-positive-caught-by-review (provenance tag + dry-run, so
+the floor held — not a silent assert), but the Round-6 claim "restricted to declared shapes, never
+lifted from a sentence" read as implied-covered when a fence is neither a sentence nor covered. Closed,
+not just named: `stripNonProse` moved to `util.ts` as the one shared source of truth (eval refactored to
+import it — no behavior change, still 100/100), `adopt` strips before extracting, and a RED-first fenced
+test pins it. **Lesson: "I restricted extraction to safe shapes" is a claim to test against the unsafe
+shapes you didn't enumerate — a fence is the sentence you forgot, and the same review that catches
+feature overclaims has to catch the *test suite's* coverage gaps too.**
+
 **What is NOT closed (named, round six).** (1) **Coverage is bounded by design** — extraction reads
 only declared shapes; HTML-table and YAML-in-comment metadata, multi-line owners, and config
 auto-patching are explicit v1 non-goals. A repo whose metadata lives only in tables gets sentinels, not
@@ -499,7 +515,13 @@ the human governing act, *auditable* but not *independently verifiable* — noth
 actually reviewed each `# extracted from prose` value versus rubber-stamping the diff. `--adopt` narrows
 honest review to a readable diff; it cannot enforce that the review happened. (3) **Dogfood was n=1** —
 one real spec, not a run across the whole 86-doc corpus; the extraction heuristics are proven to read
-*that* shape honestly, not measured for coverage across the repo's full variety. Named, not rounded up.
+*that* shape honestly, not measured for coverage across the repo's full variety. (4) **Lane 2 has a
+blind spot symmetric to Round 5's:** it scans vocabulary drift only in docs that *already had* a
+front-matter block, so a doc migrated *this run* whose prose status is out-of-enum (`**Status**:
+shipped`) gets `status: "shipped"` written and fails verify on the enum — with **no** Lane-2 suggestion
+to widen it, because at scan time the doc had no block. The user sees the failure without the vocabulary
+hint. The same `scanned-set excludes the just-changed thing` shape as the Round-5 counter bug, in a new
+place — named here, to fix when a real repo hits it. Named, not rounded up.
 
 **Round-6 verdict:** the loop did the thing it was built to do — a friction signal from the field
 (Round 5) became an accepted RFC and a shipped, tested feature (Round 6) in one governed arc, provenance

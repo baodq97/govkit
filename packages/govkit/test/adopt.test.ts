@@ -71,6 +71,20 @@ describe("runAdopt — Lane 1 front-matter migration", () => {
     expect(status?.source).toBe("missing"); // NOT "extracted: proposed"
   });
 
+  it("CONSERVATISM FLOOR: a `**Status**:` line INSIDE a code fence is NOT extracted — it is the sentinel", () => {
+    // A fenced example is not prose-in-a-sentence but it is still not the doc's own metadata.
+    // Extraction strips code fences (as eval does) before matching, so a doc showing a
+    // front-matter EXAMPLE in a fence does not get that example lifted as its real status.
+    write(
+      "ADR-0008-fenced.md",
+      "# Has An Example\n\nUse a block like:\n\n```\n**Status**: accepted\n```\n\nbut this doc has no real status line.\n",
+    );
+    const result = runAdopt({ root, config: CONFIG });
+    const plan = result.planned.find((p) => p.file.includes("ADR-0008-fenced"));
+    const status = plan?.fields.find((x) => x.key === "status");
+    expect(status?.source).toBe("missing"); // the fenced example is NOT lifted
+  });
+
   it("VALUE-QUOTING + END-TO-END: a colon-in-title doc round-trips; a missing field fails verify after --apply", () => {
     // Two real hazards in one: (1) `# Connector: Secrets` must serialize as quoted YAML or the
     // tool corrupts its own output; (2) the missing-field sentinel must survive YAML parse and
