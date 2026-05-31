@@ -13,10 +13,19 @@ template/          consumer scaffold surface — pins govkit + installs plugin, 
   workflows/       the `sdlc` workflow (PRD→RFC→ADR→US→Code); project-scoped
   agents/          dev-time agents (NOTE: NOT dispatchable from workflows — see § Agents)
 docs/              PRD / RFC / ADR / issues (US) / runbooks — governed by govkit
-govkit.yml         the pluggable governance schema (doc dirs + required front-matter)
+govkit.yml         the pluggable schema: doc dirs + required front-matter + status
+                   lifecycle (`statuses:`) + id convention (`idPrefix:`) + quality
+                   rubric (`eval:`)
 ```
 
 Doc chain: `PRD → RFC → ADR → Issue (US) → Code`.
+
+**Two trust layers (both deterministic, no API key).** `verify` is the structural
+**gate** (front-matter, status enum, id convention, INDEX sync, unique ids, no
+placeholders) — binary, blocks merge. `eval` is the graded quality **trust signal**
+(0–100 vs the `eval:` rubric) — *eval is the source of trust; a passing gate only
+means well-formed.* The eval's own correctness is proven by the labeled
+`packages/govkit/eval/fixtures/{good,weak}/` corpus (see RFC-0001).
 
 ## Commands
 
@@ -29,8 +38,8 @@ Toolchain: **pnpm + TypeScript + Biome + vitest + tsup**, Node ≥ 20. Never han
 | lint | `pnpm lint` (`biome check .`) · format: `pnpm format` |
 | typecheck | `pnpm -r typecheck` |
 | test | `pnpm -r test` (per-pkg: `pnpm --filter govkit test`) |
-| one-shot gate | `pnpm check` (biome + typecheck + tests) — CI runs this |
-| run engine | `node packages/govkit/dist/cli.js verify` |
+| one-shot gate | `pnpm check` (biome + typecheck + tests + `verify` + `eval`) — CI runs this |
+| run engine | `node packages/govkit/dist/cli.js verify` (gate) · `… eval` (graded quality) |
 
 ## Lifecycle — gates by change class
 
@@ -48,10 +57,12 @@ schema) classifies one class higher. When in doubt, classify up.
 
 ## The load-bearing invariant
 
-The deterministic gate lives **only** in the `govkit` CLI and runs with **no API key**:
+Both deterministic layers (`verify` gate + `eval` quality score) live **only** in the
+`govkit` CLI and run with **no API key**:
 - Hooks that enforce are `type: command` only — never `type: prompt`/`type: agent` (those need the model).
-- CI runs the same binary (`govkit check`). A non-Claude contributor is gated identically.
-- Skills/workflows **author** and **call** govkit; they never reimplement the gate.
+- CI runs the same binary (`govkit check` → `verify` then `eval`). A non-Claude contributor is gated identically.
+- Skills/workflows **author** and **call** govkit; they never reimplement the gate or the eval.
+- Any future LLM-judge eval is a separate **opt-in** layer — it must never enter the no-key CI path (RFC-0001).
 
 ## Agents (important constraint, verified empirically)
 

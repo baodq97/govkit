@@ -16,14 +16,33 @@ This is the **ecosystem monorepo**. Four things co-evolve here so they *cannot d
 > published `template/`) and **pin** govkit + **install** the plugin — they never copy the
 > engine source. That is what keeps every downstream repo from drifting.
 
+## Two trust layers
+
+Generation is cheap; **trust is the product.** A document being well-formed — or having
+been produced by an LLM — does not make it good. govkit separates the two questions:
+
+| Layer | Command | Question | Result |
+|---|---|---|---|
+| **Gate** (quality *control*) | `govkit verify` | Is it well-**formed**? | binary pass/fail — blocks merge |
+| **Eval** (quality *trust signal*) | `govkit eval` | Does it carry real **substance**? | graded 0–100 vs a rubric |
+
+The gate enforces front-matter, the status lifecycle, id↔filename convention, INDEX
+sync, unique ids, and no placeholders. The eval grades each artifact against a
+**pluggable rubric** in `govkit.yml` (`eval:`) — e.g. *PRD has a numeric KPI*, *RFC has
+alternatives + open questions*, *US has testable acceptance criteria*. Both are
+deterministic and need **no API key**. *Eval is the source of trust:* its own
+correctness is proven by a labeled `good/`+`weak/` corpus the test suite asserts the
+rubric discriminates.
+
 ## The invariant that shapes everything
 
 A non-Claude-Code contributor must be able to run the governance gates in CI **with no API key**.
-So the deterministic gate lives **only** in the `govkit` CLI:
+So both deterministic layers live **only** in the `govkit` CLI:
 
 - **In Claude Code:** a `PreToolUse` hook (`type: command`) runs `npx govkit audit-write` to block a
-  write that violates front-matter / status / path-permission rules.
-- **In CI:** the *same binary* runs `npx govkit check` — Node only, no Claude, no key.
+  write to a governed doc that lacks complete front-matter.
+- **In CI:** the *same binary* runs `npx govkit check` (→ `verify` then `eval`) — Node only, no
+  Claude, no key.
 - Authoring **skills** and the **`sdlc`** workflow only *author* artifacts and *call* govkit to
   validate; they never embed the gate.
 
@@ -32,10 +51,11 @@ So the deterministic gate lives **only** in the `govkit` CLI:
 ```bash
 pnpm install
 pnpm -r build          # build every package (tsup)
-pnpm check             # biome + typecheck + tests — the one-shot gate
+pnpm check             # biome + typecheck + tests + verify + eval — the one-shot gate
 
 # run the engine against this repo (dogfood)
-node packages/govkit/dist/cli.js verify
+node packages/govkit/dist/cli.js verify   # structural gate
+node packages/govkit/dist/cli.js eval     # graded quality score
 ```
 
 ## Toolchain
@@ -45,6 +65,10 @@ pnpm workspaces · TypeScript (strict) · [Biome](https://biomejs.dev) (lint + f
 
 ## Status
 
-Foundation in progress. `govkit verify` (front-matter gate) is the first ported check; the
-remaining `verify.sh`/`check.sh` checks, the plugin skills, and the `sdlc` workflow land
-incrementally — each behind a passing test. See `AGENTS.md` for the governance this repo runs on itself.
+MVP adoptable. Both trust layers ship and run no-key in CI: `govkit verify` (front-matter,
+status enum, id convention, INDEX sync, unique ids, no placeholders) and `govkit eval`
+(graded rubric proven by a labeled corpus), plus `govkit init` (scaffold) and the
+`audit-write` hook. The `swe-flow` plugin (goal→domain→API→data→spec-author + 3 agents)
+and the `sdlc` workflow author the artifacts the engine grades. See `AGENTS.md` for the
+governance this repo runs on itself. Next: publish (`npx govkit` / marketplace) and an
+optional opt-in LLM-judge eval layer (RFC-0001 § Open questions).
