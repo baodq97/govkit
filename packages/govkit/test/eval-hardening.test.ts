@@ -57,12 +57,18 @@ const here = fileURLToPath(new URL(".", import.meta.url));
 const repoConfig = loadConfig(join(here, "..", "..", ".."));
 const W = (n: number): string => Array(n).fill("word").join(" ");
 
-// Score one ADR body (front-matter auto-added) under the given config.
-function evalAdr(body: string, config: GovkitConfig = CFG): ArtifactScore {
+// Score one governed doc body (front-matter auto-added) under the given config, in a
+// throwaway repo. The per-type wrappers below differ only in dir/filename/front-matter.
+interface DocSpec {
+  dir: string;
+  file: string;
+  frontMatter: string;
+}
+function evalDoc(spec: DocSpec, body: string, config: GovkitConfig): ArtifactScore {
   const root = mkdtempSync(join(tmpdir(), "govkit-eval-"));
-  mkdirSync(join(root, "docs", "adr"), { recursive: true });
-  const fm = "---\nid: ADR-0001\ntitle: t\nstatus: accepted\nowner: TBD\ndate: 2026-05-31\n---\n\n";
-  writeFileSync(join(root, "docs", "adr", "ADR-0001-x.md"), fm + body);
+  const dirParts = spec.dir.split("/");
+  mkdirSync(join(root, ...dirParts), { recursive: true });
+  writeFileSync(join(root, ...dirParts, spec.file), spec.frontMatter + body);
   try {
     const r = runEval({ root, config });
     if (!r.artifacts[0]) throw new Error("no artifact scored");
@@ -72,21 +78,26 @@ function evalAdr(body: string, config: GovkitConfig = CFG): ArtifactScore {
   }
 }
 
+const ADR_SPEC: DocSpec = {
+  dir: "docs/adr",
+  file: "ADR-0001-x.md",
+  frontMatter:
+    "---\nid: ADR-0001\ntitle: t\nstatus: accepted\nowner: TBD\ndate: 2026-05-31\n---\n\n",
+};
+const US_SPEC: DocSpec = {
+  dir: "docs/issues",
+  file: "US-0001-x.md",
+  frontMatter:
+    "---\nid: US-0001\ntitle: t\nstatus: open\nowner: TBD\ndate: 2026-05-31\npriority: P1\n---\n\n",
+};
+
+// Score one ADR body under the given config (defaults to the focused engine-mechanic config).
+const evalAdr = (body: string, config: GovkitConfig = CFG): ArtifactScore =>
+  evalDoc(ADR_SPEC, body, config);
+
 // Score one US body under a config (defaults to the shipped rubric).
-function evalUs(body: string, config: GovkitConfig = repoConfig): ArtifactScore {
-  const root = mkdtempSync(join(tmpdir(), "govkit-eval-us-"));
-  mkdirSync(join(root, "docs", "issues"), { recursive: true });
-  const fm =
-    "---\nid: US-0001\ntitle: t\nstatus: open\nowner: TBD\ndate: 2026-05-31\npriority: P1\n---\n\n";
-  writeFileSync(join(root, "docs", "issues", "US-0001-x.md"), fm + body);
-  try {
-    const r = runEval({ root, config });
-    if (!r.artifacts[0]) throw new Error("no artifact scored");
-    return r.artifacts[0];
-  } finally {
-    rmSync(root, { recursive: true, force: true });
-  }
-}
+const evalUs = (body: string, config: GovkitConfig = repoConfig): ArtifactScore =>
+  evalDoc(US_SPEC, body, config);
 
 const sectionPasses = (a: ArtifactScore): number =>
   a.rules.filter((r) => ["context", "decision", "consequences"].includes(r.id) && r.passed).length;
