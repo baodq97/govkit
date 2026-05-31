@@ -1,17 +1,17 @@
 ---
 id: RFC-0002
 title: Workflow-author — a skill that scaffolds reusable dynamic workflows
-status: draft
-owner: TBD
+status: accepted
+owner: baodq97
 date: 2026-05-31
 ---
 
 > Records a shipped decision for a new public, LLM-facing surface (root `AGENTS.md`
 > § Lifecycle: the swe-flow `workflow-author` skill + the generated
-> `.claude/workflows/*.js` contract). Status stays `draft`; the owner flips it to
-> `accepted` on consensus — never an agent. Written *after* the skill shipped because
-> the gate did not require it (see § Governance scope) — this RFC closes that loop by
-> hand, the way config-not-code intends.
+> `.claude/workflows/*.js` contract). Accepted by the owner (`baodq97`) — the flip from
+> `draft` was a human act, never an agent. Written *after* the skill shipped because the
+> gate did not require it (see § Governance scope); accepting it here closes the
+> lifecycle-ordering gap the learning loop's reviewer flagged, the way config-not-code intends.
 
 ## Summary
 
