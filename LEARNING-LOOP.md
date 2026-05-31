@@ -278,3 +278,39 @@ now lives only on the opt-in `--changed` path; plain `verify` stays pure-fs/no-k
 invariant survived a feature that, done carelessly, would have broken it. Each pass keeps tightening
 the repo against its own blind spots — including the ones in its own RFCs, and the overclaim reflex
 in its own author.
+
+---
+
+## Round 4 — RFC-0005 (`eval --changed` / `check --changed`): close the half Round 3 named
+
+Round 3 ended by naming, not closing, a gap: `--changed` scoped `verify` only, so `govkit check` —
+the documented CI entrypoint — still avalanched an existing repo from the **eval** required-floor.
+This round closes it. RFC-0005 (drafted, owner-accepted, then implemented — the now-standard
+provenance order) threads `--changed` into `eval` and `check`.
+
+- **The asymmetry is the lesson.** `verify` needed "scope the REPORT, never the SCAN" + always-report
+  global-integrity kinds, because a duplicate/reference violation can implicate an *untouched* file.
+  `eval` scores each artifact **independently** — no cross-doc edge — so there is **nothing to mask**;
+  scoping *which artifacts are scored* is both safe and cheaper. I resisted copying verify's heavier
+  mechanism out of false symmetry, and the RFC states the contrast explicitly. **Lesson: the right
+  amount of machinery is a property of the check's data dependencies, not a house style to apply
+  uniformly.** The eval-scoping tests are correspondingly simpler (rubric-agnostic: scope a failing
+  doc out → gate passes; scope it in → still blocks) — no NO-MASK FLOOR test, because there is no
+  floor to breach.
+
+- **What is now true, scoped honestly.** The *whole* no-key gate (`verify` + `eval` + `check`) is
+  adoptable on an existing repo via `check --changed origin/main`: new debt blocks, legacy debt is
+  paid down as docs are touched. Git remains strictly on the opt-in path (resolved once, shared
+  across all three commands); un-flagged commands stay pure-fs/no-key.
+
+- **What is still NOT closed (named, not overclaimed — round four).** (1) **First-touch cost is
+  unchanged by design**: the first time a PR edits a legacy doc, that doc must pass the *full* gate —
+  `--changed` defers the backlog, it does not retrofit it. A `govkit init --adopt` that scaffolds
+  front-matter/INDEX onto existing docs would attack that cost, and does not exist. (2) **Still not
+  field-validated**: exercised against synthetic temp dirs and this repo's own git history, never a
+  real messy legacy repo. The adoption claim is *mechanically* proven, not *empirically* proven.
+
+**Round-4 verdict:** the loop did what it was asked — the gap Round 3 *named* is the gap Round 4
+*closed*, and the new round named its own residue (first-touch cost, no field test) rather than
+declaring victory. Four rounds in, the discipline that compounds is not the engine features; it is
+**closing named gaps in order and refusing to round "mechanically correct" up to "done."**
