@@ -1,0 +1,19 @@
+{
+  "name": "govkit",
+  "owner": { "name": "baodq97" },
+  "plugins": [
+    {
+      "name": "swe-flow",
+      "source": {
+        "source": "git-subdir",
+        "url": "https://github.com/baodq97/govkit.git",
+        "path": "plugins/swe-flow"
+      },
+      "description": "LLM authoring companion to the govkit governance engine: spec-author skill + implementer/reviewer/doc-keeper agents.",
+      "version": "0.1.0",
+      "author": { "name": "baodq97" },
+      "license": "MIT",
+      "keywords": ["sdlc", "governance", "ddd", "prd", "rfc", "adr"]
+    }
+  ]
+}

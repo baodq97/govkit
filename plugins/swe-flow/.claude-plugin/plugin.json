@@ -1,0 +1,8 @@
+{
+  "name": "swe-flow",
+  "version": "0.1.0",
+  "description": "LLM authoring companion to the govkit governance engine: a spec-author skill that turns design output into governed PRD/RFC/ADR/US artifacts, plus implementer/reviewer/doc-keeper agents. Authors artifacts and calls `npx govkit verify`; never embeds the deterministic gate.",
+  "author": { "name": "baodq97" },
+  "license": "MIT",
+  "keywords": ["sdlc", "governance", "ddd", "prd", "rfc", "adr", "docs-as-code"]
+}
