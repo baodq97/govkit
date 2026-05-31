@@ -1,0 +1,10 @@
+schemaVersion: 1
+docs:
+  ignore: [INDEX.md, _TEMPLATE.md]
+  base:
+    required: [id, title, status, owner, date]
+  types:
+    adr:
+      dir: docs/adr
+      required: [id, title, status, owner, date]
+      startStatus: proposed

@@ -1,0 +1,29 @@
+name: ci
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10.33.0
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+
+      # The one-shot gate: Biome + typecheck + build + tests + `govkit verify`.
+      # No ANTHROPIC_API_KEY, no Claude — the deterministic governance gate runs
+      # on plain Node, so a non-Claude contributor's PR is gated identically.
+      - run: pnpm check
