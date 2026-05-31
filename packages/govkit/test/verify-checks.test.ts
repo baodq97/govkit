@@ -110,6 +110,67 @@ describe("runVerify — chain referential-integrity (RFC-0003)", () => {
   });
 });
 
+describe("runVerify — --changed report scoping (RFC-0004)", () => {
+  // Build the changed-set the CLI would derive from git — absolute paths under docs/adr.
+  const changedSet = (...names: string[]) => ({
+    files: new Set(names.map((n) => join(root, "docs", "adr", n))),
+    ref: "origin/main",
+  });
+
+  it("scopes per-doc violations to the changed set, and records the scope", () => {
+    write("ADR-0001-x.md", { id: "ADR-0001", status: "bogus", ...base }); // untouched, bad status
+    write("ADR-0002-y.md", { id: "ADR-0002", status: "alsobad", ...base }); // changed, bad status
+    indexRows("ADR-0001", "ADR-0002");
+
+    const result = runVerify({ root, config: CONFIG, changed: changedSet("ADR-0002-y.md") });
+    const status = result.violations.filter((v) => v.kind === "status");
+    expect(status).toHaveLength(1);
+    expect(status[0]?.file).toContain("ADR-0002"); // untouched ADR-0001's bad status is NOT reported
+    expect(result.scoped).toEqual({ ref: "origin/main", changedDocs: 1 });
+  });
+
+  it("NO-MASK FLOOR: a new doc duplicating an UNTOUCHED doc's id is still reported", () => {
+    // The duplicate violation's `file` is the alphabetically-first colliding doc — the
+    // UNTOUCHED one — so a naive `changed.has(v.file)` filter would mask it. It must not.
+    write("ADR-0001-original.md", { id: "ADR-0001", status: "proposed", ...base }); // untouched
+    write("ADR-0001-sneaky.md", { id: "ADR-0001", status: "proposed", ...base }); // changed (new)
+    indexRows("ADR-0001");
+
+    const result = runVerify({ root, config: CONFIG, changed: changedSet("ADR-0001-sneaky.md") });
+    const dup = result.violations.filter((v) => v.kind === "duplicate");
+    expect(dup).toHaveLength(1);
+    expect(dup[0]?.problems.join(" ")).toContain("ADR-0001");
+  });
+
+  it("NO-MASK FLOOR: a dangling reference in a changed doc is reported", () => {
+    write("ADR-0001-root.md", { id: "ADR-0001", status: "proposed", ...base }); // untouched
+    write("ADR-0002-bad.md", { id: "ADR-0002", status: "proposed", parent: "ADR-9999", ...base }); // changed, dangling
+    indexRows("ADR-0001", "ADR-0002");
+
+    const result = runVerify({ root, config: CONFIG, changed: changedSet("ADR-0002-bad.md") });
+    const refs = result.violations.filter((v) => v.kind === "reference");
+    expect(refs).toHaveLength(1);
+    expect(refs[0]?.file).toContain("ADR-0002");
+  });
+
+  it("keeps an INDEX violation when a changed doc shares its type", () => {
+    write("ADR-0001-x.md", { id: "ADR-0001", status: "proposed", ...base }); // changed, no INDEX row
+    indexRows(); // empty INDEX → ADR-0001 has no row
+
+    const result = runVerify({ root, config: CONFIG, changed: changedSet("ADR-0001-x.md") });
+    expect(result.violations.some((v) => v.kind === "index")).toBe(true);
+  });
+
+  it("suppresses a per-doc violation when no doc in its type changed", () => {
+    write("ADR-0001-x.md", { id: "ADR-0001", status: "bogus", ...base }); // untouched, bad status
+    indexRows("ADR-0001");
+
+    const result = runVerify({ root, config: CONFIG, changed: changedSet("nothing-here.md") });
+    expect(result.violations.filter((v) => v.kind === "status")).toHaveLength(0);
+    expect(result.ok).toBe(true);
+  });
+});
+
 describe("runVerify — placeholder", () => {
   it("flags an angle-bracket / token placeholder but NOT owner: TBD", () => {
     write("ADR-0001-x.md", {

@@ -24,11 +24,18 @@ export interface VerifyResult {
   ok: boolean;
   checked: number;
   violations: Violation[];
+  /** Set only when `changed` scoping was applied — names the base ref and how many
+   *  governed docs fell in the changed set, so output is never silently scoped. */
+  scoped?: { ref: string; changedDocs: number };
 }
 
 export interface VerifyOptions {
   root: string;
   config?: GovkitConfig;
+  /** `--changed` adoption mode (RFC-0004): absolute paths of new-or-modified governed
+   *  docs. When provided, the full scan still runs (so cross-doc checks stay correct),
+   *  but the REPORT is scoped — see scopeToChanged. `ref` is recorded for output only. */
+  changed?: { files: Set<string>; ref: string };
 }
 
 interface Doc {
@@ -194,6 +201,29 @@ function checkReferences(docs: Doc[], types: Record<string, DocType>): Violation
   return violations;
 }
 
+// RFC-0004 adoption scoping: keep ONLY the violations a changed set is responsible for,
+// so an existing repo can adopt govkit without retrofitting its whole backlog first. The
+// load-bearing rule is "scope the REPORT, never the SCAN" — runVerify already scanned ALL
+// docs to build global state, so cross-doc checks are correct; here we filter what is
+// emitted. Per-doc violations (frontmatter, status, id, placeholder) are kept only for a
+// changed file. An INDEX violation is kept when a changed doc shares its type (a changed
+// doc can make an unchanged INDEX stale). Global-integrity violations — `duplicate` and
+// `reference` — are ALWAYS kept: a new doc duplicating an UNTOUCHED doc's id (the colliding
+// pair's reported file may be the untouched one) or pointing at a dangling id must never be
+// masked. Masking a real new violation is the exact "looks-enforced-but-isn't" leak govkit
+// exists to prevent, so the no-mask floor wins over tighter scoping for these two kinds.
+function scopeToChanged(violations: Violation[], docs: Doc[], changed: Set<string>): Violation[] {
+  const changedTypes = new Set<string>();
+  for (const doc of docs) {
+    if (changed.has(doc.file)) changedTypes.add(doc.type);
+  }
+  return violations.filter((v) => {
+    if (v.kind === "duplicate" || v.kind === "reference") return true;
+    if (v.kind === "index") return changedTypes.has(v.type);
+    return changed.has(v.file);
+  });
+}
+
 // The read-only governance gate: structural quality control across every governed
 // doc — front-matter completeness, status-enum, id convention, INDEX sync, globally
 // unique ids, no unresolved placeholders, and chain referential-integrity. Pure w.r.t. its inputs (reads fs,
@@ -255,5 +285,18 @@ export function runVerify(opts: VerifyOptions): VerifyResult {
 
   violations.push(...checkDuplicateIds(allDocs));
   violations.push(...checkReferences(allDocs, types));
+
+  if (opts.changed) {
+    const scoped = scopeToChanged(violations, allDocs, opts.changed.files);
+    return {
+      ok: scoped.length === 0,
+      checked,
+      violations: scoped,
+      scoped: {
+        ref: opts.changed.ref,
+        changedDocs: allDocs.filter((d) => opts.changed?.files.has(d.file)).length,
+      },
+    };
+  }
   return { ok: violations.length === 0, checked, violations };
 }

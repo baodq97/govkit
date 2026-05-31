@@ -3,13 +3,14 @@ import { type AuditDecision, auditWrite, type HookInput } from "./commands/audit
 import { type EvalResult, runEval } from "./commands/eval";
 import { type InitResult, runInit } from "./commands/init";
 import { runVerify, type VerifyResult } from "./commands/verify";
+import { gitChangedDocs, resolveChangedBase } from "./util";
 
 const HELP = `govkit — deterministic docs-as-code governance engine
 
 Usage:
   govkit init         [--root <dir>] [--force]
   govkit check        [--root <dir>]        (verify + eval — the no-key CI gate)
-  govkit verify       [--root <dir>] [--json]
+  govkit verify       [--root <dir>] [--json] [--changed [--base <ref>]]
   govkit eval         [--root <dir>] [--json]
   govkit audit-write  [--root <dir>]        (reads a PreToolUse hook payload on stdin)
 
@@ -28,6 +29,11 @@ Commands:
 Options:
   --root       Repo root containing govkit.yml (default: cwd, or the hook's cwd).
   --json       Machine-readable output (verify only).
+  --changed    Adoption mode (verify only): report violations only for docs that are
+               new-or-modified vs --base. Cross-doc checks still scan the whole repo;
+               only the report is scoped, so a new doc duplicating an existing id or
+               pointing at a dangling ref is still caught. Requires git.
+  --base       Base ref for --changed (default: origin/main, else HEAD).
   --force      Overwrite existing files (init only).
   -h, --help   Show this help.
 `;
@@ -42,12 +48,18 @@ function readStdin(): Promise<string> {
 }
 
 function printVerify(result: VerifyResult): void {
+  // Never silently scope: when --changed narrowed the report, say so explicitly.
+  const scope = result.scoped
+    ? ` (changed-set vs ${result.scoped.ref}: ${result.scoped.changedDocs} doc(s); cross-doc checks scanned all ${result.checked})`
+    : "";
   if (result.ok) {
-    process.stdout.write(`govkit verify: OK — ${result.checked} doc(s) checked, 0 violations.\n`);
+    process.stdout.write(
+      `govkit verify: OK — ${result.checked} doc(s) checked, 0 violations${scope}.\n`,
+    );
     return;
   }
   process.stderr.write(
-    `govkit verify: FAIL — ${result.violations.length} doc(s) with violations:\n`,
+    `govkit verify: FAIL — ${result.violations.length} doc(s) with violations${scope}:\n`,
   );
   for (const v of result.violations) {
     process.stderr.write(`  ${v.file} [${v.type}]\n`);
@@ -116,6 +128,8 @@ async function main(argv: string[]): Promise<number> {
     options: {
       root: { type: "string" },
       json: { type: "boolean", default: false },
+      changed: { type: "boolean", default: false },
+      base: { type: "string" },
       force: { type: "boolean", default: false },
       help: { type: "boolean", short: "h", default: false },
     },
@@ -139,7 +153,23 @@ async function main(argv: string[]): Promise<number> {
       return 0;
     }
     case "verify": {
-      const result = runVerify({ root: values.root ?? process.cwd() });
+      const root = values.root ?? process.cwd();
+      // `--changed` is the only path that touches git (lazily); plain verify stays
+      // pure-fs/no-key. A git/ref failure throws a clear error rather than silently
+      // full-scanning (which would re-introduce the avalanche the flag prevents).
+      let changed: { files: Set<string>; ref: string } | undefined;
+      if (values.changed) {
+        try {
+          const ref = resolveChangedBase(root, values.base);
+          changed = { files: gitChangedDocs(root, ref), ref };
+        } catch (err) {
+          // A clear one-line error + non-zero exit — never a silent full-scan, which
+          // would re-introduce the avalanche --changed exists to prevent.
+          process.stderr.write(`${err instanceof Error ? err.message : String(err)}\n`);
+          return 1;
+        }
+      }
+      const result = runVerify({ root, changed });
       if (values.json) process.stdout.write(`${JSON.stringify(result, null, 2)}\n`);
       else printVerify(result);
       return result.ok ? 0 : 1;
