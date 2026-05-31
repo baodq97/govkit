@@ -7,9 +7,20 @@ Everything **calls** `npx govkit verify` to validate — nothing embeds the dete
 
 ## Components
 
-- **`skills/spec-author`** — author a PRD / RFC / ADR / US from design output (`docs/domain`,
-  `docs/api`, `docs/data`) with correct front-matter + INDEX row, then self-validate via
-  `npx govkit verify`. Discovers doc dirs + required keys from the consumer's `govkit.yml`.
+**Skills — the SDLC chain** (`goal → domain → API → data → governed artifact`):
+
+- **`skills/goal-define`** — structure a clear, verifiable goal from rough input.
+- **`skills/domain-decompose`** — DDD: prose → bounded contexts, aggregates, entities, value
+  objects, events → `docs/domain` (delta-merge on re-run).
+- **`skills/api-designer`** — domain → OpenAPI 3.1 contract → `docs/api`.
+- **`skills/data-model`** — domain → relational schema (+ PostgreSQL projection) → `docs/data`;
+  forward or audit mode.
+- **`skills/spec-author`** — turn design output into a governed **PRD / RFC / ADR / US** with
+  correct front-matter + INDEX row, then self-validate via `npx govkit verify`. Discovers doc
+  dirs + required keys from the consumer's `govkit.yml`.
+
+**Agents** (plugin-namespaced — usable from the `sdlc` workflow):
+
 - **`agents/implementer`** — write-only fan-out member; builds one file-disjoint work package
   from a task contract. Never runs build/git/govkit (the lead integrates).
 - **`agents/reviewer`** — read-only governance review → `APPROVE` / `SHIP-WITH-CAVEATS` / `BLOCK`.
