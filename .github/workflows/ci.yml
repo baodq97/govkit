@@ -23,7 +23,8 @@ jobs:
 
       - run: pnpm install --frozen-lockfile
 
-      # The one-shot gate: Biome + typecheck + build + tests + `govkit verify`.
-      # No ANTHROPIC_API_KEY, no Claude — the deterministic governance gate runs
-      # on plain Node, so a non-Claude contributor's PR is gated identically.
+      # The one-shot gate: Biome + typecheck + build + tests + `govkit verify`
+      # (structural quality control) + `govkit eval` (graded quality trust signal).
+      # No ANTHROPIC_API_KEY, no Claude — both deterministic layers run on plain
+      # Node, so a non-Claude contributor's PR is gated identically.
       - run: pnpm check

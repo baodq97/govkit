@@ -1,5 +1,6 @@
 import { parseArgs } from "node:util";
 import { type AuditDecision, auditWrite, type HookInput } from "./commands/audit-write";
+import { type EvalResult, runEval } from "./commands/eval";
 import { type InitResult, runInit } from "./commands/init";
 import { runVerify, type VerifyResult } from "./commands/verify";
 
@@ -8,12 +9,16 @@ const HELP = `govkit — deterministic docs-as-code governance engine
 Usage:
   govkit init         [--root <dir>] [--force]
   govkit verify       [--root <dir>] [--json]
+  govkit eval         [--root <dir>] [--json]
   govkit audit-write  [--root <dir>]        (reads a PreToolUse hook payload on stdin)
 
 Commands:
   init         Scaffold govkit governance into a repo (govkit.yml, the PreToolUse
                hook, and docs/{product,rfc,adr,issues}/INDEX.md). Idempotent.
-  verify       Check every governed doc has complete front-matter + INDEX sync.
+  verify       Structural GATE: front-matter, status enum, id convention, INDEX
+               sync, unique ids, no placeholders. Binary pass/fail (quality control).
+  eval         Quality TRUST signal: grade each governed artifact 0–100 against the
+               deterministic rubric in govkit.yml. Fails below the threshold.
   audit-write  PreToolUse hook gate: block a Write to a governed doc that lacks
                complete front-matter. Emits the Claude Code permissionDecision JSON.
 
@@ -44,6 +49,25 @@ function printVerify(result: VerifyResult): void {
   for (const v of result.violations) {
     process.stderr.write(`  ${v.file} [${v.type}]\n`);
     for (const problem of v.problems) process.stderr.write(`    - ${problem}\n`);
+  }
+}
+
+function printEval(result: EvalResult): void {
+  if (result.note) {
+    process.stdout.write(`govkit eval: ${result.note}\n`);
+    return;
+  }
+  const pct = Math.round(result.passRate * 100);
+  const header = result.ok ? "OK" : "FAIL";
+  const stream = result.ok ? process.stdout : process.stderr;
+  stream.write(
+    `govkit eval: ${header} — ${result.scored} artifact(s), avg ${result.averageScore}/100, ` +
+      `${pct}% ≥ threshold ${result.threshold}.\n`,
+  );
+  for (const a of result.artifacts) {
+    const mark = a.passed ? "ok  " : "LOW ";
+    stream.write(`  ${mark} ${a.score}/100  ${a.file} [${a.type}]\n`);
+    if (!a.passed) for (const m of a.missed) stream.write(`         - missing: ${m}\n`);
   }
 }
 
@@ -107,6 +131,12 @@ async function main(argv: string[]): Promise<number> {
       const result = runVerify({ root: values.root ?? process.cwd() });
       if (values.json) process.stdout.write(`${JSON.stringify(result, null, 2)}\n`);
       else printVerify(result);
+      return result.ok ? 0 : 1;
+    }
+    case "eval": {
+      const result = runEval({ root: values.root ?? process.cwd() });
+      if (values.json) process.stdout.write(`${JSON.stringify(result, null, 2)}\n`);
+      else printEval(result);
       return result.ok ? 0 : 1;
     }
     case "audit-write": {

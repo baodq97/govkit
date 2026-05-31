@@ -1,9 +1,12 @@
 # govkit governance schema — the single pluggable interface the engine reads.
-# Doc dirs and required front-matter keys are CONFIG, not hardcoded in the CLI,
-# so any repo (any doc layout) can adopt govkit by editing this file.
+# Doc dirs, required keys, lifecycle states, and the quality rubric are CONFIG,
+# not hardcoded in the CLI, so any repo (any doc layout / quality bar) adopts
+# govkit by editing this file.
 schemaVersion: 1
 
-# Front-matter keys every governed doc must carry. Per-type rows extend the base.
+# ── Layer 1: the structural GATE (`govkit verify`) ───────────────────────────
+# Front-matter completeness · status ∈ allowed set · id↔filename convention ·
+# INDEX sync · globally-unique ids · no unresolved placeholders. Binary pass/fail.
 docs:
   ignore: [INDEX.md, _TEMPLATE.md]
   base:
@@ -12,16 +15,56 @@ docs:
     prd:
       dir: docs/product
       required: [id, title, status, owner, date]
+      idPrefix: PRD
       startStatus: draft
+      statuses: [draft, review, approved, rejected, superseded]
     rfc:
       dir: docs/rfc
       required: [id, title, status, owner, date]
+      idPrefix: RFC
       startStatus: draft
+      statuses: [draft, proposed, accepted, rejected, superseded]
     adr:
       dir: docs/adr
       required: [id, title, status, owner, date]
+      idPrefix: ADR
       startStatus: proposed
+      statuses: [proposed, accepted, rejected, superseded]
     us:
       dir: docs/issues
       required: [id, title, status, owner, date, priority]
+      idPrefix: US
       startStatus: open
+      statuses: [open, in-progress, blocked, done, wontfix]
+
+# ── Layer 2: the quality EVAL (`govkit eval`) ────────────────────────────────
+# Deterministic, no-API-key scorers grading whether a GENERATED artifact is
+# actually good (not merely structurally valid). Graded 0–100 per artifact;
+# below `threshold` fails. Eval is the source of trust — a passing gate proves
+# the doc is well-formed, a passing eval proves it carries real substance.
+eval:
+  threshold: 70
+  rubrics:
+    prd:
+      - { id: kpi, weight: 30, kind: regex, pattern: '\d+\s*(%|x|×|ms|s|/mo|/day|users|req|target)', desc: "≥1 numeric KPI / target" }
+      - { id: persona, weight: 20, kind: section, pattern: 'persona|user|audience|who', desc: "explicit persona / audience" }
+      - { id: metric, weight: 20, kind: section, pattern: 'success|metric|kpi|goal', desc: "success metric section" }
+      - { id: problem, weight: 15, kind: section, pattern: 'problem|background|context|why', desc: "problem framing" }
+      - { id: scope, weight: 15, kind: section, pattern: 'scope|non-?goal|out of scope', desc: "scope / non-goals" }
+    rfc:
+      - { id: summary, weight: 20, kind: section, pattern: 'summary|overview|proposal', desc: "summary / proposal" }
+      - { id: alternatives, weight: 25, kind: section, pattern: 'alternative|trade-?off|option', desc: "alternatives + trade-offs" }
+      - { id: openq, weight: 20, kind: section, pattern: 'open question|unresolved', desc: "open questions" }
+      - { id: impact, weight: 20, kind: section, pattern: 'impact|migration|rollout|risk', desc: "impact / rollout / risk" }
+      - { id: decision, weight: 15, kind: section, pattern: 'decision|recommendation|proposed', desc: "stated recommendation" }
+    adr:
+      - { id: context, weight: 30, kind: section, pattern: 'context', desc: "context section" }
+      - { id: decision, weight: 30, kind: section, pattern: 'decision', desc: "decision section" }
+      - { id: consequences, weight: 30, kind: section, pattern: 'consequence|trade-?off|result', desc: "consequences section" }
+      - { id: substance, weight: 10, kind: minWords, min: 80, desc: "non-stub (≥80 words)" }
+    us:
+      - { id: story, weight: 20, kind: regex, pattern: 'as an? .+ i want', desc: "user-story form" }
+      - { id: acceptance, weight: 30, kind: section, pattern: 'acceptance|criteria', desc: "acceptance criteria" }
+      - { id: testable, weight: 25, kind: regex, pattern: '(given|when|then|\[ \]|\[x\])', desc: "testable / checklist criteria" }
+      - { id: priority, weight: 15, kind: frontmatter, key: priority, desc: "priority set" }
+      - { id: substance, weight: 10, kind: minWords, min: 40, desc: "non-stub (≥40 words)" }
