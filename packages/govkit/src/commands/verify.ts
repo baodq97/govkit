@@ -212,12 +212,22 @@ function checkReferences(docs: Doc[], types: Record<string, DocType>): Violation
 // pair's reported file may be the untouched one) or pointing at a dangling id must never be
 // masked. Masking a real new violation is the exact "looks-enforced-but-isn't" leak govkit
 // exists to prevent, so the no-mask floor wins over tighter scoping for these two kinds.
-function scopeToChanged(violations: Violation[], docs: Doc[], changed: Set<string>): Violation[] {
+function scopeToChanged(
+  violations: Violation[],
+  scanned: { file: string; type: string }[],
+  docs: Doc[],
+  changed: Set<string>,
+): Violation[] {
+  // `changedTypes` comes from the SCANNED superset (so an unparseable changed doc still
+  // marks its type changed → its own INDEX/frontmatter concern surfaces); `changedIds`
+  // comes from parsed docs only (an unparseable doc has no id to contribute).
   const changedTypes = new Set<string>();
   const changedIds = new Set<string>();
+  for (const s of scanned) {
+    if (changed.has(s.file)) changedTypes.add(s.type);
+  }
   for (const doc of docs) {
     if (!changed.has(doc.file)) continue;
-    changedTypes.add(doc.type);
     const id = str(doc.data.id);
     if (id) changedIds.add(id);
   }
@@ -255,6 +265,10 @@ export function runVerify(opts: VerifyOptions): VerifyResult {
   const { ignore, base, types } = config.docs;
   const violations: Violation[] = [];
   const allDocs: Doc[] = [];
+  // Every file scanned, parseable or not, with its type. `allDocs` EXCLUDES docs that fail
+  // front-matter parse (they early-out below), so it can't answer "what changed" for the
+  // --changed scope — an unparseable changed doc would read as 0. This superset can. (RFC-0004)
+  const scannedFiles: { file: string; type: string }[] = [];
   let checked = 0;
 
   for (const [typeName, def] of Object.entries(types)) {
@@ -263,6 +277,7 @@ export function runVerify(opts: VerifyOptions): VerifyResult {
 
     for (const file of listMarkdown(join(opts.root, def.dir), ignore)) {
       checked++;
+      scannedFiles.push({ file, type: typeName });
       const fm = parseFrontMatter(readFileSync(file, "utf8"));
       if (!fm) {
         violations.push({
@@ -307,14 +322,14 @@ export function runVerify(opts: VerifyOptions): VerifyResult {
   violations.push(...checkReferences(allDocs, types));
 
   if (opts.changed) {
-    const scoped = scopeToChanged(violations, allDocs, opts.changed.files);
+    const scoped = scopeToChanged(violations, scannedFiles, allDocs, opts.changed.files);
     return {
       ok: scoped.length === 0,
       checked,
       violations: scoped,
       scoped: {
         ref: opts.changed.ref,
-        changedDocs: allDocs.filter((d) => opts.changed?.files.has(d.file)).length,
+        changedDocs: scannedFiles.filter((s) => opts.changed?.files.has(s.file)).length,
       },
     };
   }

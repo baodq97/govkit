@@ -350,3 +350,92 @@ post-mortem* (the "audit complete" framing). Four rounds in, the discipline that
 engine features; it is **closing named gaps in order, auditing the whole class when one instance is
 found, refusing to round "mechanically correct" up to "done," and turning that same skepticism on
 your own audit claims — especially when your own tests can't see the gap.**
+
+---
+
+## Round 5 — Field test on a real existing repo: close "mechanically proven, not empirically proven"
+
+Round 4 named the last residue plainly: the adoption claim was *mechanically* proven (synthetic temp
+dirs + this repo's own git history), never *empirically* proven against a real messy legacy repo. The
+user closed it: *"field-test it against a real existing repo"* → *"@../a-real-private-repo"* →
+*"just clone new and don't commit anything."* I cloned a disposable copy of the user's real platform
+repo (86 governed docs, a feature branch with 2 changed specs) and pointed a throwaway `govkit.yml` at
+its `docs/specs` + `docs/custom-docs/prd`. **The real repo is never touched or committed to — the
+test runs only on the disposable clone.** (First I had to fix my own breach: I'd written `govkit.yml`
+into the real repo and removed it immediately when the user said "don't commit anything." The
+discipline is the user's, enforced by the user — recorded, not smoothed over.)
+
+**The avalanche is real, and Round-3's survivorship diagnosis was exactly right.** Full `verify`:
+`86 checked | 117 problems | by kind {frontmatter:114, status:2, index:1}`. The day-one death the
+whole `--changed` line was built to prevent, measured on a real repo for the first time.
+`verify --changed --base origin/main` tamed it to the **2** specs the PR actually changed — the
+mechanism works on real data, on real Windows paths (which also retroactively validates the
+path-normalization I'd worried about two rounds ago, never having run it on Windows against a real
+checkout).
+
+**The headline finding reframes the adoption cost — for at least some docs it is not "write missing
+metadata" but "convert metadata you already have."** The 2 flagged specs report `missing YAML
+front-matter` — yet their first lines carry `**Status**: Proposed · **Date**: 2026-05-29 · **Owner**:
+Platform`: title, status, date, *and* owner, all present, in **prose**. govkit demands one specific
+syntax (a leading `---` YAML block) and is blind to metadata in any other form. A team pointed at this
+gate hears "you have no metadata" while staring at docs full of it — precisely what gets a tool
+dismissed as obtuse. **The honest scope of the claim:** this is an *existence proof* from n=2 (the only
+two docs the PR touched, hence the only two I inspected) — it proves *some* legacy docs carry complete
+metadata in prose, so the adoption cost **includes migration, not only authoring**. The proportion
+across all 114 front-matter failures is **unquantified** — categorizing them is `init --adopt`'s own
+design work, not this record's, and I deliberately did not re-clone to count (the existence proof
+already carries the actionable conclusion). That conclusion: it moves `govkit init --adopt` (named as
+speculative in Round 4) from "nice to have" to **data-motivated**. A synthetic test could never have
+surfaced even the existence proof — every fixture I wrote *starts* from front-matter.
+
+**A second facet of the same root finding:** the run also showed `status:2` — two docs
+(`us-4870`/`us-4871`) that *did* adopt front-matter but declare `status: shipped`, a value the
+throwaway config's enum omits. So the gate's expectations are **vocabulary**, not only syntax: both the
+*form* (YAML block) and the *terms* (the status enum) must be fitted to the repo being adopted. Same
+root, two faces — another input to `init --adopt`'s design.
+
+**The field test caught a bug invisible to the entire synthetic suite — and it had two faces.** The
+`--changed` output read `changed-set: 0 doc(s)` while reporting 2 violations. Diagnosis: a changed doc
+with **no parseable front-matter** hits `if (!fm) continue` in `runVerify` and never lands in
+`allDocs` — and `changedDocs` (the scope counter) *and* `changedTypes` (in `scopeToChanged`) were both
+derived from `allDocs`. So an unparseable changed doc was structurally invisible to the scope logic.
+**Face one (a reporting lie):** the counter said 0 while the per-doc file filter — which works on the
+path regardless of `allDocs` membership — correctly reported the 2. **Face two (a real masking,
+discovered only after the fix):** because the unparseable changed docs never marked their *type* as
+changed, `scopeToChanged` was **suppressing the type's missing-INDEX check entirely** — a genuine
+structural gap (`docs/specs` has no INDEX file at all) went unreported. The fix: push every scanned
+file (parseable or not) into a `scannedFiles` superset and derive `changedDocs` + `changedTypes` from
+it; leave `changedIds` on parsed docs (an unparseable doc has no id to contribute). **Caught RED-first**
+— every synthetic fixture used the `doc()` helper, which always emits front-matter, so the suite was
+*structurally blind*; the regression test writes raw front-matter-less markdown, the one shape the
+whole suite couldn't express. **Lesson: a test suite is blind to the exact malformations its fixtures
+can't represent — and a real repo's docs are malformed in ways no fixture author thinks to write.**
+
+**The un-masked INDEX line is correct surfacing, not a re-introduced flood — verified empirically, not
+just argued.** Fixing face two made `missing INDEX.md for 19 spec doc(s)` appear, which *looked* like
+the Round-4 flood class returning (a PR touching 2 docs demanding a 19-doc backfill). It is not, and
+the discriminator is concrete: the changed specs are unparseable → no id → `changedIds` is **empty** →
+once an INDEX file *exists*, every untouched doc's `has no row` line is filtered out. I confirmed it on
+the live clone: `touch docs/specs/INDEX.md` → re-run → the INDEX violation **vanishes**, leaving
+exactly the 2 front-matter violations. The adoption cost is **one empty file**, not 19 rows.
+Suppressing the line instead (the tempting "fix") would have masked a real structural gap — the same
+`looks-enforced-but-isn't` leak the always-report rule guards. So the line stays; a unit test now locks
+"unparseable changed doc + missing INDEX → surfaces the line; empty INDEX clears it; untouched rows
+never demanded." **Known polish item (not a bug):** the `19` in the message counts parsed specs and
+cosmetically overstates the one-file fix — noted, not fixed.
+
+**Round-5 verdict:** the field test did exactly its job — it *empirically* validated the `--changed`
+mechanism on a real repo (117→2) and, in the same run, surfaced two things no synthetic test could:
+(1) the adoption cost **includes metadata migration, not only authoring** (existence-proven on the 2
+touched specs; proportion unquantified) plus a **vocabulary** mismatch beside the syntax one — together
+enough to turn `init --adopt` from speculation into the obvious next move; and (2) a counter that lied
+*and* a check
+that was being silently suppressed, both rooted in the same `allDocs`-excludes-unparseable-docs blind
+spot, both invisible to a fixture suite that can only write well-formed docs. Five rounds in, the
+compounding lesson sharpens once more: **the survivorship that makes this repo green is the same
+survivorship that makes its tests blind — only contact with a real, messy repo shows you the
+malformations you never thought to fixture, and the product cost you mis-stated from the inside.**
+And the sixth instance of the overclaim reflex was caught in this very record, pre-commit: the first
+draft generalized "migration not authoring" from an n=2 sample to all 114 failures — softened to the
+existence proof it actually is. `init --adopt` (prose → front-matter migration, plus repo-fitted status
+vocabulary) is the data-motivated next move — named, not built; to be pulled by the user, not assumed.

@@ -192,6 +192,54 @@ describe("runVerify — --changed report scoping (RFC-0004)", () => {
     expect(result.violations.some((v) => v.kind === "duplicate")).toBe(true); // flood-by-design
   });
 
+  it("counts a changed doc with NO front-matter and reports only its violation (field-test Round-5)", () => {
+    // The field test surfaced this: a changed doc with no YAML front-matter hits the
+    // `if (!fm) continue` early-out in runVerify and never lands in `allDocs`. Since the
+    // scope counter (and changedTypes) derived from `allDocs`, an unparseable changed doc
+    // read as "0 doc(s)" while its own frontmatter violation WAS reported — the counter
+    // lied. Every synthetic fixture above uses the `doc()` helper, which always emits
+    // front-matter, so the suite was structurally blind to this. Write raw markdown.
+    writeFileSync(join(root, "docs", "adr", "ADR-0001-touched.md"), "# no front-matter here\n"); // changed
+    writeFileSync(join(root, "docs", "adr", "ADR-0002-legacy.md"), "# also none\n"); // untouched
+    indexRows();
+
+    const result = runVerify({ root, config: CONFIG, changed: changedSet("ADR-0001-touched.md") });
+    const fm = result.violations.filter((v) => v.kind === "frontmatter");
+    expect(fm).toHaveLength(1); // only the changed doc's missing-front-matter is reported
+    expect(fm[0]?.file).toContain("ADR-0001-touched");
+    expect(result.scoped?.changedDocs).toBe(1); // the counter no longer reads 0
+  });
+
+  it("un-masks missing-INDEX for a type whose only changed doc is unparseable, and an empty INDEX clears it", () => {
+    // The counter bug had a SECOND face the field test exposed: an unparseable changed doc
+    // never landed in allDocs, so its type wasn't marked changed, so scopeToChanged
+    // SUPPRESSED the type's INDEX check entirely — a real structural gap (no INDEX file at
+    // all) went unreported. The fix derives changedTypes from the scanned superset, so the
+    // missing-INDEX line now surfaces. Crucially it is NOT a flood: the changed doc has no
+    // id, so changedIds is empty, so once an INDEX file exists every untouched doc's
+    // "has no row" line is filtered out — creating an EMPTY INDEX.md clears the violation
+    // (one file, not a 19-row backfill). Confirmed against a real repo, locked here.
+    writeFileSync(join(root, "docs", "adr", "ADR-0001-touched.md"), "# no front-matter\n"); // changed, unparseable
+    write("ADR-0002-legacy.md", { id: "ADR-0002", status: "proposed", ...base }); // untouched, parseable
+    // No INDEX.md written → it is entirely missing.
+
+    const missing = runVerify({ root, config: CONFIG, changed: changedSet("ADR-0001-touched.md") });
+    const idx = missing.violations.filter((v) => v.kind === "index");
+    expect(idx).toHaveLength(1);
+    expect(idx[0]?.problems.join(" ")).toContain("missing INDEX.md"); // the structural gap surfaces
+
+    // Now create an EMPTY INDEX (no rows). The missing-file branch is skipped; ADR-0002's
+    // "has no row" is filtered out because changedIds is empty → INDEX violation clears.
+    writeFileSync(join(root, "docs", "adr", "INDEX.md"), "# ADR Index\n");
+    const withIndex = runVerify({
+      root,
+      config: CONFIG,
+      changed: changedSet("ADR-0001-touched.md"),
+    });
+    expect(withIndex.violations.filter((v) => v.kind === "index")).toHaveLength(0);
+    expect(withIndex.violations.every((v) => v.kind === "frontmatter")).toBe(true);
+  });
+
   it("suppresses a per-doc violation when no doc in its type changed", () => {
     write("ADR-0001-x.md", { id: "ADR-0001", status: "bogus", ...base }); // untouched, bad status
     indexRows("ADR-0001");
