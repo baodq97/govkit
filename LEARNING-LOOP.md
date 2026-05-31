@@ -218,3 +218,63 @@ by surfacing the one thing the deterministic layer structurally _cannot_ see —
 accept looks identical to an authorized one on disk — and the answer is honest history, not more
 engine. The loop is doing exactly what the user asked: each pass tightens the repo against its own
 blind spots.
+
+---
+
+## Round 3 — Move 3 (RFC-0004 `verify --changed`): the "existing repo" question
+
+The user asked the sharpest adoption question yet: *"if I have an existing repo, how does this go?"*
+That one question exposed a gap my earlier PO brief had ranked **below** npm-publish:
+
+- **This repo's 100/100 is survivorship.** Every doc here was authored already knowing the gate's
+  rules. An existing repo's docs were written for humans — no `id/status/owner/date`, no
+  `RFC-0001-*.md` naming, no INDEX. Point `govkit.yml` at them and full-scan `verify` reports
+  **every legacy doc at once**: the linter-adoption death (too much red → team disables the gate).
+- **Re-ranking the PO brief:** npm-publish makes govkit *installable*, **not** *adoptable*. A repo
+  that installs it and hits the avalanche bounces. So the adoption unblock outranks distribution.
+
+**A cheap topology check moved the design.** Before committing to a (heavy) persisted baseline file,
+I checked how the gate is actually invoked: the PreToolUse hook runs `audit-write` **per-file**, so
+the avalanche is purely a *full-scan/CI* problem — only one caller is affected. That killed
+baseline's main selling point ("transparently fixes all callers") and pointed at a small
+`verify --changed <ref>` scoping flag instead. **Lesson: verify the caller topology before choosing
+between a flag and a new persisted-state artifact — the smaller build was hiding behind an
+untested assumption.**
+
+**The implementation found a bug in my own RFC.** RFC-0004's Decision sketched the filter as
+`changed.has(v.file) || isIndexOfChangedType(v)`. Writing it, I hit the hazard the RFC's own
+correctness floor had named: a **new** doc duplicating an **untouched** doc's id produces a
+`duplicate` violation whose reported `file` is the *alphabetically-first* colliding doc — often the
+untouched one — so the naive filter would **mask** it. That is the exact "looks-enforced-but-isn't"
+leak govkit exists to prevent, recurring inside the very feature meant to aid adoption. Fix:
+global-integrity kinds (`duplicate`, `reference`) are **always reported**; only per-doc + index kinds
+are scoped. Two `NO-MASK FLOOR` tests pin it. **Lesson: an RFC's illustrative code is a hypothesis;
+the no-mask floor is the spec. When they conflict, the floor wins and the divergence gets recorded
+(here, in the implementation commit message) — not silently smoothed over.**
+
+**What shipped is the `verify` half — name the other half (narrows, not closes, round three).**
+`--changed` scopes `verify` only. `eval` and `check` still **full-scan against a *blocking* floor**,
+so an existing repo that runs the *documented* CI entrypoint — `govkit check`, "the single no-key
+gate a CI calls" — still hits the avalanche, now from the eval required-floor instead of verify. The
+adoption recipe therefore works **only** for a repo that runs bare `verify --changed` and forgoes the
+eval layer. This is not a regression — RFC-0004's open questions explicitly deferred eval scoping —
+but it is exactly why this repo's survivorship-green state hid it: eval never blocks here, so no test,
+gate, or e2e in this round could surface it. The honest claim is "the structural-gate half of
+existing-repo adoption shipped"; `check --changed` / `eval --changed` is the natural next move if the
+*whole* CI gate is to be adoptable. **Lesson: the overclaim reflex ('adoption shipped') recurred a
+third time — scope every done-claim to what was actually exercised.**
+
+**Second RFC↔code divergence, logged for honesty:** the impl uses `git diff --name-only <ref>`
+(ref-vs-working-tree, two-dot) where RFC-0004's Decision text wrote `<ref>...HEAD` (three-dot
+merge-base). The two-dot form is arguably better — it captures uncommitted edits and still works in
+CI — but it is a delta from the RFC, recorded here the same way the duplicate/reference refinement
+was. Also: adoption was exercised only against synthetic temp-dir repos (the suppression test proves
+quieting), never a real messy legacy repo — unit-validated, not field-validated.
+
+**Round-3 verdict:** the loop's value this round came not from the deterministic gate catching
+something, but from a *user question* ("existing repo?") re-ranking the backlog, and from the
+discipline of dogfooding the gate's own anti-pattern (silent masking) against the new feature. Git
+now lives only on the opt-in `--changed` path; plain `verify` stays pure-fs/no-key — the load-bearing
+invariant survived a feature that, done carelessly, would have broken it. Each pass keeps tightening
+the repo against its own blind spots — including the ones in its own RFCs, and the overclaim reflex
+in its own author.
