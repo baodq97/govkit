@@ -1,0 +1,39 @@
+{
+  "name": "govkit",
+  "version": "0.1.0",
+  "description": "Deterministic, cross-platform docs-as-code SDLC governance engine. Run with npx; no API key required.",
+  "type": "module",
+  "license": "MIT",
+  "author": "baodq97",
+  "keywords": [
+    "governance",
+    "sdlc",
+    "adr",
+    "rfc",
+    "docs-as-code",
+    "cli"
+  ],
+  "bin": {
+    "govkit": "./dist/cli.js"
+  },
+  "files": [
+    "dist"
+  ],
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "build": "tsup",
+    "test": "vitest run",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "yaml": "^2.6.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.0",
+    "tsup": "^8.3.0",
+    "typescript": "^5.7.0",
+    "vitest": "^2.1.0"
+  }
+}

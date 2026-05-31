@@ -1,0 +1,20 @@
+# deps
+node_modules/
+.pnpm-store/
+
+# build
+dist/
+*.tsbuildinfo
+
+# test / coverage
+coverage/
+
+# env / secrets
+.env
+.env.*
+!.env.example
+*.local.*
+
+# os / editor
+.DS_Store
+Thumbs.db

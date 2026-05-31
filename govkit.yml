@@ -1,0 +1,27 @@
+# govkit governance schema — the single pluggable interface the engine reads.
+# Doc dirs and required front-matter keys are CONFIG, not hardcoded in the CLI,
+# so any repo (any doc layout) can adopt govkit by editing this file.
+schemaVersion: 1
+
+# Front-matter keys every governed doc must carry. Per-type rows extend the base.
+docs:
+  ignore: [INDEX.md, _TEMPLATE.md]
+  base:
+    required: [id, title, status, owner, date]
+  types:
+    prd:
+      dir: docs/product
+      required: [id, title, status, owner, date]
+      startStatus: draft
+    rfc:
+      dir: docs/rfc
+      required: [id, title, status, owner, date]
+      startStatus: draft
+    adr:
+      dir: docs/adr
+      required: [id, title, status, owner, date]
+      startStatus: proposed
+    us:
+      dir: docs/issues
+      required: [id, title, status, owner, date, priority]
+      startStatus: open

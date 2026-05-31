@@ -1,0 +1,7 @@
+# Only Node/TS members are workspace packages.
+# `plugins/` (Claude Code plugin) and `template/` (consumer scaffold surface)
+# are NOT pnpm packages — they ship through other channels (marketplace git-subdir
+# and `govkit init`), so keeping them out of the workspace avoids forcing the
+# Node toolchain onto non-Node assets.
+packages:
+  - "packages/*"
