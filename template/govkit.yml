@@ -1,0 +1,25 @@
+# govkit governance schema — the single pluggable interface the engine reads.
+# Edit doc dirs / required front-matter to match your repo; the CLI reads this, nothing is hardcoded.
+schemaVersion: 1
+
+docs:
+  ignore: [INDEX.md, _TEMPLATE.md]
+  base:
+    required: [id, title, status, owner, date]
+  types:
+    prd:
+      dir: docs/product
+      required: [id, title, status, owner, date]
+      startStatus: draft
+    rfc:
+      dir: docs/rfc
+      required: [id, title, status, owner, date]
+      startStatus: draft
+    adr:
+      dir: docs/adr
+      required: [id, title, status, owner, date]
+      startStatus: proposed
+    us:
+      dir: docs/issues
+      required: [id, title, status, owner, date, priority]
+      startStatus: open

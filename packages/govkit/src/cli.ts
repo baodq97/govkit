@@ -1,21 +1,26 @@
 import { parseArgs } from "node:util";
 import { type AuditDecision, auditWrite, type HookInput } from "./commands/audit-write";
+import { type InitResult, runInit } from "./commands/init";
 import { runVerify, type VerifyResult } from "./commands/verify";
 
 const HELP = `govkit — deterministic docs-as-code governance engine
 
 Usage:
+  govkit init         [--root <dir>] [--force]
   govkit verify       [--root <dir>] [--json]
   govkit audit-write  [--root <dir>]        (reads a PreToolUse hook payload on stdin)
 
 Commands:
-  verify       Check every governed doc has complete front-matter (per govkit.yml).
+  init         Scaffold govkit governance into a repo (govkit.yml, the PreToolUse
+               hook, and docs/{product,rfc,adr,issues}/INDEX.md). Idempotent.
+  verify       Check every governed doc has complete front-matter + INDEX sync.
   audit-write  PreToolUse hook gate: block a Write to a governed doc that lacks
                complete front-matter. Emits the Claude Code permissionDecision JSON.
 
 Options:
   --root       Repo root containing govkit.yml (default: cwd, or the hook's cwd).
   --json       Machine-readable output (verify only).
+  --force      Overwrite existing files (init only).
   -h, --help   Show this help.
 `;
 
@@ -59,6 +64,16 @@ function emitDecision(decision: AuditDecision): void {
   );
 }
 
+function printInit(result: InitResult): void {
+  for (const f of result.created) process.stdout.write(`  created  ${f}\n`);
+  for (const f of result.skipped) {
+    process.stdout.write(`  exists   ${f} (skipped; --force to overwrite)\n`);
+  }
+  process.stdout.write(
+    `govkit init: ${result.created.length} created, ${result.skipped.length} skipped.\n`,
+  );
+}
+
 async function main(argv: string[]): Promise<number> {
   const { values, positionals } = parseArgs({
     args: argv,
@@ -66,6 +81,7 @@ async function main(argv: string[]): Promise<number> {
     options: {
       root: { type: "string" },
       json: { type: "boolean", default: false },
+      force: { type: "boolean", default: false },
       help: { type: "boolean", short: "h", default: false },
     },
   });
@@ -82,6 +98,11 @@ async function main(argv: string[]): Promise<number> {
   }
 
   switch (command) {
+    case "init": {
+      const result = runInit({ root: values.root ?? process.cwd(), force: values.force });
+      printInit(result);
+      return 0;
+    }
     case "verify": {
       const result = runVerify({ root: values.root ?? process.cwd() });
       if (values.json) process.stdout.write(`${JSON.stringify(result, null, 2)}\n`);
