@@ -1,8 +1,8 @@
 ---
 id: RFC-0006
 title: init --adopt — migrate existing prose metadata into front-matter without asserting it
-status: draft
-owner: TBD
+status: accepted
+owner: baodq97
 date: 2026-05-31
 ---
 
