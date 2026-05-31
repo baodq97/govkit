@@ -310,7 +310,26 @@ provenance order) threads `--changed` into `eval` and `check`.
   field-validated**: exercised against synthetic temp dirs and this repo's own git history, never a
   real messy legacy repo. The adoption claim is *mechanically* proven, not *empirically* proven.
 
+**Adversarial review then caught a real defect under the headline — the masking class, a fourth
+time.** A done-check review found that `checkIndex` emits ONE violation per type listing *every*
+missing/stale row, and `scopeToChanged` kept it whole whenever any doc of that type changed. So in
+the exact adoption scenario the feature targets — legacy docs with ids but an empty INDEX — touching
+**one** doc surfaced the type's **entire** INDEX backlog: an avalanche straight through the path
+built to prevent it, and INDEX backfill *is* the retrofit `--changed` promised to defer. Same family
+as Round-3's duplicate-id masking (a per-type/aggregate violation leaking untouched docs), recurring
+in a new check. Fixed: filter an index violation's `problems[]` to the changed docs' ids (keep the
+file-level `missing INDEX.md` entry — the changed doc's own concern). **Caught it RED-first** with a
+two-doc test before the fix. **Lesson: any check that aggregates across docs into one violation is a
+masking risk under `--changed`; audit every such check, not just the one the last round happened to
+surface.** Also fixed in the same pass: a **fail-open** — `origin/main → HEAD` fallback was silent,
+so a shallow CI clone would pass green having scoped to nothing (worse than the avalanche); it now
+warns loud. And the git path (`resolveChangedBase`/`gitChangedDocs`), previously covered only by
+manual e2e, got real temp-repo unit tests.
+
 **Round-4 verdict:** the loop did what it was asked — the gap Round 3 *named* is the gap Round 4
-*closed*, and the new round named its own residue (first-touch cost, no field test) rather than
-declaring victory. Four rounds in, the discipline that compounds is not the engine features; it is
-**closing named gaps in order and refusing to round "mechanically correct" up to "done."**
+*closed* — but the round's real value was the review catching that "mechanically correct" still hid a
+scale-only defect (the flood is invisible at 1–2 docs and on a repo with complete INDEX rows, which
+is why every prior check passed). Four rounds in, the discipline that compounds is not the engine
+features; it is **closing named gaps in order, auditing the whole class when one instance is found,
+and refusing to round "mechanically correct" up to "done" — especially when the author's own tests
+can't see the gap.**
