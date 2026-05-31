@@ -18,7 +18,8 @@
     "format": "biome format --write .",
     "verify": "node packages/govkit/dist/cli.js verify",
     "eval": "node packages/govkit/dist/cli.js eval",
-    "check": "biome check . && pnpm -r typecheck && pnpm -r build && pnpm -r test && pnpm run verify && pnpm run eval"
+    "govkit-check": "node packages/govkit/dist/cli.js check",
+    "check": "biome check . && pnpm -r typecheck && pnpm -r build && pnpm -r test && pnpm run govkit-check"
   },
   "devDependencies": {
     "@biomejs/biome": "^2.2.0"

@@ -8,6 +8,7 @@ const HELP = `govkit — deterministic docs-as-code governance engine
 
 Usage:
   govkit init         [--root <dir>] [--force]
+  govkit check        [--root <dir>]        (verify + eval — the no-key CI gate)
   govkit verify       [--root <dir>] [--json]
   govkit eval         [--root <dir>] [--json]
   govkit audit-write  [--root <dir>]        (reads a PreToolUse hook payload on stdin)
@@ -15,10 +16,12 @@ Usage:
 Commands:
   init         Scaffold govkit governance into a repo (govkit.yml, the PreToolUse
                hook, and docs/{product,rfc,adr,issues}/INDEX.md). Idempotent.
+  check        Run verify then eval — the single no-API-key gate a CI calls. Exits
+               non-zero if either the structural gate or the eval floor fails.
   verify       Structural GATE: front-matter, status enum, id convention, INDEX
                sync, unique ids, no placeholders. Binary pass/fail (quality control).
-  eval         Quality TRUST signal: grade each governed artifact 0–100 against the
-               deterministic rubric in govkit.yml. Fails below the threshold.
+  eval         Quality signal: a required structural FLOOR (blocks) + an advisory
+               0–100 score against the deterministic rubric in govkit.yml.
   audit-write  PreToolUse hook gate: block a Write to a governed doc that lacks
                complete front-matter. Emits the Claude Code permissionDecision JSON.
 
@@ -146,6 +149,16 @@ async function main(argv: string[]): Promise<number> {
       if (values.json) process.stdout.write(`${JSON.stringify(result, null, 2)}\n`);
       else printEval(result);
       return result.ok ? 0 : 1;
+    }
+    case "check": {
+      // The single no-API-key gate a CI invokes: structural gate THEN quality floor.
+      // Both run regardless of the other's result, so one pass surfaces every failure.
+      const root = values.root ?? process.cwd();
+      const verify = runVerify({ root });
+      printVerify(verify);
+      const evaluation = runEval({ root });
+      printEval(evaluation);
+      return verify.ok && evaluation.ok ? 0 : 1;
     }
     case "audit-write": {
       // Robust by construction: any failure DEFERS (no output, exit 0) rather
