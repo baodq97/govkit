@@ -26,13 +26,16 @@ This RFC splits trust into two deterministic, no-API-key layers:
 1. **`verify` — the gate (quality CONTROL).** Binary pass/fail. Front-matter, status
    ∈ allowed set, id↔filename convention, INDEX sync, globally-unique ids, no
    placeholders. A PR cannot merge if the gate is red.
-2. **`eval` — the trust SIGNAL (quality MEASUREMENT).** A graded 0–100 score per
-   artifact against a pluggable rubric in `govkit.yml`. **Eval is the source of
-   trust**: a passing gate says "well-formed," a passing eval says "carries real
-   substance" (KPIs, alternatives, testable acceptance criteria).
+2. **`eval` — the quality SIGNAL.** Two parts: a small **required structural floor**
+   (not an empty stub, no leftover template filler, canonical sections as *distinct*
+   headings) that **blocks CI**, plus an **advisory 0–100 score** that grades
+   structural richness as a trend to watch (it warns, it does not block). *Eval is the
+   deterministic source of trust for what is mechanically checkable — structure and
+   non-emptiness — not for whether the prose is sound.* Judging soundness is the
+   **swe-flow `reviewer` agent**'s job (opt-in, needs a key, never in no-key CI).
 
-Both run on plain Node in CI with no key, so a non-Claude contributor is held to the
-identical bar.
+Both deterministic layers run on plain Node in CI with no key, so a non-Claude
+contributor is held to the identical bar.
 
 ## Motivation
 
@@ -47,16 +50,31 @@ watch over time**, not a vibe.
 ## Design
 
 - **Rubric DSL** (in `govkit.yml` under `eval:`). Each doc-type maps to a list of
-  weighted rules of four deterministic kinds: `section` (a heading matches a regex),
-  `regex` (the body matches), `frontmatter` (a key is present / matches), `minWords`
-  (body length floor). Score = `100 * passed-weight / total-weight`; an artifact
-  passes if `score ≥ threshold`. Pluggable — consumers tune their own quality bar by
-  editing one file, never by forking the engine (mirrors the `docs.types` philosophy).
-- **The eval's own trust = a labeled corpus.** `packages/govkit/eval/fixtures/`
-  holds hand-authored `good/` artifacts (must score high) and deliberately-`weak/`
-  ones (must score low). `eval.test.ts` asserts the *shipped* rubric scores
-  good → passRate 1 and weak → passRate 0. An eval you cannot evaluate is not a
-  source of trust; this corpus is how we prove the scorers discriminate.
+  weighted rules of five deterministic kinds: `section` (a *distinct* heading matches a
+  regex), `regex` (the prose matches), `frontmatter` (a key is present / matches),
+  `minWords` (prose-length floor), `forbid` (a filler pattern is absent). Any rule may
+  be `required: true`. Pluggable — consumers tune their bar by editing one file, never
+  by forking the engine (mirrors the `docs.types` philosophy).
+- **Required floor (blocks) vs. advisory score (informs).** `eval` exits non-zero only
+  if a `required` rule fails — the floor. The `0–100` score (weighted pass fraction) is
+  reported as an advisory trend. This is deliberate: for a CI-blocking gate the only
+  fatal error is a **false positive** (it gets the gate disabled), so the floor is tuned
+  for *zero* false-positive on legitimate docs, accepting that a determined gamer can
+  pass it. The reviewer agent — not a stricter regex — is what catches the gamer.
+- **Hardening against gaming (deterministic, cheap).** Section rules match **distinct**
+  headings (one kitchen-sink heading cannot satisfy four sections); code fences and HTML
+  comments are **stripped before matching** (no smuggling signals in ```code```);
+  keyword rules use word boundaries (`when` ≠ `whenever`); `forbid` rejects unambiguous
+  leftover template text (lorem-ipsum blocks, "to-be-filled" placeholders) — but
+  **never** bare `TBD`, which is mandated for `owner:` and valid in open questions.
+  (Illustrating those patterns verbatim in prose would trip the rule — as an earlier
+  draft of this very RFC did; literal examples belong in a fenced code block, which the
+  scorer strips.)
+- **The eval's own trust = a labeled + adversarial corpus.** `packages/govkit/eval/`
+  holds `good/` (clears floor + high advisory) and `weak/` (blocked on floor) fixtures;
+  `eval-hardening.test.ts` pins every gaming vector closed and every false-positive
+  guard open (MADR / Nygard / terse ADRs must pass). An eval you cannot evaluate is not
+  a source of trust.
 - **Same loading path as the gate.** `eval` reuses `loadConfig` + the doc-type dirs,
   so the two layers can never disagree about what a "PRD" is or where it lives.
 
@@ -81,20 +99,24 @@ watch over time**, not a vibe.
 
 ## Open questions
 
-- **The deterministic floor vs. the judgment ceiling.** Presence-based rules
-  (`section`/`regex`) catch *missing* substance but not *hollow* substance: an ADR
-  with all three headings and empty bodies can still game a section-only rubric.
-  How far do we raise the floor with cheap heuristics (per-section `minWords`,
-  anti-placeholder regexes) before the remaining gap genuinely needs an LLM judge?
-- **An optional LLM-judge layer.** Should a future `eval --judge` delegate to the
-  swe-flow `reviewer` agent for a graded second opinion — explicitly opt-in, never in
-  the no-key CI path? (Requires its own RFC.)
-- **Rubric calibration.** Is a single `threshold` per repo right, or per-type
-  thresholds? How do we keep the labeled corpus representative as the rubric evolves?
+- **Resolved — floor vs. ceiling.** An adversarial red-team (8 agents) proved a
+  presence/shape rubric *structurally* cannot tell a real artifact from a keyword-salad
+  with the right headings — they share a lexical fingerprint. So this RFC stops claiming
+  the deterministic layer judges substance: the floor blocks stubs/filler/smuggling
+  (zero-FP, CI-blocking), the advisory score tracks structural richness, and **substance
+  judgment is delegated to the swe-flow `reviewer` agent** (opt-in, keyed, never CI).
+  That split is now the design, not an open question.
+- **An optional LLM-judge command.** Should a future `eval --judge` invoke the
+  `reviewer` agent for a graded second opinion in-band (still never in no-key CI)?
+  Requires its own RFC.
+- **Rubric calibration.** One `threshold` per repo, or per-type? How do we keep the
+  adversarial corpus representative as the rubric evolves?
 
 ## Recommendation
 
-Ship the **deterministic two-layer model now** (gate + graded eval, both no-key,
-proven by a labeled corpus). Treat the LLM-judge as a separate, opt-in layer behind a
-future RFC. This delivers a watchable quality signal immediately without compromising
-the no-API-key invariant that lets non-Claude users trust the same gate.
+Ship the **deterministic two-layer model now**, scoped honestly: `verify` (binary
+structural gate) + `eval` (a required floor that blocks + an advisory score that
+informs), both no-key, both proven by a labeled *and adversarial* corpus. The substance
+judge is the existing swe-flow `reviewer` agent (opt-in, keyed); a built-in
+`eval --judge` is deferred to a future RFC. This delivers a watchable, un-gameable-floor
+quality signal immediately without compromising the no-API-key invariant.

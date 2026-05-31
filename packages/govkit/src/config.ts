@@ -13,24 +13,35 @@ export interface DocType {
   idPrefix?: string;
 }
 
-/** Deterministic, no-API-key quality scorers. Each rule contributes its weight when it passes. */
-export type RubricRuleKind = "section" | "regex" | "frontmatter" | "minWords";
+// Deterministic, no-API-key quality scorers. Each rule contributes its weight when it
+// passes. The deterministic layer is honestly a STRUCTURAL FLOOR — it proves a doc has
+// the canonical sections, isn't a stub, and isn't smuggling signals in code fences. It
+// cannot judge whether the prose is *sound* (a keyword-salad with the right headings has
+// the same lexical fingerprint as a real doc) — that is the swe-flow `reviewer` agent's
+// job (opt-in, needs a key, never in no-key CI). See RFC-0001.
+export type RubricRuleKind = "section" | "regex" | "frontmatter" | "minWords" | "forbid";
 
 export interface RubricRule {
   id: string;
   desc: string;
   weight: number;
   kind: RubricRuleKind;
-  /** section: heading regex · regex: body regex · frontmatter: optional value regex. */
+  /** section: heading regex · regex/forbid: body regex · frontmatter: optional value regex. */
   pattern?: string;
   /** frontmatter: the key that must be present (and match `pattern` if given). */
   key?: string;
-  /** minWords: minimum body word count. */
+  /** minWords: minimum body word count (counted on prose, after stripping code/comments). */
   min?: number;
+  /**
+   * When true, failing this rule BLOCKS the artifact (CI-failing) regardless of score —
+   * the structural floor. Keep the required set small and only on dimensions every
+   * legitimate doc of the type carries; a false positive here is what gets gates disabled.
+   */
+  required?: boolean;
 }
 
 export interface EvalConfig {
-  /** Pass threshold (0–100). An artifact scoring below this fails the eval. */
+  /** Advisory quality bar (0–100). Below it warns + lowers the trend; it does NOT block CI. */
   threshold: number;
   /** Quality rubric per doc-type name (matches `docs.types` keys). */
   rubrics: Record<string, RubricRule[]>;

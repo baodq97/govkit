@@ -24,15 +24,21 @@ been produced by an LLM — does not make it good. govkit separates the two ques
 | Layer | Command | Question | Result |
 |---|---|---|---|
 | **Gate** (quality *control*) | `govkit verify` | Is it well-**formed**? | binary pass/fail — blocks merge |
-| **Eval** (quality *trust signal*) | `govkit eval` | Does it carry real **substance**? | graded 0–100 vs a rubric |
+| **Eval** (quality *signal*) | `govkit eval` | Is it a complete, non-stub doc? | required **floor** blocks + advisory **0–100** score |
+| **Reviewer** (substance *judge*) | `swe-flow:reviewer` agent | Is the reasoning **sound**? | opt-in, needs a key — **never** in no-key CI |
 
 The gate enforces front-matter, the status lifecycle, id↔filename convention, INDEX
-sync, unique ids, and no placeholders. The eval grades each artifact against a
-**pluggable rubric** in `govkit.yml` (`eval:`) — e.g. *PRD has a numeric KPI*, *RFC has
-alternatives + open questions*, *US has testable acceptance criteria*. Both are
-deterministic and need **no API key**. *Eval is the source of trust:* its own
-correctness is proven by a labeled `good/`+`weak/` corpus the test suite asserts the
-rubric discriminates.
+sync, unique ids, and no placeholders. `eval` adds a deterministic **structural floor**
+that blocks CI (not an empty stub, no leftover template filler, canonical sections as
+*distinct* headings) plus an **advisory score** to watch quality trend — both no-key.
+
+**An honest boundary** (the result of an adversarial red-team): a presence/shape rubric
+*cannot* tell a real artifact from a keyword-salad with the right headings. So `eval` is
+deliberately scoped as a **floor**, tuned for zero false-positive on legitimate docs and
+accepting that a determined gamer passes it. Judging whether the prose is *sound* is the
+swe-flow `reviewer` agent's job (opt-in, keyed, outside CI). The floor's own trust is
+pinned by an **adversarial corpus** (`packages/govkit/eval/`) the test suite asserts
+catches every known gaming vector while passing MADR/Nygard/terse styles.
 
 ## The invariant that shapes everything
 

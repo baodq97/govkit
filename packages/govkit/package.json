@@ -1,7 +1,7 @@
 {
   "name": "govkit",
-  "version": "0.1.0",
-  "description": "Deterministic, cross-platform docs-as-code SDLC governance engine. Run with npx; no API key required.",
+  "version": "0.2.0",
+  "description": "Deterministic, cross-platform docs-as-code SDLC governance engine: a structural verify gate + a graded quality eval. Run with npx; no API key required.",
   "type": "module",
   "license": "MIT",
   "author": "baodq97",
@@ -11,13 +11,16 @@
     "adr",
     "rfc",
     "docs-as-code",
+    "eval",
+    "quality-gate",
     "cli"
   ],
   "bin": {
     "govkit": "./dist/cli.js"
   },
   "files": [
-    "dist"
+    "dist",
+    "templates"
   ],
   "engines": {
     "node": ">=20"

@@ -2,8 +2,10 @@ import { existsSync, mkdtempSync, readFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { runEval } from "../src/commands/eval";
 import { runInit } from "../src/commands/init";
 import { runVerify } from "../src/commands/verify";
+import { loadConfig } from "../src/config";
 
 describe("runInit", () => {
   let dir: string;
@@ -46,5 +48,25 @@ describe("runInit", () => {
     const v = runVerify({ root: dir });
     expect(v.ok).toBe(true);
     expect(v.checked).toBe(0);
+  });
+
+  // Drift guard: init must scaffold the SAME full schema the engine ships — the gate
+  // lifecycle config (statuses/idPrefix) AND the eval rubric (incl. a required floor).
+  // If the canonical templates/govkit.default.yml is lost or truncated, this goes red.
+  it("scaffolds the full hardened schema (statuses + idPrefix + eval required floor)", () => {
+    runInit({ root: dir });
+    const cfg = loadConfig(dir);
+    expect(cfg.docs.types.adr?.idPrefix).toBe("ADR");
+    expect(cfg.docs.types.adr?.statuses).toContain("accepted");
+    for (const type of ["prd", "rfc", "adr", "us"]) {
+      const rubric = cfg.eval?.rubrics[type] ?? [];
+      expect(rubric.length, `${type} rubric`).toBeGreaterThan(0);
+      expect(
+        rubric.some((r) => r.required === true),
+        `${type} has a required floor rule`,
+      ).toBe(true);
+    }
+    // a freshly-scaffolded repo has no docs, so eval is green (nothing to grade)
+    expect(runEval({ root: dir }).ok).toBe(true);
   });
 });

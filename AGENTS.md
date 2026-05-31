@@ -20,12 +20,14 @@ govkit.yml         the pluggable schema: doc dirs + required front-matter + stat
 
 Doc chain: `PRD → RFC → ADR → Issue (US) → Code`.
 
-**Two trust layers (both deterministic, no API key).** `verify` is the structural
-**gate** (front-matter, status enum, id convention, INDEX sync, unique ids, no
-placeholders) — binary, blocks merge. `eval` is the graded quality **trust signal**
-(0–100 vs the `eval:` rubric) — *eval is the source of trust; a passing gate only
-means well-formed.* The eval's own correctness is proven by the labeled
-`packages/govkit/eval/fixtures/{good,weak}/` corpus (see RFC-0001).
+**Trust layers (see RFC-0001).** `verify` = structural **gate** (front-matter, status
+enum, id convention, INDEX sync, unique ids, no placeholders) — binary, blocks merge.
+`eval` = a deterministic **required floor** (not a stub, no filler, distinct canonical
+sections) that blocks CI **plus an advisory 0–100 score** to watch trend. Both no-key.
+An adversarial red-team proved a presence rubric cannot judge *substance* — so `eval`
+is scoped as a zero-FP floor (a gamer can pass it), and **substance judgment is the
+swe-flow `reviewer` agent** (opt-in, keyed, never in no-key CI). The floor's own trust
+is pinned by the adversarial corpus + `eval-hardening.test.ts`.
 
 ## Commands
 

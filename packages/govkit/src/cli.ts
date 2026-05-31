@@ -57,17 +57,25 @@ function printEval(result: EvalResult): void {
     process.stdout.write(`govkit eval: ${result.note}\n`);
     return;
   }
-  const pct = Math.round(result.passRate * 100);
   const header = result.ok ? "OK" : "FAIL";
   const stream = result.ok ? process.stdout : process.stderr;
+  const advPct = Math.round(result.advisoryPassRate * 100);
   stream.write(
-    `govkit eval: ${header} — ${result.scored} artifact(s), avg ${result.averageScore}/100, ` +
-      `${pct}% ≥ threshold ${result.threshold}.\n`,
+    `govkit eval: ${header} — ${result.scored} artifact(s); required floor: ` +
+      `${Math.round(result.floorPassRate * 100)}% passed; ` +
+      `advisory score: avg ${result.averageScore}/100, ${advPct}% ≥ ${result.threshold}.\n`,
   );
   for (const a of result.artifacts) {
-    const mark = a.passed ? "ok  " : "LOW ";
-    stream.write(`  ${mark} ${a.score}/100  ${a.file} [${a.type}]\n`);
-    if (!a.passed) for (const m of a.missed) stream.write(`         - missing: ${m}\n`);
+    if (!a.requiredOk) {
+      stream.write(
+        `  BLOCK ${a.score}/100  ${a.file} [${a.type}] — missing required: ${a.missedRequired.join("; ")}\n`,
+      );
+    } else {
+      const mark = a.passedAdvisory ? "ok   " : "warn ";
+      const tail = a.passedAdvisory ? "" : " (below advisory threshold)";
+      stream.write(`  ${mark} ${a.score}/100  ${a.file} [${a.type}]${tail}\n`);
+      if (!a.passedAdvisory) for (const m of a.missed) stream.write(`         - ${m}\n`);
+    }
   }
 }
 

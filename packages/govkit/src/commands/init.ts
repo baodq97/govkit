@@ -1,5 +1,6 @@
-import { existsSync, mkdirSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname, isAbsolute, relative, resolve } from "node:path";
+import { fileURLToPath } from "node:url";
 
 export interface InitResult {
   created: string[];
@@ -11,32 +12,19 @@ export interface InitOptions {
   force?: boolean;
 }
 
-const GOVKIT_YML = `# govkit governance schema — the single pluggable interface the engine reads.
-# Edit doc dirs / required front-matter to match your repo; the CLI reads this, nothing is hardcoded.
-schemaVersion: 1
-
-docs:
-  ignore: [INDEX.md, _TEMPLATE.md]
-  base:
-    required: [id, title, status, owner, date]
-  types:
-    prd:
-      dir: docs/product
-      required: [id, title, status, owner, date]
-      startStatus: draft
-    rfc:
-      dir: docs/rfc
-      required: [id, title, status, owner, date]
-      startStatus: draft
-    adr:
-      dir: docs/adr
-      required: [id, title, status, owner, date]
-      startStatus: proposed
-    us:
-      dir: docs/issues
-      required: [id, title, status, owner, date, priority]
-      startStatus: open
-`;
+// The scaffolded govkit.yml is the SAME canonical default the engine ships, read at
+// runtime — not a second copy embedded as a string. That keeps the regex-bearing rubric
+// out of a JS template literal (no backslash-escaping hazard) and makes drift between
+// "what govkit ships" and "what init writes" structurally impossible. Resolved relative
+// to this module so it works both bundled (dist/cli.js → ../templates) and from source
+// in tests (src/commands/init.ts → ../../templates).
+function defaultSchema(): string {
+  for (const rel of ["../templates/govkit.default.yml", "../../templates/govkit.default.yml"]) {
+    const path = fileURLToPath(new URL(rel, import.meta.url));
+    if (existsSync(path)) return readFileSync(path, "utf8");
+  }
+  throw new Error("govkit init: bundled default schema (templates/govkit.default.yml) not found");
+}
 
 // Consumer hook: invoke govkit via npx so no local build/install is needed. exit-0
 // + deny is the verified block protocol; timeout is generous for a cold npx fetch.
@@ -62,14 +50,16 @@ const SETTINGS_JSON = `{
 const indexStub = (title: string): string =>
   `# ${title}\n\n| ID | Title | Status | Owner | Date |\n|---|---|---|---|---|\n`;
 
-const SCAFFOLD: Array<{ path: string; content: string }> = [
-  { path: "govkit.yml", content: GOVKIT_YML },
-  { path: ".claude/settings.json", content: SETTINGS_JSON },
-  { path: "docs/product/INDEX.md", content: indexStub("PRD Index") },
-  { path: "docs/rfc/INDEX.md", content: indexStub("RFC Index") },
-  { path: "docs/adr/INDEX.md", content: indexStub("ADR Index") },
-  { path: "docs/issues/INDEX.md", content: indexStub("User Story (US) Index") },
-];
+function scaffold(): Array<{ path: string; content: string }> {
+  return [
+    { path: "govkit.yml", content: defaultSchema() },
+    { path: ".claude/settings.json", content: SETTINGS_JSON },
+    { path: "docs/product/INDEX.md", content: indexStub("PRD Index") },
+    { path: "docs/rfc/INDEX.md", content: indexStub("RFC Index") },
+    { path: "docs/adr/INDEX.md", content: indexStub("ADR Index") },
+    { path: "docs/issues/INDEX.md", content: indexStub("User Story (US) Index") },
+  ];
+}
 
 // Scaffold govkit governance into a repo. Idempotent: an existing file is skipped
 // (reported), never clobbered, unless --force. Path-safe: every write is confined to
@@ -79,7 +69,7 @@ export function runInit(opts: InitOptions): InitResult {
   const created: string[] = [];
   const skipped: string[] = [];
 
-  for (const entry of SCAFFOLD) {
+  for (const entry of scaffold()) {
     const target = resolve(root, entry.path);
     const rel = relative(root, target);
     if (rel.startsWith("..") || isAbsolute(rel)) {
