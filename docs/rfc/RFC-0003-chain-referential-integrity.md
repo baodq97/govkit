@@ -1,16 +1,16 @@
 ---
 id: RFC-0003
 title: Chain referential-integrity — resolve cross-artifact references in the gate
-status: draft
-owner: TBD
+status: accepted
+owner: baodq97
 date: 2026-05-31
 ---
 
 > Proposes a new public, deterministic surface (root `AGENTS.md` § Lifecycle): one
-> `verify` check kind (`reference`) plus a `refs` convention in `govkit.yml`. Status
-> stays `draft` until the owner accepts it — never an agent. Authored **before**
-> implementation, dogfooding the lesson RFC-0002's acceptance taught: a public surface
-> rides with an accepted RFC, not after it.
+> `verify` check kind (`reference`) plus a `refs` convention in `govkit.yml`. Accepted by
+> the owner (`baodq97`) **before** implementation — the flip was a human act, never an
+> agent — dogfooding the lesson RFC-0002's acceptance taught: a public surface rides with
+> an accepted RFC, not after it.
 
 ## Summary
 
