@@ -42,3 +42,32 @@ describe("govkit eval — floor + advisory on the labeled corpus", () => {
     expect(r.scored).toBe(0);
   });
 });
+
+describe("govkit eval — --changed adoption scoping (RFC-0005)", () => {
+  const ref = "origin/main";
+
+  it("scores ONLY changed artifacts — an untouched failing doc no longer blocks", () => {
+    // The weak corpus all fails the floor. Scope to a doc NOT in it → nothing scored,
+    // nothing blocks: exactly the adoption fix (legacy debt doesn't avalanche the gate).
+    const r = runEval({ root: weak, config, changed: { files: new Set(["/no/such.md"]), ref } });
+    expect(r.scored).toBe(0);
+    expect(r.ok).toBe(true);
+    expect(r.scoped).toEqual({ ref, changedDocs: 0 });
+  });
+
+  it("still blocks a CHANGED failing doc (scoping quiets untouched debt, not new debt)", () => {
+    const file = runEval({ root: weak, config }).artifacts[0]?.file as string;
+    const r = runEval({ root: weak, config, changed: { files: new Set([file]), ref } });
+    expect(r.scored).toBe(1);
+    expect(r.ok).toBe(false); // a weak doc the PR touched is its responsibility
+    expect(r.scoped?.changedDocs).toBe(1);
+  });
+
+  it("passes a CHANGED good doc and records the scope", () => {
+    const file = runEval({ root: good, config }).artifacts[0]?.file as string;
+    const r = runEval({ root: good, config, changed: { files: new Set([file]), ref } });
+    expect(r.scored).toBe(1);
+    expect(r.ok).toBe(true);
+    expect(r.scoped).toEqual({ ref, changedDocs: 1 });
+  });
+});

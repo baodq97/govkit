@@ -41,11 +41,20 @@ export interface EvalResult {
   artifacts: ArtifactScore[];
   /** Set when there is nothing to grade (no rubric configured). */
   note?: string;
+  /** Set only when `changed` scoping was applied — names the base ref and how many
+   *  artifacts were scored, so output is never silently scoped. */
+  scoped?: { ref: string; changedDocs: number };
 }
 
 export interface EvalOptions {
   root: string;
   config?: GovkitConfig;
+  /** `--changed` adoption mode (RFC-0005): absolute paths of new-or-modified governed
+   *  docs. When provided, ONLY those artifacts are scored — the floor, advisory average,
+   *  and pass-rates are computed over that subset. Unlike `verify`, eval has no cross-doc
+   *  check, so scoping the scored set (not just the report) is safe: there is no global
+   *  violation that could be masked by quieting an untouched file. */
+  changed?: { files: Set<string>; ref: string };
 }
 
 // Strip non-prose before any match: fenced code, HTML comments. (Front-matter is
@@ -182,6 +191,7 @@ export function runEval(opts: EvalOptions): EvalResult {
     const rubric = rubrics[typeName];
     if (!rubric || rubric.length === 0) continue;
     for (const file of listMarkdown(join(opts.root, def.dir), ignore)) {
+      if (opts.changed && !opts.changed.files.has(file)) continue; // RFC-0005: score only changed
       const fm = parseFrontMatter(readFileSync(file, "utf8"));
       if (!fm) continue; // unparseable front-matter is the gate's job; eval grades well-formed docs
       artifacts.push(scoreArtifact(file, typeName, fm.data, fm.body, rubric, threshold));
@@ -199,5 +209,6 @@ export function runEval(opts: EvalOptions): EvalResult {
     floorPassRate: scored > 0 ? sum((a) => (a.requiredOk ? 1 : 0)) / scored : 1,
     advisoryPassRate: scored > 0 ? sum((a) => (a.passedAdvisory ? 1 : 0)) / scored : 1,
     artifacts,
+    ...(opts.changed ? { scoped: { ref: opts.changed.ref, changedDocs: scored } } : {}),
   };
 }

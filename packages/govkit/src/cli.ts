@@ -9,9 +9,9 @@ const HELP = `govkit — deterministic docs-as-code governance engine
 
 Usage:
   govkit init         [--root <dir>] [--force]
-  govkit check        [--root <dir>]        (verify + eval — the no-key CI gate)
+  govkit check        [--root <dir>] [--changed [--base <ref>]]  (verify + eval — the no-key CI gate)
   govkit verify       [--root <dir>] [--json] [--changed [--base <ref>]]
-  govkit eval         [--root <dir>] [--json]
+  govkit eval         [--root <dir>] [--json] [--changed [--base <ref>]]
   govkit audit-write  [--root <dir>]        (reads a PreToolUse hook payload on stdin)
 
 Commands:
@@ -29,10 +29,10 @@ Commands:
 Options:
   --root       Repo root containing govkit.yml (default: cwd, or the hook's cwd).
   --json       Machine-readable output (verify only).
-  --changed    Adoption mode (verify only): report violations only for docs that are
-               new-or-modified vs --base. Cross-doc checks still scan the whole repo;
-               only the report is scoped, so a new doc duplicating an existing id or
-               pointing at a dangling ref is still caught. Requires git.
+  --changed    Adoption mode (verify, eval, check): restrict to docs that are
+               new-or-modified vs --base. verify still scans the whole repo for cross-doc
+               checks (only the report is scoped, so a new duplicate id / dangling ref is
+               still caught); eval scores only the changed docs. Requires git.
   --base       Base ref for --changed (default: origin/main, else HEAD).
   --force      Overwrite existing files (init only).
   -h, --help   Show this help.
@@ -75,8 +75,10 @@ function printEval(result: EvalResult): void {
   const header = result.ok ? "OK" : "FAIL";
   const stream = result.ok ? process.stdout : process.stderr;
   const advPct = Math.round(result.advisoryPassRate * 100);
+  // Never silently scope: when --changed narrowed the scored set, say so explicitly.
+  const scope = result.scoped ? ` (changed-set vs ${result.scoped.ref})` : "";
   stream.write(
-    `govkit eval: ${header} — ${result.scored} artifact(s); required floor: ` +
+    `govkit eval: ${header} — ${result.scored} artifact(s)${scope}; required floor: ` +
       `${Math.round(result.floorPassRate * 100)}% passed; ` +
       `advisory score: avg ${result.averageScore}/100, ${advPct}% ≥ ${result.threshold}.\n`,
   );
@@ -146,6 +148,26 @@ async function main(argv: string[]): Promise<number> {
     return 1;
   }
 
+  // `--changed` adoption scoping (RFC-0004/0005): resolved ONCE here, shared by verify,
+  // eval, and check. This is the only path that touches git (lazily); the un-flagged
+  // commands stay pure-fs/no-key. A git/ref failure errors clearly and exits non-zero —
+  // never a silent full-scan, which would re-introduce the avalanche --changed prevents.
+  let changed: { files: Set<string>; ref: string } | undefined;
+  if (values.changed) {
+    if (command !== "verify" && command !== "eval" && command !== "check") {
+      process.stderr.write("govkit: --changed is only valid for verify, eval, or check\n");
+      return 2;
+    }
+    const root = values.root ?? process.cwd();
+    try {
+      const ref = resolveChangedBase(root, values.base);
+      changed = { files: gitChangedDocs(root, ref), ref };
+    } catch (err) {
+      process.stderr.write(`${err instanceof Error ? err.message : String(err)}\n`);
+      return 1;
+    }
+  }
+
   switch (command) {
     case "init": {
       const result = runInit({ root: values.root ?? process.cwd(), force: values.force });
@@ -153,29 +175,13 @@ async function main(argv: string[]): Promise<number> {
       return 0;
     }
     case "verify": {
-      const root = values.root ?? process.cwd();
-      // `--changed` is the only path that touches git (lazily); plain verify stays
-      // pure-fs/no-key. A git/ref failure throws a clear error rather than silently
-      // full-scanning (which would re-introduce the avalanche the flag prevents).
-      let changed: { files: Set<string>; ref: string } | undefined;
-      if (values.changed) {
-        try {
-          const ref = resolveChangedBase(root, values.base);
-          changed = { files: gitChangedDocs(root, ref), ref };
-        } catch (err) {
-          // A clear one-line error + non-zero exit — never a silent full-scan, which
-          // would re-introduce the avalanche --changed exists to prevent.
-          process.stderr.write(`${err instanceof Error ? err.message : String(err)}\n`);
-          return 1;
-        }
-      }
-      const result = runVerify({ root, changed });
+      const result = runVerify({ root: values.root ?? process.cwd(), changed });
       if (values.json) process.stdout.write(`${JSON.stringify(result, null, 2)}\n`);
       else printVerify(result);
       return result.ok ? 0 : 1;
     }
     case "eval": {
-      const result = runEval({ root: values.root ?? process.cwd() });
+      const result = runEval({ root: values.root ?? process.cwd(), changed });
       if (values.json) process.stdout.write(`${JSON.stringify(result, null, 2)}\n`);
       else printEval(result);
       return result.ok ? 0 : 1;
@@ -183,10 +189,11 @@ async function main(argv: string[]): Promise<number> {
     case "check": {
       // The single no-API-key gate a CI invokes: structural gate THEN quality floor.
       // Both run regardless of the other's result, so one pass surfaces every failure.
+      // --changed threads into BOTH halves so the whole entrypoint is adoptable (RFC-0005).
       const root = values.root ?? process.cwd();
-      const verify = runVerify({ root });
+      const verify = runVerify({ root, changed });
       printVerify(verify);
-      const evaluation = runEval({ root });
+      const evaluation = runEval({ root, changed });
       printEval(evaluation);
       return verify.ok && evaluation.ok ? 0 : 1;
     }
