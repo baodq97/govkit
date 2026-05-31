@@ -1,15 +1,16 @@
 ---
 id: RFC-0004
 title: Adoption on existing repos — gate the changed set, not the whole backlog
-status: draft
-owner: TBD
+status: accepted
+owner: baodq97
 date: 2026-05-31
 ---
 
 > Proposes a new public, deterministic surface (root `AGENTS.md` § Lifecycle): a
 > `govkit verify --changed [<ref>]` mode that scopes which docs a full-scan gate
-> *reports* on. Authored at `draft` — no owner, no acceptance — pending a human flip,
-> per the RFC-0002/0003 lesson: a public surface rides with an accepted RFC, not after it.
+> *reports* on. Accepted by the owner (`baodq97`) **before** implementation — the flip
+> from `draft` was a human act, never an agent — per the RFC-0002/0003 lesson: a public
+> surface rides with an accepted RFC, not after it.
 
 ## Summary
 
