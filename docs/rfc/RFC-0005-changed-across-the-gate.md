@@ -1,15 +1,16 @@
 ---
 id: RFC-0005
 title: Complete --changed across the gate — eval and check honor adoption scoping
-status: draft
-owner: TBD
+status: accepted
+owner: baodq97
 date: 2026-05-31
 ---
 
 > Resolves the open question RFC-0004 explicitly deferred ("does `eval` need the same
 > `--changed`?") into a decision, extending the *accepted* `--changed` surface to the two
-> sibling commands. Authored at `draft` — no owner, no acceptance — pending a human flip,
-> per the RFC-0002/0003/0004 lesson: a public surface rides with an accepted RFC, not after it.
+> sibling commands. Accepted by the owner (`baodq97`) **before** implementation — the flip
+> from `draft` was a human act, never an agent — per the RFC-0002/0003/0004 lesson: a public
+> surface rides with an accepted RFC, not after it.
 
 ## Summary
 
