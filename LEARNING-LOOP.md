@@ -1028,3 +1028,49 @@ runtime-identical (proven Round 13), not by a node-spawned CLI test. Named, not 
 through green — because that is precisely where a silent semantic error hides. Fourteen rounds in:
 **a green gate certifies only what is structural; every new advisory you add is a new place to be
 confidently wrong, and the reviewer is the only thing standing between "well-formed" and "true."**
+
+---
+
+## Round 15 — the engine had not governed itself; an adversarial dogfood audit found it
+
+**The friction:** asked to "audit everything, make it the best, lay a foundation for the next
+features." The lazy move was to trust the green gate (`bun run check`: verify 0, eval 100/100, under
+bun AND node) and call it healthy. Instead a look-back audit ran *in place of* trusting green — a
+dynamic workflow fanning four `swe-flow:reviewer` dimensions, each finding adversarially refuted to
+kill false positives. It surfaced 18 confirmed defects. **Not one was an engine bug.** Every one was
+doc-drift or skill-staleness the green gate is structurally blind to.
+
+**The headline: govkit had not self-applied its own RFC-0010 discipline.** Six shipped RFCs sat
+mis-statused — RFC-0001 at `draft`/`owner: TBD`, RFC-0002/0003/0004/0005/0006 at `accepted` — while
+their features (verify+eval, workflow-author, refs, `--changed`, eval/check `--changed`, init
+`--adopt`) were all in production. `requiredSectionsByStatus` fires ONLY at `implemented`, so the
+as-built gate never saw them; `stale` called them fresh; `report` bucketed them accepted/draft. Green
+gate, quiet advisories — and the one drift the entire RFC-0010 mechanism exists to surface was visible
+only to a human reading INDEX. That is the "never-flipped escape" RFC-0010 *named as designed-open*,
+then fell into itself. Closed by hand: owner-authorized flips + As-built/Deviations written against
+the actual shipped code, in the same commit as each flip. Explicitly NOT a new `accepted→implemented`
+verify rule — that ceremony was already rejected and would itself fail the audit's anti-over-engineer
+test. You close discipline drift with discipline, not a gate that forces a flip a person must choose.
+
+**The masking class, again (Round 12/13's family).** `tsup.config.ts` claimed an "npm-pack offline
+proof" caught an unbundled-dep regression. No such proof existed — the in-repo gate would stay green
+on a broken bundle, because `node dist/cli.js` resolves `yaml` from the dev `node_modules` beside it.
+Built the real, repeatable control (`pack:proof`): assemble the published file set in a temp dir with
+NO node_modules, run under stock node. Making a claimed-but-absent control real is the opposite of
+over-engineering.
+
+**The audit audited itself wrong, too.** One confirmed finding asserted the workflow-author files were
+"untracked" — true at the session-start snapshot the reviewer agents read, false against the live tree
+(already committed). Every finding was re-checked against the live file before any edit; the stale
+sub-claim was dropped. Even an adversarial auditor inherits a stale context — verify against ground
+truth, not against the report.
+
+**Round-15 verdict:** a governance engine that is green on its own gate can still be failing to govern
+itself, because the gate certifies *structure* and self-application is *lifecycle discipline* the gate
+cannot force. The deterministic core genuinely self-corrects; the discipline around it does not — the
+only things that caught its lapse were an adversarial dogfood pass and a human owner. **And then
+stop:** the loop's own foundation assessment flagged diminishing returns (RFC velocity outrunning
+need), so the honest next move is the deferred high-leverage levers — publish to npm, prove the
+dual-runtime CI green on a real runner — both gated on going beyond local-only, not another round of
+self-inspection. This round earned its keep by closing real drift; it must not become the pretext for
+the next.
