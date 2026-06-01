@@ -928,3 +928,54 @@ the repo was built to kill, by piping a gate through `head` in a chain, and the 
 it was re-running the gate honestly. Twelve rounds in: **the gate only protects you if you let it
 report; the most dangerous tool in the loop is the shell pipe that swallows an exit code, because it
 turns every downstream `&&` into a lie. Run the gate naked, read its real exit, THEN act.**
+
+---
+
+## Round 13 — the offline proof caught a claim that was only *ambiently* true
+
+**The friction.** Closing the bun work locally, I ran the one proof ADR-0002's as-built had marked
+"still outstanding": `npm pack` → extract the tarball → run it under stock node with **zero
+node_modules**. It failed — `ERR_MODULE_NOT_FOUND: yaml`. The shipped artifact was **not
+self-contained**: tsup leaves `dependencies` external by default, so `dist/cli.js` carried a live
+`import … from "yaml"`. Every prior "proof" of Node-portability (`node dist/cli.js …`, run dozens of
+times this session) had passed **only because the repo's `node_modules` happened to contain yaml**.
+The claim "the bundle runs Node-only" was *ambiently* true — true in the one environment I kept
+testing in — and false for the thing that actually ships.
+
+**This is the Round-12 lesson again, one layer out.** Round 12: a shell pipe swallowed an exit code.
+Round 13: an ambient `node_modules` swallowed a missing dependency. Both are the same failure —
+**the green result certified the environment it ran in, not the artifact it claimed to be about.**
+The only thing that caught it was deliberately running in the consumer's environment (extracted
+tarball, no node_modules), not the developer's. The as-built discipline is what forced the proof:
+the note itself said "the strongest portability proof is still outstanding" — writing that down is
+what made me go run it.
+
+**The fix made the claim literally true, not just patched the test.** `noExternal: ["yaml"]` bundles
+the dep into the single file; `yaml` moved `dependencies → devDependencies` (consumers now install
+*nothing*); and a `createRequire` banner resolves yaml's CJS `require("process")` under the ESM
+output (esbuild's `__require` shim throws "Dynamic require not supported" otherwise). The packed
+tarball — one 307KB file, zero runtime deps — now runs standalone under stock node (`check` →
+verify OK / eval 100/100). The zero-install invariant the README pins is now *literally* true.
+
+**The reconciliation reconciled itself.** ADR-0002's as-built had asserted the overstated claim; the
+proof corrected it; so the as-built bullet was rewritten to record the gap *and* its closure. The
+as-built section is not a one-shot snapshot — it is the place a later proof writes back what it
+learned. That is the RFC-0010 ritual working on its own author's first real use of it.
+
+**What is NOT closed (round thirteen).** (1) **The full `npx`-on-a-remote-clean-machine run** is
+still deferred — local-only by request; the offline-tarball proof closes the substantive gap (no
+node_modules, stock node) but not the literal "download from a registry on a fresh box" path. (2)
+**The bundle now embeds yaml's CJS via a createRequire shim** — it works, but any future runtime dep
+with a *dynamic* `require(variable)` (not a static builtin) would still break the ESM bundle; the
+banner only covers builtins resolvable at call time. Named so the next dep is vetted, not assumed.
+(3) **Round 13 spent its budget on a dep that was already functionally fine via `npx`** (npm would
+have installed yaml) — the fix improved honesty + standalone-ness, but a reader should know `npx
+govkit` was never actually broken; the gap was between the *claim* and the *artifact*, not in what
+users experienced.
+
+**Round-13 verdict:** the highest-value act was running the proof in the *consumer's* environment
+instead of the developer's — and it falsified a claim that had passed every developer-environment
+check this session. Thirteen rounds in: **"it works" is a sentence with a hidden subject — works
+*where*, with *what* ambiently present? Strip the ambient context (no node_modules, no pipe, no
+pre-set env) and re-run, because that stripped environment is the one the artifact actually ships
+into.**
