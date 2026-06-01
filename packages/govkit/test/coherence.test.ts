@@ -60,6 +60,35 @@ const CONFIG_NO_TERMINAL: GovkitConfig = {
   },
 };
 
+// ASYMMETRIC opt-in: the CHILD type (`us`) declares terminalStatuses + a parent ref, but the
+// PARENT type (`rfc`) does NOT. "Terminal" is undefined for the parent, so coherence cannot
+// judge it and must fail SAFE (no-op). This is the incremental-adoption window — a residue
+// named in RFC-0008 round 8: opting one type in does nothing until its parent type is in too.
+const CONFIG_PARENT_NO_TERMINAL: GovkitConfig = {
+  schemaVersion: 1,
+  docs: {
+    ignore: ["INDEX.md", "_TEMPLATE.md"],
+    base: { required: ["id", "title", "status"] },
+    types: {
+      rfc: {
+        dir: "docs/rfc",
+        required: ["id", "title", "status"],
+        idPrefix: "RFC",
+        statuses: ["draft", "accepted"],
+        // no terminalStatuses → parent cannot be judged
+      },
+      us: {
+        dir: "docs/issues",
+        required: ["id", "title", "status"],
+        idPrefix: "US",
+        statuses: ["todo", "done"],
+        terminalStatuses: ["done"],
+        refs: [{ key: "parent", type: "rfc" }],
+      },
+    },
+  },
+};
+
 let root: string;
 
 beforeEach(() => {
@@ -155,6 +184,19 @@ describe("runVerify — chain-status coherence (RFC-0008)", () => {
     usIndex("US-0001");
 
     const result = runVerify({ root, config: CONFIG_NO_TERMINAL });
+    expect(result.violations.filter((v) => v.kind === "coherence")).toHaveLength(0);
+  });
+
+  it("fails SAFE when the PARENT type has no terminalStatuses (asymmetric adoption — no-op)", () => {
+    // done child under a draft parent — would be a violation IF rfc were opted in, but it isn't.
+    writeRfc("RFC-0001-x.md", { id: "RFC-0001", title: "x", status: "draft" });
+    writeUs("US-0001-y.md", { id: "US-0001", title: "y", status: "done", parent: "RFC-0001" });
+    rfcIndex("RFC-0001");
+    usIndex("US-0001");
+
+    const result = runVerify({ root, config: CONFIG_PARENT_NO_TERMINAL });
+    // No coherence violation: "terminal" is undefined for the parent type, so the gate cannot
+    // (and must not) judge it. This is the documented incremental-adoption blind spot.
     expect(result.violations.filter((v) => v.kind === "coherence")).toHaveLength(0);
   });
 

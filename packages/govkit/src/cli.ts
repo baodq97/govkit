@@ -3,6 +3,7 @@ import { type AdoptResult, runAdopt } from "./commands/adopt";
 import { type AuditDecision, auditWrite, type HookInput } from "./commands/audit-write";
 import { type EvalResult, runEval } from "./commands/eval";
 import { type InitResult, runInit } from "./commands/init";
+import { type ReportResult, runReport } from "./commands/report";
 import { runVerify, type VerifyResult } from "./commands/verify";
 import { gitChangedDocs, resolveChangedBase } from "./util";
 
@@ -14,6 +15,7 @@ Usage:
   govkit check        [--root <dir>] [--changed [--base <ref>]]  (verify + eval — the no-key CI gate)
   govkit verify       [--root <dir>] [--json] [--changed [--base <ref>]]
   govkit eval         [--root <dir>] [--json] [--changed [--base <ref>]]
+  govkit report       [--root <dir>] [--json]   (lifecycle histogram — done / in-flight / cleanup)
   govkit audit-write  [--root <dir>]        (reads a PreToolUse hook payload on stdin)
 
 Commands:
@@ -30,8 +32,13 @@ Commands:
                sync, unique ids, no placeholders. Binary pass/fail (quality control).
   eval         Quality signal: a required structural FLOOR (blocks) + an advisory
                0–100 score against the deterministic rubric in govkit.yml.
+  report       Advisory lifecycle view: per-type status histogram with the ids in
+               each bucket, marking which statuses are terminal (decided/shipped per
+               terminalStatuses). Answers "what is done / in-flight / cleanup". Never
+               blocks — read-only, always exits 0. (RFC-0008)
   audit-write  PreToolUse hook gate: block a Write to a governed doc that lacks
-               complete front-matter. Emits the Claude Code permissionDecision JSON.
+               complete front-matter. On a write that marks a doc shipped/terminal
+               while it has a parent, emits a non-blocking reconciliation reminder.
 
 Options:
   --root       Repo root containing govkit.yml (default: cwd, or the hook's cwd).
@@ -109,17 +116,31 @@ function printEval(result: EvalResult): void {
 // permissionDecision (NOT exit 2 — exit 2 is the emergency-stop path). A pass
 // emits nothing and exits 0, deferring to the normal permission flow.
 function emitDecision(decision: AuditDecision): void {
-  if (!decision.block) return;
-  process.stdout.write(
-    JSON.stringify({
-      hookSpecificOutput: {
-        hookEventName: "PreToolUse",
-        permissionDecision: "deny",
-        permissionDecisionReason: decision.reason ?? "govkit: blocked by governance gate",
-        additionalContext: decision.context ?? "",
-      },
-    }),
-  );
+  if (decision.block) {
+    process.stdout.write(
+      JSON.stringify({
+        hookSpecificOutput: {
+          hookEventName: "PreToolUse",
+          permissionDecision: "deny",
+          permissionDecisionReason: decision.reason ?? "govkit: blocked by governance gate",
+          additionalContext: decision.context ?? "",
+        },
+      }),
+    );
+    return;
+  }
+  // A non-blocking reconciliation nudge (RFC-0008): inject context, do NOT set a
+  // permissionDecision — the write proceeds, the author just gets the reminder.
+  if (decision.remind) {
+    process.stdout.write(
+      JSON.stringify({
+        hookSpecificOutput: {
+          hookEventName: "PreToolUse",
+          additionalContext: decision.remind,
+        },
+      }),
+    );
+  }
 }
 
 function printInit(result: InitResult): void {
@@ -172,6 +193,28 @@ function printAdopt(result: AdoptResult): void {
         "  (not applied — govkit.yml is your contract; edit it yourself if you agree.)\n",
     );
   }
+}
+
+function printReport(result: ReportResult): void {
+  const out = process.stdout;
+  out.write(`govkit report — lifecycle of ${result.total} governed doc(s)\n`);
+  for (const t of result.types) {
+    out.write(`\n${t.type} (${t.total})\n`);
+    if (t.buckets.length === 0) {
+      out.write("  (no docs)\n");
+      continue;
+    }
+    for (const b of t.buckets) {
+      // Mark decided/shipped buckets so "done" is legible at a glance; only meaningful when the
+      // type opted into terminalStatuses (else every bucket is unmarked, which is honest).
+      const tag = b.terminal ? " ✓ decided" : t.hasTerminal ? " · in-flight" : "";
+      out.write(`  ${b.status} ×${b.count}${tag}  [${b.ids.join(", ")}]\n`);
+    }
+  }
+  out.write(
+    "\n(advisory — a presence-only view of lifecycle; it cannot judge whether prose is current. " +
+      "Use it to spot superseded/rejected docs to clean up and stale work to reconcile.)\n",
+  );
 }
 
 async function main(argv: string[]): Promise<number> {
@@ -278,6 +321,15 @@ async function main(argv: string[]): Promise<number> {
       const evaluation = runEval({ root, changed });
       printEval(evaluation);
       return verify.ok && evaluation.ok ? 0 : 1;
+    }
+    case "report": {
+      // Advisory lifecycle view (RFC-0008). Read-only, no exit-code effect: a report that
+      // could fail CI would tempt someone to gate on advisory output, the exact thing the
+      // gate/eval split exists to prevent.
+      const result = runReport({ root: values.root ?? process.cwd() });
+      if (values.json) process.stdout.write(`${JSON.stringify(result, null, 2)}\n`);
+      else printReport(result);
+      return 0;
     }
     case "audit-write": {
       // Robust by construction: any failure DEFERS (no output, exit 0) rather

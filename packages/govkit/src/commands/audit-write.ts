@@ -15,6 +15,15 @@ export interface AuditDecision {
   block: boolean;
   reason?: string;
   context?: string;
+  /**
+   * A non-blocking reconciliation nudge (RFC-0008, item 3 — "feedback ngược sau implement").
+   * Set when a write flips a doc INTO a terminal status while it carries a parent ref: the
+   * moment you mark something shipped is the moment to re-read its design and confirm the doc
+   * still reflects what shipped. This is single-file by construction — the hook has only the
+   * content being written, not the parent doc, so it CANNOT judge chain-coherence (that is
+   * `verify`'s cross-doc job); it only reminds. Never blocks.
+   */
+  remind?: string;
 }
 
 function isInside(dir: string, file: string): boolean {
@@ -67,6 +76,28 @@ export function auditWrite(input: HookInput, root: string, config?: GovkitConfig
         reason: `govkit: ${basename(filePath)} (${typeName}) is missing required front-matter: ${missing.join(", ")}.`,
         context: `Add the missing key(s) before writing. Type '${typeName}' requires: ${required.join(", ")}; start status: ${start}; owner: TBD.`,
       };
+    }
+    // Governed and complete. One last, NON-blocking check: is this write flipping the doc into
+    // a terminal (decided/shipped) status while it points at a parent? If so, nudge the author
+    // to reconcile the parent — the proactive "feedback after implement" the CI gate delivers
+    // only after the fact. Single-file: we read the parent's id from THIS doc, never load it.
+    const status = String(fm.data.status ?? "").trim();
+    const terminal = def.terminalStatuses ?? [];
+    if (terminal.includes(status)) {
+      const parents = (def.refs ?? [])
+        .map((ref) => ({ key: ref.key, value: String(fm.data[ref.key] ?? "").trim() }))
+        .filter((r) => r.value !== "");
+      if (parents.length > 0) {
+        const links = parents.map((p) => `${p.key}: ${p.value}`).join(", ");
+        return {
+          block: false,
+          remind:
+            `govkit: ${basename(filePath)} is being marked '${status}' (a shipped/terminal ` +
+            `state). Re-read its ${links} and confirm the design doc reflects what actually ` +
+            `shipped — and that the parent is itself decided (accepted/superseded), or \`govkit ` +
+            `verify\` will flag the chain (RFC-0008).`,
+        };
+      }
     }
     return { block: false }; // governed and complete
   }
