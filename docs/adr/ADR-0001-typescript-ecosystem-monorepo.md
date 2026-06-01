@@ -1,8 +1,8 @@
 ---
 id: ADR-0001
 title: Full-TypeScript ecosystem monorepo for govkit + swe-flow + template
-status: proposed
-owner: TBD
+status: accepted
+owner: baodq97
 date: 2026-05-31
 governs:
   - pnpm-workspace.yaml
