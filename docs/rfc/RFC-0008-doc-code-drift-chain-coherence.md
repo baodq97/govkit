@@ -1,7 +1,7 @@
 ---
 id: RFC-0008
 title: Doc–code drift, gate-half — chain-status coherence and a cleanup report
-status: accepted
+status: implemented
 owner: baodq97
 date: 2026-06-01
 ---
@@ -123,3 +123,32 @@ prompt, not a semantic check; cheaper and better-targeted than scanning every do
   coherence gate (this RFC's GATE half); the nudge is best-effort on the Write path. Lifting it
   means teaching `audit-write` to detect a status transition in an Edit's `new_string`, a
   deliberate v1 non-goal. Named so item 3 is not read as fully delivering moment-of-flip feedback.
+
+## As-built
+
+The GATE half shipped: `checkChainCoherence` in `verify.ts` blocks a doc reaching a
+terminal/shipped status while its `parent` is still in a non-terminal (undecided) state, driven by
+the per-type `terminalStatuses` config. The cleanup REPORT shipped as `commands/report.ts`
+(`govkit report`) — advisory, read-only, never an exit code. The `audit-write` nudge for
+terminal-status authoring shipped as item 3, on the Write path only.
+
+**Proven on a real doc this session, not just fixtures.** Implementing ADR-0002 (the bun
+migration), the gate fired for real: ADR-0002 was flipped to `accepted` while its `parent`
+ADR-0001 was still `proposed`, and `verify` blocked it — the exact "decided child over an
+undecided parent" inconsistency this RFC targets. It forced the overdue acceptance of ADR-0001
+into the open. That is the GATE half doing its job on live state.
+
+## Deviations from design
+
+- **`terminalStatuses` grew after the fact.** At design time the terminal set per RFC was
+  `[accepted, superseded]`. RFC-0010 later introduced an `implemented` status and added it to the
+  set — so the coherence gate now treats `implemented` as terminal too. A forward-compatible
+  extension the original design did not enumerate, recorded because it changes which flips the gate
+  blocks.
+- **Moment-of-flip feedback is still best-effort, as the open question warned.** The `audit-write`
+  nudge fires only when a doc is *authored* complete-with-terminal-status in one Write; the common
+  `open → done` / `accepted → implemented` flip is an Edit of the status line, which the hook does
+  not detect. The reliable feedback path remains the CI coherence gate. This is a realized
+  limitation, not a regression — named in Open questions, true in the as-built.
+- **Scope held:** govkit still makes no claim that a coherent chain means *correct* docs — that is
+  the reviewer's job. No semantic check crept in. No deviation.

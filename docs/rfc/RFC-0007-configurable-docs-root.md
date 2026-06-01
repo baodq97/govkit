@@ -1,7 +1,7 @@
 ---
 id: RFC-0007
 title: Configurable docs-root — isolate kit-managed docs under one parent (default unchanged)
-status: accepted
+status: implemented
 owner: baodq97
 date: 2026-06-01
 ---
@@ -99,3 +99,28 @@ and adoptions (surfaced via `init --docs-root` and the docs), never an imposed o
   relocation from `init --docs-root` on a populated repo.
 - **Interplay with RFC-0006 Lane 2 vocabulary drift.** Unaffected — drift is per-doc and root
   only changes *where* docs are found, not how they're scored. Recorded so it isn't re-opened.
+
+## As-built
+
+Shipped as designed. `docs.root` (default `"."`) is read in `config.ts` (`loadConfig`); every
+governed-doc directory resolves through one shared helper (`typeDir` in `util.ts`), and all
+readers go through it — `verify`, `eval`, `adopt`, the `init` scaffold, the `audit-write` hook,
+**and** `stale` (RFC-0009, added later, inherited the single resolution rule for free, which is
+exactly the one-source-of-truth payoff this RFC argued for). `init --docs-root <dir>` writes the
+key and scaffolds the INDEX stubs under it. Default-absent resolves bit-for-bit to today —
+govkit's own docs stay `docs/rfc`, verify/eval stay 100/100.
+
+The escaping-root open question resolved the way the RFC *leaned*: a **hard error at config-load**
+(`config.ts`: `relative(root, resolve(root, docsRoot))` → reject if it starts `..` or is absolute),
+so a typo fails loud instead of silently governing nothing. `init` does not relocate an existing
+tree (scaffold-only), as named.
+
+## Deviations from design
+
+- **None material.** The per-type escape hatch was deliberately *not* built (the RFC deferred it
+  as speculative) — that is held scope, not a deviation. The escape-root question landed on the
+  leaned option (hard error), so the impl matches the design rather than diverging.
+- **One thing the design did not foresee:** a *future* reader (`stale`, RFC-0009) would also depend
+  on the resolution rule. Because the rule was centralized in `typeDir`, that reader required zero
+  new path logic — the decision paid off beyond the readers enumerated at design time. Recorded
+  because it strengthens, not weakens, the as-built.

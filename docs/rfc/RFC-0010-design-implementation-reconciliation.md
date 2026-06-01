@@ -1,7 +1,7 @@
 ---
 id: RFC-0010
 title: Controlling design↔implementation divergence — make as-built deviations explicit and reviewable
-status: accepted
+status: implemented
 owner: baodq97
 date: 2026-06-01
 ---
@@ -169,3 +169,35 @@ blocks). The nudge is the courtesy; the verify check is the enforcement.
 - **Defining "material" divergence.** Which decisions deserve an ADR vs a one-line As-built note
   is a judgment the gate cannot make — it can require the *section*, not adjudicate *materiality*.
   That adjudication is the reviewer's, named so the gate is not expected to draw the line.
+
+## As-built
+
+Shipped: a per-type `requiredSectionsByStatus: { <status>: string[] }` map in config, enforced by
+`checkRequiredSections` in `verify.ts` (a doc at the keyed status must carry the named sections as
+distinct headings, matched against `headingLines(stripNonProse(body))`), a new `implemented`
+lifecycle status, and an extension of the `audit-write` nudge. govkit.yml keys
+`implemented: ["As-built", "Deviations from design"]`.
+
+**This very document is the first real firing of the gate.** Until now the check ran only on
+fixtures; flipping RFC-0007/0008/0009/0010 to `implemented` in this commit is the first time
+`checkRequiredSections` evaluates real governed docs — each of these four RFCs now *must* carry the
+two sections (this one included), or `verify` fails. The forcing function forces itself.
+
+## Deviations from design
+
+- **The headline deviation: this RFC's own first draft was wrong, and its own thesis caught it.**
+  Draft 1 keyed the required section to `terminalStatuses`. But `terminalStatuses` includes
+  `accepted` — a *pre-implementation* state — so the as-built gate would have fired at accept-time
+  (before any divergence can exist) and never re-fired after code shipped: a check that looks
+  enforced but targets the wrong lifecycle moment, the exact masking class govkit exists to kill.
+  The advisor caught it before implementation. The fix is the design now shipped: a new
+  `implemented` status plus a `requiredSectionsByStatus` map **decoupled** from `terminalStatuses`,
+  so the gate fires *after* implementation, when divergence can actually exist. The regression test
+  pins it: *an `accepted` doc missing the section ⇒ OK; an `implemented` one ⇒ violation.*
+- **The never-flipped escape remains open (and was visible this whole session).** An author who
+  ships code but never flips the RFC to `implemented` evades the gate entirely — and indeed these
+  four RFCs sat `accepted`-but-implemented for the rest of the session until this explicit,
+  owner-authorized flip. Only the reviewer + the coherence gate cover that gap; the as-built gate
+  cannot force a flip that never happens. Named as designed, confirmed true in practice.
+- **Intersection with RFC-0009 (As-built: "None" + governs-moved) is noted, not wired.** Left as a
+  one-line cross-reference rather than coupling two newborn features at birth — held scope.

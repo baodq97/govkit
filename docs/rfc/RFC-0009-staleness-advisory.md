@@ -1,7 +1,7 @@
 ---
 id: RFC-0009
 title: Staleness advisory — link a doc to the code it governs and warn when the code moved on
-status: accepted
+status: implemented
 owner: baodq97
 date: 2026-06-01
 ---
@@ -132,3 +132,28 @@ Mirroring RFC-0003/0008's reference skips:
   resets its own clock and reads "fresh" though its substance is old — the mirror of the code-side
   proxy noise. Both directions are why this is advisory. A content-hash baseline is a future,
   heavier option, deliberately not v1.
+
+## As-built
+
+Shipped as `commands/stale.ts` (`govkit stale`) with the `governs:` front-matter key (string or
+list). Recency uses git **commit time** (`git log -1 --format=%ct`), never mtime, via
+`gitCommitTime`/`gitMatchCount`/`gitAvailable` in `util.ts`. It is git-gated and lives OUTSIDE the
+no-key pure-fs floor by construction — `check` never calls it, it never affects an exit code. The
+four skip-cases (`stale`/`fresh`/`dangling`/`uncommitted`) are surfaced honestly, never silently
+read as fresh. Proven live this session: after the bun migration, `govkit stale` reported
+**2 declare governs, 0 dangling, 2 fresh** — including the governs reconciliation it predicted.
+
+## Deviations from design
+
+- **A masking bug the design did not anticipate, caught by the dogfooded reviewer.** The first
+  implementation compared only `gitMatchCount > 0` to decide a glob was evaluable — but a governed
+  path that is *staged but never committed* matches `ls-files` (count > 0) yet has **no commit
+  time** (`gitCommitTime` → null), so the code silently read it as "fresh". That violates this
+  RFC's own §3 ("never silently fresh"). Fixed by folding `codeTime === null` into the `dangling`
+  branch (so both "matches nothing" and "matches only uncommitted" land on the same honest skip),
+  plus a regression test. The RFC's principle was right; the first code betrayed it; the repo's own
+  reviewer agent caught it before merge — the self-correcting loop working.
+- **Weak-by-default adoption (named, not hidden).** Only ADR-0001 (and now ADR-0002) declare
+  `governs:`. The capability is proven but barely *used* — broad "which doc governs which source"
+  adoption is deferred to the owner, so a green `stale` today certifies very little coverage. This
+  is the honest as-built state, not a claim of repo-wide staleness tracking.
