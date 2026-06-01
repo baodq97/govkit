@@ -1,8 +1,8 @@
 ---
 id: RFC-0007
 title: Configurable docs-root — isolate kit-managed docs under one parent (default unchanged)
-status: draft
-owner: TBD
+status: accepted
+owner: baodq97
 date: 2026-06-01
 ---
 

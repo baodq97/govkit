@@ -1,8 +1,8 @@
 ---
 id: RFC-0008
 title: Doc–code drift, gate-half — chain-status coherence and a cleanup report
-status: draft
-owner: TBD
+status: accepted
+owner: baodq97
 date: 2026-06-01
 ---
 
