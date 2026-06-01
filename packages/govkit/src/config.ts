@@ -9,6 +9,16 @@ export interface DocType {
   startStatus?: string;
   /** Allowed lifecycle states. When set, `verify` rejects any status outside this set. */
   statuses?: string[];
+  /**
+   * The subset of `statuses` that means "decided / shipped" — a TERMINAL state (RFC-0008).
+   * Drives chain-status coherence: a doc in a terminal state may not have a `parent` ref that
+   * resolves to a doc whose own type is terminal yet whose status is NOT (you shipped a thing
+   * whose design was never decided). OPT-IN: a type without `terminalStatuses` is exempt, so
+   * the coherence gate is non-breaking and dark until configured. "Terminal" is a set, not a
+   * single value — `accepted` AND `superseded` are both decided, so done-under-superseded is
+   * legitimate; only a pre-decision (draft/proposed) or rejected parent is the inconsistency.
+   */
+  terminalStatuses?: string[];
   /** Required id prefix (e.g. "ADR"). When set, `verify` enforces id + filename convention. */
   idPrefix?: string;
   /**

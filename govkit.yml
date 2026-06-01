@@ -24,12 +24,16 @@ docs:
       idPrefix: RFC
       startStatus: draft
       statuses: [draft, proposed, accepted, rejected, superseded]
+      # Chain-status coherence (RFC-0008): the decided/terminal subset. A child that has
+      # shipped may not hang off an RFC still draft/proposed/rejected (its design undecided).
+      terminalStatuses: [accepted, superseded]
     adr:
       dir: docs/adr
       required: [id, title, status, owner, date]
       idPrefix: ADR
       startStatus: proposed
       statuses: [proposed, accepted, rejected, superseded]
+      terminalStatuses: [accepted, superseded]
       # Chain referential-integrity (RFC-0003): an ADR's optional `parent` must resolve to a
       # real id. Resolve-only — empty `parent` (a root ADR) is skipped, `type` is advisory.
       refs: [{ key: parent, type: rfc }]
@@ -39,6 +43,9 @@ docs:
       idPrefix: US
       startStatus: open
       statuses: [open, in-progress, blocked, done, wontfix]
+      # Terminal = shipped only. `wontfix` is deliberately NOT terminal here: a won't-fix issue
+      # under a draft RFC is not the "shipped an undecided design" inconsistency the gate targets.
+      terminalStatuses: [done]
       # A US's `parent` (the RFC/ADR it implements) must resolve to a real id.
       refs: [{ key: parent, type: rfc }]
 

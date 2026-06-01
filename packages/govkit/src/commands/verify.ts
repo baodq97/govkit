@@ -11,7 +11,8 @@ export type ViolationKind =
   | "id"
   | "duplicate"
   | "placeholder"
-  | "reference";
+  | "reference"
+  | "coherence";
 
 export interface Violation {
   file: string;
@@ -201,6 +202,59 @@ function checkReferences(docs: Doc[], types: Record<string, DocType>): Violation
   return violations;
 }
 
+// Chain-status COHERENCE (RFC-0008): the "feedback after implement" gate. A doc that has
+// reached a TERMINAL state (its type's `terminalStatuses`) must not depend on a parent whose
+// design was never decided — you cannot ship a thing whose RFC is still draft/rejected. For
+// every terminal doc with a configured `parent`-style ref, resolve the parent BY ID and require
+// the parent be terminal too. Precision that keeps this zero-false-positive:
+//   • child-type with no `terminalStatuses`  → exempt (the non-breaking floor).
+//   • child not in a terminal status         → nothing decided yet, skip.
+//   • parent ref empty                        → optional link, skip.
+//   • parent id does not resolve              → dangling; that's checkReferences' job, not ours.
+//   • parent-type with no `terminalStatuses`  → "terminal" is undefined for it, cannot judge, skip.
+// Only when the parent resolves to a doc whose type DOES define terminal states and whose status
+// is NOT among them do we flag. "Terminal" is a SET (accepted ∪ superseded), so done-under-
+// superseded passes — only a pre-decision/rejected parent fails. Same deterministic, no-key,
+// cross-doc class as checkReferences; reported on the child (the doc that jumped ahead).
+function checkCoherence(docs: Doc[], types: Record<string, DocType>): Violation[] {
+  const byId = new Map<string, Doc>();
+  for (const doc of docs) {
+    const id = str(doc.data.id);
+    if (id && !byId.has(id)) byId.set(id, doc);
+  }
+  const isTerminal = (doc: Doc): boolean => {
+    const term = types[doc.type]?.terminalStatuses;
+    return !!term && term.length > 0 && term.includes(str(doc.data.status));
+  };
+  const violations: Violation[] = [];
+  for (const doc of docs) {
+    const def = types[doc.type];
+    if (!isTerminal(doc)) continue; // exempt type, or child not yet decided
+    const refs = def?.refs;
+    if (!refs || refs.length === 0) continue;
+    const problems: string[] = [];
+    for (const ref of refs) {
+      const value = str(doc.data[ref.key]);
+      if (value === "") continue; // optional link
+      const parent = byId.get(value);
+      if (!parent) continue; // dangling → checkReferences reports it
+      const pdef = types[parent.type]?.terminalStatuses;
+      if (!pdef || pdef.length === 0) continue; // parent type cannot be judged
+      if (!isTerminal(parent)) {
+        problems.push(
+          `'${str(doc.data.id)}' is ${str(doc.data.status)} but its ${ref.key} '${value}' is ` +
+            `${str(parent.data.status)} — not a decided/terminal state ` +
+            `(one of [${pdef.join(", ")}])`,
+        );
+      }
+    }
+    if (problems.length > 0) {
+      violations.push({ file: doc.file, type: doc.type, kind: "coherence", problems });
+    }
+  }
+  return violations;
+}
+
 // RFC-0004 adoption scoping: keep ONLY the violations a changed set is responsible for,
 // so an existing repo can adopt govkit without retrofitting its whole backlog first. The
 // load-bearing rule is "scope the REPORT, never the SCAN" — runVerify already scanned ALL
@@ -211,7 +265,9 @@ function checkReferences(docs: Doc[], types: Record<string, DocType>): Violation
 // `reference` — are ALWAYS kept: a new doc duplicating an UNTOUCHED doc's id (the colliding
 // pair's reported file may be the untouched one) or pointing at a dangling id must never be
 // masked. Masking a real new violation is the exact "looks-enforced-but-isn't" leak govkit
-// exists to prevent, so the no-mask floor wins over tighter scoping for these two kinds.
+// exists to prevent, so the no-mask floor wins over tighter scoping for these kinds.
+// `coherence` (RFC-0008) joins that always-kept set: a child going terminal under an
+// untouched-but-undecided parent implicates the UNTOUCHED parent, the exact masking case.
 function scopeToChanged(
   violations: Violation[],
   scanned: { file: string; type: string }[],
@@ -233,7 +289,7 @@ function scopeToChanged(
   }
   const scoped: Violation[] = [];
   for (const v of violations) {
-    if (v.kind === "duplicate" || v.kind === "reference") {
+    if (v.kind === "duplicate" || v.kind === "reference" || v.kind === "coherence") {
       scoped.push(v); // global integrity — always reported, never masked
     } else if (v.kind === "index") {
       // An INDEX check emits ONE violation per type listing EVERY doc missing/stale, so
@@ -320,6 +376,7 @@ export function runVerify(opts: VerifyOptions): VerifyResult {
 
   violations.push(...checkDuplicateIds(allDocs));
   violations.push(...checkReferences(allDocs, types));
+  violations.push(...checkCoherence(allDocs, types));
 
   if (opts.changed) {
     const scoped = scopeToChanged(violations, scannedFiles, allDocs, opts.changed.files);
