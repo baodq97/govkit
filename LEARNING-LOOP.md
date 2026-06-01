@@ -629,6 +629,22 @@ CANNOT judge coherence there; it only nudges ("you marked this done; re-read its
 "the part that tests green" and "the part the user asked for" are not the same set; a green gate can
 mask an unmet requirement as surely as a passing test masks a coverage gap.**
 
+**CORRECTION (same-round done-check, advisor) — the nudge MISSES its primary trigger, and the claim
+above over-reached.** `auditWrite` defers EVERY Edit by design (`tool_name !== "Write"` → no-op;
+the suite even asserts "defers an Edit — CI's full verify covers it"). But flipping an existing
+doc'"'"'s `status: open → done` is almost always an **Edit of the status line**, not a full-file
+rewrite. So the nudge — built to fire "at the moment of the done-flip" — stays SILENT for the most
+common way that flip happens; only the CI coherence gate catches it, the very "after the fact" the
+nudge was meant to improve on. The nudge reliably fires only when a doc is *authored* complete, with
+a terminal status, in a single Write. So the honest statement of item 3: **the reliable feedback-
+ngược is the CI coherence GATE; the proactive write-time nudge is best-effort, covering the Write-
+authoring path, NOT the Edit-based status flip.** This is the overclaim reflex landing a third time
+this session — the green nudge test (Write-only) masked that the requirement'"'"'s main case is
+uncovered. It is architectural, not a bug (an Edit carries partial content the hook genuinely cannot
+parse for full front-matter), so it is named as a residue, not "fixed" — but the round-8 record must
+not claim the nudge delivers moment-of-shipping feedback unqualified, because for the dominant
+trigger it does not.
+
 **The asymmetric-adoption masking residue (named + pinned).** Opting ONE type into
 `terminalStatuses` does nothing until its PARENT type is opted in too — a done US under a draft RFC
 is silent if `rfc` has no `terminalStatuses`. This is the session-recurring "looks-enforced-but-
@@ -657,7 +673,11 @@ that block is restructured the injection must follow. Pinned by a test, but it's
 not logical. (3) **`docs.root` v1 prefixes ALL types uniformly** — no per-type escape for a hybrid
 repo (kit docs under `.govkit` AND a governed existing `docs/specs`); deferred in RFC-0007, still
 open. (4) **The asymmetric-adoption blind spot** above. (5) **n=1 per RFC on real config** — proven
-to work on this repo's shape, not measured across a large foreign corpus.
+to work on this repo's shape, not measured across a large foreign corpus. (6) **The nudge'"'"'s Edit-path
+gap** (see CORRECTION above) — the write-time reconciliation reminder does not fire on the Edit-based
+`open → done` flip, only on a complete-with-terminal-status Write; the CI coherence gate is the
+reliable mechanism. Lifting it would mean teaching `auditWrite` to parse Edit `new_string` for a
+status transition, a deliberate v1 non-goal.
 
 **Round-8 verdict:** the loop shipped two accepted RFCs end-to-end with provenance intact, and its
 real value was again at the seams the happy path hides: a consumer the RFC under-counted, a

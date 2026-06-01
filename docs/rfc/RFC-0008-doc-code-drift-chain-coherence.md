@@ -115,3 +115,11 @@ prompt, not a semantic check; cheaper and better-targeted than scanning every do
 - **Multi-parent / transitive coherence.** v1 checks the single `parent` edge one level (as
   RFC-0003's refs are single-scalar, non-transitive). A done issue two levels under a draft
   ancestor is not caught. Named as the same bounded-scope choice refs already made.
+- **The write-time nudge (item 3) misses the Edit-based status flip — RESIDUE.** `audit-write`
+  defers every Edit by design (an Edit carries partial content the hook cannot parse for full
+  front-matter), so the reconciliation reminder fires only when a doc is *authored* complete
+  with a terminal status in one Write — NOT on the far more common `open → done` flip done as an
+  Edit of the status line. The **reliable** feedback-after-implement is therefore the CI
+  coherence gate (this RFC's GATE half); the nudge is best-effort on the Write path. Lifting it
+  means teaching `audit-write` to detect a status transition in an Edit's `new_string`, a
+  deliberate v1 non-goal. Named so item 3 is not read as fully delivering moment-of-flip feedback.
