@@ -4,6 +4,8 @@ title: init --adopt — migrate existing prose metadata into front-matter withou
 status: accepted
 owner: baodq97
 date: 2026-05-31
+governs:
+  - packages/govkit/src/commands/adopt.ts
 ---
 
 > Drafted from the RFC-0005 field test (LEARNING-LOOP Round 5), which validated `--changed`

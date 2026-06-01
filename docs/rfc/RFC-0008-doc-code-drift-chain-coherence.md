@@ -4,6 +4,9 @@ title: Doc–code drift, gate-half — chain-status coherence and a cleanup repo
 status: implemented
 owner: baodq97
 date: 2026-06-01
+governs:
+  - packages/govkit/src/commands/verify.ts
+  - packages/govkit/src/commands/report.ts
 ---
 
 > Answers the question "how do we keep docs from rotting into trash, and get feedback back into

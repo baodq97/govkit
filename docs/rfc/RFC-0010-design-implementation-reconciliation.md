@@ -4,6 +4,9 @@ title: Controlling design↔implementation divergence — make as-built deviatio
 status: implemented
 owner: baodq97
 date: 2026-06-01
+governs:
+  - packages/govkit/src/commands/verify.ts
+  - packages/govkit/src/config.ts
 ---
 
 > Answers "how do we control the local decisions that diverge from the design during

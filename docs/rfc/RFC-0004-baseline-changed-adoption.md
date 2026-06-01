@@ -4,6 +4,9 @@ title: Adoption on existing repos — gate the changed set, not the whole backlo
 status: accepted
 owner: baodq97
 date: 2026-05-31
+governs:
+  - packages/govkit/src/commands/verify.ts
+  - packages/govkit/src/util.ts
 ---
 
 > Proposes a new public, deterministic surface (root `AGENTS.md` § Lifecycle): a

@@ -4,6 +4,9 @@ title: Staleness advisory — link a doc to the code it governs and warn when th
 status: implemented
 owner: baodq97
 date: 2026-06-01
+governs:
+  - packages/govkit/src/commands/stale.ts
+  - packages/govkit/src/util.ts
 ---
 
 > Builds the ADVISORY half RFC-0008 named-but-deferred: a `governs:` front-matter glob linking a

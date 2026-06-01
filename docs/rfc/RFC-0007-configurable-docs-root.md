@@ -4,6 +4,9 @@ title: Configurable docs-root — isolate kit-managed docs under one parent (def
 status: implemented
 owner: baodq97
 date: 2026-06-01
+governs:
+  - packages/govkit/src/config.ts
+  - packages/govkit/src/util.ts
 ---
 
 > Proposed after the RFC-0006 field work: on a real existing repo, `docs/` is already taken

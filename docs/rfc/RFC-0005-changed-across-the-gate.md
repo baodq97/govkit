@@ -4,6 +4,9 @@ title: Complete --changed across the gate — eval and check honor adoption scop
 status: accepted
 owner: baodq97
 date: 2026-05-31
+governs:
+  - packages/govkit/src/commands/eval.ts
+  - packages/govkit/src/cli.ts
 ---
 
 > Resolves the open question RFC-0004 explicitly deferred ("does `eval` need the same

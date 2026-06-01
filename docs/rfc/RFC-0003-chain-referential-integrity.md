@@ -4,6 +4,8 @@ title: Chain referential-integrity — resolve cross-artifact references in the 
 status: accepted
 owner: baodq97
 date: 2026-05-31
+governs:
+  - packages/govkit/src/commands/verify.ts
 ---
 
 > Proposes a new public, deterministic surface (root `AGENTS.md` § Lifecycle): one
