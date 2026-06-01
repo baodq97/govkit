@@ -28,9 +28,14 @@ been produced by an LLM — does not make it good. govkit separates the two ques
 | **Reviewer** (substance *judge*) | `swe-flow:reviewer` agent | Is the reasoning **sound**? | opt-in, needs a key — **never** in no-key CI |
 
 The gate enforces front-matter, the status lifecycle, id↔filename convention, INDEX
-sync, unique ids, and no placeholders. `eval` adds a deterministic **structural floor**
+sync, unique ids, no placeholders, chain referential-integrity (RFC-0003), and
+**chain-status coherence** (RFC-0008 — a doc may not reach a terminal/shipped state while
+its `parent`'s design is still undecided). `eval` adds a deterministic **structural floor**
 that blocks CI (not an empty stub, no leftover template filler, canonical sections as
 *distinct* headings) plus an **advisory score** to watch quality trend — both no-key.
+`govkit report` gives an advisory lifecycle view (done / in-flight / cleanup) and never
+blocks. Where the governed docs live is configurable via `docs.root` (default `.`,
+RFC-0007) — set e.g. `.govkit` to isolate kit-managed docs under one folder.
 
 **An honest boundary** (the result of an adversarial red-team): a presence/shape rubric
 *cannot* tell a real artifact from a keyword-salad with the right headings. So `eval` is

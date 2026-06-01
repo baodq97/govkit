@@ -597,3 +597,72 @@ advisor's three corrections were all the same shape: **respect the line RFC-0001
 reflex, the punt-the-mechanism reflex, and the fold-everything-into-one-RFC reflex were each a failure to keep
 the gate/advisory boundary clean. Seven rounds in, the compounding discipline sharpened once more: **before
 adding a check, ask which trust class it belongs to — and if it is a proxy, it advises; it never blocks.**
+
+
+---
+
+## Round 8 — both RFCs shipped in one arc; the advisor catches a hidden consumer and a near-dropped requirement
+
+**What shipped.** RFC-0008 gate (chain-status coherence) + advisory half (`govkit report` + the
+reconciliation nudge in `audit-write`), and RFC-0007 (configurable `docs.root` via one `typeDir`
+helper across every reader). 79 tests (was 60), self-gate 100/100 throughout, both non-breaking.
+
+**The hidden fifth consumer (advisor, RFC-0007).** The RFC said "three readers + audit-write."
+Before writing the shared helper the advisor said: do not trust the count — grep every consumer of
+`def.dir`. There were FIVE (verify×2, eval, adopt, report) plus the `audit-write` hook computing
+`resolve(root, def.dir)` on its own. Had the helper covered only the "three", `docs.root` would be
+honored everywhere EXCEPT the per-write gate — the feature would silently leak at exactly the
+boundary it most needs to hold (a write under the configured root would be ungoverned). **Lesson:
+an RFC's impact list is a design-time estimate, not a consumer census; before a "one source of
+truth" refactor, enumerate the call-sites empirically — the one you forget is the one that leaks.**
+The `report` reader didn't even exist when RFC-0007 was written (it came from RFC-0008 the same
+session), which is the point: the count was stale the moment it was written down.
+
+**The near-dropped requirement (advisor, RFC-0008 item 3).** The coherence GATE was green and
+calling RFC-0008 "done" was tempting. But the user's literal words were "cơ chế sau khi implement
+cần feedback ngược" — feedback AT the moment of shipping, not a CI failure after the fact. The gate
+delivers the latter; item 3 (the reconciliation nudge at the `done`-flip) delivers the former, and
+it was about to drop silently because the gateable half tested green. The advisor: decide item 3
+consciously, don't let it vanish because the easy half is done. Built it — but the hook is
+single-file by construction (it has only the content being written, not the parent doc), so it
+CANNOT judge coherence there; it only nudges ("you marked this done; re-read its parent"). **Lesson:
+"the part that tests green" and "the part the user asked for" are not the same set; a green gate can
+mask an unmet requirement as surely as a passing test masks a coverage gap.**
+
+**The asymmetric-adoption masking residue (named + pinned).** Opting ONE type into
+`terminalStatuses` does nothing until its PARENT type is opted in too — a done US under a draft RFC
+is silent if `rfc` has no `terminalStatuses`. This is the session-recurring "looks-enforced-but-
+isn't" shape (Round 5's counter bug, Round 6's Lane-2 blind spot), now living in the incremental-
+adoption window. It fails SAFE (no false positive), but a user opting in one type would reasonably
+expect it to bite. Named in the RFC follow-ups and pinned by a test (`CONFIG_PARENT_NO_TERMINAL`)
+so the no-op is a documented choice, not an accident.
+
+**Empirical dogfood beyond fixtures (Round-5 lesson applied, twice).** (1) A throwaway `US-9999`
+marked `done` under the real repo's `draft` RFC-0001 made the coherence gate BITE on the actual
+config ("is done but its parent RFC-0001 is draft"), then `rm` returned it to green — proof on
+live config, not just a tmp fixture. (2) `init --docs-root .govkit` scaffolded a real temp repo,
+wrote `root: ".govkit"` into govkit.yml, and `verify` resolved under `.govkit/docs/*` and passed.
+The repo also ATE its own dogfood: govkit.yml now declares `terminalStatuses`, so this repo governs
+its own chain coherence going forward.
+
+**Kept my own docs honest (the RFC-0008 theme, turned on itself).** RFC-0008 exists so docs do not
+rot into trash while code moves. Shipping two new commands (`report`, `init --docs-root`) would have
+left the README describing an older CLI — the exact doc/code drift the feature fights. Updated the
+README in the same arc. The discipline cuts both ways or it is theatre.
+
+**What is NOT closed (named, round eight).** (1) **RFC-0009 (staleness advisory) still only named** —
+the `governs:` + git-recency eval-class sibling is unbuilt. (2) **`init --docs-root` template surgery**
+is a regex on the `^docs:$` anchor — robust today, but coupled to the default template's shape; if
+that block is restructured the injection must follow. Pinned by a test, but it's structural coupling,
+not logical. (3) **`docs.root` v1 prefixes ALL types uniformly** — no per-type escape for a hybrid
+repo (kit docs under `.govkit` AND a governed existing `docs/specs`); deferred in RFC-0007, still
+open. (4) **The asymmetric-adoption blind spot** above. (5) **n=1 per RFC on real config** — proven
+to work on this repo's shape, not measured across a large foreign corpus.
+
+**Round-8 verdict:** the loop shipped two accepted RFCs end-to-end with provenance intact, and its
+real value was again at the seams the happy path hides: a consumer the RFC under-counted, a
+requirement the green gate would have buried, and an adoption window where the gate quietly no-ops.
+Eight rounds in, the compounding discipline is the same and sharper: **the gate, the test, and the
+RFC each have a blind spot shaped like "the thing just outside what I enumerated" — so before
+calling it done, enumerate the consumers, the requirements, and the adoption states empirically, and
+name the one you cannot yet cover.**
