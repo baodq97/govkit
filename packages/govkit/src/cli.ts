@@ -46,10 +46,12 @@ Commands:
   audit-write  PreToolUse hook gate: block a Write to a governed doc that lacks
                complete front-matter. On a write that marks a doc shipped/terminal
                while it has a parent, emits a non-blocking reconciliation reminder.
+               Acts on Write only — an Edit defers (its partial content can't be
+               parsed), so an Edit-based status flip is caught by the CI verify gate.
 
 Options:
   --root       Repo root containing govkit.yml (default: cwd, or the hook's cwd).
-  --json       Machine-readable output (verify only).
+  --json       Machine-readable output (verify, eval, report, stale).
   --changed    Adoption mode (verify, eval, check): restrict to docs that are
                new-or-modified vs --base. verify still scans the whole repo for cross-doc
                checks (only the report is scoped, so a new duplicate id / dangling ref is

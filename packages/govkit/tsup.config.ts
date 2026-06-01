@@ -4,8 +4,10 @@ import { defineConfig } from "tsup";
 // PreToolUse hook both invoke one TRULY self-contained file. `noExternal` forces the
 // one runtime dependency (yaml) to be bundled INTO dist/cli.js rather than left as an
 // external `import … from "yaml"` — otherwise the shipped tarball needs `yaml` installed
-// separately and fails with ERR_MODULE_NOT_FOUND on a bare `node dist/cli.js` (caught by
-// the npm-pack offline proof). Bundling makes the artifact zero-runtime-dep: `npx govkit`
+// separately and fails with ERR_MODULE_NOT_FOUND on a bare `node dist/cli.js`. The repeatable guard is `npm run pack:proof`
+// (packages/govkit): it assembles the published file set in a temp dir with NO node_modules and
+// runs the bundle under stock node — the only place an unbundled dep is actually caught. Bundling
+// makes the artifact zero-runtime-dep: `npx govkit`
 // ships one file, no transitive install — the literal zero-install invariant the README pins.
 export default defineConfig({
   entry: ["src/cli.ts"],
