@@ -117,8 +117,15 @@ governs reconciliation: **2 declare governs, 0 dangling, 2 fresh** (ADR-0001 dro
 - **CI is written but UNPROVEN.** `oven-sh/setup-bun` + the dual-runtime steps exist; they have not
   run on GitHub Actions. "Green" is observed only on local win32 — the ubuntu CI claim is still a
   hope until a push. (Open follow-up, not closed by this ADR.)
-- **The npm-published contract is locally-, not consumer-, verified.** `node dist/cli.js` proves the
-  bundle runs Node-only; an actual `npm pack` → `npx govkit` on a bun-less clean machine has not
-  been run. The strongest portability proof is still outstanding.
+- **The npm-published contract — proof run, and it caught an overstated claim (resolved).** The
+  first as-built said "`node dist/cli.js` proves the bundle runs Node-only." A local `npm pack` →
+  extract → run-under-stock-node proof showed that was **only true because the repo's `node_modules`
+  happened to contain `yaml`**: the shipped tarball alone failed with `ERR_MODULE_NOT_FOUND: yaml`
+  (tsup left the one runtime dep external). Fix: `noExternal: ["yaml"]` bundles it into the single
+  file, `yaml` moved to `devDependencies` (consumers install nothing), and a `createRequire` banner
+  resolves yaml's CJS `require("process")` under ESM. The packed artifact now runs **standalone under
+  stock node with zero `node_modules`** (`check` → verify OK / eval 100/100) — the zero-install
+  invariant is now literally true, not ambiently true. The full `npx`-on-a-remote-clean-machine run
+  is still deferred (local-only by request), but the offline-tarball proof closes the substantive gap.
 - **Scope held:** tsup was NOT replaced (as designed); "fully bun" is deliberately false — the
   bundler remains a node tool. No deviation, recorded so the as-built is not mistaken for "all bun".

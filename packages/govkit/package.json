@@ -30,13 +30,11 @@
     "test": "bun test",
     "typecheck": "tsc --noEmit"
   },
-  "dependencies": {
-    "yaml": "^2.6.0"
-  },
   "devDependencies": {
     "@types/bun": "^1.2.0",
     "@types/node": "^22.10.0",
     "tsup": "^8.3.0",
-    "typescript": "^5.7.0"
+    "typescript": "^5.7.0",
+    "yaml": "^2.6.0"
   }
 }
