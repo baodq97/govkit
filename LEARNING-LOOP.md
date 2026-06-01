@@ -979,3 +979,52 @@ check this session. Thirteen rounds in: **"it works" is a sentence with a hidden
 *where*, with *what* ambiently present? Strip the ambient context (no node_modules, no pipe, no
 pre-set env) and re-run, because that stripped environment is the one the artifact actually ships
 into.**
+
+---
+
+## Round 14 — parallel agents, and the reviewer caught a claim the gate couldn't
+
+**The work.** Two file-disjoint packages built **in parallel by swe-flow:implementer agents**
+(dogfooding the repo's own machinery, as the standing directive demands): governs adoption across
+RFC-0003..0010 (docs) and CLI entrypoint integration tests (test). Then the lead integrated, ran the
+gate green (103 pass, verify 0 violations under bun + node), and ran swe-flow:reviewer over the diff.
+
+**The finding that matters: the gate passed, but a `governs:` was lying.** RFC-0005 declared
+`governs: verify.ts`. The gate is green on that — because **`governs` is not gate-enforced** (RFC-0009
+§: "v1 does not gate governs at all"). But RFC-0005 adds *no code* to verify.ts; that code is
+RFC-0004's. The mapping was plausible, structurally valid, and wrong — it would make `govkit stale`
+report RFC-0005 stale every time RFC-0004's verify.ts changed. The deterministic floor cannot catch
+this: a wrong-but-well-formed `governs` has the same shape as a right one, exactly the lexical-twin
+problem the whole gate/eval/reviewer split (RFC-0001) exists to handle. **Only the adversarial
+reviewer, told to be adversarial on the mappings specifically, caught it** — by reading the RFC's
+Decision against the code's comment-attribution and seeing RFC-0005 owned eval.ts + the cli.ts
+`case "check"` block, not verify.ts. Fixed before commit.
+
+**This is the trust line working as designed, one notch up from Round 13.** Round 13: a claim true
+only in the dev environment. Round 14: a claim the *gate* can't evaluate at all, because it's
+semantic ("does this file implement this RFC?") not structural. The lesson is not "the gate failed" —
+the gate correctly stayed out of a judgment it can't make. The lesson is **a new advisory link
+(`governs`) is a new surface for silent wrongness, and its correctness lives in the reviewer layer,
+not the gate** — so adding it without a reviewer pass would have shipped a lying advisory. Dogfooding
+the reviewer is not ceremony; it is the only layer that protects the layer the gate can't.
+
+**Parallelism note.** Two implementer agents on disjoint paths (docs/ front-matter vs a new test
+file) ran with zero integration conflict — the file-disjoint contract held. The lead's job was
+exactly what the agent contracts reserve for it: run the shared-state gate, run the reviewer, fix the
+cross-cutting finding, commit. The agents never touched git/bun/govkit; the lead did.
+
+**What is NOT closed (round fourteen).** (1) **9 of 10 governs are now "fresh" only because adding
+governs is itself a doc commit** — the staleness clock reset to now for all of them; the advisory
+says nothing yet, and won't until the governed code next moves. Adoption breadth ≠ signal yet. (2)
+**`governs` honesty is verified once, by one reviewer, at adoption time** — nothing re-checks that a
+mapping stays correct as code is refactored; a file split could silently make a governs stale-in-the-
+other-sense (points at a file that no longer holds the logic). No mechanism guards that drift. (3)
+**The CLI tests spawn under bun** (`process.execPath`), so they assert the dispatch behavior of the
+*bun*-run dist; the node/npx entrypoint is covered only transitively by the bundle being
+runtime-identical (proven Round 13), not by a node-spawned CLI test. Named, not closed.
+
+**Round-14 verdict:** the highest-value act was pointing the reviewer adversarially at the
+*lowest-ceremony* part of the change — eight one-line front-matter additions that the gate waved
+through green — because that is precisely where a silent semantic error hides. Fourteen rounds in:
+**a green gate certifies only what is structural; every new advisory you add is a new place to be
+confidently wrong, and the reviewer is the only thing standing between "well-formed" and "true."**
