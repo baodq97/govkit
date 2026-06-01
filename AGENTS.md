@@ -7,7 +7,7 @@
 
 ```
 packages/govkit/   the deterministic governance CLI (TypeScript) — the engine/spine
-plugins/swe-flow/  Claude Code plugin: authoring skills + agents (not a pnpm package)
+plugins/swe-flow/  Claude Code plugin: authoring skills + agents (not a workspace package)
 template/          consumer scaffold surface — pins govkit + installs plugin, NO engine source
 .claude/
   workflows/       the `sdlc` workflow (PRD→RFC→ADR→US→Code); project-scoped
@@ -31,16 +31,17 @@ is pinned by the adversarial corpus + `eval-hardening.test.ts`.
 
 ## Commands
 
-Toolchain: **pnpm + TypeScript + Biome + vitest + tsup**, Node ≥ 20. Never hand-edit `dist/`.
+Toolchain: **bun (install + test) + TypeScript + Biome + tsup**, Node ≥ 20 — the published
+artifact stays Node-portable (ADR-0002). Never hand-edit `dist/`.
 
 | Task | Cmd |
 |---|---|
-| install | `pnpm install` |
-| build | `pnpm -r build` (per-pkg: `pnpm --filter govkit build`) |
-| lint | `pnpm lint` (`biome check .`) · format: `pnpm format` |
-| typecheck | `pnpm -r typecheck` |
-| test | `pnpm -r test` (per-pkg: `pnpm --filter govkit test`) |
-| one-shot gate | `pnpm check` (biome + typecheck + tests + `verify` + `eval`) — CI runs this |
+| install | `bun install` |
+| build | `bun run build` (per-pkg: `bun run --filter govkit build`) |
+| lint | `bun run lint` (`biome check .`) · format: `bun run format` |
+| typecheck | `bun run typecheck` |
+| test | `bun run test` (`bun test`) |
+| one-shot gate | `bun run check` (biome + typecheck + build + tests + `verify` + `eval`, then re-runs under stock node) — CI runs this |
 | run engine | `node packages/govkit/dist/cli.js verify` (gate) · `… eval` (graded quality) |
 
 ## Lifecycle — gates by change class
@@ -94,7 +95,7 @@ ship as **plugin agents** (`swe-flow:implementer`, …) to be usable from the `s
 1. **Understand** — read this file + nearest sub-tree `AGENTS.md` + existing tests.
 2. **Plan** — if above a Lifecycle threshold, halt and surface it.
 3. **Implement** — match neighbour conventions.
-4. **Verify** — `pnpm lint` + `pnpm -r typecheck` + scoped `pnpm -r test`; at least one test
+4. **Verify** — `bun run lint` + `bun run typecheck` + scoped `bun run test`; at least one test
    exercises the shipped CLI surface as a consumer would.
 5. **Document** — README note for any public behavior change; INDEX row for any new doc artifact.
 6. **Open PR** — link Issue + required artifacts; hand off to the code owner.
