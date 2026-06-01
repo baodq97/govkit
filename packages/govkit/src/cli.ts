@@ -10,7 +10,7 @@ import { gitChangedDocs, resolveChangedBase } from "./util";
 const HELP = `govkit — deterministic docs-as-code governance engine
 
 Usage:
-  govkit init         [--root <dir>] [--force]
+  govkit init         [--root <dir>] [--force] [--docs-root <dir>]
   govkit init --adopt [--root <dir>] [--apply]  (migrate existing prose metadata → front-matter)
   govkit check        [--root <dir>] [--changed [--base <ref>]]  (verify + eval — the no-key CI gate)
   govkit verify       [--root <dir>] [--json] [--changed [--base <ref>]]
@@ -50,6 +50,8 @@ Options:
   --base       Base ref for --changed (default: origin/main, else HEAD).
   --adopt      Migration mode for init (see above). Dry-run unless --apply.
   --apply      Write the proposed front-matter to disk (init --adopt only).
+  --docs-root  (init only, RFC-0007) Parent dir for kit-managed docs, e.g. .govkit —
+               writes docs.root into govkit.yml and scaffolds under it. Default: current dir.
   --force      Overwrite existing files (init only).
   -h, --help   Show this help.
 `;
@@ -228,6 +230,7 @@ async function main(argv: string[]): Promise<number> {
       base: { type: "string" },
       adopt: { type: "boolean", default: false },
       apply: { type: "boolean", default: false },
+      "docs-root": { type: "string" },
       force: { type: "boolean", default: false },
       help: { type: "boolean", short: "h", default: false },
     },
@@ -252,6 +255,10 @@ async function main(argv: string[]): Promise<number> {
   }
   if (values.apply && !values.adopt) {
     process.stderr.write("govkit: --apply is only valid with init --adopt\n");
+    return 2;
+  }
+  if (values["docs-root"] !== undefined && command !== "init") {
+    process.stderr.write("govkit: --docs-root is only valid for init\n");
     return 2;
   }
 
@@ -295,7 +302,11 @@ async function main(argv: string[]): Promise<number> {
         printAdopt(result);
         return result.planned.some((p) => p.hasMissing) ? 1 : 0;
       }
-      const result = runInit({ root: values.root ?? process.cwd(), force: values.force });
+      const result = runInit({
+        root: values.root ?? process.cwd(),
+        force: values.force,
+        docsRoot: values["docs-root"],
+      });
       printInit(result);
       return 0;
     }

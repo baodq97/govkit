@@ -2,6 +2,16 @@ import { execFileSync } from "node:child_process";
 import { existsSync, readdirSync } from "node:fs";
 import { join, resolve } from "node:path";
 
+/** Resolve a governed-doc type's directory (RFC-0007): the ONE place that prepends the
+ *  configurable `docs.root` to a type's `dir`. Every reader (verify, eval, adopt, report) and
+ *  the per-write `audit-write` hook MUST route through this so they cannot drift — a non-`.`
+ *  root honored by some readers but not others is the exact "looks-governed-but-isn't" leak.
+ *  `docsRoot` defaults to `"."`, so `typeDir(root, ".", "docs/rfc")` === `join(root, "docs/rfc")`
+ *  bit-for-bit (join normalizes the `.` segment away). */
+export function typeDir(root: string, docsRoot: string, dir: string): string {
+  return join(root, docsRoot, dir);
+}
+
 /** Markdown docs in a directory, minus the ignore list. Non-recursive by design —
  *  governed docs live flat in their type dir. Shared by `verify` and `eval`. */
 export function listMarkdown(dir: string, ignore: string[]): string[] {

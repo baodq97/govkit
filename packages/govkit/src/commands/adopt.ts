@@ -1,8 +1,8 @@
 import { readFileSync, writeFileSync } from "node:fs";
-import { basename, join } from "node:path";
+import { basename } from "node:path";
 import { type DocType, type GovkitConfig, loadConfig } from "../config";
 import { parseFrontMatter } from "../frontmatter";
-import { listMarkdown, str, stripNonProse } from "../util";
+import { listMarkdown, str, stripNonProse, typeDir } from "../util";
 
 // The sentinel for a field that could not be extracted (or was uncertain). It is an
 // ANGLE-BRACKET placeholder on purpose: `verify`'s checkPlaceholder flags `/<[^>]*>/` on
@@ -130,14 +130,14 @@ function serialize(fields: AdoptField[]): string {
 // Pure-fs/no-key/no-git: extraction is regex over file contents, same trust class as verify.
 export function runAdopt(opts: AdoptOptions): AdoptResult {
   const config = opts.config ?? loadConfig(opts.root);
-  const { ignore, base, types } = config.docs;
+  const { ignore, base, types, root: docsRoot = "." } = config.docs;
   const planned: AdoptDocPlan[] = [];
   const driftByType: Record<string, Set<string>> = {};
 
   for (const [typeName, def] of Object.entries(types)) {
     const required = [...new Set([...base.required, ...def.required])];
 
-    for (const file of listMarkdown(join(opts.root, def.dir), ignore)) {
+    for (const file of listMarkdown(typeDir(opts.root, docsRoot, def.dir), ignore)) {
       const content = readFileSync(file, "utf8");
       const fm = parseFrontMatter(content);
 

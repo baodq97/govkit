@@ -1,8 +1,7 @@
 import { readFileSync } from "node:fs";
-import { join } from "node:path";
 import { type GovkitConfig, loadConfig } from "../config";
 import { parseFrontMatter } from "../frontmatter";
-import { listMarkdown, str } from "../util";
+import { listMarkdown, str, typeDir } from "../util";
 
 // The cleanup/lifecycle report (RFC-0008, advisory half). It answers the user's "which docs
 // are done / outdated / need cleanup" by SURFACING the lifecycle — a per-type status histogram
@@ -44,7 +43,7 @@ const NO_STATUS = "(no status)";
 
 export function runReport(opts: ReportOptions): ReportResult {
   const config = opts.config ?? loadConfig(opts.root);
-  const { ignore, types } = config.docs;
+  const { ignore, types, root: docsRoot = "." } = config.docs;
   const summaries: ReportTypeSummary[] = [];
   let total = 0;
 
@@ -53,7 +52,7 @@ export function runReport(opts: ReportOptions): ReportResult {
     const byStatus = new Map<string, string[]>();
     let typeTotal = 0;
 
-    for (const file of listMarkdown(join(opts.root, def.dir), ignore)) {
+    for (const file of listMarkdown(typeDir(opts.root, docsRoot, def.dir), ignore)) {
       const fm = parseFrontMatter(readFileSync(file, "utf8"));
       // Unparseable docs are verify's problem to report; here they simply have no lifecycle to
       // show, so they are excluded from the histogram (counted by verify, not double-counted).

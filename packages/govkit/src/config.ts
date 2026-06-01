@@ -1,5 +1,5 @@
 import { readFileSync } from "node:fs";
-import { join } from "node:path";
+import { isAbsolute, join, relative, resolve } from "node:path";
 import { parse as parseYaml } from "yaml";
 
 export interface DocType {
@@ -69,6 +69,16 @@ export interface EvalConfig {
 export interface GovkitConfig {
   schemaVersion: number;
   docs: {
+    /**
+     * Parent directory for ALL kit-managed docs, relative to the repo root (CLI `--root`),
+     * prepended to every `type.dir` (RFC-0007). Default `"."` → `docs/rfc` exactly as before,
+     * so this is non-breaking. Set e.g. `.govkit` to isolate governed docs under one folder
+     * (`.govkit/docs/rfc`). Resolution lives in ONE helper (`typeDir`) so every reader and the
+     * per-write hook agree — a path the whole engine depends on must have a single source.
+     * Optional in the type (absent ⇒ `"."` everywhere) so the field is purely additive: a
+     * hand-built config or a pre-RFC-0007 govkit.yml without it behaves exactly as before.
+     */
+    root?: string;
     ignore: string[];
     base: { required: string[] };
     types: Record<string, DocType>;
@@ -92,10 +102,21 @@ export function loadConfig(root: string): GovkitConfig {
     );
   }
   const raw = (parseYaml(text) ?? {}) as Partial<GovkitConfig>;
-  const docs = raw.docs ?? { ignore: DEFAULT_IGNORE, base: { required: [] }, types: {} };
+  const docs = raw.docs ?? { root: ".", ignore: DEFAULT_IGNORE, base: { required: [] }, types: {} };
+  const docsRoot = docs.root ?? ".";
+  // Fail loud (RFC-0007): a docs.root that escapes the repo would have init/adopt try to write
+  // outside --root and verify/eval silently govern nothing. A typo must error at load, not
+  // pass as "0 docs checked" — the same fail-loud-not-fail-open principle as ref resolution.
+  const escaped = relative(resolve(root), resolve(root, docsRoot));
+  if (escaped.startsWith("..") || isAbsolute(escaped)) {
+    throw new Error(
+      `govkit: docs.root '${docsRoot}' resolves outside the repo root — it must stay within --root`,
+    );
+  }
   return {
     schemaVersion: raw.schemaVersion ?? 1,
     docs: {
+      root: docsRoot,
       ignore: docs.ignore ?? DEFAULT_IGNORE,
       base: docs.base ?? { required: [] },
       types: docs.types ?? {},

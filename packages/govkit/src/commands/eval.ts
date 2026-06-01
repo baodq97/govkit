@@ -1,8 +1,7 @@
 import { readFileSync } from "node:fs";
-import { join } from "node:path";
 import { type GovkitConfig, loadConfig, type RubricRule } from "../config";
 import { parseFrontMatter } from "../frontmatter";
-import { listMarkdown, str, stripNonProse } from "../util";
+import { listMarkdown, str, stripNonProse, typeDir } from "../util";
 
 export interface RuleResult {
   id: string;
@@ -175,12 +174,12 @@ export function runEval(opts: EvalOptions): EvalResult {
     };
   }
 
-  const { ignore, types } = config.docs;
+  const { ignore, types, root: docsRoot = "." } = config.docs;
   const artifacts: ArtifactScore[] = [];
   for (const [typeName, def] of Object.entries(types)) {
     const rubric = rubrics[typeName];
     if (!rubric || rubric.length === 0) continue;
-    for (const file of listMarkdown(join(opts.root, def.dir), ignore)) {
+    for (const file of listMarkdown(typeDir(opts.root, docsRoot, def.dir), ignore)) {
       if (opts.changed && !opts.changed.files.has(file)) continue; // RFC-0005: score only changed
       const fm = parseFrontMatter(readFileSync(file, "utf8"));
       if (!fm) continue; // unparseable front-matter is the gate's job; eval grades well-formed docs

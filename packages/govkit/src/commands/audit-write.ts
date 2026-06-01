@@ -1,6 +1,7 @@
 import { basename, isAbsolute, relative, resolve } from "node:path";
 import { type GovkitConfig, loadConfig } from "../config";
 import { parseFrontMatter } from "../frontmatter";
+import { typeDir } from "../util";
 
 // The JSON a PreToolUse hook receives on stdin (Claude Code 2.1.x). Only the
 // fields this gate uses are typed; the rest is ignored.
@@ -51,11 +52,13 @@ export function auditWrite(input: HookInput, root: string, config?: GovkitConfig
     return { block: false };
   }
 
-  const { ignore, base, types } = cfg.docs;
+  const { ignore, base, types, root: docsRoot = "." } = cfg.docs;
   if (ignore.includes(basename(filePath))) return { block: false };
 
   for (const [typeName, def] of Object.entries(types)) {
-    if (!isInside(resolve(root, def.dir), filePath)) continue;
+    // RFC-0007: resolve through the SAME `typeDir` helper as every reader, so a non-`.`
+    // docs.root is honored by the per-write gate too — not silently bypassed here.
+    if (!isInside(typeDir(root, docsRoot, def.dir), filePath)) continue;
     const required = [...new Set([...base.required, ...def.required])];
     const start = def.startStatus ?? "(see docs/AGENTS.md)";
     const fm = parseFrontMatter(content);

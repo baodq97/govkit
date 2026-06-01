@@ -10,6 +10,12 @@ export interface InitResult {
 export interface InitOptions {
   root: string;
   force?: boolean;
+  /**
+   * RFC-0007: the configurable parent for kit-managed docs. When set to a non-`"."` value,
+   * init writes `docs.root: <dir>` into the scaffolded govkit.yml AND scaffolds the INDEX
+   * stubs under `<dir>/docs/*`. Absent/`"."` ⇒ today's layout exactly.
+   */
+  docsRoot?: string;
 }
 
 // The scaffolded govkit.yml is the SAME canonical default the engine ships, read at
@@ -50,14 +56,30 @@ const SETTINGS_JSON = `{
 const indexStub = (title: string): string =>
   `# ${title}\n\n| ID | Title | Status | Owner | Date |\n|---|---|---|---|---|\n`;
 
-function scaffold(): Array<{ path: string; content: string }> {
+// Inject `docs.root: <dir>` into the scaffolded schema (RFC-0007). The default template's
+// `docs:` block has no `root:` line, so we add one as the first key under it. Targeted on the
+// line-anchored `docs:` mapping key, never a substring — and only when a non-`.` root is asked
+// for, so the default scaffold is byte-identical to before.
+function withDocsRoot(schema: string, docsRoot: string): string {
+  if (docsRoot === ".") return schema;
+  const anchor = /^docs:\s*$/m;
+  if (!anchor.test(schema)) {
+    throw new Error("govkit init: cannot place docs.root — scaffold schema has no `docs:` block");
+  }
+  return schema.replace(anchor, `docs:\n  root: ${JSON.stringify(docsRoot)}`);
+}
+
+// The four INDEX stubs, rooted under docsRoot (default `"."` → `docs/*` as before). Uses POSIX
+// separators in the relative path; runInit resolves them against `root` with the platform join.
+function scaffold(docsRoot: string): Array<{ path: string; content: string }> {
+  const prefix = docsRoot === "." ? "" : `${docsRoot}/`;
   return [
-    { path: "govkit.yml", content: defaultSchema() },
+    { path: "govkit.yml", content: withDocsRoot(defaultSchema(), docsRoot) },
     { path: ".claude/settings.json", content: SETTINGS_JSON },
-    { path: "docs/product/INDEX.md", content: indexStub("PRD Index") },
-    { path: "docs/rfc/INDEX.md", content: indexStub("RFC Index") },
-    { path: "docs/adr/INDEX.md", content: indexStub("ADR Index") },
-    { path: "docs/issues/INDEX.md", content: indexStub("User Story (US) Index") },
+    { path: `${prefix}docs/product/INDEX.md`, content: indexStub("PRD Index") },
+    { path: `${prefix}docs/rfc/INDEX.md`, content: indexStub("RFC Index") },
+    { path: `${prefix}docs/adr/INDEX.md`, content: indexStub("ADR Index") },
+    { path: `${prefix}docs/issues/INDEX.md`, content: indexStub("User Story (US) Index") },
   ];
 }
 
@@ -69,7 +91,7 @@ export function runInit(opts: InitOptions): InitResult {
   const created: string[] = [];
   const skipped: string[] = [];
 
-  for (const entry of scaffold()) {
+  for (const entry of scaffold(opts.docsRoot ?? ".")) {
     const target = resolve(root, entry.path);
     const rel = relative(root, target);
     if (rel.startsWith("..") || isAbsolute(rel)) {

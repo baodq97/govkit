@@ -2,7 +2,7 @@ import { existsSync, readFileSync } from "node:fs";
 import { basename, join } from "node:path";
 import { type DocType, type GovkitConfig, loadConfig } from "../config";
 import { parseFrontMatter } from "../frontmatter";
-import { listMarkdown, str } from "../util";
+import { listMarkdown, str, typeDir } from "../util";
 
 export type ViolationKind =
   | "frontmatter"
@@ -110,8 +110,7 @@ function checkIdConvention(file: string, data: Record<string, unknown>, def: Doc
 // status must match the doc's front-matter status. A stale INDEX is a rule
 // violation, not a nit (root AGENTS.md). Heuristic line-match for v1 — it catches
 // the two real failure modes (missing row, stale status) without a full table parser.
-function checkIndex(root: string, typeName: string, def: DocType, docs: Doc[]): Violation[] {
-  const dir = join(root, def.dir);
+function checkIndex(dir: string, typeName: string, docs: Doc[]): Violation[] {
   if (docs.length === 0) return [];
 
   const indexPath = join(dir, "INDEX.md");
@@ -318,7 +317,7 @@ function scopeToChanged(
 // graded quality layer that runs ON TOP of a passing gate.
 export function runVerify(opts: VerifyOptions): VerifyResult {
   const config = opts.config ?? loadConfig(opts.root);
-  const { ignore, base, types } = config.docs;
+  const { ignore, base, types, root: docsRoot = "." } = config.docs;
   const violations: Violation[] = [];
   const allDocs: Doc[] = [];
   // Every file scanned, parseable or not, with its type. `allDocs` EXCLUDES docs that fail
@@ -330,8 +329,9 @@ export function runVerify(opts: VerifyOptions): VerifyResult {
   for (const [typeName, def] of Object.entries(types)) {
     const required = [...new Set([...base.required, ...def.required])];
     const typeDocs: Doc[] = [];
+    const dir = typeDir(opts.root, docsRoot, def.dir);
 
-    for (const file of listMarkdown(join(opts.root, def.dir), ignore)) {
+    for (const file of listMarkdown(dir, ignore)) {
       checked++;
       scannedFiles.push({ file, type: typeName });
       const fm = parseFrontMatter(readFileSync(file, "utf8"));
@@ -371,7 +371,7 @@ export function runVerify(opts: VerifyOptions): VerifyResult {
       }
     }
 
-    violations.push(...checkIndex(opts.root, typeName, def, typeDocs));
+    violations.push(...checkIndex(dir, typeName, typeDocs));
   }
 
   violations.push(...checkDuplicateIds(allDocs));
