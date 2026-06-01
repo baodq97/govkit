@@ -91,3 +91,34 @@ Biome is a runtime-agnostic Rust binary and is **untouched** by any of these.
   `bunfig.toml`) — not left dangling.
 - **Neutral:** if `bun build` later replaces tsup, that is a follow-on amendment with its own
   golden-parity gate; this ADR deliberately does not pre-decide it.
+
+## As-built (2026-06-01)
+
+The migration shipped in one commit. What matched the design: dev toolchain moved to bun
+(`bun install` with workspaces relocated to `package.json`; `bun test` replacing vitest across
+12 files; every script via `bun run --filter '*'`); tsup kept; Biome untouched; the published
+artifact unchanged (`engines.node>=20`, bundled ESM, `npx`, `node`-invoked hook). `bun run check`
+now runs the shipped `dist` under **both** bun and stock node — both emit identical
+`verify OK / eval 100/100`, so Node-portability is a tested assertion. `govkit stale` after the
+governs reconciliation: **2 declare governs, 0 dangling, 2 fresh** (ADR-0001 dropped the removed
+`pnpm-workspace.yaml`; ADR-0002 governs `bunfig.toml`). Suite: bun test **97 pass / 0 fail**.
+
+## Deviations from design
+
+- **Unanticipated TS type wiring (the real surprise).** The design said nothing about types. In
+  practice `tsc --noEmit` could not resolve `import … from "bun:test"`, so the build needed a
+  `@types/bun` devDep **and** a per-package `types: ["node","bun"]` override (the base's `["node"]`
+  *replaces*, not merges). This is a **test-time** type convenience only — the shipped `src/` still
+  uses solely `node:` APIs, so the portability invariant is intact — but it is a real divergence the
+  one-line "vitest → bun test" framing hid.
+- **Biome import re-sort.** Swapping `from "vitest"` → `from "bun:test"` reordered imports (`bun:`
+  sorts before `node:`); 12 files were auto-fixed. Mechanical, but it means the test files carry a
+  bun-specific lexical footprint now.
+- **CI is written but UNPROVEN.** `oven-sh/setup-bun` + the dual-runtime steps exist; they have not
+  run on GitHub Actions. "Green" is observed only on local win32 — the ubuntu CI claim is still a
+  hope until a push. (Open follow-up, not closed by this ADR.)
+- **The npm-published contract is locally-, not consumer-, verified.** `node dist/cli.js` proves the
+  bundle runs Node-only; an actual `npm pack` → `npx govkit` on a bun-less clean machine has not
+  been run. The strongest portability proof is still outstanding.
+- **Scope held:** tsup was NOT replaced (as designed); "fully bun" is deliberately false — the
+  bundler remains a node tool. No deviation, recorded so the as-built is not mistaken for "all bun".
