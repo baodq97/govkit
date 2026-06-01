@@ -749,3 +749,62 @@ claim by nearly falsifying its central artifact. Nine rounds in: **a green gate 
 well-formed, never the mechanism sound; reuse of a status key is safe only when the key's lifecycle
 moment coincides with when the new check's knowledge exists — verify that by hand, because no
 dogfood will.**
+
+---
+
+## Round 10 — shipped two features in one arc, and the sharpest catch was a silent CI bug the green tests could not see
+
+The owner said *"làm song song cả 2 dựa vào setup của repos này để làm tiếp các feature mới"* — build
+RFC-0009 (staleness advisory) and RFC-0010 (design↔impl reconciliation) together, dogfooding the
+repo's own machinery. Both shipped: RFC-0010's status-conditional required-section gate (new
+`implemented` status, `requiredSectionsByStatus` keyed off it, retargeted nudge) and RFC-0009's
+git-gated `govkit stale` (a `governs:` glob + commit-recency proxy). 96 tests green, biome + tsc
+clean, the live repo verify/eval/check still 100/100, and `stale`/`report` dogfooded on real history.
+
+**The catch that mattered was pre-code, from the advisor, and structurally invisible to tests.**
+Before writing a line of RFC-0009 I had the big constraint right (staleness needs git → it cannot
+live in the no-key pure-fs floor → a separate opt-in command, never called by `check`). The trap I
+had *not* named: the recency comparison must use **git commit time on both sides**
+(`git log -1 --format=%ct`), never filesystem mtime. After a fresh CI clone every file's mtime is
+the checkout instant — so an mtime-based staleness check is pure noise in the exact environment the
+feature exists for. A test on a temp repo would have *passed* either way (mtime and commit-time agree
+on a freshly-written local file); the bug only manifests on a clone, which the unit test never
+exercises. This is the round-10 shape: **a green test proves the code does what the test sets up, not
+that the setup matches production; the one environment that distinguishes mtime from commit-time
+(a clone) is the one the test never builds.** I pinned committer dates explicitly in the fixture so
+the test asserts commit-time ordering on purpose, not by local coincidence.
+
+**Provenance held at the live-dogfood seam.** The natural way to "prove" RFC-0010 bites is to flip
+RFC-0007/0008 to `implemented` and watch verify demand `## As-built`. Those are genuinely shipped, so
+it would be a real dogfood — but flipping a doc's status is the owner's act, not mine, and I'd be
+manufacturing the demo by mutating docs. So the gate is proven on **fixtures**, the live `govkit.yml`
+*declares* the policy (so the repo governs itself with it), and it stays inert and green because no
+doc is at `implemented` yet. The live flip is offered to the owner, not taken. (For RFC-0009 the
+parallel discipline was lighter: wiring one *honest* `governs:` on ADR-0001 → the toolchain files it
+actually decided is a legitimate adoption, not a fabricated signal — so I did wire it, and `stale`
+reports it fresh, truthfully.)
+
+**The decoupled-key fix carried through to code.** RFC-0010's round-9 lesson — don't reuse a status
+set whose lifecycle moment differs from your check's — became a concrete API choice: the
+required-section trigger reads `requiredSectionsByStatus` (keyed to `implemented`), NOT
+`terminalStatuses` (which includes `accepted`, pre-implementation). The regression test that the
+flaw is dead is explicit: *an `accepted` doc missing the section ⇒ OK*. The two checks (coherence and
+required-sections) now read different keys on purpose; the decoupling is the fix, encoded.
+
+**What is NOT closed (round ten).** (1) **Weak-by-default dogfood, named.** RFC-0009 ships with
+exactly ONE `governs:` wired (ADR-0001) — the capability is proven, but the repo barely *uses* it;
+broad adoption (which RFCs govern which source files) is deferred to the owner, not assumed. (2)
+**The never-flipped escape (RFC-0010)** — an author who ships but never flips the RFC to `implemented`
+evades the as-built gate entirely; only the reviewer + coherence cover it, as the RFC's open
+questions state. (3) **The 0009∩0010 intersection is noted, not wired** — an `implemented` RFC with
+`## As-built: None` whose `governs:` code later changed is the strongest reconcile signal in the
+system, deliberately left as a one-line cross-reference in each RFC rather than coupling two newborn
+features at birth. (4) **`stale` is a proxy** — "code moved" ≠ "doc wrong"; a green `stale` does not
+certify currency. Stated in the output itself, not just the RFC.
+
+**Round-10 verdict:** two features, one arc, full machinery dogfooded — and the highest-value moment
+was again *before* the code, where the advisor named the one bug (mtime vs commit-time) that every
+green test would have waved through because no unit test builds the environment that exposes it. Ten
+rounds in: **the gate, the test, and the dogfood each certify only what they exercise; the failure
+always hides in the environment, consumer, or lifecycle moment just outside the setup — so name the
+one you did not build, in the output or the open questions, every time.**

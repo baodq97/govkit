@@ -19,6 +19,19 @@ export interface DocType {
    * legitimate; only a pre-decision (draft/proposed) or rejected parent is the inconsistency.
    */
   terminalStatuses?: string[];
+  /**
+   * Status-conditional required sections (RFC-0010). A map from a status to the heading
+   * patterns a doc MUST carry while it is at that exact status — `verify` flags a doc at a
+   * keyed status that is missing one. The point is the *key*: it is a specific
+   * post-implementation status (e.g. `implemented`), NOT `terminalStatuses` — `accepted`
+   * precedes implementation, so requiring an `## As-built` section there would fire before any
+   * divergence can exist and never re-fire when it does. Keyed to a status that FOLLOWS
+   * implementation, the requirement lands exactly when as-built knowledge is real, stays
+   * zero-false-positive before then, and is deliberately decoupled from `terminalStatuses`.
+   * OPT-IN: a type without this map is exempt (non-breaking). Patterns are matched against
+   * heading lines (after stripping fenced code), same machinery as the eval `section` rubric.
+   */
+  requiredSectionsByStatus?: Record<string, string[]>;
   /** Required id prefix (e.g. "ADR"). When set, `verify` enforces id + filename convention. */
   idPrefix?: string;
   /**

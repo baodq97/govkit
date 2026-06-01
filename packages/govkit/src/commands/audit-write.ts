@@ -92,13 +92,22 @@ export function auditWrite(input: HookInput, root: string, config?: GovkitConfig
         .filter((r) => r.value !== "");
       if (parents.length > 0) {
         const links = parents.map((p) => `${p.key}: ${p.value}`).join(", ");
+        // RFC-0010: if THIS status also keys required as-built sections, fold that reminder in —
+        // the same flip is the moment to write down what diverged. (verify enforces it; this only
+        // nudges, and only on the Write path — the Edit-based flip is the inherited gap.)
+        const needsAsBuilt = def.requiredSectionsByStatus?.[status];
+        const asBuilt =
+          needsAsBuilt && needsAsBuilt.length > 0
+            ? ` Also fill its required as-built section(s) (${needsAsBuilt.join(", ")}) — ` +
+              "record what diverged from the design, or affirm “None” (RFC-0010)."
+            : "";
         return {
           block: false,
           remind:
             `govkit: ${basename(filePath)} is being marked '${status}' (a shipped/terminal ` +
             `state). Re-read its ${links} and confirm the design doc reflects what actually ` +
             `shipped — and that the parent is itself decided (accepted/superseded), or \`govkit ` +
-            `verify\` will flag the chain (RFC-0008).`,
+            `verify\` will flag the chain (RFC-0008).${asBuilt}`,
         };
       }
     }

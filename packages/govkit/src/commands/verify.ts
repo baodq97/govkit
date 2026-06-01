@@ -2,7 +2,7 @@ import { existsSync, readFileSync } from "node:fs";
 import { basename, join } from "node:path";
 import { type DocType, type GovkitConfig, loadConfig } from "../config";
 import { parseFrontMatter } from "../frontmatter";
-import { listMarkdown, str, typeDir } from "../util";
+import { headingLines, listMarkdown, matches, str, stripNonProse, typeDir } from "../util";
 
 export type ViolationKind =
   | "frontmatter"
@@ -12,7 +12,8 @@ export type ViolationKind =
   | "duplicate"
   | "placeholder"
   | "reference"
-  | "coherence";
+  | "coherence"
+  | "section";
 
 export interface Violation {
   file: string;
@@ -43,6 +44,8 @@ interface Doc {
   file: string;
   type: string;
   data: Record<string, unknown>;
+  /** Prose body (front-matter stripped). Only the required-section check (RFC-0010) reads it. */
+  body: string;
 }
 
 // `TBD` is a LEGAL value (owner: TBD is mandated until a human assigns ownership —
@@ -254,12 +257,51 @@ function checkCoherence(docs: Doc[], types: Record<string, DocType>): Violation[
   return violations;
 }
 
+// Status-conditional required sections (RFC-0010): the forcing function that makes an as-built /
+// deviations note a REQUIRED ritual at the moment implementation meets the design — but only then.
+// For a doc whose type declares `requiredSectionsByStatus` AND whose current status is a KEY in
+// that map, every configured heading pattern for that status must match some real heading in the
+// body. Precision that keeps this zero-false-positive:
+//   • type with no `requiredSectionsByStatus`        → exempt (the non-breaking floor).
+//   • doc's status is not a key in the map           → skip (the conditional — e.g. an `accepted`
+//                                                       RFC is silent; only `implemented` requires).
+// Keyed to a post-implementation status, NOT to `terminalStatuses` (which includes `accepted`,
+// before any divergence exists) — the decoupling is the fix for the caught flaw where the gate
+// would fire at accept-time, forcing a dishonest "None", then never re-fire. Headings are matched
+// after `stripNonProse`, so a `## As-built` inside a code fence does not satisfy the requirement.
+// Per-doc check (reported on the doc itself), so `--changed` scopes it like frontmatter/status.
+function checkRequiredSections(docs: Doc[], types: Record<string, DocType>): Violation[] {
+  const violations: Violation[] = [];
+  for (const doc of docs) {
+    const byStatus = types[doc.type]?.requiredSectionsByStatus;
+    if (!byStatus) continue; // exempt type
+    const required = byStatus[str(doc.data.status)];
+    if (!required || required.length === 0) continue; // status not keyed → not yet required
+    const headings = headingLines(stripNonProse(doc.body));
+    const problems: string[] = [];
+    for (const pattern of required) {
+      const present = headings.some((h) => matches(`(?:${pattern})`, h));
+      if (!present) {
+        problems.push(
+          `status '${str(doc.data.status)}' requires a section heading matching ` +
+            `/${pattern}/ — not found (add it, or affirm "None")`,
+        );
+      }
+    }
+    if (problems.length > 0) {
+      violations.push({ file: doc.file, type: doc.type, kind: "section", problems });
+    }
+  }
+  return violations;
+}
+
 // RFC-0004 adoption scoping: keep ONLY the violations a changed set is responsible for,
 // so an existing repo can adopt govkit without retrofitting its whole backlog first. The
 // load-bearing rule is "scope the REPORT, never the SCAN" — runVerify already scanned ALL
 // docs to build global state, so cross-doc checks are correct; here we filter what is
-// emitted. Per-doc violations (frontmatter, status, id, placeholder) are kept only for a
-// changed file. An INDEX violation is kept when a changed doc shares its type (a changed
+// emitted. Per-doc violations (frontmatter, status, id, placeholder, and RFC-0010 `section` —
+// a missing required section is the changed doc's OWN concern) are kept only for a changed
+// file. An INDEX violation is kept when a changed doc shares its type (a changed
 // doc can make an unchanged INDEX stale). Global-integrity violations — `duplicate` and
 // `reference` — are ALWAYS kept: a new doc duplicating an UNTOUCHED doc's id (the colliding
 // pair's reported file may be the untouched one) or pointing at a dangling id must never be
@@ -344,7 +386,7 @@ export function runVerify(opts: VerifyOptions): VerifyResult {
         });
         continue;
       }
-      const doc: Doc = { file, type: typeName, data: fm.data };
+      const doc: Doc = { file, type: typeName, data: fm.data, body: fm.body };
       typeDocs.push(doc);
       allDocs.push(doc);
 
@@ -377,6 +419,7 @@ export function runVerify(opts: VerifyOptions): VerifyResult {
   violations.push(...checkDuplicateIds(allDocs));
   violations.push(...checkReferences(allDocs, types));
   violations.push(...checkCoherence(allDocs, types));
+  violations.push(...checkRequiredSections(allDocs, types));
 
   if (opts.changed) {
     const scoped = scopeToChanged(violations, scannedFiles, allDocs, opts.changed.files);

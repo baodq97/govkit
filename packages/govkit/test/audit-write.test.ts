@@ -122,3 +122,48 @@ describe("auditWrite — reconciliation nudge (RFC-0008 item 3)", () => {
     expect(d.remind).toBeUndefined();
   });
 });
+
+// RFC-0010: when the terminal status being written ALSO keys required as-built sections, the nudge
+// folds in a reminder to fill them — same flip, same moment to record what diverged.
+const ASBUILT_CONFIG: GovkitConfig = {
+  schemaVersion: 1,
+  docs: {
+    ignore: ["INDEX.md", "_TEMPLATE.md"],
+    base: { required: ["id", "title", "status", "owner", "date"] },
+    types: {
+      adr: {
+        dir: "docs/adr",
+        required: ["id", "title", "status", "owner", "date"],
+        idPrefix: "ADR",
+        statuses: ["proposed", "accepted", "implemented", "superseded"],
+        terminalStatuses: ["accepted", "implemented", "superseded"],
+        requiredSectionsByStatus: { implemented: ["As-built", "Deviations from design"] },
+        refs: [{ key: "parent", type: "rfc" }],
+      },
+    },
+  },
+};
+
+describe("auditWrite — as-built nudge extension (RFC-0010)", () => {
+  it("folds an as-built reminder into the nudge when the status keys required sections", () => {
+    const d = auditWrite(
+      write("docs/adr/ADR-0009.md", adrDoc("implemented", "parent: RFC-0003\n")),
+      root,
+      ASBUILT_CONFIG,
+    );
+    expect(d.block).toBe(false);
+    expect(d.remind).toContain("As-built");
+    expect(d.remind).toContain("RFC-0010");
+  });
+
+  it("does not mention as-built for a terminal status that keys no required sections", () => {
+    // `accepted` is terminal but not keyed → the RFC-0008 nudge fires WITHOUT the RFC-0010 tail.
+    const d = auditWrite(
+      write("docs/adr/ADR-0009.md", adrDoc("accepted", "parent: RFC-0003\n")),
+      root,
+      ASBUILT_CONFIG,
+    );
+    expect(d.remind).toBeTruthy();
+    expect(d.remind).not.toContain("As-built");
+  });
+});

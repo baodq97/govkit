@@ -43,6 +43,74 @@ export function stripNonProse(body: string): string {
     .replace(/<!--[\s\S]*?-->/g, " ");
 }
 
+/** Heading lines (`#`..`######`) of already-prose-stripped text. Shared by `eval` (section
+ *  rubric) and `verify` (RFC-0010 required sections) so both judge a "section" the same way —
+ *  a real markdown heading, not a `## In-fence` line. Run `stripNonProse` first. */
+export function headingLines(prose: string): string[] {
+  return prose.split(/\r?\n/).filter((line) => /^#{1,6}\s+\S/.test(line));
+}
+
+/** Compile + test a user-supplied pattern; a malformed pattern is treated as "no match" (the
+ *  rule simply fails) rather than crashing. Multiline + case-insensitive so `^`/`$` anchor to
+ *  line starts. Shared by `eval` and `verify` so a "does this text match" judgement is identical
+ *  across the two trust layers. */
+export function matches(pattern: string, text: string): boolean {
+  try {
+    return new RegExp(pattern, "im").test(text);
+  } catch {
+    // safe to ignore: a bad pattern fails its check (surfaced to the caller), never a crash.
+    return false;
+  }
+}
+
+/** True when `root` is inside a git work tree. Staleness (RFC-0009) needs git history; when this
+ *  is false the `stale` command degrades to an advisory note rather than erroring — git absence is
+ *  not a failure for an advisory, opt-in tool (it never runs in the no-key floor). */
+export function gitAvailable(root: string): boolean {
+  try {
+    execFileSync("git", ["rev-parse", "--is-inside-work-tree"], { cwd: root, stdio: "ignore" });
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+/** Last-commit time (epoch seconds) of the most recently committed path among `pathspecs`, or
+ *  null when none of them has any commit (untracked, or a glob matching no tracked file).
+ *  COMMIT time, NEVER filesystem mtime — mtime is the checkout instant on a fresh clone, pure
+ *  noise in the CI environment the staleness check exists for (RFC-0009). `git log -1 --format=%ct`
+ *  over multiple pathspecs returns the single newest commit touching any of them. */
+export function gitCommitTime(root: string, pathspecs: string[]): number | null {
+  try {
+    const out = execFileSync("git", ["log", "-1", "--format=%ct", "--", ...pathspecs], {
+      cwd: root,
+      encoding: "utf8",
+      stdio: ["ignore", "pipe", "ignore"],
+    }).trim();
+    if (out === "") return null;
+    const t = Number.parseInt(out, 10);
+    return Number.isFinite(t) ? t : null;
+  } catch {
+    return null;
+  }
+}
+
+/** Count of TRACKED files matching `pathspecs` (git glob semantics). Lets `stale` tell a dangling
+ *  `governs:` glob (matches nothing → its own advisory line, never silently "fresh") from a glob
+ *  that genuinely resolves (RFC-0009). */
+export function gitMatchCount(root: string, pathspecs: string[]): number {
+  try {
+    const out = execFileSync("git", ["ls-files", "--", ...pathspecs], {
+      cwd: root,
+      encoding: "utf8",
+      stdio: ["ignore", "pipe", "ignore"],
+    }).trim();
+    return out === "" ? 0 : out.split(/\r?\n/).length;
+  } catch {
+    return 0;
+  }
+}
+
 function git(root: string, args: string[]): string {
   try {
     return execFileSync("git", args, {

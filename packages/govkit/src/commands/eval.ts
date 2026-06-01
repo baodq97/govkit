@@ -1,7 +1,7 @@
 import { readFileSync } from "node:fs";
 import { type GovkitConfig, loadConfig, type RubricRule } from "../config";
 import { parseFrontMatter } from "../frontmatter";
-import { listMarkdown, str, stripNonProse, typeDir } from "../util";
+import { headingLines, listMarkdown, matches, str, stripNonProse, typeDir } from "../util";
 
 export interface RuleResult {
   id: string;
@@ -54,23 +54,6 @@ export interface EvalOptions {
    *  check, so scoping the scored set (not just the report) is safe: there is no global
    *  violation that could be masked by quieting an untouched file. */
   changed?: { files: Set<string>; ref: string };
-}
-
-function headingLines(prose: string): string[] {
-  return prose.split(/\r?\n/).filter((line) => /^#{1,6}\s+\S/.test(line));
-}
-
-// Compile + test a user-supplied pattern; a malformed pattern is treated as "no match"
-// (the rule simply fails) rather than crashing the whole eval. Multiline so `^`/`$`
-// anchor to line starts (e.g. the `testable` checkbox rule `^\s*\[ \]`), not just the
-// document start; case-insensitive throughout.
-function matches(pattern: string, text: string): boolean {
-  try {
-    return new RegExp(pattern, "im").test(text);
-  } catch {
-    // safe to ignore: a bad rubric regex fails its rule (visible in `missed`), never a crash.
-    return false;
-  }
 }
 
 function wordCount(prose: string): number {

@@ -23,10 +23,21 @@ docs:
       required: [id, title, status, owner, date]
       idPrefix: RFC
       startStatus: draft
-      statuses: [draft, proposed, accepted, rejected, superseded]
+      # `implemented` (RFC-0010) is the post-acceptance state: design decided AND code shipped +
+      # reconciled. It is distinct from `accepted` precisely so the as-built gate below can fire
+      # AFTER implementation, never at accept-time (before any divergence can exist).
+      statuses: [draft, proposed, accepted, implemented, rejected, superseded]
       # Chain-status coherence (RFC-0008): the decided/terminal subset. A child that has
       # shipped may not hang off an RFC still draft/proposed/rejected (its design undecided).
-      terminalStatuses: [accepted, superseded]
+      # `implemented` joins the terminal set (even more decided than accepted).
+      terminalStatuses: [accepted, implemented, superseded]
+      # Status-conditional required sections (RFC-0010): an RFC at `implemented` must carry an
+      # as-built / deviations note — the forcing function that makes design↔code divergence a
+      # recorded ritual, fired exactly when implementation has met the design. Keyed to
+      # `implemented`, NOT terminalStatuses (which includes `accepted`, pre-implementation).
+      # Inert until an RFC is flipped to `implemented` — zero-false-positive before then.
+      requiredSectionsByStatus:
+        implemented: ["As-built", "Deviations from design"]
     adr:
       dir: docs/adr
       required: [id, title, status, owner, date]

@@ -4,6 +4,7 @@ import { type AuditDecision, auditWrite, type HookInput } from "./commands/audit
 import { type EvalResult, runEval } from "./commands/eval";
 import { type InitResult, runInit } from "./commands/init";
 import { type ReportResult, runReport } from "./commands/report";
+import { runStale, type StaleResult } from "./commands/stale";
 import { runVerify, type VerifyResult } from "./commands/verify";
 import { gitChangedDocs, resolveChangedBase } from "./util";
 
@@ -16,6 +17,7 @@ Usage:
   govkit verify       [--root <dir>] [--json] [--changed [--base <ref>]]
   govkit eval         [--root <dir>] [--json] [--changed [--base <ref>]]
   govkit report       [--root <dir>] [--json]   (lifecycle histogram — done / in-flight / cleanup)
+  govkit stale        [--root <dir>] [--json]   (advisory: governed code newer than its doc — needs git)
   govkit audit-write  [--root <dir>]        (reads a PreToolUse hook payload on stdin)
 
 Commands:
@@ -36,6 +38,11 @@ Commands:
                each bucket, marking which statuses are terminal (decided/shipped per
                terminalStatuses). Answers "what is done / in-flight / cleanup". Never
                blocks — read-only, always exits 0. (RFC-0008)
+  stale        Advisory staleness (RFC-0009): for every doc that declares a
+               'governs: [glob]' front-matter key, compare the doc's last-commit
+               time against the newest commit of the code it governs and warn when
+               the code moved on. A PROXY ('code changed'), never 'doc wrong' — so it
+               NEVER blocks (always exits 0) and check never calls it. Needs git.
   audit-write  PreToolUse hook gate: block a Write to a governed doc that lacks
                complete front-matter. On a write that marks a doc shipped/terminal
                while it has a parent, emits a non-blocking reconciliation reminder.
@@ -219,6 +226,37 @@ function printReport(result: ReportResult): void {
   );
 }
 
+function printStale(result: StaleResult): void {
+  const out = process.stdout;
+  if (result.note && result.checked === 0) {
+    out.write(`govkit stale: ${result.note}\n`);
+    return;
+  }
+  const stale = result.entries.filter((e) => e.status === "stale");
+  const dangling = result.entries.filter((e) => e.status === "dangling");
+  const uncommitted = result.entries.filter((e) => e.status === "uncommitted");
+  out.write(
+    `govkit stale — ${result.checked} doc(s) declare governs: ` +
+      `${stale.length} possibly stale, ${dangling.length} dangling glob, ` +
+      `${result.entries.length - stale.length - dangling.length - uncommitted.length} fresh` +
+      `${uncommitted.length > 0 ? `, ${uncommitted.length} uncommitted (skipped)` : ""}\n`,
+  );
+  for (const e of stale) {
+    out.write(`  STALE  ${e.file} [${e.type}] — governed code moved since the doc's last commit\n`);
+    out.write(`         governs: ${e.governs.join(", ")}\n`);
+  }
+  for (const e of dangling) {
+    out.write(
+      `  GLOB?  ${e.file} [${e.type}] — governs matches no tracked file: ${e.governs.join(", ")}\n`,
+    );
+  }
+  out.write(
+    "\n(advisory — a PROXY: 'code moved' is not 'doc wrong' (a rename or lint fix trips it), and a " +
+      "fresh result does not certify the prose is current. Never blocks. Reconcile or supersede the " +
+      "flagged docs, or ignore if the change was cosmetic.)\n",
+  );
+}
+
 async function main(argv: string[]): Promise<number> {
   const { values, positionals } = parseArgs({
     args: argv,
@@ -340,6 +378,15 @@ async function main(argv: string[]): Promise<number> {
       const result = runReport({ root: values.root ?? process.cwd() });
       if (values.json) process.stdout.write(`${JSON.stringify(result, null, 2)}\n`);
       else printReport(result);
+      return 0;
+    }
+    case "stale": {
+      // Advisory staleness (RFC-0009). Read-only, ALWAYS exits 0 — gating on a recency proxy is
+      // exactly what the gate/eval split forbids. Touches git (like --changed), so it lives
+      // outside the no-key floor; `check` never calls it.
+      const result = runStale({ root: values.root ?? process.cwd() });
+      if (values.json) process.stdout.write(`${JSON.stringify(result, null, 2)}\n`);
+      else printStale(result);
       return 0;
     }
     case "audit-write": {

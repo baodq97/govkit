@@ -4,6 +4,10 @@ title: Full-TypeScript ecosystem monorepo for govkit + swe-flow + template
 status: proposed
 owner: TBD
 date: 2026-05-31
+governs:
+  - pnpm-workspace.yaml
+  - biome.json
+  - packages/govkit/tsconfig.json
 ---
 
 > Seed decision recorded as `proposed` (an arch/runtime decision; root `AGENTS.md`
