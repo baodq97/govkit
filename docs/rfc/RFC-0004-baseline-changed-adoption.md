@@ -1,7 +1,7 @@
 ---
 id: RFC-0004
 title: Adoption on existing repos — gate the changed set, not the whole backlog
-status: accepted
+status: implemented
 owner: baodq97
 date: 2026-05-31
 governs:
@@ -124,3 +124,25 @@ retrofit.
   green *plain* `verify` (e.g. a dashboard that runs the default), does the committed
   debt-ledger argument become strong enough to build RFC-0004.1 — accepting the masking
   hazard with an explicit, fingerprint-specificity mitigation?
+
+## As-built
+
+Shipped as `govkit verify --changed [--base <ref>]`: `scopeToChanged` (`commands/verify.ts`) filters
+the emitted violation list while `runVerify` still reads ALL docs to build global state, with
+`gitChangedDocs` / `resolveChangedBase` (`util.ts`) computing the changed set. The load-bearing rule
+held — scope the REPORT, never the SCAN: cross-doc kinds (duplicate id, dangling reference, chain
+coherence) are always reported even against an untouched file, so a new collision cannot be masked.
+Git is touched only on this opt-in path; an unresolvable ref errors clearly rather than silently
+degrading to a full scan.
+
+## Deviations from design
+
+- **`eval`/`check --changed` were NOT folded in here** — that became its own follow-on, RFC-0005, to
+  keep this RFC scoped to the one full-scan caller. The `--changed` surface looks complete only when
+  read together with RFC-0005.
+- **The persisted baseline file stayed deferred** (RFC-0004.1, unbuilt) exactly as the Alternatives
+  table recommended — the per-write hook is already changed-scoped, so the baseline's cost was never
+  justified.
+- **Working-tree handling resolved toward inclusion:** the shipped diff captures uncommitted +
+  untracked changes (ref-vs-working-tree), settling the open question in favor of the local-run case;
+  no separate `--working-tree` flag was needed.

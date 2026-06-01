@@ -1,7 +1,7 @@
 ---
 id: RFC-0006
 title: init --adopt — migrate existing prose metadata into front-matter without asserting it
-status: accepted
+status: implemented
 owner: baodq97
 date: 2026-05-31
 governs:
@@ -11,8 +11,9 @@ governs:
 > Drafted from the RFC-0005 field test (LEARNING-LOOP Round 5), which validated `--changed`
 > on a real 86-doc repo and surfaced the cost `--changed` deliberately does **not** pay: the
 > first time a PR touches a legacy doc, that doc must pass the *full* gate. This RFC proposes
-> the complement. It is at `status: draft` and stays there until the owner accepts — the flip
-> is a human act, never an agent's (RFC-0002/0003/0004/0005 provenance lesson).
+> the complement. It was drafted at `status: draft`; the owner accepted it and, after the code
+> shipped, flipped it to `implemented` (see As-built) — each flip a human act, never an agent's
+> (RFC-0002/0003/0004/0005 provenance lesson).
 
 ## Summary
 
@@ -119,3 +120,22 @@ all your metadata" into "review a diff," not to manufacture a green check.
   actually reviewed each extracted value versus rubber-stamping the diff. `--adopt` narrows the cost of
   honest review (a readable diff beats retyping); it does not, and cannot deterministically, *enforce*
   that the review happened. Named, not papered over.
+
+## As-built
+
+Shipped as `govkit init --adopt [--apply]` (`commands/adopt.ts`, `runAdopt`), two lanes as designed:
+Lane 1 migrates front-matter for docs that LACK it — extracts required keys from declared prose
+shapes, emits a reviewable preview, and writes a deliberately gate-failing sentinel for any field it
+cannot find (absence stays loud); dry-run unless `--apply`. Lane 2 reports vocabulary/config drift as
+a SUGGESTED `govkit.yml` patch, never applied. Docs that already have front-matter are left
+byte-identical; `govkit.yml` is never edited. The load-bearing rule held: extract and surface, never
+assert.
+
+## Deviations from design
+
+- **Verb stayed under `init`** (`init --adopt`) rather than becoming a top-level command — the open
+  question resolved toward "adjacent to init," the behavior being the decision and the verb cosmetic.
+- **The missing-field sentinel was settled at implementation** to a token that fails the
+  required/enum check loudly and is trivially greppable, exactly as the open question required.
+- **No deviation on the floor:** the no-silent-assert rule shipped intact (a missing field still
+  fails `verify`), no network/LLM call entered, and the no-key pure-fs trust class held.

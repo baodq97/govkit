@@ -1,7 +1,7 @@
 ---
 id: RFC-0003
 title: Chain referential-integrity — resolve cross-artifact references in the gate
-status: accepted
+status: implemented
 owner: baodq97
 date: 2026-05-31
 governs:
@@ -76,3 +76,18 @@ scope for v1). The `type` field is **recorded but not enforced** in v1.
   adopter exists, or stay deferred indefinitely if resolve-only proves sufficient?
 - Array-valued refs (multiple parents): worth the `str()`-handling complexity, or is "one
   parent per key" the right permanent constraint for an SDLC chain?
+
+## As-built
+
+Shipped as the `reference` check in `checkReferences` (`commands/verify.ts`), wired into the no-key
+gate. It is resolve-only: for every doc declaring a configured `refs` key (`govkit.yml`
+`docs.types.<type>.refs`) with a non-empty value, that value must resolve to a known doc id, else a
+`reference` violation; empty/absent is skipped. Config-not-code — which key holds the reference is
+declared in `govkit.yml`, not hardcoded. Dogfooded by `US-0001` (`parent: RFC-0003`), the first live
+resolving edge, with a dangling-ref fixture pair in the suite proving it discriminates.
+
+## Deviations from design
+
+- **None material — shipped resolve-only exactly as scoped.** Type-enforcement (`type` is recorded
+  but not enforced), `required: true` refs, array-valued refs, and transitive chain-walking all remain
+  deferred as the Decision and Alternatives specified — unbuilt by design, not by omission.

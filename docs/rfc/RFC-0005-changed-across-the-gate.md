@@ -1,7 +1,7 @@
 ---
 id: RFC-0005
 title: Complete --changed across the gate — eval and check honor adoption scoping
-status: accepted
+status: implemented
 owner: baodq97
 date: 2026-05-31
 governs:
@@ -82,3 +82,19 @@ heavier mechanism out of false symmetry.
   delta is what a PR gate should show.)
 - **`audit-write` parity.** The per-write hook is already per-file, so it needs no
   `--changed`. Confirmed out of scope — recorded so a future reader does not re-open it.
+
+## As-built
+
+Shipped: `--changed` (and `--base`) threaded into `eval` (`commands/eval.ts`) and `check` (`cli.ts`),
+reusing RFC-0004's `gitChangedDocs` / `resolveChangedBase` — no new git surface, no persisted state.
+`eval --changed` scopes the scored SET (floor, advisory average, both pass-rates over the subset);
+`check --changed` threads the flag into both its verify and eval halves so the one CI entrypoint is
+adoptable as a unit. Both name the scope in output (no silent caps). The asymmetry the RFC argued
+held: eval scores each artifact independently, so scoping the scored set is safe — no
+scan-all/report-subset masking floor was needed, unlike `verify`.
+
+## Deviations from design
+
+- **None material — shipped as specified.** The single-doc advisory-average open question settled the
+  way the RFC leaned: scope both the floor and the average and label the scope, rather than keeping
+  the average repo-wide. `audit-write` parity stayed out of scope (the hook is already per-file).

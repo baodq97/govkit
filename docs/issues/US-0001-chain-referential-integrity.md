@@ -1,8 +1,8 @@
 ---
 id: US-0001
 title: Resolve cross-artifact references in the verify gate
-status: open
-owner: TBD
+status: done
+owner: baodq97
 date: 2026-05-31
 priority: P1
 parent: RFC-0003
@@ -18,10 +18,10 @@ dogfood that proves the new check works on real chain data, not only on test fix
 
 ## Acceptance criteria
 
-- [ ] A doc whose configured ref key (`parent`) is non-empty and resolves to a known id
+- [x] A doc whose configured ref key (`parent`) is non-empty and resolves to a known id
       produces no `reference` violation.
-- [ ] A doc whose `parent` does not resolve to any known id produces exactly one `reference`
+- [x] A doc whose `parent` does not resolve to any known id produces exactly one `reference`
       violation naming the key and the unresolved value.
-- [ ] A doc with an empty or absent `parent` is skipped (an optional link is not a dangling
+- [x] A doc with an empty or absent `parent` is skipped (an optional link is not a dangling
       one) — existing rootless docs see zero change.
-- [ ] `govkit verify` on this repo stays green with `US-0001 parent: RFC-0003` present.
+- [x] `govkit verify` on this repo stays green with `US-0001 parent: RFC-0003` present.

@@ -1,8 +1,8 @@
 ---
 id: RFC-0001
 title: Two trust layers — a structural gate and a graded quality eval
-status: draft
-owner: TBD
+status: implemented
+owner: baodq97
 date: 2026-05-31
 ---
 
@@ -120,3 +120,28 @@ informs), both no-key, both proven by a labeled *and adversarial* corpus. The su
 judge is the existing swe-flow `reviewer` agent (opt-in, keyed); a built-in
 `eval --judge` is deferred to a future RFC. This delivers a watchable, un-gameable-floor
 quality signal immediately without compromising the no-API-key invariant.
+
+## As-built
+
+Both layers shipped on plain Node, no key. `verify` (`commands/verify.ts`) is the binary structural
+gate — front-matter completeness, status ∈ enum, id↔filename, INDEX sync, globally-unique ids, no
+placeholders. `eval` (`commands/eval.ts`) shipped as a required structural floor that blocks (not a
+stub, no leftover filler, distinct canonical headings) plus an advisory 0–100 score that only warns —
+exactly the floor/ceiling split the Open questions resolved. The rubric DSL lives in `govkit.yml`
+under `eval:` (five rule kinds); the eval's own trust is pinned by the labeled + adversarial corpus
+and `eval-hardening.test.ts`; both layers share `loadConfig`. Substance judgment stayed the opt-in,
+keyed swe-flow `reviewer` agent — never in no-key CI. The two-layer model is dogfooded by every other
+RFC in this repo.
+
+## Deviations from design
+
+- **`eval` was hardened into an honest floor AFTER an adversarial red-team**, not designed that way up
+  front. The red-team proved a presence/shape rubric cannot tell a real artifact from keyword-salad
+  (same lexical fingerprint), so the shipped eval narrowed to "floor blocks, score advisory, substance
+  is the reviewer's." Recorded in Open questions as resolved; the shipped code matches that resolution.
+- **The combined `check` entrypoint and the advisory `report`/`stale` siblings were added later**
+  (RFC-0005/0008/0009), outside this RFC's scope — `check` runs verify-then-eval as the single no-key
+  CI gate. Named so a reader does not expect them here.
+- **The dev toolchain moved to bun (ADR-0002) after this RFC was written**, so the `pnpm check`
+  reference in Impact/rollout is historical — the current one-shot command is `bun run check`. The
+  no-key, Node-portable published-artifact invariant is unchanged.

@@ -1,9 +1,12 @@
 ---
 id: RFC-0002
 title: Workflow-author — a skill that scaffolds reusable dynamic workflows
-status: accepted
+status: implemented
 owner: baodq97
 date: 2026-05-31
+governs:
+  - plugins/swe-flow/skills/workflow-author/SKILL.md
+  - plugins/swe-flow/skills/workflow-author/references/authoring-workflows.md
 ---
 
 > Records a shipped decision for a new public, LLM-facing surface (root `AGENTS.md`
@@ -114,3 +117,26 @@ swe-flow agents and the `govkit verify` gate into three proven shapes, dogfooded
 changes through the doc chain (this RFC), keeping the deterministic core independent of
 the LLM-facing layer. Defer the run-it round-trip, a fourth shape, and init-scaffolding
 to future work, each behind its own decision.
+
+## As-built
+
+Shipped exactly as recorded: one skill (`plugins/swe-flow/skills/workflow-author/SKILL.md`) + one
+reference (`references/authoring-workflows.md`) composing the three existing swe-flow agents and
+`govkit verify` into the three proven shapes, with the mandatory fallback header and the
+`node --check` validation checklist. No engine change, no `govkit.yml` change. Dogfooded by
+`.claude/workflows/review-changes.js` (the pipeline shape). "Compose, never invent" held: no
+generated workflow dispatches an invented agent type — only `swe-flow:*` and built-ins.
+
+## Deviations from design
+
+- **The reference file is `authoring-workflows.md`, not `authoring-rules.md`.** SKILL.md carried three
+  stale `references/authoring-rules.md` citations from a rename — an agent following them would have
+  read a missing file (the masking class). Fixed in the post-audit honesty sweep; recorded so the
+  divergence is not silent.
+- **Post-bun-migration residue.** The fan-out skeleton in `authoring-workflows.md` and the dispatched
+  `implementer` agent still said `pnpm`; corrected to `bun` in the same sweep (ADR-0002). No shape or
+  contract changed.
+- **`governs:` added at this reconciliation**, so `govkit stale` now links the skill to this RFC — the
+  link did not exist when the skill first shipped.
+- **Open questions stand:** the run-it round-trip, a fourth shape, and init-scaffolding remain
+  deliberately deferred — none shipped, so no deviation there.
