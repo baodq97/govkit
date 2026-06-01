@@ -808,3 +808,61 @@ green test would have waved through because no unit test builds the environment 
 rounds in: **the gate, the test, and the dogfood each certify only what they exercise; the failure
 always hides in the environment, consumer, or lifecycle moment just outside the setup — so name the
 one you did not build, in the output or the open questions, every time.**
+
+---
+
+## Round 11 — the bun request, decomposed along the layer the invariant lives on
+
+**The friction:** a one-line owner request — *"đưa repos này từ pnpm sang bun thay vì nodejs"* —
+that, read literally ("thay vì nodejs" = replace Node), would gut the product. govkit's entire pitch
+is *"runs in any CI with just Node, no key, nothing to install"*; making the **published** CLI require
+bun forces every downstream consumer to install bun, breaking the one invariant the README says
+"shapes everything."
+
+**The move that dissolved it: split the request by blast-radius, not by tool.** "Bun instead of node"
+is not one decision — it is four separable swaps (package-manager, test-runner, bundler, **runtime**)
+with wildly different reversibility, and only the *runtime* swap touches the published contract. Once
+that line is drawn, the answer is obvious and non-destructive: **bun is a DEV accelerant (install +
+test); the published artifact stays Node-portable** (engines.node>=20, portable ESM both runtimes
+execute, npx-distributed). The owner ruled exactly this. The lesson: *when a request names a tool,
+find the layer the invariant lives on and decompose there — the scary version and the safe version
+are usually the same word applied to different layers.*
+
+**The advisor again earned its keep before any code.** It caught a claim I was about to *state*:
+"bun is not installed" — I had checked the Bash tool's POSIX PATH, not the user's actual PowerShell
+environment. Re-checked in PowerShell (also absent) before asserting it. Same shape as every prior
+round: the green check certifies only the environment it ran in; the user's environment is the one
+just outside it. It also named the honest full-fork I'd have buried (`bun build --compile` → standalone
+binaries makes zero-install *stronger* but trades away npm distribution) — recorded as a rejected
+alternative so the owner sees the whole space, not a pre-narrowed one.
+
+**This change is the first live test of RFC-0008/0009/0010 on the repo's OWN toolchain.** A bun
+migration edits `pnpm-workspace.yaml`, which ADR-0001 *governs* (the one honest `governs:` wired in
+round 10). So `govkit stale` will flag ADR-0001 the instant the toolchain moves, and *deleting*
+`pnpm-workspace.yaml` sends that governs entry **dangling** — the surfaced-not-silent case RFC-0009 §3
+exists for. The reconciliation forces a real modeling choice the gate can see: **amend vs supersede.**
+TS + monorepo are unchanged, so ADR-0002 *amends one sub-decision* of ADR-0001 (`parent: ADR-0001`)
+rather than superseding it — keeping the chain-coherence story truthful instead of re-stating two
+pillars that aren't moving. Recorded at `proposed`, owner TBD: not self-flipped, not self-assigned.
+
+**What is NOT closed (round eleven).** (1) **Nothing is migrated yet** — this round produced the
+*decision record*, not the toolchain change; bun is not installed on the dev machine, so
+implementation is gated on the owner installing it and accepting ADR-0002. (2) **ADR-0001's governs
+will need reconciliation at implementation time** — when `pnpm-workspace.yaml` is removed/replaced,
+ADR-0001's `governs:` must be repointed to the new toolchain files (e.g. `bunfig.toml`), not left
+dangling; ADR-0002 Consequences commits to this in writing but the code change is future work.
+(3) **The portability claim is only as good as the CI that tests it** — ADR-0002 §4 says CI must run
+the shipped bundle under stock `node`, but that CI step does not exist yet; until it does, "both
+runtimes execute the artifact" is a design intent, not a tested assertion. (4) **bun-on-Windows** is
+the youngest surface in the whole plan and this repo's primary dev platform — the temp-git/execFileSync
+fixtures and `--filter` build scripts are the concrete things that must be re-proven on win32 before
+pnpm is retired, and they are exactly the kind of environment-specific failure every prior round
+warns hides just outside the green test.
+
+**Round-11 verdict:** the highest-leverage act was again *before* the work — not writing a migration,
+but **decomposing the request until the destructive reading and the safe reading separated into
+different layers**, then recording the safe one as an *amendment* the repo's own staleness + coherence
+gates will hold accountable at implementation time. Eleven rounds in: **a one-word request can hide a
+fork between gutting the invariant and accelerating the dev loop; find the layer the invariant lives
+on, decompose there, and let the repo's own gates be the thing that forces the follow-through you
+promised in the decision record.**
