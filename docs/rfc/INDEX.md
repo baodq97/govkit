@@ -8,3 +8,4 @@
 | [RFC-0004](./RFC-0004-baseline-changed-adoption.md) | Adoption on existing repos — gate the changed set, not the whole backlog | accepted | baodq97 | 2026-05-31 |
 | [RFC-0005](./RFC-0005-changed-across-the-gate.md) | Complete --changed across the gate — eval and check honor adoption scoping | accepted | baodq97 | 2026-05-31 |
 | [RFC-0006](./RFC-0006-init-adopt-metadata-migration.md) | init --adopt — migrate existing prose metadata into front-matter without asserting it | accepted | baodq97 | 2026-05-31 |
+| [RFC-0007](./RFC-0007-configurable-docs-root.md) | Configurable docs-root — isolate kit-managed docs under one parent (default unchanged) | draft | TBD | 2026-06-01 |
