@@ -1,8 +1,8 @@
 ---
 id: RFC-0010
 title: Controlling design↔implementation divergence — make as-built deviations explicit and reviewable
-status: draft
-owner: TBD
+status: accepted
+owner: baodq97
 date: 2026-06-01
 ---
 

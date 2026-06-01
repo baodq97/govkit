@@ -1,8 +1,8 @@
 ---
 id: RFC-0009
 title: Staleness advisory — link a doc to the code it governs and warn when the code moved on
-status: draft
-owner: TBD
+status: accepted
+owner: baodq97
 date: 2026-06-01
 ---
 

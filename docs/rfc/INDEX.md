@@ -10,5 +10,5 @@
 | [RFC-0006](./RFC-0006-init-adopt-metadata-migration.md) | init --adopt — migrate existing prose metadata into front-matter without asserting it | accepted | baodq97 | 2026-05-31 |
 | [RFC-0007](./RFC-0007-configurable-docs-root.md) | Configurable docs-root — isolate kit-managed docs under one parent (default unchanged) | accepted | baodq97 | 2026-06-01 |
 | [RFC-0008](./RFC-0008-doc-code-drift-chain-coherence.md) | Doc–code drift, gate-half — chain-status coherence and a cleanup report | accepted | baodq97 | 2026-06-01 |
-| [RFC-0009](./RFC-0009-staleness-advisory.md) | Staleness advisory — link a doc to the code it governs and warn when the code moved on | draft | TBD | 2026-06-01 |
-| [RFC-0010](./RFC-0010-design-implementation-reconciliation.md) | Controlling design↔implementation divergence — make as-built deviations explicit and reviewable | draft | TBD | 2026-06-01 |
+| [RFC-0009](./RFC-0009-staleness-advisory.md) | Staleness advisory — link a doc to the code it governs and warn when the code moved on | accepted | baodq97 | 2026-06-01 |
+| [RFC-0010](./RFC-0010-design-implementation-reconciliation.md) | Controlling design↔implementation divergence — make as-built deviations explicit and reviewable | accepted | baodq97 | 2026-06-01 |
