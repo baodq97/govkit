@@ -89,22 +89,23 @@ export function runStale(opts: StaleOptions): StaleResult {
         entries.push({ file, type: typeName, governs, status: "uncommitted" });
         continue;
       }
-      if (gitMatchCount(opts.root, governs) === 0) {
-        // Dangling governs: the glob matches no tracked file (a typo, or code moved/renamed). The
-        // analogue of RFC-0003's dangling parent — surfaced, never read as "fresh".
+      const codeTime = gitCommitTime(opts.root, governs);
+      // "Can't evaluate the governed code" → surface as dangling, NEVER silently "fresh"
+      // (RFC-0009 §3). Two ways to land here: the glob matches no tracked file (a typo, or code
+      // moved/renamed), OR it matches staged-but-never-committed files so there is no commit time.
+      // Both mean the governs link cannot be evaluated for recency — the honest verdict is the
+      // same skip, not a green "fresh". (Reported by the dogfooded swe-flow reviewer.)
+      if (gitMatchCount(opts.root, governs) === 0 || codeTime === null) {
         entries.push({ file, type: typeName, governs, status: "dangling", docTime });
         continue;
       }
-      const codeTime = gitCommitTime(opts.root, governs);
-      // codeTime is non-null here (matchCount > 0 ⇒ tracked ⇒ has history); guard defensively.
-      const stale = codeTime !== null && codeTime > docTime;
       entries.push({
         file,
         type: typeName,
         governs,
-        status: stale ? "stale" : "fresh",
+        status: codeTime > docTime ? "stale" : "fresh",
         docTime,
-        ...(codeTime !== null ? { codeTime } : {}),
+        codeTime,
       });
     }
   }

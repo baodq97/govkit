@@ -247,7 +247,8 @@ function printStale(result: StaleResult): void {
   }
   for (const e of dangling) {
     out.write(
-      `  GLOB?  ${e.file} [${e.type}] — governs matches no tracked file: ${e.governs.join(", ")}\n`,
+      `  GLOB?  ${e.file} [${e.type}] — governs has no evaluable commit history ` +
+        `(matches no tracked file, or only staged/uncommitted ones): ${e.governs.join(", ")}\n`,
     );
   }
   out.write(

@@ -100,6 +100,20 @@ describe("runStale — staleness advisory (RFC-0009)", () => {
     expect(result.entries[0]?.status).toBe("dangling");
   });
 
+  it("does NOT silently call FRESH when governed code is staged but never committed", () => {
+    // The masking case the dogfooded reviewer caught: ls-files finds the staged file (matchCount
+    // > 0) but git log has no commit for it (codeTime null). RFC-0009 §3: never silently "fresh".
+    writeRfc("RFC-0001-x.md", "src/staged.ts");
+    g("add", "docs/rfc/RFC-0001-x.md");
+    commitAt("doc", EARLY);
+    writeFileSync(join(root, "src", "staged.ts"), "export const x = 1;\n");
+    g("add", "src/staged.ts"); // staged, NOT committed → tracked-in-index, no history
+
+    const result = runStale({ root, config: CONFIG });
+    expect(result.entries[0]?.status).toBe("dangling");
+    expect(result.entries[0]?.status).not.toBe("fresh");
+  });
+
   it("skips an UNCOMMITTED doc (no commit time to compare) without crashing", () => {
     writeRfc("RFC-0001-x.md", "src/thing.ts"); // written, never added/committed
     writeFileSync(join(root, "src", "thing.ts"), "export const x = 1;\n");
