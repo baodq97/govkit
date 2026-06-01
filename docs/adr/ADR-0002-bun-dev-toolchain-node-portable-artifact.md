@@ -1,8 +1,8 @@
 ---
 id: ADR-0002
 title: Bun for the dev toolchain; the published govkit artifact stays Node-portable
-status: proposed
-owner: TBD
+status: accepted
+owner: baodq97
 date: 2026-06-01
 parent: ADR-0001
 ---
