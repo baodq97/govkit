@@ -7,7 +7,8 @@ different `dir`, a different `startStatus`), the config wins. Read it first; nev
 
 ## What govkit actually checks (so you write to pass on the first run)
 
-`npx govkit verify` enforces exactly two things per governed doc — match both:
+`npx govkit verify` enforces several structural rules; the two below are the ones you control
+when authoring a single artifact — match both and a fresh doc passes on the first run:
 
 1. **Front-matter completeness.** The doc must open with a leading `---` YAML block, and
    every key in `base.required ∪ types.<type>.required` must be present and **non-empty**

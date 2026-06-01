@@ -100,8 +100,9 @@ The migration shipped in one commit. What matched the design: dev toolchain move
 artifact unchanged (`engines.node>=20`, bundled ESM, `npx`, `node`-invoked hook). `bun run check`
 now runs the shipped `dist` under **both** bun and stock node — both emit identical
 `verify OK / eval 100/100`, so Node-portability is a tested assertion. `govkit stale` after the
-governs reconciliation: **2 declare governs, 0 dangling, 2 fresh** (ADR-0001 dropped the removed
-`pnpm-workspace.yaml`; ADR-0002 governs `bunfig.toml`). Suite: bun test **97 pass / 0 fail**.
+governs reconciliation ran clean — **0 dangling, all declaring docs fresh** (ADR-0001 dropped the
+removed `pnpm-workspace.yaml`; ADR-0002 governs `bunfig.toml`); adoption has since broadened, so run
+`govkit stale` for the live count. Suite at the time of writing: `bun test` green, 0 fail (it grows as tests are added).
 
 ## Deviations from design
 

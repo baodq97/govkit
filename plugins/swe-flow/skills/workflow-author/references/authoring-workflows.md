@@ -132,13 +132,13 @@ const waves = buildWaves(stories);
 for (let w = 0; w < waves.length; w++) {
   await parallel(waves[w].map((s) => () =>
     agent(`You are swe-flow:implementer. Build ${s.id}. Edit ONLY ${JSON.stringify(s.allowedPaths)}. ` +
-      `Write files only; never run pnpm/git/govkit (the lead integrates). Return a files-written summary.`,
+      `Write files only; never run bun/git/govkit (the lead integrates). Return a files-written summary.`,
       { label: `code:${s.id}`, phase: "Code", agentType: IMPLEMENTER })));
   const gate = await agent(`You are swe-flow:reviewer. Gate wave ${w + 1}: every P0 delivered? allowed-paths honoured?`,
     { label: `gate:w${w + 1}`, phase: "Code", schema: REV, agentType: REVIEWER });
   if (gate.verdict === "BLOCK") throw new Error(`Wave ${w + 1} BLOCKED: ${(gate.findings || []).join("; ")}`);
 }
-log("[<name>] all waves delivered — lead integrates: pnpm install, govkit verify, commit.");
+log("[<name>] all waves delivered — lead integrates: bun install, bun run check (govkit verify), commit.");
 ```
 
 ### c. Loop-until-done — discovery shape

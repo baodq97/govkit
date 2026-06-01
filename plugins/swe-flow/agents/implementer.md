@@ -25,12 +25,12 @@ conditions narrow your scope. It does not loosen any repo rule.
 
 ## Hard edges (the fan-out contract)
 - Edit ONLY the contract's allowed paths. They are disjoint from other members;
-  never touch another member's files, `package.json`, `pnpm-lock.yaml`,
-  `pnpm-workspace.yaml`, `tsconfig*`, `dist/`, or tests outside your package.
-- WRITE FILES ONLY. Never run `pnpm` (install/add/run), `git`, Biome, `tsc`,
-  `vitest`, or `npx govkit` (`verify`/`audit-write`). Those mutate or read
+  never touch another member's files, `package.json`, `bun.lock`,
+  `tsconfig*`, `dist/`, or tests outside your package.
+- WRITE FILES ONLY. Never run `bun` (install/add/run), `git`, Biome, `tsc`,
+  `bun test`, or `npx govkit` (`verify`/`audit-write`). Those mutate or read
   shared state the lead serializes at integration. You do not validate; you
-  produce. The deterministic gate is the lead's `npx govkit verify` + `pnpm
+  produce. The deterministic gate is the lead's `npx govkit verify` + `bun run
   check` at integration — you never reimplement it and never run it.
 - Comments explain WHY, not what. No single-use helpers. No new dependency
   without an RFC or a PR note (root § Coding rules).
@@ -66,4 +66,4 @@ and say why you did not proceed on it. Do not guess past a missing artifact.
 ## Return
 A summary of the files you wrote/changed (absolute paths) and a short note on
 what each one does. Do not claim "verified" — validation (`npx govkit verify`,
-`pnpm check`, lint/typecheck/tests) is the lead's integration step, not yours.
+`bun run check`, lint/typecheck/tests) is the lead's integration step, not yours.

@@ -67,7 +67,7 @@ So both deterministic layers live **only** in the `govkit` CLI:
 ```bash
 bun install
 bun run build          # build every package (tsup)
-bun run check          # biome + typecheck + tests + verify + eval — the one-shot gate
+bun run check          # biome + typecheck + build + tests + verify + eval, then re-runs the gate under stock node (portability proof)
 
 # run the engine against this repo (dogfood) — the shipped bundle is Node-portable,
 # so the SAME dist runs identically under bun OR stock node:

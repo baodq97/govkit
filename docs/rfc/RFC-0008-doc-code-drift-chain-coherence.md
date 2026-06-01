@@ -129,7 +129,7 @@ prompt, not a semantic check; cheaper and better-targeted than scanning every do
 
 ## As-built
 
-The GATE half shipped: `checkChainCoherence` in `verify.ts` blocks a doc reaching a
+The GATE half shipped: `checkCoherence` in `verify.ts` blocks a doc reaching a
 terminal/shipped status while its `parent` is still in a non-terminal (undecided) state, driven by
 the per-type `terminalStatuses` config. The cleanup REPORT shipped as `commands/report.ts`
 (`govkit report`) — advisory, read-only, never an exit code. The `audit-write` nudge for

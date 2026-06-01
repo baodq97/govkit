@@ -53,13 +53,13 @@ from a "generate a whole agent team" meta-framework.
 - **End with `log(...)`, not a top-level `return`.** A top-level `return` is valid at runtime but
   FAILS `node --check` (return outside a function). Mirror `sdlc.js`: summarize with `log()`. Only
   use `return` when the workflow is called as a sub-step — then validate by wrapping (see
-  `references/authoring-rules.md`).
+  `references/authoring-workflows.md`).
 - **Reviewer verdicts control FLOW ONLY.** A `swe-flow:reviewer` gate decides whether the workflow
   advances; it NEVER flips a doc `status:` or assigns an owner (human acts — root `AGENTS.md`
   § Agent constraints). `proposedNextStatus` is a proposal only.
 - **Determinism lives in govkit, not the script.** Wire `npx govkit verify` (or a reviewer gate)
   at each checkpoint; never reimplement the gate in JS.
-- **Every workflow carries the MANDATORY fallback header** (`references/authoring-rules.md`):
+- **Every workflow carries the MANDATORY fallback header** (`references/authoring-workflows.md`):
   workflows are research-preview and globally disableable, so the script documents the by-hand
   order that reaches the same result.
 - **Plain JS only** (no TypeScript syntax) and **no `Date.now()` / `Math.random()` / argless
@@ -103,7 +103,7 @@ Keep it the minimum that expresses the flow — no speculative phases.
 ```bash
 node --check .claude/workflows/<name>.js     # must exit 0
 ```
-Then the structural checklist (`references/authoring-rules.md`): `meta` literal present · every
+Then the structural checklist (`references/authoring-workflows.md`): `meta` literal present · every
 `meta.phases` title realized (a `phase()` call OR an agent `phase:` opt) · ≥1 reviewer gate or
 `govkit verify` · fallback header present · only `swe-flow:*` / built-in agentTypes · no
 `Date.now` / `Math.random` · no top-level `return`.

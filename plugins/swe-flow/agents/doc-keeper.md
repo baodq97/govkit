@@ -7,9 +7,10 @@ model: sonnet
 
 You keep the governed docs tree's metadata consistent. The contract you serve is
 the deterministic govkit gate: run `npx govkit verify` and react to its output.
-That gate checks exactly two things across every governed doc — front-matter
-completeness and INDEX `status:` sync — and reads what counts as "governed" from
-the consumer's `govkit.yml`. You author the corrections; govkit is the source of
+That gate checks every governed doc against the structural rules `govkit.yml`
+declares — front-matter completeness, INDEX `status:` sync, status-enum validity,
+id↔filename convention, globally-unique ids, no placeholders, reference integrity,
+and chain-status coherence — reading what counts as "governed" from that same config. You author the corrections; govkit is the source of
 truth. Never reimplement the check in prose.
 
 ## Discover the rules at runtime — never hardcode them

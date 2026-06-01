@@ -143,8 +143,9 @@ list). Recency uses git **commit time** (`git log -1 --format=%ct`), never mtime
 `gitCommitTime`/`gitMatchCount`/`gitAvailable` in `util.ts`. It is git-gated and lives OUTSIDE the
 no-key pure-fs floor by construction — `check` never calls it, it never affects an exit code. The
 four skip-cases (`stale`/`fresh`/`dangling`/`uncommitted`) are surfaced honestly, never silently
-read as fresh. Proven live this session: after the bun migration, `govkit stale` reported
-**2 declare governs, 0 dangling, 2 fresh** — including the governs reconciliation it predicted.
+read as fresh. Proven live this session: after the bun migration, `govkit stale` ran clean — **0 dangling, all
+declaring docs fresh** — including the governs reconciliation it predicted. (Adoption has since
+broadened well beyond the initial two docs; run `govkit stale` for the live count.)
 
 ## Deviations from design
 
@@ -156,7 +157,8 @@ read as fresh. Proven live this session: after the bun migration, `govkit stale`
   branch (so both "matches nothing" and "matches only uncommitted" land on the same honest skip),
   plus a regression test. The RFC's principle was right; the first code betrayed it; the repo's own
   reviewer agent caught it before merge — the self-correcting loop working.
-- **Weak-by-default adoption (named, not hidden).** Only ADR-0001 (and now ADR-0002) declare
-  `governs:`. The capability is proven but barely *used* — broad "which doc governs which source"
-  adoption is deferred to the owner, so a green `stale` today certifies very little coverage. This
-  is the honest as-built state, not a claim of repo-wide staleness tracking.
+- **Adoption was weak-by-default at first (named, not hidden).** When this shipped, only ADR-0001
+  (and ADR-0002) declared `governs:` — the capability was proven but barely *used*. Adoption has
+  since broadened to essentially all RFCs/ADRs (this RFC included — see its own front-matter), yet a
+  green `stale` still certifies only that declaring docs are recent, not that the prose is current.
+  That is the honest as-built state, not a claim of repo-wide staleness tracking.
