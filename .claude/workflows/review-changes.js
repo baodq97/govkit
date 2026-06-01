@@ -59,7 +59,7 @@ const VERDICT_SCHEMA = {
 
 // The example IS the shape, not a fixed artifact: pass your own dimensions via `args`,
 // or fall back to these three. Same skeleton reviews any set of concerns over the diff.
-const DIMENSIONS = (args && args.dimensions) || [
+const DIMENSIONS = args?.dimensions || [
   { key: "correctness", prompt: "Find correctness bugs the diff introduces." },
   { key: "reuse", prompt: "Find duplication, missed reuse, or needless complexity in the diff." },
   {
@@ -84,17 +84,26 @@ const reviewed = await pipeline(
     ),
   (review, d) =>
     parallel(
-      (review.findings || []).map((f) => () =>
-        agent(
-          `You are swe-flow:reviewer (read-only). Try to REFUTE this ${d.key} finding from the diff: ` +
-            `"${f.title}" in ${f.file} — ${f.detail}. Default to refuted=true if you cannot reproduce it.`,
-          { label: `verify:${d.key}`, phase: "Verify", schema: VERDICT_SCHEMA, agentType: REVIEWER },
-        ).then((v) => ({ ...f, dimension: d.key, survived: Boolean(v) && v.refuted === false })),
+      (review.findings || []).map(
+        (f) => () =>
+          agent(
+            `You are swe-flow:reviewer (read-only). Try to REFUTE this ${d.key} finding from the diff: ` +
+              `"${f.title}" in ${f.file} — ${f.detail}. Default to refuted=true if you cannot reproduce it.`,
+            {
+              label: `verify:${d.key}`,
+              phase: "Verify",
+              schema: VERDICT_SCHEMA,
+              agentType: REVIEWER,
+            },
+          ).then((v) => ({ ...f, dimension: d.key, survived: Boolean(v) && v.refuted === false })),
       ),
     ),
 );
 
-const issues = reviewed.flat().filter(Boolean).filter((f) => f.survived);
+const issues = reviewed
+  .flat()
+  .filter(Boolean)
+  .filter((f) => f.survived);
 log(
   `[review-changes] ${issues.length} confirmed issue(s) after refutation: ` +
     (issues.map((f) => `${f.dimension}:${f.file} — ${f.title}`).join(" | ") || "none"),

@@ -65,19 +65,22 @@ So both deterministic layers live **only** in the `govkit` CLI:
 ## Quickstart
 
 ```bash
-pnpm install
-pnpm -r build          # build every package (tsup)
-pnpm check             # biome + typecheck + tests + verify + eval — the one-shot gate
+bun install
+bun run build          # build every package (tsup)
+bun run check          # biome + typecheck + tests + verify + eval — the one-shot gate
 
-# run the engine against this repo (dogfood)
-node packages/govkit/dist/cli.js verify   # structural gate
-node packages/govkit/dist/cli.js eval     # graded quality score
+# run the engine against this repo (dogfood) — the shipped bundle is Node-portable,
+# so the SAME dist runs identically under bun OR stock node:
+bun  packages/govkit/dist/cli.js verify   # dev runtime (bun)
+node packages/govkit/dist/cli.js verify   # the npx-govkit contract (stock node, no key)
 ```
 
 ## Toolchain
 
-pnpm workspaces · TypeScript (strict) · [Biome](https://biomejs.dev) (lint + format) ·
-[vitest](https://vitest.dev) (test) · [tsup](https://tsup.egoist.dev) (bundle). Node ≥ 20.
+bun (install + test runner) · TypeScript (strict) · [Biome](https://biomejs.dev) (lint + format) ·
+[tsup](https://tsup.egoist.dev) (bundle). **The published `govkit` artifact stays Node-portable**
+(`engines.node >= 20`, `npx govkit`) — bun is the dev accelerant, **never** a runtime requirement
+on consumers (ADR-0002). Node ≥ 20 is the distribution baseline.
 
 ## Status
 

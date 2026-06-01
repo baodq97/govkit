@@ -1,6 +1,6 @@
+import { describe, expect, it } from "bun:test";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
-import { describe, expect, it } from "vitest";
 import { auditWrite, type HookInput } from "../src/commands/audit-write";
 import { type GovkitConfig, loadConfig } from "../src/config";
 

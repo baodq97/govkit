@@ -1,0 +1,17 @@
+# Bun configuration for the govkit ecosystem monorepo (ADR-0002).
+#
+# Dev toolchain is bun: `bun install` (workspaces from the root package.json
+# `workspaces` field) and `bun test` (the runner; tests are *.test.ts under
+# packages/*/test). The PUBLISHED govkit artifact stays Node-portable — it keeps
+# engines.node>=20, ships bundled ESM that both node and bun execute, and is
+# distributed as `npx govkit`. So bun is a dev accelerant here, NEVER a runtime
+# requirement on consumers (the no-key/Node-only CI invariant the README pins).
+
+[install]
+# `bun install --frozen-lockfile` (CI) reads bun.lock and fails on any drift.
+exact = false
+
+[test]
+# Run the suite from the repo root so `bun test` discovers every workspace's
+# packages/*/test/*.test.ts. Coverage is opt-in via `bun test --coverage`.
+root = "."

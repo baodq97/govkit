@@ -10,21 +10,29 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Install pnpm
-        uses: pnpm/action-setup@v4
+      # Dev toolchain is bun (ADR-0002): install + the test runner.
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
         with:
-          version: 10.33.0
+          bun-version: 1.3.14
 
-      - name: Setup Node
+      - run: bun install --frozen-lockfile
+
+      # The one-shot gate: Biome + typecheck + build (tsup) + tests (bun test) +
+      # `govkit verify` (structural quality control) + `govkit eval` (graded
+      # quality trust signal). No ANTHROPIC_API_KEY, no Claude — both deterministic
+      # layers run with no key, so a non-Claude contributor's PR is gated identically.
+      # `bun run check` ends by running the shipped bundle under BOTH bun and stock
+      # node (govkit-check + govkit-check:node), so the Node-portability of the
+      # published artifact (ADR-0002 §3) is a tested assertion, not a hope.
+      - run: bun run check
+
+      # Belt-and-suspenders: stock Node is set up only to PROVE the published
+      # `npx govkit` contract — the dist bundle must run on a machine that has
+      # Node but no bun, exactly like a downstream consumer's CI.
+      - name: Setup Node (portability proof only)
         uses: actions/setup-node@v4
         with:
           node-version: 22
-          cache: pnpm
 
-      - run: pnpm install --frozen-lockfile
-
-      # The one-shot gate: Biome + typecheck + build + tests + `govkit verify`
-      # (structural quality control) + `govkit eval` (graded quality trust signal).
-      # No ANTHROPIC_API_KEY, no Claude — both deterministic layers run on plain
-      # Node, so a non-Claude contributor's PR is gated identically.
-      - run: pnpm check
+      - run: node packages/govkit/dist/cli.js check

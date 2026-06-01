@@ -5,6 +5,8 @@ status: accepted
 owner: baodq97
 date: 2026-06-01
 parent: ADR-0001
+governs:
+  - bunfig.toml
 ---
 
 > Seed decision recorded as `proposed` (an arch/runtime decision; root `AGENTS.md`

@@ -5,7 +5,6 @@ status: accepted
 owner: baodq97
 date: 2026-05-31
 governs:
-  - pnpm-workspace.yaml
   - biome.json
   - packages/govkit/tsconfig.json
 ---

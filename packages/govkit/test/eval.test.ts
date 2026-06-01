@@ -1,6 +1,6 @@
+import { describe, expect, it } from "bun:test";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
-import { describe, expect, it } from "vitest";
 import { runEval } from "../src/commands/eval";
 import { loadConfig } from "../src/config";
 

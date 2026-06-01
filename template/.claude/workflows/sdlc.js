@@ -186,7 +186,7 @@ phase("Foundation");
 const foundation = await agent(
   `You are swe-flow:implementer. Author ONLY the shared FOUNDATION for "${feature}": the ` +
     `domain core / public contracts every US package will code against, plus a test ` +
-    `harness skeleton that defines "green". Write files only; never run pnpm/git/govkit ` +
+    `harness skeleton that defines "green". Write files only; never run bun/git/govkit ` +
     `(the lead integrates). Return a files-written summary.`,
   { label: "foundation", phase: "Foundation", agentType: IMPLEMENTER },
 );
@@ -215,7 +215,7 @@ for (let w = 0; w < waves.length; w++) {
         agent(
           `You are swe-flow:implementer. Build US ${story.id} (${story.priority}). Edit ONLY ` +
             `its allowed paths: ${JSON.stringify(story.allowedPaths)} — disjoint from the other ` +
-            `members in this wave. Write files only; never run pnpm/git/govkit. Match neighbour ` +
+            `members in this wave. Write files only; never run bun/git/govkit. Match neighbour ` +
             `style; halt-and-document if blocked. Return a files-written summary.`,
           { label: `code:${story.id}`, phase: "Code", agentType: IMPLEMENTER },
         ),
@@ -228,5 +228,5 @@ for (let w = 0; w < waves.length; w++) {
 }
 
 log(
-  "[sdlc] chain complete — lead now integrates: pnpm install, pnpm check (govkit verify), commit.",
+  "[sdlc] chain complete — lead now integrates: bun install, bun run check (govkit verify), commit.",
 );

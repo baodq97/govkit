@@ -1,6 +1,6 @@
 # deps
 node_modules/
-.pnpm-store/
+.bun/
 
 # build
 dist/

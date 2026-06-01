@@ -2,7 +2,13 @@
   "extends": "../../tsconfig.base.json",
   "compilerOptions": {
     "rootDir": ".",
-    "noEmit": true
+    "noEmit": true,
+    // The test suite runs on bun's runner (ADR-0002), so the test files import
+    // `bun:test`. @types/bun supplies that ambient module + Bun globals; "node"
+    // is kept for the src/ runtime. Overrides the base's ["node"] (types is
+    // replaced, not merged). The SHIPPED src/ uses only node: APIs — bun types
+    // are a test-time convenience, not a runtime dependency of the artifact.
+    "types": ["node", "bun"]
   },
   "include": ["src", "test", "tsup.config.ts"]
 }

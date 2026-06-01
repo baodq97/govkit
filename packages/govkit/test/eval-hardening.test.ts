@@ -1,8 +1,8 @@
+import { describe, expect, it } from "bun:test";
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
-import { describe, expect, it } from "vitest";
 import { type ArtifactScore, runEval } from "../src/commands/eval";
 import { type GovkitConfig, loadConfig } from "../src/config";
 
