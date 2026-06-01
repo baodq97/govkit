@@ -866,3 +866,65 @@ gates will hold accountable at implementation time. Eleven rounds in: **a one-wo
 fork between gutting the invariant and accelerating the dev loop; find the layer the invariant lives
 on, decompose there, and let the repo's own gates be the thing that forces the follow-through you
 promised in the decision record.**
+
+---
+
+## Round 12 — the masking bug bit ME, live, through a shell pipe
+
+**The friction that proved the thesis on its author.** Implementing ADR-0002, I accepted ADR-0002
+(child) while its parent ADR-0001 was still `proposed`, and ran the accept commit as
+`node …/cli.js verify | head -3 && git commit …`. The gate *correctly* FAILED (RFC-0008: a decided
+child over an undecided parent) — but the `| head -3` made the pipeline's exit code that of `head`
+(0), so the `&&` proceeded and the commit landed on a **red gate**. This is the exact **masking
+class** this whole repo exists to kill — a check that looks enforced but no-ops — and I inflicted it
+on myself with a shell pipe, not a code bug. **Lesson, now a rule: never pipe a gate through
+`head`/`tail`/`grep` inside a `&&` chain; the pipe swallows the failing exit code and turns a blocking
+gate into a no-op. Capture to a file or check `${PIPESTATUS[0]}`/`$?` explicitly before chaining.**
+The fix was to re-run verify with NO pipe (`verify; echo exit=$?`) — the honest red — then resolve it.
+
+**The coherence gate forced an overdue provenance act into the open.** The red was not noise: you
+cannot accept an *amendment* (ADR-0002 `parent: ADR-0001`) over a parent still `proposed`. ADR-0001 —
+the foundational monorepo+TS decision the repo literally runs on — had sat at `proposed`/owner `TBD`
+since the seed. The gate refused to let the child be "more decided" than its parent, which surfaced
+that ADR-0001's acceptance was overdue. Owner authorized both flips (separate commits, citing the
+in-session word); the gate did the work of catching a latent inconsistency no human had noticed.
+
+**"Sao không sử dụng bun?" sharpened the design instead of bending it.** The owner's nudge mid-migration
+forced the question: is `node` a lazy fallback or a deliberate contract? Answer, made concrete: dev is
+now bun *everywhere* (install, test, every script via `bun run --filter '*'`), and `node` survives at
+exactly two points that are not fallbacks but PROOFS — the `audit-write` hook and a CI step that runs
+the shipped `dist` under stock node. `bun run check` ends by running the bundle under BOTH bun and
+node, so **Node-portability is now a tested assertion** (identical `verify OK / eval 100/100` from
+both), not a claim in an ADR. The challenge improved the artifact: it turned a design intent into a
+gate.
+
+**The governs reconciliation worked as designed — the strongest dogfood moment.** ADR-0002's
+Consequences promised: when the toolchain moves, ADR-0001's `governs: pnpm-workspace.yaml` must be
+reconciled, not left dangling. So in the *same* commit that removed `pnpm-workspace.yaml`, ADR-0001's
+governs dropped that entry (→ `biome.json` + `tsconfig.json`, both still real) and ADR-0002 gained
+`bunfig.toml`. Post-commit `govkit stale`: **2 declare governs, 0 dangling, 2 fresh.** The feature
+shipped three rounds ago predicted its own maintenance burden on this exact change and the burden was
+discharged on schedule.
+
+**bun:test migration friction, all caught by the gate, none by me first.** Three mechanical things the
+gate (not my reading) surfaced: (1) `sed`-swapping `from "vitest"` → `from "bun:test"` left imports
+mis-sorted — biome auto-fixed 12 files; (2) `tsc` could not resolve `bun:test` types — needed
+`@types/bun` + a `types: ["node","bun"]` override (the base's `["node"]` *replaces*, not merges); (3)
+the published `src/` deliberately uses only `node:` APIs, so bun types are a *test-time* convenience,
+never a runtime dep of the shipped artifact — the portability invariant survives the type addition.
+
+**What is NOT closed (round twelve).** (1) **CI is edited but unproven** — `oven-sh/setup-bun` +
+the dual-runtime steps are written; they have not run on GitHub Actions yet (no push), so "green on
+ubuntu CI" is still asserted from local win32, not observed. (2) **tsup was kept, not replaced** —
+ADR-0002 deliberately scoped `bun build` out; the bundler is still a node tool, so "fully bun" is
+false by design and that is the honest state. (3) **bun-on-Windows passed the suite but only the
+suite** — the temp-git/execFileSync fixtures are green, but the broader claim "bun is a drop-in dev
+runtime on win32" is only as wide as 97 tests reach. (4) **The npm-published tarball is unverified
+under a real `npx govkit`** — local `node dist/cli.js` proves portability, but an actual
+`npm pack` → `npx` on a clean machine has not been run.
+
+**Round-12 verdict:** the highest-signal event was a *live failure* — I reproduced the masking bug
+the repo was built to kill, by piping a gate through `head` in a chain, and the only thing that caught
+it was re-running the gate honestly. Twelve rounds in: **the gate only protects you if you let it
+report; the most dangerous tool in the loop is the shell pipe that swallows an exit code, because it
+turns every downstream `&&` into a lie. Run the gate naked, read its real exit, THEN act.**
