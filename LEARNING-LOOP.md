@@ -532,3 +532,68 @@ than the happy path — and that the Round-5 lesson (fixtures are blind to real 
 Six rounds in, the discipline that compounds is unchanged and sharper: **name the asymmetry the feature
 exists to protect, test that the unsafe thing cannot happen, and turn the previous round's
 hard-won blindness into this round's fixture.**
+
+
+---
+
+## Round 7 — the docs-rot question splits into two trust layers (RFC-0008 drafted, RFC-0009 named)
+
+**Trigger.** The user asked the hardest docs-as-code question directly: how to track which docs are
+done / outdated / need cleanup, get a feedback loop *after* code ships, and ensure docs+code are one
+source of truth "not two diffs maintained in parallel" — i.e. docs must not become trash.
+
+**The overclaim I was about to make, and the advisor catching it (fourth time, same reflex).** My instinct
+was to frame govkit as delivering "single source of truth." It cannot, and saying so would be the exact
+overclaim Rounds 5-6 trained me off. The honest ceiling: **you always have two artifacts; the only true
+single-source is *generating* one from the other, which govkit does not do.** So the calibrated promise is
+not "unify docs and code" but **"make drift between them loud and acknowledged instead of silent."** Lead
+with the ceiling, not the dream. Lesson: the overclaim reflex does not retire — it just moves to the next
+big feature; the discipline is to name the unreachable thing explicitly *in the RFC summary* so a reader
+cannot mistake the scope.
+
+**The real design insight (advisor re-ranked my three mechanisms).** I had three ideas in one bucket
+(chain-coherence, staleness, cleanup report). The advisor split them along the **exact RFC-0001 line** that
+the whole repo already trusts:
+- **GATE class (zero-false-positive, safe to block):** chain-status coherence — a `done` issue under a
+  `draft`/`rejected` parent is a real structural inconsistency (you shipped a design that was never
+  decided). Plus a cleanup report (surface superseded/rejected). These are honest to *enforce*.
+- **ADVISORY class (proxy, false-positive-prone, must NOT block):** git-recency staleness via a `governs:`
+  link. Because *any* trivial commit to governed code (typo, rename, lint-fix) trips it — block on it and you
+  rebuild the RFC-0004/0005 avalanche **and worse**, you train people to touch docs meaninglessly to turn
+  red green, i.e. lie to the gate. So staleness is the **eval-class sibling** of the gate-class coherence
+  check. The symmetry *chain-coherence : verify-gate :: staleness : eval-advisory* is the organizing idea.
+
+**The question I almost asked the user but should not have.** I was going to ask which staleness *mechanism*
+(git-recency vs content-hash vs version-pin). The advisor: that fork is already resolved by my own principles
+— "advisory, keep it cheap" → git-recency. The real crux (what counts as a *significant* change) is semantic,
+which is precisely *why* staleness stays advisory and defers significance to the human/reviewer-agent.
+**Lesson: do not punt to the user a decision your own stated invariants already make — that is false humility
+that offloads thinking you should have done.**
+
+**The precision that keeps the gate zero-FP.** Chain-coherence is "parent is in **a terminal** state
+(accepted **or** superseded)," NOT "parent == accepted" — a done issue under a *superseded* RFC is legitimate
+(design decided, then replaced). Strict-equality would mis-fire on that and get the whole gate distrusted.
+The terminal-not-equal distinction is the load-bearing test (case c).
+
+**Scope discipline held (the session-long "name, do not build, one slice").** This is two RFCs, not one.
+Drafted **RFC-0008 = the gate-half** (chain-coherence + cleanup report — the part honest to enforce, serving
+"docs are not trash" directly). **Named RFC-0009 = staleness-advisory** in 0008's open-questions, explicitly
+tagged the eval-class sibling, deliberately NOT folded in — folding the false-positive-prone proxy into the
+zero-FP gate would re-import the exact false positives the gate must never have. Feedback-after-implement is
+framed as **event-driven at the lifecycle transition** (the moment an issue flips to `done`), not a continuous
+background scan — cheaper and better-targeted.
+
+**What is NOT closed (named, round seven).** (1) **Still all design, no code** — RFC-0008 is drafted at
+`status: draft`, unaccepted; RFC-0007 also still awaits the owner's accept. Two drafts now queued. (2)
+**`terminalStatuses` is new config surface** — the non-breaking floor (a type without it is exempt) is
+asserted in the RFC but unproven until the RED-first test (case d) exists. (3) **The cleanup report has no
+home yet** — `govkit report` vs folded into `check` is an open question; leaning separate-read-only so nobody
+gates on advisory output. (4) **Transitive coherence is out** — v1 checks one `parent` edge, one level; a done
+issue two levels under a draft ancestor is not caught, same bounded-scope choice refs already made.
+
+**Round-7 verdict:** the loop turned a sprawling, easy-to-overclaim question into a *trust-layered* answer
+that reuses the repo's own central distinction (gate vs eval) rather than inventing a new axis — and the
+advisor's three corrections were all the same shape: **respect the line RFC-0001 drew.** The overclaim
+reflex, the punt-the-mechanism reflex, and the fold-everything-into-one-RFC reflex were each a failure to keep
+the gate/advisory boundary clean. Seven rounds in, the compounding discipline sharpened once more: **before
+adding a check, ask which trust class it belongs to — and if it is a proxy, it advises; it never blocks.**
