@@ -686,3 +686,66 @@ Eight rounds in, the compounding discipline is the same and sharper: **the gate,
 RFC each have a blind spot shaped like "the thing just outside what I enumerated" — so before
 calling it done, enumerate the consumers, the requirements, and the adoption states empirically, and
 name the one you cannot yet cover.**
+
+---
+
+## Round 9 — the RFC about controlling divergence diverged from its own design (caught by its own thesis)
+
+The user asked the deepest version of the docs-rot question yet: *how do you control the local
+decisions that, during implementation, diverge from the design?* Answered along the RFC-0001 line as
+RFC-0010 — a status-conditional required `## As-built` section (GATE forcing-function) + ADR-as-
+divergence-log + reviewer hook — with the honest framing that **the reliable control is adversarial
+review; every deterministic layer is a forcing function that ensures the review happens, not a
+substitute for it.** Drafted, dogfooded 100/100, committed.
+
+**Then the advisor refuted the gate at done-check — and the refutation IS the RFC's thesis.** The
+first draft keyed the required section to RFC-0008's `terminalStatuses`. But `rfc.terminalStatuses =
+[accepted, superseded]`, and **an RFC reaches `accepted` BEFORE it is implemented** — that is the
+entire premise of RFC-0008's coherence gate. So the as-built gate would have:
+
+1. demanded `## As-built` at accept-time, when no divergence can exist yet → forced a dishonest
+   "None", then
+2. **never re-fired** — the RFC stays `accepted` through implementation, no further transition on it
+   → the "None" stands, the gate is satisfied, the real divergence goes unrecorded.
+
+→ **RFC-0010's own gate would have PASSED on the exact RFC-0007 three-readers→five-readers divergence
+that motivates RFC-0010.** A gate-class check that cannot be zero-false-positive *at its own trigger
+time* breaks the property the whole gate class rests on. And note what caught it: not a gate, not the
+green dogfood (verify/eval check that the *document* is well-formed, never that the *mechanism it
+proposes* is sound) — an adversarial review. The RFC about controlling design↔implementation
+divergence **itself diverged from a sound design, and was controlled by exactly the mechanism it
+names as the reliable one.** That is the third load-bearing divergence of the session (after RFC-0007
+three→five and RFC-0008 moment-of-flip→Write-only), now cited in the RFC as evidence.
+
+**The fix (owner-chosen): a trigger that coincides with when the knowledge exists.** Add a post-
+acceptance `implemented` status (`accepted → implemented → superseded`); the required section is
+keyed to a per-type `requiredSectionsByStatus: { implemented: [...] }` map, **decoupled from
+`terminalStatuses`**. The flip `accepted → implemented` is a deliberate authored act on the RFC's own
+lifecycle, at the precise moment the author confronts what diverged — so the gate is zero-FP by
+construction (silent until the author declares the work implemented). `implemented` still joins
+`terminalStatuses` for coherence, but coherence and the required-section check now read **different
+keys** — the decoupling is the fix.
+
+**The transferable lesson (round nine).** Reusing an existing config key because it is *there* is a
+trap when the key encodes a *different lifecycle moment* than the new check needs. `terminalStatuses`
+answers "is this decided/shipped" (which `accepted` satisfies); the as-built gate needs "has this met
+reality yet" (which only a post-implementation status satisfies). They looked like the same set; they
+are not. **Before keying a new gate to an existing status set, ask: does this set's defining moment
+coincide with the moment my check's knowledge exists? If not, the reuse is a masking-class bug — the
+gate fires confidently at the wrong time.** The green dogfood will never tell you this; only walking
+the gate through the lifecycle by hand (or an adversarial reviewer who does) will.
+
+**What is NOT closed (round nine).** (1) **RFC-0010 is draft, not built** — the `implemented` status,
+`requiredSectionsByStatus` verify check, and retargeted nudge are designed, not implemented; accept/
+build awaits the owner. (2) **The never-flipped escape** — an author who ships but leaves the RFC at
+`accepted` forever evades the gate entirely; only the reviewer + coherence cover that residue, named
+in the RFC's open questions. (3) **Self-attestation persists** — `## As-built: None` can still be a
+lie; the gate forces the question, not the honesty (the recurring residue, now two RFCs deep).
+
+**Round-9 verdict:** the loop's sharpest catch yet was self-referential — the deterministic gate I
+proposed *to control divergence* would have silently permitted the divergence, and the thing that
+caught it was the RFC's own named reliable mechanism (adversarial review), proving the RFC's central
+claim by nearly falsifying its central artifact. Nine rounds in: **a green gate proves the document
+well-formed, never the mechanism sound; reuse of a status key is safe only when the key's lifecycle
+moment coincides with when the new check's knowledge exists — verify that by hand, because no
+dogfood will.**
