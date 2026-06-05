@@ -82,6 +82,13 @@ ship as **plugin agents** (`swe-flow:implementer`, …) to be usable from the `s
 - **No silent catch.** Log with context, rethrow wrapped, or suppress explicitly with a one-line
   reason. Cross-platform care: handle CRLF — Windows checkouts are first-class.
 - Generated/bundled files (`dist/**`) — edit source, then `build`.
+- **Never pipe a gate through `head`/`tail`/`grep` inside a `&&` chain** — the pipe swallows the
+  failing exit code and turns a blocking gate into a no-op. Capture to a file or check
+  `${PIPESTATUS[0]}`/`$?` explicitly before chaining (LEARNING-LOOP Round 12; it bit us live).
+- **Cross-cutting rename/vocab change:** before the first edit, produce an exhaustive
+  symbol/call-site inventory (grep/codegraph) and state the count. The rename lands as ONE
+  coherent change set — intermediate states are expected not to compile — and verifies with the
+  FULL test suite, never scoped.
 
 ## Agent constraints (cross-cutting)
 
@@ -96,6 +103,9 @@ ship as **plugin agents** (`swe-flow:implementer`, …) to be usable from the `s
 2. **Plan** — if above a Lifecycle threshold, halt and surface it.
 3. **Implement** — match neighbour conventions.
 4. **Verify** — `bun run lint` + `bun run typecheck` + scoped `bun run test`; at least one test
-   exercises the shipped CLI surface as a consumer would.
+   exercises the shipped CLI surface as a consumer would. **Exception:** for a rename/vocab
+   cross-cutting change, do not trust a scoped run mid-task — run the FULL `bun run test`; a
+   renamed sibling dir can be green in isolation while the branch is red. (The lead's
+   `bun run check` at integration is always full-suite regardless.)
 5. **Document** — README note for any public behavior change; INDEX row for any new doc artifact.
 6. **Open PR** — link Issue + required artifacts; hand off to the code owner.

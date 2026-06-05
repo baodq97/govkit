@@ -62,7 +62,11 @@ A non-zero exit lists each offending file and problem.
 4. **Coding rules** (§ Coding rules). Comments explain why, not what; no silent
    catch (log with context, rethrow wrapped, or suppress explicitly with a
    one-line reason); no single-use helpers; generated/bundled output edited at
-   source then rebuilt, never by hand.
+   source then rebuilt, never by hand; no gate command piped through
+   `head`/`tail`/`grep` inside a `&&` chain (the pipe swallows the failing exit
+   code and turns a blocking gate into a no-op); a cross-cutting rename/vocab
+   change must cite its up-front symbol/call-site inventory and a FULL-suite
+   (never scoped) verify.
 
 5. **Production-parity test.** If the change touches the run surface, confirm a
    test exercises the same entrypoint the run command launches, through the
