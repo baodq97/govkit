@@ -62,7 +62,84 @@ So both deterministic layers live **only** in the `govkit` CLI:
 - Authoring **skills** and the **`sdlc`** workflow only *author* artifacts and *call* govkit to
   validate; they never embed the gate.
 
-## Quickstart
+## Init a new repo with govkit
+
+Three paths, depending on where you start. All of them end at the same contract:
+**`govkit.yml` + the `audit-write` hook + `npx govkit check` in CI** — no engine source copied.
+
+> **Until govkit is published to npm**, `npx --yes govkit` will not resolve from the registry.
+> Build a tarball from this monorepo and point at it instead:
+> ```bash
+> cd packages/govkit && bun run build && npm pack   # → govkit-0.2.0.tgz
+> # in the consumer repo:
+> npm i -D /path/to/govkit-0.2.0.tgz                # then `npx govkit …` works as below
+> ```
+
+### Path A — greenfield repo from the template (recommended)
+
+Copy `template/` (or "Use this template" once it is published as a repo). You get the full
+surface in one shot:
+
+| You get | What it does |
+|---|---|
+| `govkit.yml` | the governance schema — doc dirs, required front-matter, status lifecycle, eval rubric (edit to taste) |
+| `.claude/settings.json` | `PreToolUse` → `npx govkit audit-write` (blocks a bad doc write in-editor) + `SessionStart` → freshness advisory (warns when the branch is behind upstream) |
+| `.claude/hooks/session-freshness.mjs` | the freshness hook itself — advisory-only, offline-safe |
+| `.claude/workflows/sdlc.js` | the `sdlc` workflow PRD→RFC→ADR→US→Foundation→Code (needs the swe-flow plugin) |
+| `.github/workflows/ci.yml` | `npx govkit verify` + `eval` on every push/PR — no Claude, no API key |
+| `docs/{product,rfc,adr,issues}/INDEX.md` | the governed doc dirs, each with its index |
+| `AGENTS.md` | the agent contract: lifecycle gates, agent constraints, authoring rules |
+
+```bash
+cp -r <govkit-monorepo>/template/. my-new-repo/ && cd my-new-repo
+git init && npx govkit verify        # green on the empty scaffold
+```
+
+### Path B — bare repo, CLI scaffold
+
+In any repo (new or existing, no governed docs yet):
+
+```bash
+npx govkit init                      # scaffolds govkit.yml + the audit-write hook
+                                     # + docs/{product,rfc,adr,issues}/INDEX.md — idempotent
+npx govkit init --docs-root .govkit  # optional: isolate kit-managed docs under one folder (RFC-0007)
+```
+
+`init` scaffolds only the engine surface (schema + hook + INDEXes). CI, the `sdlc`
+workflow, and `AGENTS.md` are template concerns — copy them from `template/` if you want them.
+
+### Path C — existing repo that already has design docs
+
+Don't rewrite your docs by hand — migrate their declared metadata (RFC-0006):
+
+```bash
+npx govkit init --adopt              # DRY-RUN: shows what it would extract per file
+npx govkit init --adopt --apply      # extracts prose metadata (e.g. `**Status**: X`) into
+                                     # front-matter; anything NOT found is sentineled so it
+                                     # still fails the gate — never asserts unverified metadata
+```
+
+Status values outside your enum come back as a suggested `govkit.yml` patch — reconcile,
+then `npx govkit verify` until green.
+
+### Then, for every path
+
+```bash
+# 1. Wire CI (template ships this; paths B/C add it):
+#    .github/workflows/ci.yml → `npx --yes govkit check`   (verify + eval, exits non-zero)
+
+# 2. Install the authoring companion (Claude Code):
+claude plugin marketplace add baodq97/govkit   # the marketplace lives in this repo
+claude plugin install swe-flow@govkit          # spec-author, workflow-author, 3 agents
+
+# 3. Daily loop:
+npx govkit verify    # structural gate (what blocks)
+npx govkit eval      # quality floor + advisory 0–100 score
+npx govkit report    # lifecycle view: done / in-flight / cleanup (advisory)
+npx govkit stale     # docs whose `governs:` code moved on (advisory, needs git)
+```
+
+## Quickstart (hacking on this monorepo)
 
 ```bash
 bun install
