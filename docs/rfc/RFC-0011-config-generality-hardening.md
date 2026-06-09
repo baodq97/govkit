@@ -76,9 +76,12 @@ identical behavior for govkit-self and alert-triage; only customs opts in.
 
 3. **Bounded table-cell matching (behavior, not a field).** `checkIndex` locates a doc's row by
    matching its `id` as a whole table cell (`/(?:^|\|)\s*<id>\s*(?:\||$)/`) instead of a
-   substring, and validates each `index.sync` key's value the same way. Owner is compared on the
-   parser's already-unquoted value, so `owner: "@handle"` and a bare `@handle` cell agree —
-   closing the KT-0004 drift directly.
+   substring, and validates each `index.sync` key's value the same way. Both sides are
+   quote-normalized — the front-matter value arrives parser-unquoted, and a single surrounding
+   quote pair is stripped from the INDEX cell — so `owner: "@handle"` agrees with a `"@handle"`
+   or bare `@handle` cell, closing the KT-0004 drift directly. (Validated on the real
+   customs-platform repo: the cell was written `"@baodq97"` with literal quotes — bare-only
+   matching would have false-flagged it; the synthetic fixture missed this, real data caught it.)
 
 Together these let customs express runbooks/postmortems and owner-column sync in `govkit.yml`,
 and they make INDEX validation precise enough to replace the bash anchoring — the three reasons
