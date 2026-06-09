@@ -1,9 +1,12 @@
 import { afterEach, describe, expect, it } from "bun:test";
+import { fileURLToPath } from "node:url";
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { type GovkitConfig, loadConfig } from "../src/config";
 import { runVerify } from "../src/commands/verify";
+
+const here = fileURLToPath(new URL(".", import.meta.url));
 
 const createdRoots: string[] = [];
 
@@ -267,5 +270,14 @@ describe("runVerify — G3 null sync is fail-soft (US-0003)", () => {
     expect(() => runVerify({ root, config })).not.toThrow();
     const result = runVerify({ root, config });
     expect(result.violations.find((v) => v.kind === "index")).toBeUndefined();
+  });
+});
+
+describe("runVerify — n=3 generality fixture (customs-shaped)", () => {
+  it("passes a status-less runbook type alongside owner-synced issues", () => {
+    const root = join(here, "fixtures", "generality-repo");
+    const result = runVerify({ root });
+    expect(result.violations).toEqual([]);
+    expect(result.ok).toBe(true);
   });
 });

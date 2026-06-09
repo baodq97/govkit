@@ -1,0 +1,20 @@
+schemaVersion: 1
+docs:
+  ignore: [INDEX.md, _TEMPLATE.md]
+  base:
+    required: [id, title, status, owner, date]
+  types:
+    us:
+      dir: docs/issues
+      required: [id, title, status, owner, date, priority]
+      idPrefix: US
+      startStatus: open
+      statuses: [open, in_progress, done, dropped]
+      index:
+        sync: [status, owner]
+    runbook:
+      dir: docs/runbooks
+      required: [id, title, service, severity, owner, date]
+      idPrefix: RB
+      excludeBase: [status]
+      index: false
