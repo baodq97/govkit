@@ -1,8 +1,9 @@
 import { afterEach, describe, expect, it } from "bun:test";
-import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { loadConfig } from "../src/config";
+import { type GovkitConfig, loadConfig } from "../src/config";
+import { runVerify } from "../src/commands/verify";
 
 const createdRoots: string[] = [];
 
@@ -80,5 +81,51 @@ describe("loadConfig — RFC-0011 fields", () => {
       ].join("\n"),
     );
     expect(() => loadConfig(root)).toThrow(/excludeBase/);
+  });
+});
+
+// A repo with a single lifecycle-less `runbook` type: no `status`, INDEX opted out.
+function runbookConfig(): GovkitConfig {
+  return {
+    schemaVersion: 1,
+    docs: {
+      ignore: ["INDEX.md", "_TEMPLATE.md"],
+      base: { required: ["id", "title", "status", "owner", "date"] },
+      types: {
+        runbook: {
+          dir: "docs/runbooks",
+          required: ["id", "title", "service", "severity", "owner", "date"],
+          idPrefix: "RB",
+          excludeBase: ["status"],
+          index: false,
+        },
+      },
+    },
+  };
+}
+
+function writeDoc(root: string, rel: string, fields: Record<string, string>): void {
+  const fm = Object.entries(fields)
+    .map(([k, v]) => `${k}: ${v}`)
+    .join("\n");
+  writeFileSync(join(root, rel), `---\n${fm}\n---\n\nbody text here\n`);
+}
+
+describe("runVerify — G1 excludeBase", () => {
+  it("passes a status-less runbook (status dropped from required)", () => {
+    const root = mkdtempSync(join(tmpdir(), "govkit-g1-"));
+    mkdirSync(join(root, "docs", "runbooks"), { recursive: true });
+    writeDoc(root, "docs/runbooks/RB-0001-stuck.md", {
+      id: "RB-0001",
+      title: "Worker job stuck",
+      service: "worker",
+      severity: "high",
+      owner: "TBD",
+      date: "2026-06-09",
+    });
+    const result = runVerify({ root, config: runbookConfig() });
+    rmSync(root, { recursive: true, force: true });
+    expect(result.ok).toBe(true);
+    expect(result.violations).toEqual([]);
   });
 });

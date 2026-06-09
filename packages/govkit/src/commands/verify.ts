@@ -369,7 +369,12 @@ export function runVerify(opts: VerifyOptions): VerifyResult {
   let checked = 0;
 
   for (const [typeName, def] of Object.entries(types)) {
-    const required = [...new Set([...base.required, ...def.required])];
+    // RFC-0011 (G1): a type may drop base keys it has no lifecycle for (e.g. a status-less
+    // runbook). Effective required = (base.required − excludeBase) ∪ def.required.
+    const effectiveBase = def.excludeBase?.length
+      ? base.required.filter((k) => !def.excludeBase?.includes(k))
+      : base.required;
+    const required = [...new Set([...effectiveBase, ...def.required])];
     const typeDocs: Doc[] = [];
     const dir = typeDir(opts.root, docsRoot, def.dir);
 
