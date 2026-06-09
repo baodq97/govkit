@@ -1,8 +1,8 @@
 ---
 id: US-0002
 title: verify crashes with a raw stack trace on invalid YAML front-matter
-status: open
-owner: TBD
+status: done
+owner: baodq97
 date: 2026-06-06
 priority: P1
 ---
@@ -30,9 +30,16 @@ trace is what the agent sees.
 
 ## Acceptance criteria
 
-- [ ] A doc whose front-matter fails YAML parsing produces one `frontmatter` violation
+- [x] A doc whose front-matter fails YAML parsing produces one `frontmatter` violation
       naming the file, line/column, and the parser message — the run continues and checks
       the remaining docs.
-- [ ] `govkit verify` exits non-zero with the normal violations summary, no stack trace.
-- [ ] `audit-write` reports the same violation shape for the offending write.
-- [ ] A corpus fixture with `owner: @handle` (unquoted) covers the regression.
+- [x] `govkit verify` exits non-zero with the normal violations summary, no stack trace.
+- [x] `audit-write` reports the same violation shape for the offending write.
+- [x] A corpus fixture with `owner: @handle` (unquoted) covers the regression.
+
+## Resolution
+
+Fixed in commit `cf8d851`, shipped in `govkit@0.3.0`. `parseFrontMatter` now catches the
+`yaml` parser throw and returns a structured `FrontMatterError`; `verify` and `audit-write`
+report it as a normal violation while the run continues. Fixture `test/fixtures/bad-yaml-repo`
+(`owner: @baodq97`) locks the regression.
