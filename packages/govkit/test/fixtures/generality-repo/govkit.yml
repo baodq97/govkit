@@ -17,4 +17,5 @@ docs:
       required: [id, title, service, severity, owner, date]
       idPrefix: RB
       excludeBase: [status]
+      # index: false → runbooks keep NO INDEX.md; verify must not require one.
       index: false
