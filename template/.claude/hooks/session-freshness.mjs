@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 // SessionStart freshness advisory — guards the stale-branch class: a session that
 // starts on a branch N commits behind its upstream can have whole waves of work
-// invalidated (a-real-repo retro RC4: 28-commits-behind wiped a parallel-agent wave).
+// invalidated (a real-project retro RC4: 28-commits-behind wiped a parallel-agent wave).
 //
 // Advisory ONLY, by design (AGENTS.md invariant: enforcing hooks are the govkit
 // CLI's job). Every failure path — not a repo, offline, no remote, no upstream,

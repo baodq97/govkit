@@ -10,7 +10,7 @@ governs:
 ---
 
 > Proposed after the RFC-0006 field work: on a real existing repo, `docs/` is already taken
-> (a-real-repo has `docs/specs`, `docs/custom-docs`), so there is no clean place to put the
+> (a real repo may already use `docs/specs`, `docs/<custom>`), so there is no clean place to put the
 > governed docs the kit *generates* without colliding with the repo's own tree. This RFC adds
 > a single configurable parent for kit-managed docs. Default behavior is **unchanged** — the
 > feature is purely additive. Drafted at `status: draft`; the flip to accepted is the owner's.

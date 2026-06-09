@@ -357,10 +357,10 @@ your own audit claims — especially when your own tests can't see the gap.**
 
 Round 4 named the last residue plainly: the adoption claim was *mechanically* proven (synthetic temp
 dirs + this repo's own git history), never *empirically* proven against a real messy legacy repo. The
-user closed it: *"field-test it against a real existing repo"* → *"@../a-real-private-repo"* →
-*"just clone new and don't commit anything."* I cloned a disposable copy of the user's real platform
+user closed it: *"field-test it against a real existing repo"* → *"a real private repo"* →
+*"just clone new and don't commit anything."* I cloned a disposable copy of a real existing
 repo (86 governed docs, a feature branch with 2 changed specs) and pointed a throwaway `govkit.yml` at
-its `docs/specs` + `docs/custom-docs/prd`. **The real repo is never touched or committed to — the
+its existing non-standard docs tree. **The real repo is never touched or committed to — the
 test runs only on the disposable clone.** (First I had to fix my own breach: I'd written `govkit.yml`
 into the real repo and removed it immediately when the user said "don't commit anything." The
 discipline is the user's, enforced by the user — recorded, not smoothed over.)
@@ -484,7 +484,7 @@ colon-in-title fixture is precisely the "real malformation your fixtures don't t
 me in Round 5 — written deliberately this time, before the real data could.
 
 **Dogfooded on real data, not just fixtures.** Ran the built CLI against a throwaway copy of an actual
-a-real-repo spec (`# a feature spec — Encryption & key-management (detailed spec)`, `**Status**: Proposed ·
+real-world spec (`# A feature spec: encryption — and key rotation`, `**Status**: Proposed ·
 **Date**: 2026-05-29 · **Owner**: Platform`). It extracted title (em-dash + colon, quoted), status
 (lowercased), owner, date — and **sentinelled `id`** (the filename carries no id convention), exiting
 non-zero because the doc would still fail the gate. `--apply` then `verify` → fails loud on

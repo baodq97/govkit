@@ -40,7 +40,7 @@ afterEach(() => rmSync(root, { recursive: true, force: true }));
 
 describe("runAdopt — Lane 1 front-matter migration", () => {
   it("extracts declared prose metadata into a front-matter block, tagged by provenance", () => {
-    // The a-real-repo-style doc the field test surfaced: full metadata, in prose, no YAML block.
+    // The kind of legacy doc the field test surfaced: full metadata, in prose, no YAML block.
     write(
       "ADR-0001-secrets.md",
       "# Secrets Encryption\n\n**Status**: Proposed · **Date**: 2026-05-29 · **Owner**: Platform\n\nbody\n",
