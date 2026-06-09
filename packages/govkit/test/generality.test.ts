@@ -1,10 +1,10 @@
 import { afterEach, describe, expect, it } from "bun:test";
-import { fileURLToPath } from "node:url";
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { type GovkitConfig, loadConfig } from "../src/config";
+import { fileURLToPath } from "node:url";
 import { runVerify } from "../src/commands/verify";
+import { type GovkitConfig, loadConfig } from "../src/config";
 
 const here = fileURLToPath(new URL(".", import.meta.url));
 
