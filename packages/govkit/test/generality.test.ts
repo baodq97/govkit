@@ -114,6 +114,7 @@ function writeDoc(root: string, rel: string, fields: Record<string, string>): vo
 describe("runVerify — G1 excludeBase", () => {
   it("passes a status-less runbook (status dropped from required)", () => {
     const root = mkdtempSync(join(tmpdir(), "govkit-g1-"));
+    createdRoots.push(root);
     mkdirSync(join(root, "docs", "runbooks"), { recursive: true });
     writeDoc(root, "docs/runbooks/RB-0001-stuck.md", {
       id: "RB-0001",
@@ -124,7 +125,6 @@ describe("runVerify — G1 excludeBase", () => {
       date: "2026-06-09",
     });
     const result = runVerify({ root, config: runbookConfig() });
-    rmSync(root, { recursive: true, force: true });
     expect(result.ok).toBe(true);
     expect(result.violations).toEqual([]);
   });
@@ -133,6 +133,7 @@ describe("runVerify — G1 excludeBase", () => {
 describe("runVerify — G1 index:false", () => {
   it("does not require an INDEX.md for an index:false type", () => {
     const root = mkdtempSync(join(tmpdir(), "govkit-g1idx-"));
+    createdRoots.push(root);
     mkdirSync(join(root, "docs", "runbooks"), { recursive: true });
     // NOTE: no INDEX.md written on purpose.
     writeDoc(root, "docs/runbooks/RB-0001-stuck.md", {
@@ -144,7 +145,6 @@ describe("runVerify — G1 index:false", () => {
       date: "2026-06-09",
     });
     const result = runVerify({ root, config: runbookConfig() });
-    rmSync(root, { recursive: true, force: true });
     expect(result.violations.filter((v) => v.kind === "index")).toEqual([]);
     expect(result.ok).toBe(true);
   });

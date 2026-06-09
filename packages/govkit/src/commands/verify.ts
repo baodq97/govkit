@@ -372,8 +372,9 @@ export function runVerify(opts: VerifyOptions): VerifyResult {
   for (const [typeName, def] of Object.entries(types)) {
     // RFC-0011 (G1): a type may drop base keys it has no lifecycle for (e.g. a status-less
     // runbook). Effective required = (base.required − excludeBase) ∪ def.required.
-    const effectiveBase = def.excludeBase?.length
-      ? base.required.filter((k) => !def.excludeBase?.includes(k))
+    const excluded = new Set(def.excludeBase ?? []);
+    const effectiveBase = excluded.size
+      ? base.required.filter((k) => !excluded.has(k))
       : base.required;
     const required = [...new Set([...effectiveBase, ...def.required])];
     const typeDocs: Doc[] = [];
