@@ -5,7 +5,7 @@ import { join } from "node:path";
 import { runAdopt } from "../src/commands/adopt";
 import { runVerify } from "../src/commands/verify";
 import type { GovkitConfig } from "../src/config";
-import { parseFrontMatter } from "../src/frontmatter";
+import { isParseError, parseFrontMatter } from "../src/frontmatter";
 
 // adopt operates on docs that LACK front-matter (the field-test avalanche: metadata present
 // in prose, invisible to the YAML-only gate). The load-bearing rule (RFC-0006): extract and
@@ -95,8 +95,11 @@ describe("runAdopt — Lane 1 front-matter migration", () => {
     const migrated = read("ADR-0003-colon.md");
     const fm = parseFrontMatter(migrated);
     expect(fm).not.toBeNull(); // serialized a parseable block despite the colon
-    expect(fm?.data.title).toBe("Connector: Secrets"); // colon preserved, not mis-parsed
-    expect(fm?.data.status).toBe("accepted");
+    expect(isParseError(fm)).toBe(false);
+    if (fm && !isParseError(fm)) {
+      expect(fm.data.title).toBe("Connector: Secrets"); // colon preserved, not mis-parsed
+      expect(fm.data.status).toBe("accepted");
+    }
 
     // owner + date were not in prose → sentinel → verify must still FAIL (loud, not masked).
     const v = runVerify({ root, config: CONFIG });

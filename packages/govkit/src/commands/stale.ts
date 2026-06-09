@@ -1,7 +1,7 @@
 import { readFileSync } from "node:fs";
 import { relative } from "node:path";
 import { type GovkitConfig, loadConfig } from "../config";
-import { parseFrontMatter } from "../frontmatter";
+import { isParseError, parseFrontMatter } from "../frontmatter";
 import { gitAvailable, gitCommitTime, gitMatchCount, listMarkdown, str, typeDir } from "../util";
 
 // The outcome for one doc that declares `governs`. `stale`/`fresh` are the recency verdict;
@@ -78,7 +78,7 @@ export function runStale(opts: StaleOptions): StaleResult {
   for (const [typeName, def] of Object.entries(types)) {
     for (const file of listMarkdown(typeDir(opts.root, docsRoot, def.dir), ignore)) {
       const fm = parseFrontMatter(readFileSync(file, "utf8"));
-      if (!fm) continue; // unparseable front-matter is the gate's job, not staleness'
+      if (!fm || isParseError(fm)) continue; // unparseable front-matter is the gate's job, not staleness'
       const governs = normalizeGoverns(fm.data.governs);
       if (governs.length === 0) continue; // opt-in at the doc level
 

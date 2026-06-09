@@ -1,7 +1,7 @@
 import { existsSync, readFileSync } from "node:fs";
 import { basename, join } from "node:path";
 import { type DocType, type GovkitConfig, loadConfig } from "../config";
-import { parseFrontMatter } from "../frontmatter";
+import { isParseError, parseFrontMatter } from "../frontmatter";
 import { headingLines, listMarkdown, matches, str, stripNonProse, typeDir } from "../util";
 
 export type ViolationKind =
@@ -383,6 +383,17 @@ export function runVerify(opts: VerifyOptions): VerifyResult {
           type: typeName,
           kind: "frontmatter",
           problems: ["missing YAML front-matter (expected a leading `---` block)"],
+        });
+        continue;
+      }
+      // A block that is present but unparseable (US-0002): report the parser's message as
+      // one normal violation and keep scanning the remaining docs — never crash the run.
+      if (isParseError(fm)) {
+        violations.push({
+          file,
+          type: typeName,
+          kind: "frontmatter",
+          problems: [`invalid YAML front-matter: ${fm.error} (line/column within the block)`],
         });
         continue;
       }

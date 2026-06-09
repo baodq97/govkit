@@ -1,6 +1,6 @@
 import { readFileSync } from "node:fs";
 import { type GovkitConfig, loadConfig } from "../config";
-import { parseFrontMatter } from "../frontmatter";
+import { isParseError, parseFrontMatter } from "../frontmatter";
 import { listMarkdown, str, typeDir } from "../util";
 
 // The cleanup/lifecycle report (RFC-0008, advisory half). It answers the user's "which docs
@@ -56,7 +56,7 @@ export function runReport(opts: ReportOptions): ReportResult {
       const fm = parseFrontMatter(readFileSync(file, "utf8"));
       // Unparseable docs are verify's problem to report; here they simply have no lifecycle to
       // show, so they are excluded from the histogram (counted by verify, not double-counted).
-      if (!fm) continue;
+      if (!fm || isParseError(fm)) continue;
       typeTotal++;
       total++;
       const status = str(fm.data.status) || NO_STATUS;

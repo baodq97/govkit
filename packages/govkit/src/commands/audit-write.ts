@@ -1,6 +1,6 @@
 import { basename, isAbsolute, relative, resolve } from "node:path";
 import { type GovkitConfig, loadConfig } from "../config";
-import { parseFrontMatter } from "../frontmatter";
+import { isParseError, parseFrontMatter } from "../frontmatter";
 import { typeDir } from "../util";
 
 // The JSON a PreToolUse hook receives on stdin (Claude Code 2.1.x). Only the
@@ -67,6 +67,15 @@ export function auditWrite(input: HookInput, root: string, config?: GovkitConfig
         block: true,
         reason: `govkit: ${basename(filePath)} (${typeName}) is missing its YAML front-matter block.`,
         context: `Governed docs under ${def.dir} must open with a \`---\` block carrying: ${required.join(", ")}. Set owner: TBD (agents never self-assign) and status: ${start} for a new ${typeName}.`,
+      };
+    }
+    // Present but unparseable (US-0002): block with the parser's message, not a thrown stack
+    // trace — the same violation shape the verify gate emits for this doc.
+    if (isParseError(fm)) {
+      return {
+        block: true,
+        reason: `govkit: ${basename(filePath)} (${typeName}) has invalid YAML front-matter: ${fm.error}`,
+        context: `Fix the \`---\` block so it parses (e.g. quote a value beginning with a reserved character like \`@\`: owner: "@handle"). Required keys: ${required.join(", ")}.`,
       };
     }
     const missing = required.filter((key) => {

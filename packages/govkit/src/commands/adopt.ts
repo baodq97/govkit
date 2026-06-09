@@ -1,7 +1,7 @@
 import { readFileSync, writeFileSync } from "node:fs";
 import { basename } from "node:path";
 import { type DocType, type GovkitConfig, loadConfig } from "../config";
-import { parseFrontMatter } from "../frontmatter";
+import { isParseError, parseFrontMatter } from "../frontmatter";
 import { listMarkdown, str, stripNonProse, typeDir } from "../util";
 
 // The sentinel for a field that could not be extracted (or was uncertain). It is an
@@ -140,6 +140,10 @@ export function runAdopt(opts: AdoptOptions): AdoptResult {
     for (const file of listMarkdown(typeDir(opts.root, docsRoot, def.dir), ignore)) {
       const content = readFileSync(file, "utf8");
       const fm = parseFrontMatter(content);
+
+      // A malformed block already HAS a `---` block — adopt must not prepend a second one.
+      // Leave it for the verify gate to report (US-0002); adopt only scaffolds missing blocks.
+      if (isParseError(fm)) continue;
 
       if (fm) {
         // Lane 2: a doc that already has a block — adopt does NOT touch it. Only collect

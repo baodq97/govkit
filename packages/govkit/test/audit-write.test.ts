@@ -50,6 +50,14 @@ describe("auditWrite", () => {
     expect(d.reason).toContain("front-matter");
   });
 
+  it("blocks an unparseable front-matter block with the parser message, not a crash — US-0002", () => {
+    const bad = `---\nid: ADR-0012\ntitle: T\nstatus: proposed\nowner: @baodq97\ndate: 2026-06-06\n---\n\nBody.\n`;
+    const d = auditWrite(write("docs/adr/ADR-0012.md", bad), root, config);
+    expect(d.block).toBe(true);
+    expect(d.reason).toContain("invalid YAML front-matter");
+    expect(d.reason).toMatch(/line \d+/);
+  });
+
   it("defers a write outside any governed doc dir", () => {
     const d = auditWrite(write("src/whatever.ts", "export const x = 1;"), root, config);
     expect(d.block).toBe(false);
