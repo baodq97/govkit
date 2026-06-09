@@ -149,3 +149,46 @@ describe("runVerify — G1 index:false", () => {
     expect(result.ok).toBe(true);
   });
 });
+
+// Single `us` type, status-only sync (legacy default), used by G2/G3 tests.
+function usConfig(index?: GovkitConfig["docs"]["types"][string]["index"]): GovkitConfig {
+  return {
+    schemaVersion: 1,
+    docs: {
+      ignore: ["INDEX.md", "_TEMPLATE.md"],
+      base: { required: ["id", "title", "status", "owner", "date"] },
+      types: {
+        us: {
+          dir: "docs/issues",
+          required: ["id", "title", "status", "owner", "date"],
+          idPrefix: "US",
+          statuses: ["open", "done"],
+          ...(index !== undefined ? { index } : {}),
+        },
+      },
+    },
+  };
+}
+
+function setupUs(prefix: string, indexBody: string, docs: Record<string, string>[]): string {
+  const root = mkdtempSync(join(tmpdir(), prefix));
+  createdRoots.push(root);
+  mkdirSync(join(root, "docs", "issues"), { recursive: true });
+  writeFileSync(join(root, "docs", "issues", "INDEX.md"), indexBody);
+  for (const d of docs) writeDoc(root, `docs/issues/${d.id}-x.md`, d);
+  return root;
+}
+
+describe("runVerify — G2 bounded id lookup", () => {
+  it("flags US-1 as unindexed when only US-10 has a row", () => {
+    const root = setupUs(
+      "govkit-g2id-",
+      "# US Index\n\n| ID | Title | Status |\n|---|---|---|\n| [US-10](./US-10-x.md) | t | done |\n",
+      [{ id: "US-1", title: "t", status: "open", owner: "TBD", date: "2026-06-09" }],
+    );
+    const result = runVerify({ root, config: usConfig() });
+    const idx = result.violations.find((v) => v.kind === "index");
+    expect(idx?.problems.join(" ")).toContain("US-1");
+    expect(idx?.problems.join(" ")).toContain("no row");
+  });
+});

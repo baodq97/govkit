@@ -109,6 +109,14 @@ function checkIdConvention(file: string, data: Record<string, unknown>, def: Doc
   return problems;
 }
 
+// RFC-0011 (G2): an id sits inside a markdown link cell (`[US-0001](./US-0001-x.md)`), so match
+// it as a bounded TOKEN anywhere in the row — bounded by a non-id char so `US-1` never matches a
+// `US-10` row. Replaces the substring `line.includes(id)` that silently false-passed.
+function rowHasId(row: string, id: string): boolean {
+  const esc = id.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  return new RegExp(`(?<![A-Za-z0-9-])${esc}(?![A-Za-z0-9-])`).test(row);
+}
+
 // INDEX sync: every doc must have a row in its dir's INDEX.md, and the row's
 // status must match the doc's front-matter status. A stale INDEX is a rule
 // violation, not a nit (root AGENTS.md). Heuristic line-match for v1 — it catches
@@ -135,7 +143,7 @@ function checkIndex(dir: string, typeName: string, docs: Doc[], def: DocType): V
     const id = str(doc.data.id);
     const status = str(doc.data.status);
     if (!id) continue;
-    const row = lines.find((line) => line.includes(id));
+    const row = lines.find((line) => rowHasId(line, id));
     if (!row) {
       problems.push(`${id} (${basename(doc.file)}) has no row in INDEX.md`);
     } else if (status && !row.includes(status)) {
