@@ -228,3 +228,44 @@ describe("runVerify — G3 multi-key sync (owner)", () => {
     expect(result.violations.find((v) => v.kind === "index")).toBeUndefined();
   });
 });
+
+describe("runVerify — G3 null sync is fail-soft (US-0003)", () => {
+  it("treats an empty YAML sync: as status-only, never crashes", () => {
+    const root = mkdtempSync(join(tmpdir(), "govkit-g3null-"));
+    createdRoots.push(root);
+    mkdirSync(join(root, "docs", "issues"), { recursive: true });
+    writeFileSync(
+      join(root, "govkit.yml"),
+      [
+        "schemaVersion: 1",
+        "docs:",
+        "  ignore: [INDEX.md, _TEMPLATE.md]",
+        "  base: { required: [id, title, status, owner, date] }",
+        "  types:",
+        "    us:",
+        "      dir: docs/issues",
+        "      required: [id, title, status, owner, date]",
+        "      idPrefix: US",
+        "      statuses: [open, done]",
+        "      index:",
+        "        sync:",
+        "",
+      ].join("\n"),
+    );
+    writeFileSync(
+      join(root, "docs", "issues", "INDEX.md"),
+      "# US Index\n\n| ID | Title | Status |\n|---|---|---|\n| [US-1](./US-1-x.md) | t | open |\n",
+    );
+    writeDoc(root, "docs/issues/US-1-x.md", {
+      id: "US-1",
+      title: "t",
+      status: "open",
+      owner: "TBD",
+      date: "2026-06-09",
+    });
+    const config = loadConfig(root);
+    expect(() => runVerify({ root, config })).not.toThrow();
+    const result = runVerify({ root, config });
+    expect(result.violations.find((v) => v.kind === "index")).toBeUndefined();
+  });
+});

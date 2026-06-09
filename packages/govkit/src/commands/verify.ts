@@ -154,9 +154,10 @@ function checkIndex(dir: string, typeName: string, docs: Doc[], def: DocType): V
       problems.push(`${id} (${basename(doc.file)}) has no row in INDEX.md`);
       continue;
     }
-    // RFC-0011 (G3): sync each configured key as a bounded cell. Default is status-only, the
-    // pre-RFC-0011 behavior. An empty value is the front-matter check's concern, skipped here.
-    const sync = def.index && def.index !== false ? def.index.sync : ["status"];
+    // RFC-0011 (G3): sync each configured key as a bounded cell. Default is status-only (the
+    // pre-RFC-0011 behavior); a missing/empty `sync` falls back to the default rather than
+    // crashing on a non-iterable (US-0003 fail-soft).
+    const sync = def.index ? (def.index.sync ?? ["status"]) : ["status"];
     for (const key of sync) {
       const value = str(doc.data[key]);
       if (value === "") continue;
@@ -360,7 +361,7 @@ function scopeToChanged(
       // An INDEX check emits ONE violation per type listing EVERY doc missing/stale, so
       // keeping it whole would flood untouched legacy docs' rows through --changed (the
       // very backfill the flag exists to defer). Filter its problems to the changed docs:
-      // a per-doc problem opens with the doc id (`ADR-0001 (...) has no row` / `... stale`);
+      // a per-doc problem opens with the doc id (`ADR-0001 (...) has no row` / `... stale or missing`);
       // the file-level `missing INDEX.md` problem names no id and is the changed doc's own
       // concern, so it's kept when this type has a changed doc.
       if (!changedTypes.has(v.type)) continue;
