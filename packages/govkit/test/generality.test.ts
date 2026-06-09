@@ -153,6 +153,31 @@ describe("runVerify — G1 index:false", () => {
   });
 });
 
+describe("runVerify — G1 index:false tolerates a present INDEX", () => {
+  it("does not check an INDEX.md that exists for an index:false type", () => {
+    const root = mkdtempSync(join(tmpdir(), "govkit-g1idxpresent-"));
+    createdRoots.push(root);
+    mkdirSync(join(root, "docs", "runbooks"), { recursive: true });
+    // A deliberately STALE / garbage INDEX: it lists a row for a doc that does not exist
+    // and omits the real one. For an index:false type this must be ignored entirely.
+    writeFileSync(
+      join(root, "docs", "runbooks", "INDEX.md"),
+      "# Runbook Index\n\n| ID | Title |\n|---|---|\n| [RB-9999](./RB-9999-ghost.md) | Ghost |\n",
+    );
+    writeDoc(root, "docs/runbooks/RB-0001-stuck.md", {
+      id: "RB-0001",
+      title: "Worker job stuck",
+      service: "worker",
+      severity: "high",
+      owner: "TBD",
+      date: "2026-06-09",
+    });
+    const result = runVerify({ root, config: runbookConfig() });
+    expect(result.violations.filter((v) => v.kind === "index")).toEqual([]);
+    expect(result.ok).toBe(true);
+  });
+});
+
 // Single `us` type, status-only sync (legacy default), used by G2/G3 tests.
 function usConfig(index?: GovkitConfig["docs"]["types"][string]["index"]): GovkitConfig {
   return {
