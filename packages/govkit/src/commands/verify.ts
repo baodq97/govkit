@@ -117,11 +117,19 @@ function rowHasId(row: string, id: string): boolean {
   return new RegExp(`(?<![A-Za-z0-9-])${esc}(?![A-Za-z0-9-])`).test(row);
 }
 
+// RFC-0011 (KT-0004): an INDEX cell may carry YAML-style surrounding quotes (`"@handle"`) while
+// the front-matter value is parser-unquoted (`@handle`). Strip ONE matching surrounding quote
+// pair (single or double) before comparing, so the two agree — without making quotes a wildcard
+// (`"@a"` still ≠ `@b`). Mirrors the consumer bash gate's quote-stripping.
+function stripQuotes(s: string): string {
+  return s.replace(/^(['"])(.*)\1$/, "$2");
+}
+
 // RFC-0011 (G2/G3): a synced column value (status, owner, …) occupies its OWN table cell, so we
-// require some cell to equal it exactly after trimming — this is why `done` appearing inside a
-// title cell no longer false-passes a `status` sync. Replaces `row.includes(status)`.
+// require some cell to equal it exactly after trimming + quote-stripping — this is why `done`
+// inside a title cell no longer false-passes a `status` sync. Replaces `row.includes(status)`.
 function rowHasCell(row: string, value: string): boolean {
-  return row.split("|").some((cell) => cell.trim() === value);
+  return row.split("|").some((cell) => stripQuotes(cell.trim()) === value);
 }
 
 // INDEX sync: every doc must have a row in its dir's INDEX.md, and the row's

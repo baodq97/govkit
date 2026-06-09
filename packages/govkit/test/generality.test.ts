@@ -306,3 +306,42 @@ describe("runVerify — n=3 generality fixture (customs-shaped)", () => {
     expect(result.ok).toBe(true);
   });
 });
+
+describe("runVerify — G3 quote-tolerant cell match (KT-0004)", () => {
+  // NOTE: writeDoc raw-interpolates field values into YAML, so `@handle` must be written
+  // as `'"@handle"'` (JS string with embedded YAML double-quotes) to produce valid YAML
+  // `owner: "@handle"` that the YAML parser unquotes back to `@handle`. This matches the
+  // real customs front-matter pattern (KT-0004): YAML stores "@baodq97", INDEX cell has
+  // `"@baodq97"` (with literal quotes) — quote-stripping in rowHasCell closes the gap.
+  it("matches a double-quoted INDEX owner cell against an unquoted front-matter owner", () => {
+    const root = setupUs(
+      "govkit-g3dq-",
+      '# US Index\n\n| ID | Title | Status | Owner |\n|---|---|---|---|\n| [US-1](./US-1-x.md) | t | open | "@baodq97" |\n',
+      [{ id: "US-1", title: "t", status: "open", owner: '"@baodq97"', date: "2026-06-09" }],
+    );
+    const result = runVerify({ root, config: usConfig({ sync: ["status", "owner"] }) });
+    expect(result.violations.find((v) => v.kind === "index")).toBeUndefined();
+  });
+
+  it("matches a single-quoted INDEX owner cell too", () => {
+    const root = setupUs(
+      "govkit-g3sq-",
+      "# US Index\n\n| ID | Title | Status | Owner |\n|---|---|---|---|\n| [US-1](./US-1-x.md) | t | open | '@baodq97' |\n",
+      [{ id: "US-1", title: "t", status: "open", owner: '"@baodq97"', date: "2026-06-09" }],
+    );
+    const result = runVerify({ root, config: usConfig({ sync: ["status", "owner"] }) });
+    expect(result.violations.find((v) => v.kind === "index")).toBeUndefined();
+  });
+
+  it("still flags a genuinely different owner (quotes are not a wildcard)", () => {
+    const root = setupUs(
+      "govkit-g3diff-",
+      '# US Index\n\n| ID | Title | Status | Owner |\n|---|---|---|---|\n| [US-1](./US-1-x.md) | t | open | "@someone-else" |\n',
+      [{ id: "US-1", title: "t", status: "open", owner: '"@baodq97"', date: "2026-06-09" }],
+    );
+    const result = runVerify({ root, config: usConfig({ sync: ["status", "owner"] }) });
+    expect(result.violations.find((v) => v.kind === "index")?.problems.join(" ")).toContain(
+      "owner",
+    );
+  });
+});
