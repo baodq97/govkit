@@ -67,12 +67,10 @@ So both deterministic layers live **only** in the `govkit` CLI:
 Three paths, depending on where you start. All of them end at the same contract:
 **`govkit.yml` + the `audit-write` hook + `npx govkit check` in CI** — no engine source copied.
 
-> **Until govkit is published to npm**, `npx --yes govkit` will not resolve from the registry.
-> Build a tarball from this monorepo and point at it instead:
+> **govkit is on npm** — [`govkit`](https://www.npmjs.com/package/govkit) resolves from the
+> registry, so `npx --yes govkit …` works out of the box. To pin it in a consumer repo:
 > ```bash
-> cd packages/govkit && bun run build && npm pack   # → govkit-0.2.0.tgz
-> # in the consumer repo:
-> npm i -D /path/to/govkit-0.2.0.tgz                # then `npx govkit …` works as below
+> npm i -D govkit            # or pin a line: npm i -D govkit@^0.3.0
 > ```
 
 ### Path A — greenfield repo from the template (recommended)
