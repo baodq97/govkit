@@ -1,10 +1,19 @@
 {
   "name": "govkit",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "description": "Deterministic, cross-platform docs-as-code SDLC governance engine: a structural verify gate + a graded quality eval. Run with npx; no API key required.",
   "type": "module",
   "license": "MIT",
   "author": "baodq97",
+  "homepage": "https://github.com/baodq97/govkit#readme",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/baodq97/govkit.git",
+    "directory": "packages/govkit"
+  },
+  "bugs": {
+    "url": "https://github.com/baodq97/govkit/issues"
+  },
   "keywords": [
     "governance",
     "sdlc",
