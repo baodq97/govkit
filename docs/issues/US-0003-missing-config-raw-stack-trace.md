@@ -1,8 +1,8 @@
 ---
 id: US-0003
 title: CLI prints a raw stack trace when govkit.yml is missing (and on other operational errors)
-status: open
-owner: TBD
+status: done
+owner: baodq97
 date: 2026-06-09
 priority: P2
 ---
@@ -38,15 +38,15 @@ and it generalizes — any thrown operational error (unreadable config, bad YAML
 
 ## Acceptance criteria
 
-- [ ] Running any command (`verify`, `eval`, `check`, …) with no `govkit.yml` prints one
+- [x] Running any command (`verify`, `eval`, `check`, …) with no `govkit.yml` prints one
       line — `govkit: no govkit.yml at <path> — run \`govkit init\` first` — to stderr and
       exits non-zero, with **no stack trace**.
-- [ ] The CLI entry point wraps command dispatch in a single top-level handler that catches a
+- [x] The CLI entry point wraps command dispatch in a single top-level handler that catches a
       thrown error, prints `govkit: <message>` to stderr, and exits 1 — so every known
       operational failure (missing/unreadable config, malformed `govkit.yml`) reads the same.
-- [ ] A genuinely unexpected error still surfaces its stack (optionally gated behind a
-      `--verbose`/`DEBUG` escape hatch) so real bugs are not silently swallowed.
-- [ ] A test covers the missing-config path: the handler produces the clean message and a
+- [x] A genuinely unexpected error still surfaces its stack (gated behind the `GOVKIT_DEBUG`
+      escape hatch) so real bugs are not silently swallowed.
+- [x] A test covers the missing-config path: the handler produces the clean message and a
       non-zero exit, not an unhandled throw.
 
 ## Notes
@@ -54,3 +54,10 @@ and it generalizes — any thrown operational error (unreadable config, bad YAML
 Scope is the CLI presentation layer (the `main`/entry wrapper), not `loadConfig`'s logic —
 the thrown message is already correct; it just needs a top-level catch. Keep the no-API-key,
 deterministic contract unchanged.
+
+## Resolution
+
+Fixed in commit `f7cdb9f`, shipped in `govkit@0.3.1`. The entry point now wraps `main()` in a
+`.catch` that prints one `govkit: <message>` line to stderr and exits 1; the full stack is
+gated behind `GOVKIT_DEBUG`. Integration test in `test/cli.test.ts` asserts the missing-config
+path emits no `at …` frames.
