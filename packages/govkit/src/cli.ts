@@ -411,4 +411,18 @@ async function main(argv: string[]): Promise<number> {
   }
 }
 
-main(process.argv.slice(2)).then((code) => process.exit(code));
+// Top-level handler (US-0003): an expected operational failure — a missing/unreadable
+// govkit.yml, malformed config — is thrown by loadConfig and friends, NOT returned. Without
+// this catch the rejected promise dumps a Node/bun stack trace, burying an already-actionable
+// message ("run `govkit init` first"). Print one clean line to stderr and exit non-zero; the
+// full stack stays available behind GOVKIT_DEBUG for diagnosing a genuinely unexpected error.
+main(process.argv.slice(2))
+  .then((code) => process.exit(code))
+  .catch((err: unknown) => {
+    const message = err instanceof Error ? err.message : String(err);
+    process.stderr.write(`${message.startsWith("govkit:") ? message : `govkit: ${message}`}\n`);
+    if (process.env.GOVKIT_DEBUG && err instanceof Error && err.stack) {
+      process.stderr.write(`${err.stack}\n`);
+    }
+    process.exit(1);
+  });

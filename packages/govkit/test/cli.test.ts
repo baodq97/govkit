@@ -179,6 +179,26 @@ describe("CLI entrypoint — govkit dist/cli.js", () => {
     expect(threw).toBe(true);
   });
 
+  // (d-iii) missing govkit.yml → exit non-zero with a CLEAN one-line error, no stack
+  //          trace. Regression for US-0003: loadConfig throws and the unhandled rejection
+  //          used to dump a Node stack trace. `root` is an empty mkdtemp dir (no buildFixture).
+  it("verify: missing govkit.yml prints a clean error, no stack trace — US-0003", () => {
+    let threw = false;
+    try {
+      cli(["verify", "--root", root]);
+    } catch (e: unknown) {
+      threw = true;
+      const err = e as { status: number; stderr: string };
+      expect(err.status).not.toBe(0);
+      expect(err.stderr).toContain("no govkit.yml");
+      expect(err.stderr).toContain("govkit init"); // the actionable hint survives
+      // No raw Node/bun stack trace leaked: no "    at …" frames, no throw-site reference.
+      expect(err.stderr).not.toMatch(/^\s+at /m);
+      expect(err.stderr).not.toContain("loadConfig (");
+    }
+    expect(threw).toBe(true);
+  });
+
   // (e) check (verify + eval) on a valid fixture → exit 0.
   //     No eval rubric in govkit.yml → eval returns ok:true with a note
   //     (the "no rubric" short-circuit in runEval), so the combined gate passes.
