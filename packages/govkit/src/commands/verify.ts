@@ -117,6 +117,13 @@ function rowHasId(row: string, id: string): boolean {
   return new RegExp(`(?<![A-Za-z0-9-])${esc}(?![A-Za-z0-9-])`).test(row);
 }
 
+// RFC-0011 (G2/G3): a synced column value (status, owner, …) occupies its OWN table cell, so we
+// require some cell to equal it exactly after trimming — this is why `done` appearing inside a
+// title cell no longer false-passes a `status` sync. Replaces `row.includes(status)`.
+function rowHasCell(row: string, value: string): boolean {
+  return row.split("|").some((cell) => cell.trim() === value);
+}
+
 // INDEX sync: every doc must have a row in its dir's INDEX.md, and the row's
 // status must match the doc's front-matter status. A stale INDEX is a rule
 // violation, not a nit (root AGENTS.md). Heuristic line-match for v1 — it catches
@@ -141,13 +148,21 @@ function checkIndex(dir: string, typeName: string, docs: Doc[], def: DocType): V
   const problems: string[] = [];
   for (const doc of docs) {
     const id = str(doc.data.id);
-    const status = str(doc.data.status);
     if (!id) continue;
     const row = lines.find((line) => rowHasId(line, id));
     if (!row) {
       problems.push(`${id} (${basename(doc.file)}) has no row in INDEX.md`);
-    } else if (status && !row.includes(status)) {
-      problems.push(`${id} INDEX row status is stale (front-matter status: ${status})`);
+      continue;
+    }
+    // RFC-0011 (G3): sync each configured key as a bounded cell. Default is status-only, the
+    // pre-RFC-0011 behavior. An empty value is the front-matter check's concern, skipped here.
+    const sync = def.index && def.index !== false ? def.index.sync : ["status"];
+    for (const key of sync) {
+      const value = str(doc.data[key]);
+      if (value === "") continue;
+      if (!rowHasCell(row, value)) {
+        problems.push(`${id} INDEX row ${key} is stale or missing (front-matter ${key}: ${value})`);
+      }
     }
   }
   return problems.length > 0 ? [{ file: indexPath, type: typeName, kind: "index", problems }] : [];

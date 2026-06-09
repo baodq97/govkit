@@ -192,3 +192,39 @@ describe("runVerify — G2 bounded id lookup", () => {
     expect(idx?.problems.join(" ")).toContain("no row");
   });
 });
+
+describe("runVerify — G2 bounded status cell", () => {
+  it("does not accept a status that only appears inside the title cell", () => {
+    const root = setupUs(
+      "govkit-g2st-",
+      "# US Index\n\n| ID | Title | Status |\n|---|---|---|\n| [US-1](./US-1-x.md) | mark as done | open |\n",
+      [{ id: "US-1", title: "mark as done", status: "done", owner: "TBD", date: "2026-06-09" }],
+    );
+    const result = runVerify({ root, config: usConfig() });
+    const idx = result.violations.find((v) => v.kind === "index");
+    expect(idx?.problems.join(" ")).toContain("status");
+  });
+});
+
+describe("runVerify — G3 multi-key sync (owner)", () => {
+  it("flags an owner-column drift when sync includes owner", () => {
+    const root = setupUs(
+      "govkit-g3-",
+      "# US Index\n\n| ID | Title | Status | Owner |\n|---|---|---|---|\n| [US-1](./US-1-x.md) | t | open | alice |\n",
+      [{ id: "US-1", title: "t", status: "open", owner: "bob", date: "2026-06-09" }],
+    );
+    const result = runVerify({ root, config: usConfig({ sync: ["status", "owner"] }) });
+    const idx = result.violations.find((v) => v.kind === "index");
+    expect(idx?.problems.join(" ")).toContain("owner");
+  });
+
+  it("default sync stays status-only (owner drift ignored without config)", () => {
+    const root = setupUs(
+      "govkit-g3def-",
+      "# US Index\n\n| ID | Title | Status | Owner |\n|---|---|---|---|\n| [US-1](./US-1-x.md) | t | open | alice |\n",
+      [{ id: "US-1", title: "t", status: "open", owner: "bob", date: "2026-06-09" }],
+    );
+    const result = runVerify({ root, config: usConfig() });
+    expect(result.violations.find((v) => v.kind === "index")).toBeUndefined();
+  });
+});
