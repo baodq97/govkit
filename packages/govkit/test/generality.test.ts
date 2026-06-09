@@ -129,3 +129,23 @@ describe("runVerify — G1 excludeBase", () => {
     expect(result.violations).toEqual([]);
   });
 });
+
+describe("runVerify — G1 index:false", () => {
+  it("does not require an INDEX.md for an index:false type", () => {
+    const root = mkdtempSync(join(tmpdir(), "govkit-g1idx-"));
+    mkdirSync(join(root, "docs", "runbooks"), { recursive: true });
+    // NOTE: no INDEX.md written on purpose.
+    writeDoc(root, "docs/runbooks/RB-0001-stuck.md", {
+      id: "RB-0001",
+      title: "Worker job stuck",
+      service: "worker",
+      severity: "high",
+      owner: "TBD",
+      date: "2026-06-09",
+    });
+    const result = runVerify({ root, config: runbookConfig() });
+    rmSync(root, { recursive: true, force: true });
+    expect(result.violations.filter((v) => v.kind === "index")).toEqual([]);
+    expect(result.ok).toBe(true);
+  });
+});

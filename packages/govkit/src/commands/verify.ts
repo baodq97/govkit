@@ -113,7 +113,8 @@ function checkIdConvention(file: string, data: Record<string, unknown>, def: Doc
 // status must match the doc's front-matter status. A stale INDEX is a rule
 // violation, not a nit (root AGENTS.md). Heuristic line-match for v1 — it catches
 // the two real failure modes (missing row, stale status) without a full table parser.
-function checkIndex(dir: string, typeName: string, docs: Doc[]): Violation[] {
+function checkIndex(dir: string, typeName: string, docs: Doc[], def: DocType): Violation[] {
+  if (def.index === false) return []; // RFC-0011 (G1): type keeps no INDEX
   if (docs.length === 0) return [];
 
   const indexPath = join(dir, "INDEX.md");
@@ -429,7 +430,7 @@ export function runVerify(opts: VerifyOptions): VerifyResult {
       }
     }
 
-    violations.push(...checkIndex(dir, typeName, typeDocs));
+    violations.push(...checkIndex(dir, typeName, typeDocs, def));
   }
 
   violations.push(...checkDuplicateIds(allDocs));
