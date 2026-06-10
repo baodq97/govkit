@@ -1,8 +1,8 @@
 ---
 id: RFC-0012
 title: Name the firm/thin/honor-system line and make rules evolve from friction
-status: draft
-owner: TBD
+status: accepted
+owner: baodq97
 date: 2026-06-10
 governs:
   - packages/govkit/src/commands/audit-write.ts

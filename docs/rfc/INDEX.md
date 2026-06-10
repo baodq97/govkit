@@ -13,4 +13,4 @@
 | [RFC-0009](./RFC-0009-staleness-advisory.md) | Staleness advisory — link a doc to the code it governs and warn when the code moved on | implemented | baodq97 | 2026-06-01 |
 | [RFC-0010](./RFC-0010-design-implementation-reconciliation.md) | Controlling design↔implementation divergence — make as-built deviations explicit and reviewable | implemented | baodq97 | 2026-06-01 |
 | [RFC-0011](./RFC-0011-config-generality-hardening.md) | Config generality hardening — let a divergent consumer retire its parallel bash gate | draft | TBD | 2026-06-09 |
-| [RFC-0012](./RFC-0012-firm-thin-and-rule-evolution.md) | Name the firm/thin/honor-system line and make rules evolve from friction | draft | TBD | 2026-06-10 |
+| [RFC-0012](./RFC-0012-firm-thin-and-rule-evolution.md) | Name the firm/thin/honor-system line and make rules evolve from friction | accepted | baodq97 | 2026-06-10 |
