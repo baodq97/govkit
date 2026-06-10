@@ -14,6 +14,30 @@ the no-API-key invariant is preserved.
 
 ---
 
+## Friction→rule protocol (RFC-0012 — standing, applies to every round)
+
+Each round below is a friction event. The rule that turns friction into a *better* rule, not just
+a patched instance: every friction resolves to exactly ONE recorded outcome.
+
+- **PROMOTE** — make it a **firm** rule. A firm rule is deterministic and objective; it lands in
+  `govkit.yml` (config-not-code) **and** is pinned by a RED fixture in `packages/govkit/eval/` (or a
+  RED test) written **first**, before the fix. Invariant: *no firm rule lands without a RED fixture
+  first.* (Every round here that shipped a check already followed this; RFC-0012 names it.)
+- **KEEP-THIN** — leave it **advisory or honor-system**, with a one-line *why it cannot be firm*.
+  Provenance and substance live here by design — a stateless, no-git gate cannot judge a transition
+  or whether prose is sound, so forcing them firm is over-engineering that makes the frame brittle.
+- **DROP** — a false alarm or a rule not worth its weight; record that it was considered and why it
+  was dropped, so it is not silently re-litigated.
+
+The tiers a promotion moves between: **firm** (the `verify` gate) / **advisory** (`eval` score,
+`stale`, `report`, the per-write `remind`) / **honor-system** (status provenance, substance — owned
+by commit discipline + the human accept + the keyed reviewer). The compounding asset is the
+adversarial corpus, not the rule count. At n=2 (one author) most friction is self-generated; the
+loop only compounds once external (n≥3) friction feeds it — so the mechanism is defined now and runs
+mostly idle until R0 (publish + a real external consumer).
+
+---
+
 ## Loop 1 — run the gate on itself
 
 ```

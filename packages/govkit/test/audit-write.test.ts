@@ -175,3 +175,44 @@ describe("auditWrite — as-built nudge extension (RFC-0010)", () => {
     expect(d.remind).not.toContain("As-built");
   });
 });
+
+// RFC-0012: born-at-non-startStatus provenance nudge. A Write that CREATES a governed doc (no
+// file on disk yet) at a status other than its type's startStatus skipped the draft→accept
+// provenance an agent must follow (author at startStatus; a human owner flips it forward in a
+// separate accept). Non-blocking by design — provenance is honor-system, the hook sees only
+// Writes (not Edits/Bash), so this is a courtesy nudge, never a gate. It requires the type to
+// declare a startStatus, and an overwrite (file already on disk) is left alone: that is an edit
+// whose status transition a stateless hook cannot judge — verify / the human own it.
+describe("auditWrite — born-at-non-startStatus provenance nudge (RFC-0012)", () => {
+  // The fixture `config` declares adr.startStatus: proposed and no terminalStatuses.
+  const absent = "docs/adr/ADR-0009.md"; // not on disk → a creation
+  const present = "docs/adr/ADR-0001-good.md"; // on disk → an overwrite
+
+  it("nudges (never blocks) a new doc created at a non-start status", () => {
+    const d = auditWrite(write(absent, adrDoc("accepted")), root, config);
+    expect(d.block).toBe(false);
+    expect(d.remind).toBeTruthy();
+    expect(d.remind).toContain("proposed"); // the start status it should have begun at
+    expect(d.remind).toContain("RFC-0012");
+  });
+
+  it("does NOT nudge a new doc created at its start status", () => {
+    const d = auditWrite(write(absent, adrDoc("proposed")), root, config);
+    expect(d.block).toBe(false);
+    expect(d.remind).toBeUndefined();
+  });
+
+  it("does NOT nudge a full-content overwrite of an existing doc (a transition it cannot judge)", () => {
+    const d = auditWrite(write(present, adrDoc("accepted")), root, config);
+    expect(d.block).toBe(false);
+    expect(d.remind).toBeUndefined();
+  });
+
+  it("does NOT nudge when the type declares no startStatus (nothing to compare against)", () => {
+    // REMIND_CONFIG.adr has terminalStatuses but no startStatus; an accepted, parent-less born
+    // write falls through the reconciliation branch and must not invent a provenance nudge.
+    const d = auditWrite(write(absent, adrDoc("accepted")), root, REMIND_CONFIG);
+    expect(d.block).toBe(false);
+    expect(d.remind).toBeUndefined();
+  });
+});

@@ -50,6 +50,14 @@ swe-flow `reviewer` agent's job (opt-in, keyed, outside CI). The floor's own tru
 pinned by an **adversarial corpus** (`packages/govkit/eval/`) the test suite asserts
 catches every known gaming vector while passing MADR/Nygard/terse styles.
 
+The gate enforces **structure**, not **provenance**. A stateless, no-git check cannot tell a doc
+born straight at `accepted` (no draft history, no human approval) from one a human accepted — both
+pass `verify` and `eval`. So "a doc starts at `startStatus` and only a human flips it forward" is an
+**honor-system** rule, held by commit discipline + the human accept + the keyed reviewer, not by the
+gate (RFC-0012). govkit's three tiers, named honestly: **firm** (the `verify` gate — blocks),
+**advisory** (`eval` score, `stale`, `report`, the per-write `remind` nudge — never blocks), and
+**honor-system** (status provenance, substance soundness — outside the engine by design).
+
 ## The invariant that shapes everything
 
 A non-Claude-Code contributor must be able to run the governance gates in CI **with no API key**.

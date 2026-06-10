@@ -92,6 +92,12 @@ ship as **plugin agents** (`swe-flow:implementer`, …) to be usable from the `s
 
 ## Agent constraints (cross-cutting)
 
+These are **honor-system** rules (RFC-0012), not gate-enforced. A stateless, no-git gate cannot see
+a status transition — a doc born at `accepted` passes `verify`+`eval` clean. The control is commit
+discipline (draft commit first, then a separate owner-authorized accept commit) + the human accept +
+the keyed reviewer. The per-write hook only *nudges* on a born-at-non-`startStatus` Write; it never
+blocks one. So these bind because you follow them, not because the engine stops you:
+
 - Never self-assign an owner (`owner: TBD`; propose in the PR body).
 - Never self-flip a `status:` field; propose the target, the human doc owner flips it.
 - Never self-approve, self-merge, or act as code owner.

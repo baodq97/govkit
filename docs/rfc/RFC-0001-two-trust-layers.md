@@ -145,3 +145,12 @@ RFC in this repo.
 - **The dev toolchain moved to bun (ADR-0002) after this RFC was written**, so the `pnpm check`
   reference in Impact/rollout is historical — the current one-shot command is `bun run check`. The
   no-key, Node-portable published-artifact invariant is unchanged.
+- **The honest ceiling stated here was incomplete — a later red-team (RFC-0012) found a third
+  limit.** This RFC named two things the deterministic layer cannot do (judge substance; see
+  doc↔code semantic divergence). A stateless, no-git gate also cannot enforce **status-transition
+  provenance**: a doc authored straight at `accepted`, with no draft history and no human approval,
+  passes `verify` (0 violations) and `eval` (100/100). The "never self-flip status" rule is
+  therefore **honor-system** (owned by commit discipline + the human accept + the keyed reviewer),
+  not gate-enforced. RFC-0012 names the firm / advisory / honor-system tiers explicitly and adds a
+  non-blocking born-at-non-`startStatus` nudge; it does not (and a no-git gate cannot) make
+  provenance firm.
