@@ -128,7 +128,7 @@ then `npx govkit verify` until green.
 
 # 2. Install the authoring companion (Claude Code):
 claude plugin marketplace add baodq97/govkit   # the marketplace lives in this repo
-claude plugin install swe-flow@govkit          # spec-author, workflow-author, 3 agents
+claude plugin install swe-flow@govkit          # spec-author, workflow-author, working-discipline, 3 agents
 
 # 3. Daily loop:
 npx govkit verify    # structural gate (what blocks)
