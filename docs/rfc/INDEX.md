@@ -13,3 +13,4 @@
 | [RFC-0009](./RFC-0009-staleness-advisory.md) | Staleness advisory — link a doc to the code it governs and warn when the code moved on | implemented | baodq97 | 2026-06-01 |
 | [RFC-0010](./RFC-0010-design-implementation-reconciliation.md) | Controlling design↔implementation divergence — make as-built deviations explicit and reviewable | implemented | baodq97 | 2026-06-01 |
 | [RFC-0011](./RFC-0011-working-discipline-skill.md) | Working-discipline — a trigger-gated thinking-checkpoint skill that reduces agent error and escalation | draft | baodq97 | 2026-07-07 |
+| [RFC-0012](./RFC-0012-gate-journal-and-calibrate.md) | Gate-outcome journal and confusion-matrix calibration — the deterministic sensor for the learning flywheel (R7) | draft | baodq97 | 2026-07-07 |
