@@ -98,6 +98,13 @@ export interface GovkitConfig {
   };
   /** Optional quality-eval layer. Absent → `govkit eval` reports "no rubric configured". */
   eval?: EvalConfig;
+  /**
+   * Optional `--journal` sensor destination. `path` is relative to the repo root (CLI
+   * `--root`) and must stay within it (resolution + escape guard live in journal.ts, the
+   * same confinement init applies to scaffold writes). Absent ⇒ `.govkit/journal.jsonl` —
+   * purely additive, a config without it behaves exactly as before.
+   */
+  journal?: { path?: string };
 }
 
 const DEFAULT_IGNORE = ["INDEX.md", "_TEMPLATE.md"];
@@ -135,5 +142,9 @@ export function loadConfig(root: string): GovkitConfig {
       types: docs.types ?? {},
     },
     eval: raw.eval,
+    // Tolerant passthrough: journal is an OPTIONAL sensor destination; path validation
+    // (escape confinement) happens at use time in journal.ts, not at load — an unused bad
+    // journal key must not break the gate commands that never touch it.
+    journal: raw.journal,
   };
 }

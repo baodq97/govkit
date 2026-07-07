@@ -1,21 +1,31 @@
+import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import { parseArgs } from "node:util";
 import { type AdoptResult, runAdopt } from "./commands/adopt";
 import { type AuditDecision, auditWrite, type HookInput } from "./commands/audit-write";
+import {
+  type CalibrateResult,
+  type CalibrationBaseline,
+  parseBaseline,
+  runCalibrate,
+} from "./commands/calibrate";
 import { type EvalResult, runEval } from "./commands/eval";
 import { type InitResult, runInit } from "./commands/init";
 import { type ReportResult, runReport } from "./commands/report";
 import { runStale, type StaleResult } from "./commands/stale";
 import { runVerify, type VerifyResult } from "./commands/verify";
-import { gitChangedDocs, resolveChangedBase } from "./util";
+import { type GovkitConfig, loadConfig } from "./config";
+import { appendJournal, type JournalRecord, resolveJournalPath } from "./journal";
+import { gitChangedDocs, gitHeadSha, resolveChangedBase } from "./util";
 
 const HELP = `govkit — deterministic docs-as-code governance engine
 
 Usage:
   govkit init         [--root <dir>] [--force] [--docs-root <dir>]
   govkit init --adopt [--root <dir>] [--apply]  (migrate existing prose metadata → front-matter)
-  govkit check        [--root <dir>] [--changed [--base <ref>]]  (verify + eval — the no-key CI gate)
-  govkit verify       [--root <dir>] [--json] [--changed [--base <ref>]]
-  govkit eval         [--root <dir>] [--json] [--changed [--base <ref>]]
+  govkit check        [--root <dir>] [--changed [--base <ref>]] [--journal]  (verify + eval — the no-key CI gate)
+  govkit verify       [--root <dir>] [--json] [--changed [--base <ref>]] [--journal]
+  govkit eval         [--root <dir>] [--json] [--changed [--base <ref>]] [--journal]
+  govkit calibrate    --corpus <dir> [--root <dir>] [--json] [--baseline <file> [--update-baseline]]
   govkit report       [--root <dir>] [--json]   (lifecycle histogram — done / in-flight / cleanup)
   govkit stale        [--root <dir>] [--json]   (advisory: governed code newer than its doc — needs git)
   govkit audit-write  [--root <dir>]        (reads a PreToolUse hook payload on stdin)
@@ -34,6 +44,11 @@ Commands:
                sync, unique ids, no placeholders. Binary pass/fail (quality control).
   eval         Quality signal: a required structural FLOOR (blocks) + an advisory
                0–100 score against the deterministic rubric in govkit.yml.
+  calibrate    The eval's own regression harness: grade a LABELED corpus (good/ must
+               pass the required floor, weak/ must fail it) and report the floor's
+               confusion matrix + precision/recall/f1. Exits 1 on ANY false positive
+               (a good doc blocked — the zero-FP hard invariant) or, with --baseline,
+               on a recall/f1 drop vs the committed baseline.
   report       Advisory lifecycle view: per-type status histogram with the ids in
                each bucket, marking which statuses are terminal (decided/shipped per
                terminalStatuses). Answers "what is done / in-flight / cleanup". Never
@@ -57,6 +72,16 @@ Options:
                checks (only the report is scoped, so a new duplicate id / dangling ref is
                still caught); eval scores only the changed docs. Requires git.
   --base       Base ref for --changed (default: origin/main, else HEAD).
+  --journal    Sensor mode (verify, eval, check): append one JSON line per run to the
+               journal (.govkit/journal.jsonl, or journal.path in govkit.yml). Purely
+               observational — a journal write failure warns on stderr and NEVER
+               changes the command's exit code.
+  --corpus     (calibrate) Labeled corpus dir containing good/ and weak/ subtrees.
+  --baseline   (calibrate) Baseline JSON to compare the floor matrix against. A missing
+               file is an error unless --update-baseline creates it (bootstrap).
+  --update-baseline
+               (calibrate) Rewrite --baseline from the current run. Refused (exit 1,
+               nothing written) when the run has false positives or regressed.
   --adopt      Migration mode for init (see above). Dry-run unless --apply.
   --apply      Write the proposed front-matter to disk (init --adopt only).
   --docs-root  (init only, RFC-0007) Parent dir for kit-managed docs, e.g. .govkit —
@@ -260,6 +285,41 @@ function printStale(result: StaleResult): void {
   );
 }
 
+function printCalibrate(result: CalibrateResult): void {
+  const stream = result.ok ? process.stdout : process.stderr;
+  const r3 = (n: number): string => n.toFixed(3).replace(/\.?0+$/, "") || "0";
+  const { tp, fp, fn, tn } = result.counts;
+  stream.write(
+    `govkit calibrate: ${result.ok ? "OK" : "FAIL"} — floor matrix: ` +
+      `tp ${tp}, fp ${fp}, fn ${fn}, tn ${tn}; ` +
+      `precision ${r3(result.floor.precision)}, recall ${r3(result.floor.recall)}, ` +
+      `f1 ${r3(result.floor.f1)}; advisory avg: good ${result.advisory.goodAverageScore}/100, ` +
+      `weak ${result.advisory.weakAverageScore}/100.\n`,
+  );
+  for (const file of result.falsePositives) {
+    stream.write(`  FP ${file} — good artifact blocked by the required floor (must be zero)\n`);
+  }
+  for (const file of result.falseNegatives) {
+    stream.write(
+      `  FN ${file} — weak artifact cleared the required floor (a stub the gate misses)\n`,
+    );
+  }
+  if (result.baseline) {
+    const b = result.baseline;
+    const tag = b.recallRegressed || b.f1Regressed || b.corpusShrunk ? "REGRESSION" : "ok";
+    stream.write(
+      `  baseline: recall ${r3(b.floor.recall)} → ${r3(result.floor.recall)}, ` +
+        `f1 ${r3(b.floor.f1)} → ${r3(result.floor.f1)} (${tag})\n`,
+    );
+    if (b.corpusShrunk) {
+      stream.write(
+        "  baseline: corpus coverage SHRANK — fewer graded docs than the committed counts pin; " +
+          "restore the fixtures, or deliberately re-pin with --update-baseline\n",
+      );
+    }
+  }
+}
+
 async function main(argv: string[]): Promise<number> {
   const { values, positionals } = parseArgs({
     args: argv,
@@ -269,6 +329,10 @@ async function main(argv: string[]): Promise<number> {
       json: { type: "boolean", default: false },
       changed: { type: "boolean", default: false },
       base: { type: "string" },
+      journal: { type: "boolean", default: false },
+      corpus: { type: "string" },
+      baseline: { type: "string" },
+      "update-baseline": { type: "boolean", default: false },
       adopt: { type: "boolean", default: false },
       apply: { type: "boolean", default: false },
       "docs-root": { type: "string" },
@@ -288,18 +352,38 @@ async function main(argv: string[]): Promise<number> {
     return 1;
   }
 
-  // `--adopt`/`--apply` are init-only (RFC-0006). Reject misuse loudly rather than silently
-  // ignoring a flag the user clearly intended to do something.
-  if (values.adopt && command !== "init") {
-    process.stderr.write("govkit: --adopt is only valid for init\n");
+  // Command-scoped flags, ONE table: a flag set on a command outside its allowlist is
+  // rejected loudly rather than silently ignored — the user clearly intended it to do
+  // something. The emitted wording ("only valid for a, b, or c") is pinned by cli tests,
+  // so the message is derived, not hand-written per guard. `--changed` is deliberately
+  // LAST so multi-misuse precedence matches the historical guard order.
+  const gateCommands = ["verify", "eval", "check"];
+  const scopedFlags: Array<{ set: boolean; flag: string; allowed: string[] }> = [
+    { set: values.adopt, flag: "--adopt", allowed: ["init"] },
+    { set: values["docs-root"] !== undefined, flag: "--docs-root", allowed: ["init"] },
+    { set: values.journal, flag: "--journal", allowed: gateCommands },
+    { set: values.corpus !== undefined, flag: "--corpus", allowed: ["calibrate"] },
+    { set: values.baseline !== undefined, flag: "--baseline", allowed: ["calibrate"] },
+    { set: values["update-baseline"], flag: "--update-baseline", allowed: ["calibrate"] },
+    { set: values.changed, flag: "--changed", allowed: gateCommands },
+  ];
+  for (const { set, flag, allowed } of scopedFlags) {
+    if (!set || allowed.includes(command)) continue;
+    const where =
+      allowed.length === 1
+        ? allowed[0]
+        : `${allowed.slice(0, -1).join(", ")}, or ${allowed.at(-1)}`;
+    process.stderr.write(`govkit: ${flag} is only valid for ${where}\n`);
     return 2;
   }
+  // The two flag-to-flag couplings sit outside the command table: they constrain a flag
+  // against ANOTHER flag, not against the command.
   if (values.apply && !values.adopt) {
     process.stderr.write("govkit: --apply is only valid with init --adopt\n");
     return 2;
   }
-  if (values["docs-root"] !== undefined && command !== "init") {
-    process.stderr.write("govkit: --docs-root is only valid for init\n");
+  if (values["update-baseline"] && values.baseline === undefined) {
+    process.stderr.write("govkit: --update-baseline requires --baseline <file>\n");
     return 2;
   }
 
@@ -309,10 +393,6 @@ async function main(argv: string[]): Promise<number> {
   // never a silent full-scan, which would re-introduce the avalanche --changed prevents.
   let changed: { files: Set<string>; ref: string } | undefined;
   if (values.changed) {
-    if (command !== "verify" && command !== "eval" && command !== "check") {
-      process.stderr.write("govkit: --changed is only valid for verify, eval, or check\n");
-      return 2;
-    }
     const root = values.root ?? process.cwd();
     try {
       const { ref, implicitFallback } = resolveChangedBase(root, values.base);
@@ -330,6 +410,78 @@ async function main(argv: string[]): Promise<number> {
       return 1;
     }
   }
+
+  // The ONE gate wiring shared by the verify/eval/check arms: load the config ONCE (fed to
+  // the core run AND the journal path — never a second loadConfig), time the run, and with
+  // --journal append exactly one record even when the run THROWS — an error path with no
+  // journal line blinds the sensor precisely when the gate fails hardest. The journal stays
+  // purely observational: it is written AFTER the case printed its report, an append failure
+  // warns without touching the exit code, and a thrown run records ok:false + the error's
+  // first line before rethrowing to the top-level handler (exit code unchanged).
+  type GateParts = { verify?: VerifyResult; eval?: EvalResult; ok: boolean };
+  const runGate = (
+    cmd: "verify" | "eval" | "check",
+    root: string,
+    run: (config: GovkitConfig) => GateParts,
+  ): GateParts => {
+    const started = Date.now();
+    const journal = (config: GovkitConfig | undefined, parts: GateParts, error?: string): void => {
+      if (!values.journal) return;
+      try {
+        const gitSha = gitHeadSha(root);
+        const record: JournalRecord = {
+          at: new Date().toISOString(),
+          cmd,
+          root,
+          ...(gitSha ? { gitSha } : {}),
+          ...(changed ? { changed: changed.ref } : {}),
+          ...(parts.verify
+            ? {
+                verify: {
+                  docs: parts.verify.checked,
+                  violations: parts.verify.violations.map((v) => ({ path: v.file, kind: v.kind })),
+                },
+              }
+            : {}),
+          ...(parts.eval
+            ? {
+                eval: {
+                  artifacts: parts.eval.scored,
+                  floorPassRate: parts.eval.floorPassRate,
+                  advisoryPassRate: parts.eval.advisoryPassRate,
+                  averageScore: parts.eval.averageScore,
+                },
+              }
+            : {}),
+          ok: parts.ok,
+          ...(error ? { error } : {}),
+          durationMs: Date.now() - started,
+        };
+        // A config that failed to load cannot name a journal.path override, so the record
+        // of THAT failure goes to the default location — better a line in the default
+        // journal than a sensor that goes dark exactly when the config broke.
+        const journalConfig = config ?? {
+          schemaVersion: 1,
+          docs: { ignore: [], base: { required: [] }, types: {} },
+        };
+        appendJournal(resolveJournalPath(root, journalConfig), record);
+      } catch (err) {
+        const detail = err instanceof Error ? err.message : String(err);
+        process.stderr.write(`govkit: journal write failed: ${detail}\n`);
+      }
+    };
+    let config: GovkitConfig | undefined;
+    try {
+      config = loadConfig(root);
+      const parts = run(config);
+      journal(config, parts);
+      return parts;
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err);
+      journal(config, { ok: false }, message.split("\n", 1)[0] ?? message);
+      throw err;
+    }
+  };
 
   switch (command) {
     case "init": {
@@ -352,27 +504,92 @@ async function main(argv: string[]): Promise<number> {
       return 0;
     }
     case "verify": {
-      const result = runVerify({ root: values.root ?? process.cwd(), changed });
-      if (values.json) process.stdout.write(`${JSON.stringify(result, null, 2)}\n`);
-      else printVerify(result);
-      return result.ok ? 0 : 1;
+      const root = values.root ?? process.cwd();
+      const { ok } = runGate("verify", root, (config) => {
+        const result = runVerify({ root, config, changed });
+        if (values.json) process.stdout.write(`${JSON.stringify(result, null, 2)}\n`);
+        else printVerify(result);
+        return { verify: result, ok: result.ok };
+      });
+      return ok ? 0 : 1;
     }
     case "eval": {
-      const result = runEval({ root: values.root ?? process.cwd(), changed });
-      if (values.json) process.stdout.write(`${JSON.stringify(result, null, 2)}\n`);
-      else printEval(result);
-      return result.ok ? 0 : 1;
+      const root = values.root ?? process.cwd();
+      const { ok } = runGate("eval", root, (config) => {
+        const result = runEval({ root, config, changed });
+        if (values.json) process.stdout.write(`${JSON.stringify(result, null, 2)}\n`);
+        else printEval(result);
+        return { eval: result, ok: result.ok };
+      });
+      return ok ? 0 : 1;
     }
     case "check": {
       // The single no-API-key gate a CI invokes: structural gate THEN quality floor.
       // Both run regardless of the other's result, so one pass surfaces every failure.
       // --changed threads into BOTH halves so the whole entrypoint is adoptable (RFC-0005).
       const root = values.root ?? process.cwd();
-      const verify = runVerify({ root, changed });
-      printVerify(verify);
-      const evaluation = runEval({ root, changed });
-      printEval(evaluation);
-      return verify.ok && evaluation.ok ? 0 : 1;
+      const { ok } = runGate("check", root, (config) => {
+        const verify = runVerify({ root, config, changed });
+        // Report the structural verdict the moment it exists: a runEval that throws must
+        // never suppress an already-computed verify FAIL report.
+        printVerify(verify);
+        const evaluation = runEval({ root, config, changed });
+        printEval(evaluation);
+        return { verify, eval: evaluation, ok: verify.ok && evaluation.ok };
+      });
+      return ok ? 0 : 1;
+    }
+    case "calibrate": {
+      // The eval's regression harness. All file I/O (baseline read/write) stays here so
+      // runCalibrate remains pure like the other commands.
+      if (!values.corpus) {
+        process.stderr.write(
+          "govkit: calibrate requires --corpus <dir> — a labeled corpus containing good/ and weak/\n" +
+            "  usage: govkit calibrate --corpus <dir> [--root <dir>] [--json] " +
+            "[--baseline <file> [--update-baseline]]\n",
+        );
+        return 2;
+      }
+      const root = values.root ?? process.cwd();
+      // A named baseline that does not exist is a hard operational error, never a silent
+      // fresh-run: failing open here lets CI "compare" against nothing forever. The one
+      // legitimate absence is bootstrap, which the user declares with --update-baseline.
+      let baseline: CalibrationBaseline | undefined;
+      if (values.baseline) {
+        if (existsSync(values.baseline)) {
+          baseline = parseBaseline(readFileSync(values.baseline, "utf8"), values.baseline);
+        } else if (!values["update-baseline"]) {
+          throw new Error(
+            `govkit: baseline file not found: ${values.baseline} — pass --update-baseline to create it`,
+          );
+        }
+      }
+      const result = runCalibrate({ corpus: values.corpus, config: loadConfig(root), baseline });
+      if (values.json) process.stdout.write(`${JSON.stringify(result, null, 2)}\n`);
+      else printCalibrate(result);
+      if (values["update-baseline"]) {
+        // Refuse to lower the bar in the same breath as a regression: a run with any FP or
+        // a recall/f1 drop cannot become the new baseline. A SHRUNK corpus may be re-pinned,
+        // though — that rewrite is a deliberate act recorded in the git diff for review.
+        const regressed = result.baseline?.recallRegressed || result.baseline?.f1Regressed;
+        if (result.counts.fp > 0 || regressed) {
+          process.stderr.write(
+            "govkit calibrate: refusing to update baseline — the current run has false " +
+              "positives or a floor regression; nothing written.\n",
+          );
+          return 1;
+        }
+        const next: CalibrationBaseline = {
+          floor: result.floor,
+          counts: result.counts,
+          advisory: result.advisory,
+        };
+        writeFileSync(values.baseline as string, `${JSON.stringify(next, null, 2)}\n`, "utf8");
+        // stderr, like the journal warning, so `--json` stdout stays pure JSON.
+        process.stderr.write(`govkit calibrate: baseline updated → ${values.baseline}\n`);
+        return 0;
+      }
+      return result.ok ? 0 : 1;
     }
     case "report": {
       // Advisory lifecycle view (RFC-0008). Read-only, no exit-code effect: a report that

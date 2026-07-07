@@ -1,0 +1,17 @@
+{
+  "floor": {
+    "precision": 1,
+    "recall": 1,
+    "f1": 1
+  },
+  "counts": {
+    "tp": 4,
+    "fp": 0,
+    "fn": 0,
+    "tn": 4
+  },
+  "advisory": {
+    "goodAverageScore": 98,
+    "weakAverageScore": 8
+  }
+}

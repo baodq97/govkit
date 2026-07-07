@@ -1,6 +1,15 @@
 import { execFileSync } from "node:child_process";
 import { existsSync, readdirSync } from "node:fs";
-import { join, resolve } from "node:path";
+import { isAbsolute, join, relative, resolve } from "node:path";
+
+/** Root-confinement check shared by every path the engine is handed from outside (a hook's
+ *  file_path, a config `journal.path`): true only when `file` resolves STRICTLY inside `dir`.
+ *  The `rel === ""` self-reference (file IS the dir) is deliberately not-inside — a governed
+ *  dir is a container, never its own member, and a confined write target must be a child. */
+export function isInside(dir: string, file: string): boolean {
+  const rel = relative(resolve(dir), resolve(file));
+  return rel !== "" && !rel.startsWith("..") && !isAbsolute(rel);
+}
 
 /** Resolve a governed-doc type's directory (RFC-0007): the ONE place that prepends the
  *  configurable `docs.root` to a type's `dir`. Every reader (verify, eval, adopt, report) and
@@ -108,6 +117,25 @@ export function gitMatchCount(root: string, pathspecs: string[]): number {
     return out === "" ? 0 : out.split(/\r?\n/).length;
   } catch {
     return 0;
+  }
+}
+
+/** Current HEAD commit sha, or undefined when git (or any commit) is absent. Feeds the
+ *  `--journal` sensor's `gitSha` field — a sensor annotation, so absence is NOT an error:
+ *  the field is simply omitted (same degrade-not-fail posture as `stale`). One direct spawn
+ *  (the `gitCommitTime` pattern), NOT the `git()` wrapper — its thrown "govkit --changed:"
+ *  errors are the wrong contract for a field whose absence is legal. */
+export function gitHeadSha(root: string): string | undefined {
+  try {
+    const sha = execFileSync("git", ["rev-parse", "HEAD"], {
+      cwd: root,
+      encoding: "utf8",
+      stdio: ["ignore", "pipe", "ignore"],
+    }).trim();
+    return sha === "" ? undefined : sha;
+  } catch {
+    // safe to omit: no git, or a repo with no commits has no HEAD — the journal drops the field.
+    return undefined;
   }
 }
 

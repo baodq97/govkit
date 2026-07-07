@@ -39,6 +39,13 @@ quality trend — both no-key. Two advisory, read-only commands never affect an 
 `govkit report` gives a lifecycle view (done / in-flight / cleanup), and `govkit stale`
 (RFC-0009) flags a doc whose `governs:` code has newer commits than the doc — a **proxy**
 ("code moved", not "doc wrong"), git-gated and outside the no-key floor by construction.
+Two R7 learning-flywheel surfaces (RFC-0012), both no-key: an opt-in `--journal` flag on
+`verify`/`eval`/`check` appends one JSONL gate-outcome record per run (crashed runs
+included — the sensor stays honest during incidents), and `govkit calibrate` scores the
+gate itself against a labeled `good/`/`weak/` corpus, failing CI on any false positive, on
+recall/F1 regression, or on corpus shrinkage vs a committed baseline. This repo calibrates
+its own floor in `bun run check` against `packages/govkit/eval/fixtures` (not shipped to
+npm — consumers author their own corpus).
 Where the governed docs live is configurable via `docs.root` (default `.`, RFC-0007) — set
 e.g. `.govkit` to isolate kit-managed docs under one folder.
 
@@ -135,6 +142,14 @@ npx govkit verify    # structural gate (what blocks)
 npx govkit eval      # quality floor + advisory 0–100 score
 npx govkit report    # lifecycle view: done / in-flight / cleanup (advisory)
 npx govkit stale     # docs whose `governs:` code moved on (advisory, needs git)
+
+# 4. Learning-flywheel sensor + immune system (RFC-0012, opt-in):
+npx govkit verify --journal        # append one JSONL gate-outcome record (.govkit/journal.jsonl)
+npx govkit calibrate --corpus <dir> --baseline <file>
+                     # score the gate itself: confusion matrix (FP/FN, precision/recall/F1)
+                     # against YOUR labeled corpus — <dir> holds good/ (must pass the floor)
+                     # and weak/ (must fail it); exits 1 on any FP, on recall/F1 regression,
+                     # or on corpus shrinkage vs the committed baseline
 ```
 
 ## Quickstart (hacking on this monorepo)
