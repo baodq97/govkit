@@ -29,6 +29,19 @@ Everything **calls** `npx govkit verify` to validate — nothing embeds the dete
   what exists — it never generates new agents or teams.* Lets any team build their own governed
   flow instead of copy-editing `sdlc.js`.
 
+**Skill — the working-mode layer:**
+
+- **`skills/working-discipline`** — 21 trigger-gated **thinking checkpoints**
+  (trigger → mandatory question → evidence to produce) that cut agent error and reduce
+  human escalation: competing hypotheses, sufficient-condition "done", one-way/two-way
+  door classification, pre-mortem, loop detection, Chesterton's fence, negative space,
+  provenance labeling, independent ensemble, and more — plus the packaged-escalation
+  protocol and an escape-log ritual. Built to *scale down*: only two items are always-on,
+  every fired item accepts `N/A — <reason>` (only *silent* skips violate), and dosage
+  follows the repo's change-class table — so a strong model pays near-zero overhead while
+  a weaker model is forced to externalize its reasoning as auditable artifacts. Governed
+  by RFC-0011.
+
 **Agents** (plugin-namespaced — usable from the `sdlc` workflow):
 
 - **`agents/implementer`** — write-only fan-out member; builds one file-disjoint work package

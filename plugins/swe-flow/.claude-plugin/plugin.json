@@ -1,7 +1,7 @@
 {
   "name": "swe-flow",
-  "version": "0.3.0",
-  "description": "LLM authoring companion to the govkit governance engine. Skills drive the SDLC chain — goal-define, domain-decompose, api-designer, data-model, and spec-author (PRD/RFC/ADR/US) — plus workflow-author (scaffold reusable .claude/workflows/*.js orchestration) and implementer/reviewer/doc-keeper agents. Authors artifacts and orchestration, calls `npx govkit verify`; never embeds the deterministic gate.",
+  "version": "0.4.0",
+  "description": "LLM authoring companion to the govkit governance engine. Skills drive the SDLC chain — goal-define, domain-decompose, api-designer, data-model, and spec-author (PRD/RFC/ADR/US) — plus workflow-author (scaffold reusable .claude/workflows/*.js orchestration), working-discipline (trigger-gated thinking checkpoints that cut agent error and escalation), and implementer/reviewer/doc-keeper agents. Authors artifacts and orchestration, calls `npx govkit verify`; never embeds the deterministic gate.",
   "author": { "name": "baodq97" },
   "license": "MIT",
   "keywords": [
