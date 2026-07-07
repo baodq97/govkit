@@ -16,3 +16,5 @@
 | [RFC-0012](./RFC-0012-gate-journal-and-calibrate.md) | Gate-outcome journal and confusion-matrix calibration — the deterministic sensor for the learning flywheel (R7) | implemented | baodq97 | 2026-07-07 |
 | [RFC-0013](./RFC-0013-hook-wireable-gates.md) | Hook-wireable gates — a blocking-hook contract for verify/eval/check (--hook) | implemented | baodq97 | 2026-07-07 |
 | [RFC-0014](./RFC-0014-risk-tiered-checks.md) | Risk-tiered verify checks — advisory vs blocking, per kind, in config | implemented | baodq97 | 2026-07-07 |
+| [RFC-0015](./RFC-0015-drift-gate.md) | Deterministic spec↔code drift gate — reconciled shas and an explicit ack ritual (govkit drift) | implemented | baodq97 | 2026-07-07 |
+| [RFC-0016](./RFC-0016-feature-ledger.md) | Machine-checkable feature ledger — append-only done-ness agents cannot game (govkit ledger) | implemented | baodq97 | 2026-07-07 |

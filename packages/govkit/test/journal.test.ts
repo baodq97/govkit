@@ -186,7 +186,7 @@ describe("CLI --journal (e2e on dist/cli.js)", () => {
   it("rejects --journal on a non-gate command (report) with exit 2", () => {
     const r = cli(["report", "--journal", "--root", root]);
     expect(r.status).toBe(2);
-    expect(r.stderr).toContain("--journal is only valid for verify, eval, or check");
+    expect(r.stderr).toContain("--journal is only valid for verify, eval, check, drift, or ledger");
   });
 
   it("a journal WRITE failure warns on stderr and does NOT change the exit code", () => {

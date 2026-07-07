@@ -130,6 +130,13 @@ export interface GovkitConfig {
    */
   journal?: { path?: string };
   /**
+   * Optional `govkit ledger` location (RFC-0016). `path` is relative to the repo root (CLI
+   * `--root`) and must stay within it — resolution + escape guard live in commands/ledger.ts,
+   * the same confinement journal.path gets. Absent ⇒ `docs/ledger.json` — purely additive,
+   * a config without it behaves exactly as before (and nothing else reads the key).
+   */
+  ledger?: { path?: string };
+  /**
    * Optional risk tiers for verify checks (RFC-0014): map a violation kind to `advisory`
    * to keep it REPORTED (warn prefix, its own count, in the journal and `--json`) without
    * failing the gate — e.g. demote `index` while a large adoption backfills INDEX rows.
@@ -205,6 +212,10 @@ export function loadConfig(root: string): GovkitConfig {
     // (escape confinement) happens at use time in journal.ts, not at load — an unused bad
     // journal key must not break the gate commands that never touch it.
     journal: raw.journal,
+    // Same tolerant passthrough as journal: ledger.path is validated (type + confinement) at
+    // use time in commands/ledger.ts — an unused bad ledger key must not break the gate
+    // commands that never touch it.
+    ledger: raw.ledger,
     tiers,
   };
 }

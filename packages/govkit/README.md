@@ -48,6 +48,19 @@ whether the prose is *sound* is a keyed reviewer's job, never part of the no-key
   corpus fixture is a hard error (no green-on-nothing). Author your own corpus; the tarball
   ships none.
 
+## Spec↔code drift and the feature ledger (RFC-0015 / RFC-0016)
+
+- **`govkit drift [--ack [doc]]`**: a doc carrying `governs:` + `reconciled: <sha>` fails the
+  gate when the newest commit touching its governed paths no longer matches the recorded
+  sha — the deterministic spec↔code drift gate no SDD tool ships. `--ack` rewrites only the
+  sha line (a deliberate, git-visible act); docs without `reconciled:` stay covered by the
+  advisory `stale` only, so adoption is per-doc and zero-FP.
+- **`govkit ledger`**: validates a committed JSON feature ledger (`docs/ledger.json`,
+  `ledger.path` configurable): schema, unique ids, every `spec` resolving to a governed doc,
+  and git-backed anti-gaming — removing an entry or its `check` field vs HEAD is a violation;
+  flipping `passes` either way is legal. Advisory `N/M passing` line never affects the exit.
+- Both join `--journal` and `--hook`.
+
 ## Wiring the gate into an agent loop (RFC-0013 / RFC-0014)
 
 - **`--hook`** on `verify` / `eval` / `check`: maps any gate failure to **exit 2** and routes
