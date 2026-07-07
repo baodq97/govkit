@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it } from "bun:test";
 import { execFileSync, spawnSync } from "node:child_process";
+import { createHash } from "node:crypto";
 import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -158,6 +159,48 @@ describe("govkit drift — the RFC-0015 gate (e2e)", () => {
     }
   });
 
+  it("reads the reconciled token RAW: an unquoted leading-zero all-digit sha stays green", () => {
+    // Mine a commit whose sha starts with SEVEN digits, the first a 0: written unquoted, that
+    // spelling is a YAML int — the parser drops the leading zero and the gate would judge the
+    // doc against a value that is not on disk. The raw-token read keeps the exact bytes.
+    // Mining is pure JS sha1 over candidate commit objects (~270 tries expected), then git
+    // stores the winning object verbatim.
+    writeFileSync(join(root, "src", "thing.ts"), "export const x = 2;\n");
+    g("add", "-A");
+    const tree = execFileSync("git", ["write-tree"], { cwd: root, encoding: "utf8" }).trim();
+    const parent = headSha();
+    let body = "";
+    let sha = "";
+    for (let i = 0; sha === ""; i++) {
+      const candidate =
+        `tree ${tree}\nparent ${parent}\n` +
+        `author Test <t@example.com> ${1700000000 + i} +0000\n` +
+        `committer Test <t@example.com> ${1700000000 + i} +0000\n\nmined\n`;
+      const digest = createHash("sha1")
+        .update(`commit ${Buffer.byteLength(candidate)}\0${candidate}`)
+        .digest("hex");
+      if (/^0\d{6}/.test(digest)) {
+        body = candidate;
+        sha = digest;
+      }
+    }
+    const written = execFileSync("git", ["hash-object", "-t", "commit", "-w", "--stdin"], {
+      cwd: root,
+      encoding: "utf8",
+      input: body,
+    }).trim();
+    expect(written).toBe(sha); // git stored exactly the object we mined
+    g("update-ref", "HEAD", sha);
+
+    writeFileSync(
+      join(root, DOC),
+      rfcDoc({ governs: "src/thing.ts", reconciled: sha.slice(0, 7) }),
+    );
+    const r = cli(["drift", "--root", root]);
+    expect(r.status).toBe(0);
+    expect(r.stdout).toContain("in sync");
+  });
+
   it("writes a --journal record { cmd: drift, drift: { checked, drifted, skipped } }", () => {
     reconcileAtHead();
     const r = cli(["drift", "--journal", "--root", root]);
@@ -232,6 +275,81 @@ describe("govkit drift --ack — the reconciliation ritual (e2e)", () => {
     const r = cli(["drift", "--ack", DOC, "--root", root]);
     expect(r.status).toBe(1);
     expect(r.stderr).toContain("has no 'reconciled:' front-matter key");
+  });
+
+  it("preserves a same-line trailing comment through check and ack — only the sha token moves", () => {
+    const vouched = headSha();
+    const withComment = (sha: string) =>
+      `---\nid: RFC-0001\ntitle: x\nstatus: accepted\ngoverns:\n  - src/thing.ts\n` +
+      `reconciled: ${sha}  # acked by alice\n---\n\nbody prose\n`;
+    writeFileSync(join(root, DOC), withComment(vouched));
+    expect(cli(["drift", "--root", root]).status).toBe(0); // the comment is not part of the claim
+
+    writeFileSync(join(root, "src", "thing.ts"), "export const x = 2;\n");
+    g("add", "-A");
+    g("commit", "-m", "code moved");
+    const current = headSha();
+
+    const r = cli(["drift", "--ack", DOC, "--root", root]);
+    expect(r.status).toBe(0);
+    // The sha token moved; the author's `# acked by alice` annotation survived byte-for-byte.
+    expect(readFileSync(join(root, DOC), "utf8")).toBe(withComment(current));
+  });
+
+  it("refuses to ack a continuation-line reconciled value — never a corrupt two-line scalar", () => {
+    // `reconciled:` with the value on the NEXT line is valid YAML; writing the sha onto the
+    // key line would merge the two lines into one corrupt scalar, so the surgery refuses.
+    const doc =
+      `---\nid: RFC-0001\ntitle: x\nstatus: accepted\ngoverns:\n  - src/thing.ts\n` +
+      `reconciled:\n  ${"a".repeat(40)}\n---\n\nbody prose\n`;
+    writeFileSync(join(root, DOC), doc);
+    const r = cli(["drift", "--ack", DOC, "--root", root]);
+    expect(r.status).toBe(1);
+    expect(r.stderr).toContain("rewrite it by hand");
+    expect(readFileSync(join(root, DOC), "utf8")).toBe(doc); // untouched, not corrupted
+  });
+
+  it("converges for a SELF-governing doc: ack + commit does not re-drift it", () => {
+    // The doc's governs glob matches its own path. Without the self-path exclusion, every
+    // ack commit touches the doc, bumps the governed sha past the claim just recorded, and
+    // the doc re-drifts forever — the ritual could never converge.
+    writeFileSync(join(root, "docs", "notes.md"), "governed prose\n");
+    writeFileSync(join(root, DOC), rfcDoc({ governs: "docs/**", reconciled: "a".repeat(7) }));
+    g("add", "-A");
+    g("commit", "-m", "docs corpus");
+    expect(cli(["drift", "--root", root]).status).toBe(1); // the stale claim drifts
+
+    expect(cli(["drift", "--ack", "--root", root]).status).toBe(0);
+    g("add", "-A");
+    g("commit", "-m", "ack the drift");
+    const rerun = cli(["drift", "--root", root]);
+    expect(rerun.status).toBe(0); // green stays green across the ack commit
+    expect(rerun.stdout).toContain("in sync");
+  });
+
+  it("marks an ack run in the --journal record (drift.ack: true) so drifted>0 ∧ ok stays legible", () => {
+    reconcileAtHead();
+    writeFileSync(join(root, "src", "thing.ts"), "export const x = 2;\n");
+    g("add", "-A");
+    g("commit", "-m", "code moved");
+    const r = cli(["drift", "--ack", "--journal", "--root", root]);
+    expect(r.status).toBe(0);
+    const line = readFileSync(join(root, ".govkit", "journal.jsonl"), "utf8").trim();
+    const record = JSON.parse(line) as JournalRecord;
+    expect(record.cmd).toBe("drift");
+    expect(record.ok).toBe(true);
+    // drifted 1 with ok true is legal ONLY because the record says the run acked the drift.
+    expect(record.drift).toEqual({ checked: 1, drifted: 1, skipped: 0, ack: true });
+  });
+
+  it("rejects --ack combined with --hook (exit 2) — a blocking hook must never mutate", () => {
+    const vouched = reconcileAtHead();
+    const before = readFileSync(join(root, DOC), "utf8");
+    const r = cli(["drift", "--ack", "--hook", "--root", root]);
+    expect(r.status).toBe(2);
+    expect(r.stderr).toContain("--ack cannot be combined with --hook");
+    expect(readFileSync(join(root, DOC), "utf8")).toBe(before); // nothing ran, nothing moved
+    expect(vouched).toBe(headSha());
   });
 
   it("rejects --ack outside drift (scope table) and a doc path without --ack", () => {

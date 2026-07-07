@@ -30,8 +30,12 @@ export interface JournalRecord {
     advisoryPassRate: number;
     averageScore: number;
   };
-  /** Drift gate (RFC-0015) counts — additive, only `drift` runs write it. */
-  drift?: { checked: number; drifted: number; skipped: number };
+  /** Drift gate (RFC-0015) counts — additive, only `drift` runs write it. `ack: true`
+   *  (omitted on check runs, never false) marks a `drift --ack` run: an ack REWRITES the
+   *  drifted docs, so `drifted > 0` with `ok: true` is legal there and only there — without
+   *  the marker an ack record is indistinguishable from a check run and corrupts a
+   *  consumer's drifted⇔ok reading. */
+  drift?: { checked: number; drifted: number; skipped: number; ack?: true };
   /** Ledger gate (RFC-0016) counts — additive, only `ledger` runs write it. */
   ledger?: { entries: number; passing: number; violations: number };
   ok: boolean;

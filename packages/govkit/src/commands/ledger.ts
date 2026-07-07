@@ -1,8 +1,8 @@
 import { existsSync, readFileSync } from "node:fs";
 import { resolve } from "node:path";
+import { parse as parseYaml } from "yaml";
 import { type GovkitConfig, loadConfig } from "../config";
-import { isParseError, parseFrontMatter } from "../frontmatter";
-import { gitShowHead, isInside, listMarkdown, str, toPathspec, typeDir } from "../util";
+import { collectGovernedIds, gitShowHead, isInside, str, toPathspec } from "../util";
 
 // The machine-checkable feature ledger (RFC-0016): a committed JSON list of done-ness claims
 // — { id, title, spec, passes, check? } — gated so the EVIDENCE cannot vanish even though the
@@ -30,7 +30,8 @@ export type LedgerViolationKind =
   | "duplicate"
   | "spec"
   | "entry-removed"
-  | "check-removed";
+  | "check-removed"
+  | "path-moved";
 
 export interface LedgerViolation {
   /** The offending entry's id when it has one — a schema violation may not. */
@@ -55,11 +56,13 @@ export interface LedgerOptions {
   config?: GovkitConfig;
 }
 
+const DEFAULT_LEDGER_PATH = "docs/ledger.json";
+
 /** Resolve the ledger location (config `ledger.path`, default `docs/ledger.json`) and CONFINE
  *  it under `root` — the exact escape guard `resolveJournalPath` applies: a `../../x` path
  *  must error loudly, never read (or later gate) a file outside the repo. */
 export function resolveLedgerPath(root: string, config: GovkitConfig): string {
-  const rel = config.ledger?.path ?? "docs/ledger.json";
+  const rel = config.ledger?.path ?? DEFAULT_LEDGER_PATH;
   if (typeof rel !== "string" || rel.trim() === "") {
     throw new Error("govkit: ledger.path must be a non-empty string path within --root");
   }
@@ -113,22 +116,25 @@ function entryProblems(raw: unknown): string[] {
   return problems;
 }
 
-/** Every governed doc id across all configured type dirs — how `verify` collects ids for
- *  duplicate/reference checks, reimplemented minimally (fs scan + front-matter parse) so the
- *  ledger does not drag in the whole verify run. Unparseable docs contribute nothing; that
- *  is the verify gate's violation to report, not the ledger's. */
-function governedIds(root: string, config: GovkitConfig): Set<string> {
-  const { ignore, types, root: docsRoot = "." } = config.docs;
-  const ids = new Set<string>();
-  for (const def of Object.values(types)) {
-    for (const file of listMarkdown(typeDir(root, docsRoot, def.dir), ignore)) {
-      const fm = parseFrontMatter(readFileSync(file, "utf8"));
-      if (!fm || isParseError(fm)) continue;
-      const id = str(fm.data.id);
-      if (id) ids.add(id);
-    }
+/** The ledger path HEAD's committed govkit.yml declares (explicit `ledger.path`, else the
+ *  default), normalized to a root-relative pathspec — or null when it cannot be established
+ *  (no committed config, unparseable committed YAML, or a path escaping the root). Tolerant
+ *  on purpose: this feeds the path-continuity GUARD below; a baseline that cannot be
+ *  determined degrades to the surfaced skip note, it never invents a violation. */
+function committedLedgerRel(root: string): string | null {
+  const text = gitShowHead(root, "govkit.yml");
+  if (text === null) return null;
+  let declared: unknown;
+  try {
+    declared = (parseYaml(text) as { ledger?: { path?: unknown } } | null)?.ledger?.path;
+  } catch {
+    // safe to degrade: an unparseable COMMITTED config pins no path — continuity is unknowable.
+    return null;
   }
-  return ids;
+  const rel =
+    typeof declared === "string" && declared.trim() !== "" ? declared : DEFAULT_LEDGER_PATH;
+  const target = resolve(root, rel);
+  return isInside(root, target) ? toPathspec(root, target) : null;
 }
 
 export function runLedger(opts: LedgerOptions): LedgerResult {
@@ -171,8 +177,10 @@ export function runLedger(opts: LedgerOptions): LedgerResult {
   }
 
   // Layer 3: chain referential-integrity (RFC-0003 extended to the ledger) — every claim must
-  // point at a real governed doc, else the ledger asserts done-ness of nothing.
-  const ids = governedIds(opts.root, config);
+  // point at a real governed doc, else the ledger asserts done-ness of nothing. The id
+  // universe is the SHARED collector verify's reference check resolves against, so the two
+  // can never disagree on what ids exist.
+  const ids = collectGovernedIds(opts.root, config);
   for (const e of valid) {
     if (!ids.has(e.spec)) {
       violations.push({
@@ -190,7 +198,27 @@ export function runLedger(opts: LedgerOptions): LedgerResult {
   let headNote: string | undefined;
   const headText = gitShowHead(opts.root, rel);
   if (headText === null) {
-    headNote = `no committed baseline for ${rel} (new file, or git unavailable) — append-only checks skipped this run.`;
+    // Path-continuity guard: a missing HEAD baseline is legal for a FIRST-ever ledger, but it
+    // is also exactly what a rename bypass produces — point `ledger.path` at a fresh file and
+    // the append-only layer would never see the committed evidence again. So before degrading,
+    // ask HEAD's own govkit.yml which ledger path IT declared (explicit or defaulted): when
+    // that committed path has a baseline and differs from the current path, evidence was
+    // abandoned, not bootstrapped — a violation, never a skip note.
+    const committedRel = committedLedgerRel(opts.root);
+    if (
+      committedRel !== null &&
+      committedRel !== rel &&
+      gitShowHead(opts.root, committedRel) !== null
+    ) {
+      violations.push({
+        kind: "path-moved",
+        message:
+          `ledger path changed from ${committedRel} to ${rel} — append-only continuity ` +
+          `broken; migrate by keeping the committed path in the same change`,
+      });
+    } else {
+      headNote = `no committed baseline for ${rel} (new file, or git unavailable) — append-only checks skipped this run.`;
+    }
   } else {
     let headEntries: unknown[];
     try {

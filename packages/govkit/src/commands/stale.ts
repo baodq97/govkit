@@ -1,15 +1,5 @@
-import { readFileSync } from "node:fs";
 import { type GovkitConfig, loadConfig } from "../config";
-import { isParseError, parseFrontMatter } from "../frontmatter";
-import {
-  gitAvailable,
-  gitCommitTime,
-  gitMatchCount,
-  listMarkdown,
-  normalizeGoverns,
-  toPathspec,
-  typeDir,
-} from "../util";
+import { gitAvailable, gitCommitTime, gitMatchCount, scanGoverned } from "../util";
 
 // The outcome for one doc that declares `governs`. `stale`/`fresh` are the recency verdict;
 // `dangling` (the glob matched no tracked file) and `uncommitted` (the doc itself has no commit
@@ -62,41 +52,36 @@ export function runStale(opts: StaleOptions): StaleResult {
     };
   }
 
-  const { ignore, types, root: docsRoot = "." } = config.docs;
   const entries: StaleEntry[] = [];
-  for (const [typeName, def] of Object.entries(types)) {
-    for (const file of listMarkdown(typeDir(opts.root, docsRoot, def.dir), ignore)) {
-      const fm = parseFrontMatter(readFileSync(file, "utf8"));
-      if (!fm || isParseError(fm)) continue; // unparseable front-matter is the gate's job, not staleness'
-      const governs = normalizeGoverns(fm.data.governs);
-      if (governs.length === 0) continue; // opt-in at the doc level
-
-      const docTime = gitCommitTime(opts.root, [toPathspec(opts.root, file)]);
-      if (docTime === null) {
-        // The doc itself has no commit (new/untracked) — nothing to compare against. Surface it
-        // as a skip rather than guessing.
-        entries.push({ file, type: typeName, governs, status: "uncommitted" });
-        continue;
-      }
-      const codeTime = gitCommitTime(opts.root, governs);
-      // "Can't evaluate the governed code" → surface as dangling, NEVER silently "fresh"
-      // (RFC-0009 §3). Two ways to land here: the glob matches no tracked file (a typo, or code
-      // moved/renamed), OR it matches staged-but-never-committed files so there is no commit time.
-      // Both mean the governs link cannot be evaluated for recency — the honest verdict is the
-      // same skip, not a green "fresh". (Reported by the dogfooded swe-flow reviewer.)
-      if (gitMatchCount(opts.root, governs) === 0 || codeTime === null) {
-        entries.push({ file, type: typeName, governs, status: "dangling", docTime });
-        continue;
-      }
-      entries.push({
-        file,
-        type: typeName,
-        governs,
-        status: codeTime > docTime ? "stale" : "fresh",
-        docTime,
-        codeTime,
-      });
+  // The governed-doc scan is shared with `drift` (util.scanGoverned) — unparseable
+  // front-matter is the gate's job (skipped), `governs:` is the per-doc opt-in.
+  for (const doc of scanGoverned(opts.root, config)) {
+    const { file, type, governs } = doc;
+    const docTime = gitCommitTime(opts.root, [doc.rel]);
+    if (docTime === null) {
+      // The doc itself has no commit (new/untracked) — nothing to compare against. Surface it
+      // as a skip rather than guessing.
+      entries.push({ file, type, governs, status: "uncommitted" });
+      continue;
     }
+    const codeTime = gitCommitTime(opts.root, governs);
+    // "Can't evaluate the governed code" → surface as dangling, NEVER silently "fresh"
+    // (RFC-0009 §3). Two ways to land here: the glob matches no tracked file (a typo, or code
+    // moved/renamed), OR it matches staged-but-never-committed files so there is no commit time.
+    // Both mean the governs link cannot be evaluated for recency — the honest verdict is the
+    // same skip, not a green "fresh". (Reported by the dogfooded swe-flow reviewer.)
+    if (gitMatchCount(opts.root, governs) === 0 || codeTime === null) {
+      entries.push({ file, type, governs, status: "dangling", docTime });
+      continue;
+    }
+    entries.push({
+      file,
+      type,
+      governs,
+      status: codeTime > docTime ? "stale" : "fresh",
+      docTime,
+      codeTime,
+    });
   }
 
   const checked = entries.length;
