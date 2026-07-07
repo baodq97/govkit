@@ -22,9 +22,9 @@ const HELP = `govkit — deterministic docs-as-code governance engine
 Usage:
   govkit init         [--root <dir>] [--force] [--docs-root <dir>]
   govkit init --adopt [--root <dir>] [--apply]  (migrate existing prose metadata → front-matter)
-  govkit check        [--root <dir>] [--changed [--base <ref>]] [--journal]  (verify + eval — the no-key CI gate)
-  govkit verify       [--root <dir>] [--json] [--changed [--base <ref>]] [--journal]
-  govkit eval         [--root <dir>] [--json] [--changed [--base <ref>]] [--journal]
+  govkit check        [--root <dir>] [--changed [--base <ref>]] [--journal] [--hook]  (verify + eval — the no-key CI gate)
+  govkit verify       [--root <dir>] [--json] [--changed [--base <ref>]] [--journal] [--hook]
+  govkit eval         [--root <dir>] [--json] [--changed [--base <ref>]] [--journal] [--hook]
   govkit calibrate    --corpus <dir> [--root <dir>] [--json] [--baseline <file> [--update-baseline]]
   govkit report       [--root <dir>] [--json]   (lifecycle histogram — done / in-flight / cleanup)
   govkit stale        [--root <dir>] [--json]   (advisory: governed code newer than its doc — needs git)
@@ -76,6 +76,9 @@ Options:
                journal (.govkit/journal.jsonl, or journal.path in govkit.yml). Purely
                observational — a journal write failure warns on stderr and NEVER
                changes the command's exit code.
+  --hook       Blocking-hook mode (verify, eval, check): map gate failure to exit 2 +
+               report on stderr — wire as a blocking hook. Fail-closed: an operational
+               error (broken config) also exits 2, so a broken guardrail blocks.
   --corpus     (calibrate) Labeled corpus dir containing good/ and weak/ subtrees.
   --baseline   (calibrate) Baseline JSON to compare the floor matrix against. A missing
                file is an error unless --update-baseline creates it (bootstrap).
@@ -99,33 +102,40 @@ function readStdin(): Promise<string> {
   });
 }
 
-function printVerify(result: VerifyResult): void {
+function printVerify(result: VerifyResult, toStderr = false): void {
   // Never silently scope: when --changed narrowed the report, say so explicitly.
   const scope = result.scoped
     ? ` (changed-set vs ${result.scoped.ref}: ${result.scoped.changedDocs} doc(s); cross-doc checks scanned all ${result.checked})`
     : "";
+  // Advisory-tier violations (RFC-0014) never flip the OK/FAIL header, but they are never
+  // silent either: they get their own summary count and a `warn` prefix per entry.
+  const advisories = result.violations.filter((v) => v.tier === "advisory").length;
+  const blocking = result.violations.length - advisories;
+  const advTail = advisories > 0 ? `, ${advisories} advisor${advisories === 1 ? "y" : "ies"}` : "";
+  // --hook routes the whole human report to stderr — the channel a blocking-hook harness
+  // feeds back to the model; otherwise OK → stdout, FAIL → stderr as before.
+  const stream = toStderr || !result.ok ? process.stderr : process.stdout;
   if (result.ok) {
-    process.stdout.write(
-      `govkit verify: OK — ${result.checked} doc(s) checked, 0 violations${scope}.\n`,
+    stream.write(
+      `govkit verify: OK — ${result.checked} doc(s) checked, 0 violations${advTail}${scope}.\n`,
     );
-    return;
+  } else {
+    stream.write(`govkit verify: FAIL — ${blocking} doc(s) with violations${advTail}${scope}:\n`);
   }
-  process.stderr.write(
-    `govkit verify: FAIL — ${result.violations.length} doc(s) with violations${scope}:\n`,
-  );
   for (const v of result.violations) {
-    process.stderr.write(`  ${v.file} [${v.type}]\n`);
-    for (const problem of v.problems) process.stderr.write(`    - ${problem}\n`);
+    stream.write(`  ${v.tier === "advisory" ? "warn " : ""}${v.file} [${v.type}]\n`);
+    for (const problem of v.problems) stream.write(`    - ${problem}\n`);
   }
 }
 
-function printEval(result: EvalResult): void {
+function printEval(result: EvalResult, toStderr = false): void {
   if (result.note) {
-    process.stdout.write(`govkit eval: ${result.note}\n`);
+    (toStderr ? process.stderr : process.stdout).write(`govkit eval: ${result.note}\n`);
     return;
   }
   const header = result.ok ? "OK" : "FAIL";
-  const stream = result.ok ? process.stdout : process.stderr;
+  // Same --hook stderr routing as printVerify — the report is model feedback under a hook.
+  const stream = toStderr || !result.ok ? process.stderr : process.stdout;
   const advPct = Math.round(result.advisoryPassRate * 100);
   // Never silently scope: when --changed narrowed the scored set, say so explicitly.
   const scope = result.scoped ? ` (changed-set vs ${result.scoped.ref})` : "";
@@ -330,6 +340,7 @@ async function main(argv: string[]): Promise<number> {
       changed: { type: "boolean", default: false },
       base: { type: "string" },
       journal: { type: "boolean", default: false },
+      hook: { type: "boolean", default: false },
       corpus: { type: "string" },
       baseline: { type: "string" },
       "update-baseline": { type: "boolean", default: false },
@@ -362,6 +373,7 @@ async function main(argv: string[]): Promise<number> {
     { set: values.adopt, flag: "--adopt", allowed: ["init"] },
     { set: values["docs-root"] !== undefined, flag: "--docs-root", allowed: ["init"] },
     { set: values.journal, flag: "--journal", allowed: gateCommands },
+    { set: values.hook, flag: "--hook", allowed: gateCommands },
     { set: values.corpus !== undefined, flag: "--corpus", allowed: ["calibrate"] },
     { set: values.baseline !== undefined, flag: "--baseline", allowed: ["calibrate"] },
     { set: values["update-baseline"], flag: "--update-baseline", allowed: ["calibrate"] },
@@ -407,9 +419,17 @@ async function main(argv: string[]): Promise<number> {
       changed = { files: gitChangedDocs(root, ref), ref };
     } catch (err) {
       process.stderr.write(`${err instanceof Error ? err.message : String(err)}\n`);
-      return 1;
+      // A would-be exit 1; under --hook it must fail CLOSED (a guardrail that cannot
+      // resolve its scope blocks) — same mapping as gateExit / the top-level catch.
+      return values.hook ? 2 : 1;
     }
   }
+
+  // --hook exit-code contract (RFC-0013): a blocking-hook harness treats exit 2 as "block
+  // and feed stderr back"; exit 1 is merely "non-blocking error". So under --hook every
+  // would-be gate failure (exit 1) maps to exit 2. Success stays 0. The run itself is
+  // identical — only this edge and the stderr routing in printVerify/printEval change.
+  const gateExit = (ok: boolean): number => (ok ? 0 : values.hook ? 2 : 1);
 
   // The ONE gate wiring shared by the verify/eval/check arms: load the config ONCE (fed to
   // the core run AND the journal path — never a second loadConfig), time the run, and with
@@ -439,7 +459,11 @@ async function main(argv: string[]): Promise<number> {
             ? {
                 verify: {
                   docs: parts.verify.checked,
-                  violations: parts.verify.violations.map((v) => ({ path: v.file, kind: v.kind })),
+                  violations: parts.verify.violations.map((v) => ({
+                    path: v.file,
+                    kind: v.kind,
+                    tier: v.tier,
+                  })),
                 },
               }
             : {}),
@@ -507,21 +531,23 @@ async function main(argv: string[]): Promise<number> {
       const root = values.root ?? process.cwd();
       const { ok } = runGate("verify", root, (config) => {
         const result = runVerify({ root, config, changed });
+        // --json keeps stdout the pure machine channel even under --hook; the human
+        // report otherwise follows the hook's stderr routing.
         if (values.json) process.stdout.write(`${JSON.stringify(result, null, 2)}\n`);
-        else printVerify(result);
+        else printVerify(result, values.hook);
         return { verify: result, ok: result.ok };
       });
-      return ok ? 0 : 1;
+      return gateExit(ok);
     }
     case "eval": {
       const root = values.root ?? process.cwd();
       const { ok } = runGate("eval", root, (config) => {
         const result = runEval({ root, config, changed });
         if (values.json) process.stdout.write(`${JSON.stringify(result, null, 2)}\n`);
-        else printEval(result);
+        else printEval(result, values.hook);
         return { eval: result, ok: result.ok };
       });
-      return ok ? 0 : 1;
+      return gateExit(ok);
     }
     case "check": {
       // The single no-API-key gate a CI invokes: structural gate THEN quality floor.
@@ -532,12 +558,12 @@ async function main(argv: string[]): Promise<number> {
         const verify = runVerify({ root, config, changed });
         // Report the structural verdict the moment it exists: a runEval that throws must
         // never suppress an already-computed verify FAIL report.
-        printVerify(verify);
+        printVerify(verify, values.hook);
         const evaluation = runEval({ root, config, changed });
-        printEval(evaluation);
+        printEval(evaluation, values.hook);
         return { verify, eval: evaluation, ok: verify.ok && evaluation.ok };
       });
-      return ok ? 0 : 1;
+      return gateExit(ok);
     }
     case "calibrate": {
       // The eval's regression harness. All file I/O (baseline read/write) stays here so
@@ -641,5 +667,10 @@ main(process.argv.slice(2))
     if (process.env.GOVKIT_DEBUG && err instanceof Error && err.stack) {
       process.stderr.write(`${err.stack}\n`);
     }
-    process.exit(1);
+    // --hook fail-closed (RFC-0013): an operational error IS a broken guardrail, so under
+    // --hook it must block (exit 2) like a gate failure — never a quiet non-blocking 1.
+    // A raw argv scan, not parseArgs' values: this catch also fires when main threw before
+    // (or during) parsing, so the parsed flags may not exist. Cheap and honest — the only
+    // miss is `--hook` appearing as another flag's VALUE, which no gate flag accepts.
+    process.exit(process.argv.includes("--hook") ? 2 : 1);
   });

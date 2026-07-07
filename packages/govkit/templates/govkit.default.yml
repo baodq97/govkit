@@ -9,6 +9,12 @@ schemaVersion: 1
 # journal:
 #   path: .govkit/journal.jsonl
 
+# Optional risk tiers for verify checks: demote a kind to `advisory` and it is still
+# reported (warn prefix + its own count) but never fails the gate — e.g. keep INDEX-sync
+# visible-but-non-blocking while a big adoption backfills rows. Unlisted kinds stay blocking.
+# tiers:
+#   index: advisory
+
 # ── Layer 1: the structural GATE (`govkit verify`) ───────────────────────────
 # Front-matter completeness · status ∈ allowed set · id↔filename convention ·
 # INDEX sync · globally-unique ids · no unresolved placeholders. Binary pass/fail.
