@@ -1,6 +1,6 @@
 {
   "name": "govkit",
-  "version": "0.5.0",
+  "version": "0.6.0",
   "description": "Deterministic, cross-platform docs-as-code SDLC governance engine: a structural verify gate + a graded quality eval. Run with npx; no API key required.",
   "type": "module",
   "license": "MIT",

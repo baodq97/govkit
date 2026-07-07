@@ -1,8 +1,15 @@
 import { readFileSync } from "node:fs";
-import { relative } from "node:path";
 import { type GovkitConfig, loadConfig } from "../config";
 import { isParseError, parseFrontMatter } from "../frontmatter";
-import { gitAvailable, gitCommitTime, gitMatchCount, listMarkdown, str, typeDir } from "../util";
+import {
+  gitAvailable,
+  gitCommitTime,
+  gitMatchCount,
+  listMarkdown,
+  normalizeGoverns,
+  toPathspec,
+  typeDir,
+} from "../util";
 
 // The outcome for one doc that declares `governs`. `stale`/`fresh` are the recency verdict;
 // `dangling` (the glob matched no tracked file) and `uncommitted` (the doc itself has no commit
@@ -33,24 +40,6 @@ export interface StaleResult {
 export interface StaleOptions {
   root: string;
   config?: GovkitConfig;
-}
-
-/** A `governs` front-matter value may be a single glob or a list; normalize to a trimmed,
- *  non-empty string[]. Anything else (a number, an object) yields []. */
-function normalizeGoverns(value: unknown): string[] {
-  if (typeof value === "string") {
-    const s = value.trim();
-    return s === "" ? [] : [s];
-  }
-  if (Array.isArray(value)) {
-    return value.map((v) => str(v)).filter((v) => v !== "");
-  }
-  return [];
-}
-
-/** Git pathspecs are relative to the repo root and want forward slashes on every platform. */
-function toPathspec(root: string, file: string): string {
-  return relative(root, file).split(/[/\\]/).join("/");
 }
 
 // The staleness advisory (RFC-0009): the ADVISORY sibling of RFC-0008's gate-class coherence

@@ -14,7 +14,7 @@ import { isInside } from "./util";
 export interface JournalRecord {
   /** ISO timestamp of the run (new Date().toISOString()). */
   at: string;
-  cmd: "verify" | "eval" | "check";
+  cmd: "verify" | "eval" | "check" | "drift" | "ledger";
   root: string;
   /** HEAD sha when git is available — omitted (not null) otherwise. */
   gitSha?: string;
@@ -30,6 +30,10 @@ export interface JournalRecord {
     advisoryPassRate: number;
     averageScore: number;
   };
+  /** Drift gate (RFC-0015) counts — additive, only `drift` runs write it. */
+  drift?: { checked: number; drifted: number; skipped: number };
+  /** Ledger gate (RFC-0016) counts — additive, only `ledger` runs write it. */
+  ledger?: { entries: number; passing: number; violations: number };
   ok: boolean;
   /** First line of the thrown error when the run ABORTED instead of returning a verdict
    *  (broken config, unresolvable ref) — the sensor records the gate's hardest failures too. */

@@ -8,8 +8,10 @@ import {
   parseBaseline,
   runCalibrate,
 } from "./commands/calibrate";
+import { type DriftAckResult, type DriftResult, runDrift, runDriftAck } from "./commands/drift";
 import { type EvalResult, runEval } from "./commands/eval";
 import { type InitResult, runInit } from "./commands/init";
+import { type LedgerResult, runLedger } from "./commands/ledger";
 import { type ReportResult, runReport } from "./commands/report";
 import { runStale, type StaleResult } from "./commands/stale";
 import { runVerify, type VerifyResult } from "./commands/verify";
@@ -28,6 +30,9 @@ Usage:
   govkit calibrate    --corpus <dir> [--root <dir>] [--json] [--baseline <file> [--update-baseline]]
   govkit report       [--root <dir>] [--json]   (lifecycle histogram — done / in-flight / cleanup)
   govkit stale        [--root <dir>] [--json]   (advisory: governed code newer than its doc — needs git)
+  govkit drift        [--root <dir>] [--json] [--journal] [--hook]  (gate: reconciled sha vs governed code — needs git)
+  govkit drift --ack [docPath] [--root <dir>] [--json]  (rewrite 'reconciled:' to the current governed sha)
+  govkit ledger       [--root <dir>] [--json] [--journal] [--hook]  (gate: the committed feature ledger — needs git)
   govkit audit-write  [--root <dir>]        (reads a PreToolUse hook payload on stdin)
 
 Commands:
@@ -58,6 +63,18 @@ Commands:
                time against the newest commit of the code it governs and warn when
                the code moved on. A PROXY ('code changed'), never 'doc wrong' — so it
                NEVER blocks (always exits 0) and check never calls it. Needs git.
+  drift        Deterministic spec↔code GATE (RFC-0015): a doc opts in by carrying BOTH
+               'governs:' and 'reconciled: <sha>' (the author's recorded claim "this doc
+               is true as of this code state"); it fails (exit 1) when the newest commit
+               touching its governed paths no longer matches that sha. The honest exits
+               are updating the doc or an explicit --ack — the gate never acks itself.
+               Git absent degrades to a note + exit 0; check never calls it.
+  ledger       Feature-ledger GATE (RFC-0016): gates the committed JSON ledger
+               ({ entries: [{ id, title, spec, passes, check? }] }, docs/ledger.json or
+               ledger.path) — parse/schema, unique ids, every spec resolves to a governed
+               doc id, and append-only vs the committed HEAD version (a removed entry or
+               removed check provenance is a violation; 'passes' flips both ways are
+               legal). The N/M passing summary is advisory and never affects the exit.
   audit-write  PreToolUse hook gate: block a Write to a governed doc that lacks
                complete front-matter. On a write that marks a doc shipped/terminal
                while it has a parent, emits a non-blocking reconciliation reminder.
@@ -66,19 +83,24 @@ Commands:
 
 Options:
   --root       Repo root containing govkit.yml (default: cwd, or the hook's cwd).
-  --json       Machine-readable output (verify, eval, report, stale).
+  --json       Machine-readable output (verify, eval, report, stale, drift, ledger).
   --changed    Adoption mode (verify, eval, check): restrict to docs that are
                new-or-modified vs --base. verify still scans the whole repo for cross-doc
                checks (only the report is scoped, so a new duplicate id / dangling ref is
                still caught); eval scores only the changed docs. Requires git.
   --base       Base ref for --changed (default: origin/main, else HEAD).
-  --journal    Sensor mode (verify, eval, check): append one JSON line per run to the
-               journal (.govkit/journal.jsonl, or journal.path in govkit.yml). Purely
-               observational — a journal write failure warns on stderr and NEVER
+  --journal    Sensor mode (verify, eval, check, drift, ledger): append one JSON line per
+               run to the journal (.govkit/journal.jsonl, or journal.path in govkit.yml).
+               Purely observational — a journal write failure warns on stderr and NEVER
                changes the command's exit code.
-  --hook       Blocking-hook mode (verify, eval, check): map gate failure to exit 2 +
-               report on stderr — wire as a blocking hook. Fail-closed: an operational
-               error (broken config) also exits 2, so a broken guardrail blocks.
+  --hook       Blocking-hook mode (verify, eval, check, drift, ledger): map gate failure
+               to exit 2 + report on stderr — wire as a blocking hook. Fail-closed: an
+               operational error (broken config) also exits 2, so a broken guardrail blocks.
+  --ack        (drift) Reconcile: rewrite 'reconciled:' to the current governed sha for the
+               doc named by the positional path after the command, or for ALL opted-in
+               docs when no path is given. Runs the drift check first and writes only
+               where drifted (a no-op ack says so); the rewrite is surgical — only the
+               sha value changes, every other byte is preserved for the reviewed diff.
   --corpus     (calibrate) Labeled corpus dir containing good/ and weak/ subtrees.
   --baseline   (calibrate) Baseline JSON to compare the floor matrix against. A missing
                file is an error unless --update-baseline creates it (bootstrap).
@@ -295,6 +317,76 @@ function printStale(result: StaleResult): void {
   );
 }
 
+function printDrift(result: DriftResult, toStderr = false): void {
+  // Nothing evaluable (git absent, or no doc opted in) → one honest note, exit stays 0.
+  if (result.note) {
+    (toStderr ? process.stderr : process.stdout).write(`govkit drift: ${result.note}\n`);
+    return;
+  }
+  // Same --hook stderr routing as printVerify — the report is model feedback under a hook.
+  const stream = toStderr || !result.ok ? process.stderr : process.stdout;
+  const skipTail =
+    result.skipped > 0
+      ? ` (${result.skipped} governs-only doc(s) skipped — no reconciled: claim)`
+      : "";
+  if (result.ok) {
+    stream.write(
+      `govkit drift: OK — ${result.checked} opted-in doc(s) in sync with their governed code${skipTail}.\n`,
+    );
+    return;
+  }
+  stream.write(
+    `govkit drift: FAIL — ${result.drifted.length} of ${result.checked} opted-in doc(s) drifted${skipTail}:\n`,
+  );
+  for (const e of result.drifted) {
+    stream.write(`  DRIFT  ${e.path} [${e.type}] — ${e.problem}\n`);
+    stream.write(`         governs: ${e.governs.join(", ")}\n`);
+  }
+  stream.write(
+    "\n(the two honest exits: update the doc, then `govkit drift --ack <doc>` — or ack directly " +
+      "if the code change did not invalidate it. The gate never acks itself.)\n",
+  );
+}
+
+function printDriftAck(result: DriftAckResult, toStderr = false): void {
+  const stream = toStderr || !result.ok ? process.stderr : process.stdout;
+  if (result.note) {
+    stream.write(`govkit drift --ack: ${result.note}\n`);
+    return;
+  }
+  for (const a of result.acked) {
+    stream.write(`  acked  ${a.path}  ${a.from === "" ? "(empty)" : a.from} → ${a.to}\n`);
+  }
+  for (const u of result.upToDate) {
+    stream.write(`  ok     ${u.path} — already reconciled at ${u.reconciled} (nothing written)\n`);
+  }
+  for (const u of result.unackable) stream.write(`  CANNOT ${u.path} — ${u.problem}\n`);
+  const tail =
+    result.unackable.length > 0 ? `, ${result.unackable.length} NOT ackable (still red)` : "";
+  stream.write(
+    `govkit drift --ack: ${result.acked.length} doc(s) reconciled, ` +
+      `${result.upToDate.length} already in sync${tail}.\n`,
+  );
+}
+
+function printLedger(result: LedgerResult, toStderr = false): void {
+  const stream = toStderr || !result.ok ? process.stderr : process.stdout;
+  const n = result.entries;
+  // The N/M passing summary is ADVISORY (RFC-0016): integrity gates, completeness informs —
+  // it is printed on both verdicts and never moves the exit code.
+  const summary = `${result.passing}/${n} passing`;
+  if (result.ok) {
+    stream.write(
+      `govkit ledger: OK — ${n} entr${n === 1 ? "y" : "ies"}, ${summary} (advisory), 0 violations.\n`,
+    );
+    return;
+  }
+  stream.write(
+    `govkit ledger: FAIL — ${result.violations.length} violation(s), ${summary} (advisory):\n`,
+  );
+  for (const v of result.violations) stream.write(`  ${v.kind}  ${v.message}\n`);
+}
+
 function printCalibrate(result: CalibrateResult): void {
   const stream = result.ok ? process.stdout : process.stderr;
   const r3 = (n: number): string => n.toFixed(3).replace(/\.?0+$/, "") || "0";
@@ -346,6 +438,10 @@ async function main(argv: string[]): Promise<number> {
       "update-baseline": { type: "boolean", default: false },
       adopt: { type: "boolean", default: false },
       apply: { type: "boolean", default: false },
+      // `--ack` is a boolean + an optional POSITIONAL doc path after the command
+      // (`govkit drift --ack [docPath]`) — parseArgs has no "string with optional value",
+      // and a positional keeps `--ack` alone meaning "all opted-in docs" unambiguous.
+      ack: { type: "boolean", default: false },
       "docs-root": { type: "string" },
       force: { type: "boolean", default: false },
       help: { type: "boolean", short: "h", default: false },
@@ -369,11 +465,15 @@ async function main(argv: string[]): Promise<number> {
   // so the message is derived, not hand-written per guard. `--changed` is deliberately
   // LAST so multi-misuse precedence matches the historical guard order.
   const gateCommands = ["verify", "eval", "check"];
+  // drift + ledger (RFC-0015/0016) are gates too — they join the sensor/hook flags but NOT
+  // `--changed` (their scope question is deferred; see RFC-0015 open questions).
+  const sensorCommands = [...gateCommands, "drift", "ledger"];
   const scopedFlags: Array<{ set: boolean; flag: string; allowed: string[] }> = [
     { set: values.adopt, flag: "--adopt", allowed: ["init"] },
     { set: values["docs-root"] !== undefined, flag: "--docs-root", allowed: ["init"] },
-    { set: values.journal, flag: "--journal", allowed: gateCommands },
-    { set: values.hook, flag: "--hook", allowed: gateCommands },
+    { set: values.journal, flag: "--journal", allowed: sensorCommands },
+    { set: values.hook, flag: "--hook", allowed: sensorCommands },
+    { set: values.ack, flag: "--ack", allowed: ["drift"] },
     { set: values.corpus !== undefined, flag: "--corpus", allowed: ["calibrate"] },
     { set: values.baseline !== undefined, flag: "--baseline", allowed: ["calibrate"] },
     { set: values["update-baseline"], flag: "--update-baseline", allowed: ["calibrate"] },
@@ -438,9 +538,17 @@ async function main(argv: string[]): Promise<number> {
   // purely observational: it is written AFTER the case printed its report, an append failure
   // warns without touching the exit code, and a thrown run records ok:false + the error's
   // first line before rethrowing to the top-level handler (exit code unchanged).
-  type GateParts = { verify?: VerifyResult; eval?: EvalResult; ok: boolean };
+  type GateParts = {
+    verify?: VerifyResult;
+    eval?: EvalResult;
+    // drift/ledger (RFC-0015/0016) record pre-summarized counts — their full results carry
+    // absolute paths and per-entry prose the sensor does not need.
+    drift?: { checked: number; drifted: number; skipped: number };
+    ledger?: { entries: number; passing: number; violations: number };
+    ok: boolean;
+  };
   const runGate = (
-    cmd: "verify" | "eval" | "check",
+    cmd: "verify" | "eval" | "check" | "drift" | "ledger",
     root: string,
     run: (config: GovkitConfig) => GateParts,
   ): GateParts => {
@@ -477,6 +585,8 @@ async function main(argv: string[]): Promise<number> {
                 },
               }
             : {}),
+          ...(parts.drift ? { drift: parts.drift } : {}),
+          ...(parts.ledger ? { ledger: parts.ledger } : {}),
           ok: parts.ok,
           ...(error ? { error } : {}),
           durationMs: Date.now() - started,
@@ -634,6 +744,69 @@ async function main(argv: string[]): Promise<number> {
       if (values.json) process.stdout.write(`${JSON.stringify(result, null, 2)}\n`);
       else printStale(result);
       return 0;
+    }
+    case "drift": {
+      // The deterministic spec↔code gate (RFC-0015): stale's git-gated sibling that CAN fail —
+      // it checks a recorded `reconciled:` claim, not a recency proxy. Outside the no-key
+      // floor by construction (`check` never calls it); git absent degrades inside runDrift
+      // to a note + ok:true, so the exit stays 0 without a special case here.
+      const root = values.root ?? process.cwd();
+      const docPath = positionals[1];
+      if (docPath !== undefined && !values.ack) {
+        // A stray positional is a mistyped ack, not noise — reject loudly like the scope table.
+        process.stderr.write("govkit: a doc path after 'drift' is only valid with --ack\n");
+        return 2;
+      }
+      const { ok } = runGate("drift", root, (config) => {
+        if (values.ack) {
+          // The ack ritual: runs the same drift computation, then rewrites `reconciled:`
+          // where drifted. Journaled like a gate run — the record captures what drift SAW
+          // (pre-ack counts) with ok = "nothing left unackable".
+          const result = runDriftAck({ root, config, docPath });
+          if (values.json) process.stdout.write(`${JSON.stringify(result, null, 2)}\n`);
+          else printDriftAck(result, values.hook);
+          const c = result.check;
+          return {
+            drift: { checked: c.checked, drifted: c.drifted.length, skipped: c.skipped },
+            ok: result.ok,
+          };
+        }
+        const result = runDrift({ root, config });
+        if (values.json) process.stdout.write(`${JSON.stringify(result, null, 2)}\n`);
+        else printDrift(result, values.hook);
+        return {
+          drift: {
+            checked: result.checked,
+            drifted: result.drifted.length,
+            skipped: result.skipped,
+          },
+          ok: result.ok,
+        };
+      });
+      return gateExit(ok);
+    }
+    case "ledger": {
+      // The feature-ledger gate (RFC-0016). A missing/malformed ledger THROWS the operational
+      // error inside runGate (journaled ok:false, exit 1 / hook 2 via the top-level catch) —
+      // an opt-in gate pointed at nothing must never pass silently.
+      const root = values.root ?? process.cwd();
+      const { ok } = runGate("ledger", root, (config) => {
+        const result = runLedger({ root, config });
+        // The skipped append-only layer surfaces on stderr in BOTH output modes — under
+        // --json it is also a field, but a degraded check must never be silent.
+        if (result.headNote) process.stderr.write(`govkit ledger: note — ${result.headNote}\n`);
+        if (values.json) process.stdout.write(`${JSON.stringify(result, null, 2)}\n`);
+        else printLedger(result, values.hook);
+        return {
+          ledger: {
+            entries: result.entries,
+            passing: result.passing,
+            violations: result.violations.length,
+          },
+          ok: result.ok,
+        };
+      });
+      return gateExit(ok);
     }
     case "audit-write": {
       // Robust by construction: any failure DEFERS (no output, exit 0) rather

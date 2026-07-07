@@ -72,6 +72,27 @@ export function matches(pattern: string, text: string): boolean {
   }
 }
 
+/** A `governs` front-matter value may be a single glob or a list; normalize to a trimmed,
+ *  non-empty string[]. Anything else (a number, an object) yields []. Shared by `stale`
+ *  (RFC-0009) and `drift` (RFC-0015) so the two governs-readers can never disagree on what
+ *  a doc actually declared. */
+export function normalizeGoverns(value: unknown): string[] {
+  if (typeof value === "string") {
+    const s = value.trim();
+    return s === "" ? [] : [s];
+  }
+  if (Array.isArray(value)) {
+    return value.map((v) => str(v)).filter((v) => v !== "");
+  }
+  return [];
+}
+
+/** Git pathspecs are relative to the repo root and want forward slashes on every platform.
+ *  Shared by `stale` and `drift` — the same doc must produce the same pathspec in both. */
+export function toPathspec(root: string, file: string): string {
+  return relative(root, file).split(/[/\\]/).join("/");
+}
+
 /** True when `root` is inside a git work tree. Staleness (RFC-0009) needs git history; when this
  *  is false the `stale` command degrades to an advisory note rather than erroring — git absence is
  *  not a failure for an advisory, opt-in tool (it never runs in the no-key floor). */
@@ -100,6 +121,42 @@ export function gitCommitTime(root: string, pathspecs: string[]): number | null 
     const t = Number.parseInt(out, 10);
     return Number.isFinite(t) ? t : null;
   } catch {
+    return null;
+  }
+}
+
+/** Most recent commit SHA touching ANY of `pathspecs`, or null when none of them has any
+ *  commit (untracked, or a glob matching no tracked file). The drift gate's (RFC-0015) ground
+ *  truth: the sha names the exact code state a doc's `reconciled:` claim is checked against —
+ *  a STATE, not a recency proxy, which is what lets drift block where `stale` may only warn.
+ *  Same single-spawn try/catch degrade as `gitCommitTime` (null, never a throw). */
+export function gitLastShaFor(root: string, pathspecs: string[]): string | null {
+  try {
+    const out = execFileSync("git", ["log", "-1", "--format=%H", "--", ...pathspecs], {
+      cwd: root,
+      encoding: "utf8",
+      stdio: ["ignore", "pipe", "ignore"],
+    }).trim();
+    return out === "" ? null : out;
+  } catch {
+    // safe to degrade: no git / no commits — the caller surfaces the skip, never a crash.
+    return null;
+  }
+}
+
+/** Content of `relPath` (forward-slash, repo-root-relative) as of HEAD, or null when it cannot
+ *  be read (no git, no commits, or the path absent from HEAD). Feeds the ledger's append-only
+ *  diff (RFC-0016): null means "no committed baseline yet", which the caller reports as a
+ *  skipped layer — degrade-and-say-so, never an error, never silently green. */
+export function gitShowHead(root: string, relPath: string): string | null {
+  try {
+    return execFileSync("git", ["show", `HEAD:${relPath}`], {
+      cwd: root,
+      encoding: "utf8",
+      stdio: ["ignore", "pipe", "ignore"],
+    });
+  } catch {
+    // safe to degrade: a missing HEAD version is a legal state (new file / fresh repo).
     return null;
   }
 }

@@ -100,7 +100,7 @@ describe("--hook (e2e on dist/cli.js)", () => {
     buildFixture(VALID_DOC, VALID_INDEX);
     const r = cli(["report", "--hook", "--root", root]);
     expect(r.status).toBe(2);
-    expect(r.stderr).toContain("--hook is only valid for verify, eval, or check");
+    expect(r.stderr).toContain("--hook is only valid for verify, eval, check, drift, or ledger");
   });
 
   it("operational error (missing govkit.yml) under --hook exits 2 — fail closed", () => {
