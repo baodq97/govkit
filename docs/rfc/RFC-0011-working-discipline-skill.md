@@ -106,6 +106,32 @@ mitigated by the evidence-artifact contract and the explicit N/A escape valve.
   outcomes, run A/B on Fable/Opus/Sonnet at authoring time; re-run on any new target model
   before trusting the skill there).
 
+## As-built
+
+Shipped as recorded, plus one benchmark surface the eval demanded: one skill
+(`SKILL.md`) + two references (`discipline-items.md` — the 21-item catalog, escalation
+protocol, escape-log format; `eval-scenarios.md` — five pre-registered blind scenarios
+with expected-outcome keys and recorded results). Validated with a skill-creator-style
+harness: structural checklist plus 15 with-skill scenario runs across three model tiers
+(Fable / Opus / Sonnet — all pass) and 6 no-skill baselines (Opus / Sonnet) that
+calibrate the delta: on strong models the skill buys autonomy (baseline Sonnet ended the
+diagnosis scenario with four human questions, with-skill zero), auditable evidence
+artifacts, and the rule-ify/negative-space behaviors no baseline exhibited — not safety,
+which baselines already had. No engine change; manifests bumped 0.3.0 → 0.4.0.
+
+## Deviations from design
+
+- **A third governed file.** The design said "one skill, one reference"; the behavioral
+  benchmark (`references/eval-scenarios.md`) was added after the A/B runs so any new
+  target model can be re-tested before the skill is trusted there — same corpus-pinning
+  posture as `packages/govkit/eval/`. `governs:` updated accordingly.
+- **Proportionality clause added to the contract.** The A/B run surfaced that weaker
+  models fire more items (Sonnet 8 vs Opus 4 on the trivial scenario), so the N/A rule
+  gained batching: itemized evidence is owed only where it decided something.
+- **Frontmatter description trimmed** (1078 → 947 chars) to meet the 1024-char skill
+  limit, and item 9's trigger reworded to a silent mental tick after a hyper-literal
+  reading surfaced in the eval — both within the recorded design, tightened by evidence.
+
 ## Recommendation
 
 Ship `working-discipline` as one skill plus one reference in swe-flow: 21 trigger-gated
