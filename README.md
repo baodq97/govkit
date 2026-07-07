@@ -143,7 +143,13 @@ npx govkit eval      # quality floor + advisory 0–100 score
 npx govkit report    # lifecycle view: done / in-flight / cleanup (advisory)
 npx govkit stale     # docs whose `governs:` code moved on (advisory, needs git)
 
-# 4. Learning-flywheel sensor + immune system (RFC-0012, opt-in):
+# 4. Agent-loop guardrail mode (RFC-0013/0014, opt-in):
+npx govkit check --hook            # gate failure => exit 2 + report on stderr — wire as a
+                                   # blocking hook (the template ships a Stop hook doing this);
+                                   # tiers: in govkit.yml downgrades chosen verify kinds to
+                                   # advisory warnings (default: all blocking)
+
+# 5. Learning-flywheel sensor + immune system (RFC-0012, opt-in):
 npx govkit verify --journal        # append one JSONL gate-outcome record (.govkit/journal.jsonl)
 npx govkit calibrate --corpus <dir> --baseline <file>
                      # score the gate itself: confusion matrix (FP/FN, precision/recall/F1)

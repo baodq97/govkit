@@ -48,6 +48,19 @@ whether the prose is *sound* is a keyed reviewer's job, never part of the no-key
   corpus fixture is a hard error (no green-on-nothing). Author your own corpus; the tarball
   ships none.
 
+## Wiring the gate into an agent loop (RFC-0013 / RFC-0014)
+
+- **`--hook`** on `verify` / `eval` / `check`: maps any gate failure to **exit 2** and routes
+  the report to stderr — the blocking-hook convention (Claude Code feeds exit-2 stderr back
+  to the model). Fail-closed: an operational error under `--hook` also exits 2; a broken
+  guardrail blocks rather than waves through. Example (Stop hook):
+  `npx --yes govkit check --hook` — the session cannot end on a red gate.
+- **`tiers:`** in `govkit.yml`: downgrade chosen verify kinds to `advisory` (warn, don't
+  block): `tiers: { index: advisory }`. Default: every kind blocking — zero behavior change
+  until you opt in. Unknown kind or value fails loud at config load. Advisory violations
+  still print, reach `--json`, and land in the journal with their tier — visible, just not
+  blocking. The eval floor is untouched (it has its own required/advisory split).
+
 ## Config, not code
 
 Doc dirs, required keys, the status lifecycle, and the quality rubric are all declared in a
