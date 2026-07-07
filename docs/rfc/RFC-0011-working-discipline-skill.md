@@ -1,7 +1,7 @@
 ---
 id: RFC-0011
 title: Working-discipline — a trigger-gated thinking-checkpoint skill that reduces agent error and escalation
-status: draft
+status: implemented
 owner: baodq97
 date: 2026-07-07
 governs:

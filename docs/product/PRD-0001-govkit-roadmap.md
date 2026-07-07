@@ -1,8 +1,8 @@
 ---
 id: PRD-0001
 title: govkit roadmap & product vision
-status: draft
-owner: TBD
+status: approved
+owner: baodq97
 date: 2026-06-09
 ---
 
