@@ -2,6 +2,30 @@ import { readFileSync } from "node:fs";
 import { isAbsolute, join, relative, resolve } from "node:path";
 import { parse as parseYaml } from "yaml";
 
+/**
+ * The canonical verify check kinds — the single list `tiers:` validation checks against.
+ * Lives here (not commands/verify.ts) because loadConfig must validate config keys against
+ * it and verify already imports config; verify derives its ViolationKind from this array so
+ * the two can never drift. Alphabetical, so the validation error doubles as documentation.
+ */
+export const VIOLATION_KINDS = [
+  "coherence",
+  "duplicate",
+  "frontmatter",
+  "id",
+  "index",
+  "placeholder",
+  "reference",
+  "section",
+  "status",
+] as const;
+
+export type ViolationKind = (typeof VIOLATION_KINDS)[number];
+
+/** Risk tier for a verify kind (RFC-0014): `blocking` fails the gate as always; `advisory`
+ *  is reported (warn prefix, separate count) but never flips the verdict. */
+export type ViolationTier = "blocking" | "advisory";
+
 export interface DocType {
   dir: string;
   required: string[];
@@ -105,6 +129,15 @@ export interface GovkitConfig {
    * purely additive, a config without it behaves exactly as before.
    */
   journal?: { path?: string };
+  /**
+   * Optional risk tiers for verify checks (RFC-0014): map a violation kind to `advisory`
+   * to keep it REPORTED (warn prefix, its own count, in the journal and `--json`) without
+   * failing the gate — e.g. demote `index` while a large adoption backfills INDEX rows.
+   * Unlisted kinds stay `blocking`; absent key ⇒ all blocking, so this is purely additive.
+   * Unlike `journal`, this IS validated at load: a misspelled kind would silently leave the
+   * intended check blocking — the exact looks-configured-but-isn't drift govkit exists to stop.
+   */
+  tiers?: Partial<Record<ViolationKind, ViolationTier>>;
 }
 
 const DEFAULT_IGNORE = ["INDEX.md", "_TEMPLATE.md"];
@@ -133,6 +166,32 @@ export function loadConfig(root: string): GovkitConfig {
       `govkit: docs.root '${docsRoot}' resolves outside the repo root — it must stay within --root`,
     );
   }
+  // `tiers` fails LOUD at load, unlike the tolerant `journal` passthrough: a typo'd kind
+  // (`indx: advisory`) would otherwise leave the real kind blocking while the user believes
+  // it demoted — and a typo'd tier value could silently un-gate a check. Both are the
+  // looks-enforced-but-isn't leak, so name the offender and the full valid vocabulary.
+  const tiers = raw.tiers;
+  if (tiers !== undefined) {
+    if (typeof tiers !== "object" || tiers === null || Array.isArray(tiers)) {
+      throw new Error(
+        `govkit: tiers must be a map of verify kind → blocking|advisory ` +
+          `(valid kinds: ${VIOLATION_KINDS.join(", ")})`,
+      );
+    }
+    for (const [kind, tier] of Object.entries(tiers)) {
+      if (!(VIOLATION_KINDS as readonly string[]).includes(kind)) {
+        throw new Error(
+          `govkit: tiers names unknown verify kind '${kind}' — ` +
+            `valid kinds: ${VIOLATION_KINDS.join(", ")}`,
+        );
+      }
+      if (tier !== "blocking" && tier !== "advisory") {
+        throw new Error(
+          `govkit: tiers.${kind} must be 'blocking' or 'advisory' (got '${String(tier)}')`,
+        );
+      }
+    }
+  }
   return {
     schemaVersion: raw.schemaVersion ?? 1,
     docs: {
@@ -146,5 +205,6 @@ export function loadConfig(root: string): GovkitConfig {
     // (escape confinement) happens at use time in journal.ts, not at load — an unused bad
     // journal key must not break the gate commands that never touch it.
     journal: raw.journal,
+    tiers,
   };
 }

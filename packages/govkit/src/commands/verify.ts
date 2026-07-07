@@ -1,26 +1,33 @@
 import { existsSync, readFileSync } from "node:fs";
 import { basename, join } from "node:path";
-import { type DocType, type GovkitConfig, loadConfig } from "../config";
+import {
+  type DocType,
+  type GovkitConfig,
+  loadConfig,
+  type ViolationKind,
+  type ViolationTier,
+} from "../config";
 import { isParseError, parseFrontMatter } from "../frontmatter";
 import { headingLines, listMarkdown, matches, str, stripNonProse, typeDir } from "../util";
 
-export type ViolationKind =
-  | "frontmatter"
-  | "index"
-  | "status"
-  | "id"
-  | "duplicate"
-  | "placeholder"
-  | "reference"
-  | "coherence"
-  | "section";
+// The canonical kind list (and these two types) live in config.ts so loadConfig can
+// validate `tiers:` keys against it without a config↔verify import cycle; re-exported
+// here because verify is the kinds' natural home for consumers.
+export type { ViolationKind, ViolationTier };
 
 export interface Violation {
   file: string;
   type: string;
   kind: ViolationKind;
   problems: string[];
+  /** Risk tier (RFC-0014), assigned once in runVerify from `config.tiers` (default
+   *  blocking). Advisory violations are reported but never fail the gate. */
+  tier: ViolationTier;
 }
+
+/** A violation as the individual checks emit it — the tier is not theirs to decide;
+ *  runVerify assigns it centrally from config so no check can forget the mapping. */
+type Finding = Omit<Violation, "tier">;
 
 export interface VerifyResult {
   ok: boolean;
@@ -113,7 +120,7 @@ function checkIdConvention(file: string, data: Record<string, unknown>, def: Doc
 // status must match the doc's front-matter status. A stale INDEX is a rule
 // violation, not a nit (root AGENTS.md). Heuristic line-match for v1 — it catches
 // the two real failure modes (missing row, stale status) without a full table parser.
-function checkIndex(dir: string, typeName: string, docs: Doc[]): Violation[] {
+function checkIndex(dir: string, typeName: string, docs: Doc[]): Finding[] {
   if (docs.length === 0) return [];
 
   const indexPath = join(dir, "INDEX.md");
@@ -146,7 +153,7 @@ function checkIndex(dir: string, typeName: string, docs: Doc[]): Violation[] {
 
 // Globally-unique ids across ALL governed docs. A duplicate id breaks every
 // cross-reference (chain links, INDEX rows) so it's flagged once per colliding id.
-function checkDuplicateIds(docs: Doc[]): Violation[] {
+function checkDuplicateIds(docs: Doc[]): Finding[] {
   const byId = new Map<string, Doc[]>();
   for (const doc of docs) {
     const id = str(doc.data.id);
@@ -155,7 +162,7 @@ function checkDuplicateIds(docs: Doc[]): Violation[] {
     if (group) group.push(doc);
     else byId.set(id, [doc]);
   }
-  const violations: Violation[] = [];
+  const violations: Finding[] = [];
   for (const [id, group] of byId) {
     if (group.length < 2) continue;
     const sorted = [...group].sort((a, b) => a.file.localeCompare(b.file));
@@ -179,13 +186,13 @@ function checkDuplicateIds(docs: Doc[]): Violation[] {
 // a single scalar id (arrays are a future extension). Builds its own id Set for membership
 // (duplicate detection keeps an id→docs Map for collision reporting — a different shape, not
 // shared) — same deterministic, no-key category as INDEX-sync / unique-ids.
-function checkReferences(docs: Doc[], types: Record<string, DocType>): Violation[] {
+function checkReferences(docs: Doc[], types: Record<string, DocType>): Finding[] {
   const ids = new Set<string>();
   for (const doc of docs) {
     const id = str(doc.data.id);
     if (id) ids.add(id);
   }
-  const violations: Violation[] = [];
+  const violations: Finding[] = [];
   for (const doc of docs) {
     const refs = types[doc.type]?.refs;
     if (!refs || refs.length === 0) continue;
@@ -218,7 +225,7 @@ function checkReferences(docs: Doc[], types: Record<string, DocType>): Violation
 // is NOT among them do we flag. "Terminal" is a SET (accepted ∪ superseded), so done-under-
 // superseded passes — only a pre-decision/rejected parent fails. Same deterministic, no-key,
 // cross-doc class as checkReferences; reported on the child (the doc that jumped ahead).
-function checkCoherence(docs: Doc[], types: Record<string, DocType>): Violation[] {
+function checkCoherence(docs: Doc[], types: Record<string, DocType>): Finding[] {
   const byId = new Map<string, Doc>();
   for (const doc of docs) {
     const id = str(doc.data.id);
@@ -228,7 +235,7 @@ function checkCoherence(docs: Doc[], types: Record<string, DocType>): Violation[
     const term = types[doc.type]?.terminalStatuses;
     return !!term && term.length > 0 && term.includes(str(doc.data.status));
   };
-  const violations: Violation[] = [];
+  const violations: Finding[] = [];
   for (const doc of docs) {
     const def = types[doc.type];
     if (!isTerminal(doc)) continue; // exempt type, or child not yet decided
@@ -270,8 +277,8 @@ function checkCoherence(docs: Doc[], types: Record<string, DocType>): Violation[
 // would fire at accept-time, forcing a dishonest "None", then never re-fire. Headings are matched
 // after `stripNonProse`, so a `## As-built` inside a code fence does not satisfy the requirement.
 // Per-doc check (reported on the doc itself), so `--changed` scopes it like frontmatter/status.
-function checkRequiredSections(docs: Doc[], types: Record<string, DocType>): Violation[] {
-  const violations: Violation[] = [];
+function checkRequiredSections(docs: Doc[], types: Record<string, DocType>): Finding[] {
+  const violations: Finding[] = [];
   for (const doc of docs) {
     const byStatus = types[doc.type]?.requiredSectionsByStatus;
     if (!byStatus) continue; // exempt type
@@ -360,7 +367,7 @@ function scopeToChanged(
 export function runVerify(opts: VerifyOptions): VerifyResult {
   const config = opts.config ?? loadConfig(opts.root);
   const { ignore, base, types, root: docsRoot = "." } = config.docs;
-  const violations: Violation[] = [];
+  const violations: Finding[] = [];
   const allDocs: Doc[] = [];
   // Every file scanned, parseable or not, with its type. `allDocs` EXCLUDES docs that fail
   // front-matter parse (they early-out below), so it can't answer "what changed" for the
@@ -432,10 +439,19 @@ export function runVerify(opts: VerifyOptions): VerifyResult {
   violations.push(...checkCoherence(allDocs, types));
   violations.push(...checkRequiredSections(allDocs, types));
 
+  // Risk tiers (RFC-0014): the tier is assigned ONCE here — kind → config.tiers, default
+  // blocking, so a config without `tiers:` behaves exactly as before. One list with a tier
+  // field, deliberately NOT two arrays: every consumer (print, --json, journal, --changed
+  // scoping) sees the same violations, and `ok` is simply "zero BLOCKING violations" —
+  // advisories are reported, never verdict-flipping.
+  const tiers = config.tiers ?? {};
+  const tiered: Violation[] = violations.map((v) => ({ ...v, tier: tiers[v.kind] ?? "blocking" }));
+  const passes = (vs: Violation[]): boolean => !vs.some((v) => v.tier === "blocking");
+
   if (opts.changed) {
-    const scoped = scopeToChanged(violations, scannedFiles, allDocs, opts.changed.files);
+    const scoped = scopeToChanged(tiered, scannedFiles, allDocs, opts.changed.files);
     return {
-      ok: scoped.length === 0,
+      ok: passes(scoped),
       checked,
       violations: scoped,
       scoped: {
@@ -444,5 +460,5 @@ export function runVerify(opts: VerifyOptions): VerifyResult {
       },
     };
   }
-  return { ok: violations.length === 0, checked, violations };
+  return { ok: passes(tiered), checked, violations: tiered };
 }

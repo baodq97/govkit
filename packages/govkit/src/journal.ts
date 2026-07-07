@@ -21,7 +21,9 @@ export interface JournalRecord {
   /** The resolved `--changed` base ref — present only when the run was scoped, so a
    *  journal consumer can tell a full-corpus verdict from a changed-set one. */
   changed?: string;
-  verify?: { docs: number; violations: Array<{ path: string; kind: string }> };
+  /** `tier` joined the violation entries with RFC-0014 risk tiers — additive, so lines
+   *  written before it simply lack the field (a consumer treats absent as blocking). */
+  verify?: { docs: number; violations: Array<{ path: string; kind: string; tier: string }> };
   eval?: {
     artifacts: number;
     floorPassRate: number;
