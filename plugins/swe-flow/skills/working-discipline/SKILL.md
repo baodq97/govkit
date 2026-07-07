@@ -1,19 +1,17 @@
 ---
 name: working-discipline
 description: >
-  Thinking-checkpoint discipline for any substantive implementation, debugging, or
-  autonomous task — 21 trigger-gated items (trigger → mandatory question → evidence to
-  produce) that cut agent error and reduce how often a human must intervene. Covers
-  epistemic discipline (competing hypotheses, sufficient-condition "done",
-  refute-your-own-fix), risk-scaled autonomy (one-way/two-way doors, calibration bands,
-  pre-mortem, loop detection, stop rules, constraints-first, verifiable increments), and
-  blind spots (the goal behind the request, Chesterton's fence, negative space, disanalogy
-  check, provenance labeling, independent ensemble). Use at the START of any non-trivial
-  coding/debugging task, before an autonomous or long-running run, when asked to "work
-  carefully", "double-check", "làm cẩn thận", "reduce errors", "be more autonomous", or
-  after a model has been looping/retrying the same failing fix. NOT a procedure to
-  perform — a set of checkpoints that fire on their triggers and demand evidence, with an
-  explicit N/A escape valve so a strong model pays near-zero overhead.
+  Thinking-checkpoint discipline for substantive implementation, debugging, or autonomous
+  work — 21 trigger-gated items (trigger → mandatory question → evidence to produce) that
+  cut agent error and human escalation. Covers epistemic discipline (competing hypotheses,
+  sufficient-condition "done", refute-your-own-fix), risk-scaled autonomy (one-way/two-way
+  doors, calibration, pre-mortem, loop detection, stop rules, constraints-first), and
+  blind spots (the goal behind the request, Chesterton's fence, negative space, provenance
+  labeling, independent ensemble). Use at the START of any non-trivial coding/debugging
+  task, before an autonomous or long-running run, when asked to "work carefully",
+  "double-check", "làm cẩn thận", "reduce errors", "be more autonomous", or after looping
+  on the same failing fix. NOT a procedure — checkpoints fire on their triggers and demand
+  evidence, with an N/A escape valve so a strong model pays near-zero overhead.
 allowed-tools: Read, Grep, Glob, Bash, Write, Edit
 ---
 
@@ -57,6 +55,8 @@ land where they are cheap to undo, and make escalation to a human rare but high-
   edit on a branch, run a test — act freely, never ask) or a one-way door (destructive,
   outward-facing, irreversible: force-push, delete, publish, migrate). **The door sets the
   evidence bar, not your confidence.** One-way + uncertain → raise the bar or escalate.
+  The classification itself is silent — state it only when the door is one-way or
+  borderline; two-way actions carry zero visible ceremony.
 
 Everything else fires on its trigger — see the reference.
 
