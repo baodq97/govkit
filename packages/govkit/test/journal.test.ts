@@ -4,17 +4,14 @@ import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import type { GovkitConfig } from "../src/config";
-import {
-  appendJournal,
-  buildJournalRecord,
-  type JournalRecord,
-  resolveJournalPath,
-} from "../src/journal";
+import { appendJournal, type JournalRecord, resolveJournalPath } from "../src/journal";
 
 // The --journal sensor's two contracts, each pinned here:
-//   1. the record/writer layer is correct (shape, JSONL append, path confinement), and
-//   2. at the CLI it is PURELY observational — it records the gate's verdict and a broken
-//      journal (unwritable path) warns without ever changing the exit code.
+//   1. the record/writer layer is correct (JSONL append, path confinement), and
+//   2. at the CLI it is PURELY observational — it records the gate's verdict (including a
+//      THROWN run) and a broken journal (unwritable path) warns without ever changing the
+//      exit code. The record shape itself is built inline by cli.ts, so its projection
+//      (docs/violations, artifact counts, omitted-not-null optionals) is pinned e2e below.
 
 const CLI = join(import.meta.dir, "../dist/cli.js");
 
@@ -23,57 +20,17 @@ const CFG: GovkitConfig = {
   docs: { ignore: [], base: { required: [] }, types: {} },
 };
 
-describe("buildJournalRecord — shape", () => {
-  it("builds the full record with optional parts present", () => {
-    const record = buildJournalRecord({
-      cmd: "check",
-      root: "/repo",
-      gitSha: "abc123",
-      verify: {
-        ok: false,
-        checked: 3,
-        violations: [
-          { file: "/repo/docs/adr/ADR-0001.md", type: "adr", kind: "frontmatter", problems: ["x"] },
-        ],
-      },
-      eval: {
-        ok: true,
-        threshold: 70,
-        scored: 2,
-        averageScore: 90,
-        floorPassRate: 1,
-        advisoryPassRate: 0.5,
-        artifacts: [],
-      },
-      ok: false,
-      durationMs: 12,
-    });
-    expect(record.cmd).toBe("check");
-    expect(record.root).toBe("/repo");
-    expect(record.gitSha).toBe("abc123");
-    expect(record.ok).toBe(false);
-    expect(record.durationMs).toBe(12);
-    // ISO timestamp round-trips through Date.
-    expect(new Date(record.at).toISOString()).toBe(record.at);
-    expect(record.verify).toEqual({
-      docs: 3,
-      violations: [{ path: "/repo/docs/adr/ADR-0001.md", kind: "frontmatter" }],
-    });
-    expect(record.eval).toEqual({
-      artifacts: 2,
-      floorPassRate: 1,
-      advisoryPassRate: 0.5,
-      averageScore: 90,
-    });
-  });
-
-  it("OMITS gitSha/verify/eval when absent (never null keys)", () => {
-    const record = buildJournalRecord({ cmd: "verify", root: "/r", ok: true, durationMs: 1 });
-    expect("gitSha" in record).toBe(false);
-    expect("verify" in record).toBe(false);
-    expect("eval" in record).toBe(false);
-  });
-});
+// A minimal record literal for the writer tests — the collapsed JournalRecord shape.
+function record(overrides: Partial<JournalRecord>): JournalRecord {
+  return {
+    at: new Date().toISOString(),
+    cmd: "verify",
+    root: "/r",
+    ok: true,
+    durationMs: 1,
+    ...overrides,
+  };
+}
 
 describe("resolveJournalPath — default + confinement", () => {
   it("defaults to .govkit/journal.jsonl under root", () => {
@@ -104,9 +61,8 @@ describe("appendJournal — JSONL writer", () => {
 
   it("creates the parent dir and appends one parseable line per run", () => {
     const path = join(dir, ".govkit", "journal.jsonl");
-    const record = buildJournalRecord({ cmd: "verify", root: dir, ok: true, durationMs: 5 });
-    appendJournal(path, record);
-    appendJournal(path, buildJournalRecord({ cmd: "eval", root: dir, ok: false, durationMs: 7 }));
+    appendJournal(path, record({ cmd: "verify", root: dir, durationMs: 5 }));
+    appendJournal(path, record({ cmd: "eval", root: dir, ok: false, durationMs: 7 }));
     const lines = readFileSync(path, "utf8").trim().split("\n");
     expect(lines).toHaveLength(2);
     const parsed = lines.map((l) => JSON.parse(l) as JournalRecord);
@@ -197,6 +153,34 @@ describe("CLI --journal (e2e on dist/cli.js)", () => {
     expect(second.ok).toBe(true);
     expect(second.verify).toBeDefined();
     expect(second.eval).toBeDefined();
+    // Optional fields are OMITTED, never null: an unscoped, non-throwing run has neither.
+    expect("changed" in second).toBe(false);
+    expect("error" in second).toBe(false);
+  });
+
+  it("records the resolved --changed base ref in the `changed` field", () => {
+    const r = cli(["check", "--journal", "--changed", "--base", "HEAD", "--root", root]);
+    expect(r.status).toBe(0);
+    const journal = join(root, ".govkit", "journal.jsonl");
+    const line = JSON.parse(readFileSync(journal, "utf8").trim()) as JournalRecord;
+    expect(line.cmd).toBe("check");
+    expect(line.changed).toBe("HEAD");
+  });
+
+  it("a THROWN run (broken govkit.yml) still appends ok:false + error, exit code unchanged", () => {
+    // Unclosed flow sequence → parseYaml throws → loadConfig throws before any verdict
+    // exists. The sensor must not go blind on exactly this failure.
+    writeFileSync(join(root, "govkit.yml"), "docs: [\n");
+    const r = cli(["verify", "--journal", "--root", root]);
+    expect(r.status).toBe(1); // the top-level operational-error handler, unchanged
+    expect(r.stderr).toContain("govkit:");
+    const journal = join(root, ".govkit", "journal.jsonl");
+    const line = JSON.parse(readFileSync(journal, "utf8").trim()) as JournalRecord;
+    expect(line.cmd).toBe("verify");
+    expect(line.ok).toBe(false);
+    expect(line.error).toBeTruthy();
+    expect(line.error).not.toContain("\n"); // first line only
+    expect("verify" in line).toBe(false); // the run threw before a verdict existed
   });
 
   it("rejects --journal on a non-gate command (report) with exit 2", () => {

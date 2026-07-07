@@ -1,7 +1,7 @@
-import { basename, isAbsolute, relative, resolve } from "node:path";
+import { basename } from "node:path";
 import { type GovkitConfig, loadConfig } from "../config";
 import { isParseError, parseFrontMatter } from "../frontmatter";
-import { typeDir } from "../util";
+import { isInside, typeDir } from "../util";
 
 // The JSON a PreToolUse hook receives on stdin (Claude Code 2.1.x). Only the
 // fields this gate uses are typed; the rest is ignored.
@@ -25,11 +25,6 @@ export interface AuditDecision {
    * `verify`'s cross-doc job); it only reminds. Never blocks.
    */
   remind?: string;
-}
-
-function isInside(dir: string, file: string): boolean {
-  const rel = relative(resolve(dir), resolve(file));
-  return rel !== "" && !rel.startsWith("..") && !isAbsolute(rel);
 }
 
 // Per-write governance gate, the interactive twin of `govkit verify`. Governs

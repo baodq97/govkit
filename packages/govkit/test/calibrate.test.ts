@@ -118,7 +118,60 @@ describe("runCalibrate — floor confusion matrix", () => {
     expect(r.falseNegatives).toEqual([join(corpus, "weak", "docs", "adr", "ADR-0001.md")]);
     expect(r.baseline?.recallRegressed).toBe(true);
     expect(r.baseline?.f1Regressed).toBe(true);
+    expect(r.baseline?.corpusShrunk).toBe(false); // same coverage — a miss, not a shrink
     expect(r.ok).toBe(false);
+  });
+
+  it("flags a SHRUNKEN corpus vs the baseline counts as a regression (F4)", () => {
+    // A perfect 1-good/1-weak matrix — but the committed baseline pins 4+4 graded docs,
+    // so coverage shrank: the ratio comparison alone would pass this (recall/f1 both 1).
+    plant("good", "ADR-0001", SUBSTANTIVE);
+    plant("weak", "ADR-0001", STUB);
+    const baseline = {
+      floor: { precision: 1, recall: 1, f1: 1 },
+      counts: { tp: 4, fp: 0, fn: 0, tn: 4 },
+      advisory: { goodAverageScore: 100, weakAverageScore: 0 },
+    };
+    const r = runCalibrate({ corpus, config: CFG, baseline });
+    expect(r.counts).toEqual({ tp: 1, fp: 0, fn: 0, tn: 1 });
+    expect(r.baseline?.recallRegressed).toBe(false);
+    expect(r.baseline?.f1Regressed).toBe(false);
+    expect(r.baseline?.corpusShrunk).toBe(true);
+    expect(r.ok).toBe(false); // corpus coverage shrank → same verdict as a floor regression
+  });
+
+  it("throws naming the file when a corpus doc is NOT graded (no front-matter stub, F3)", () => {
+    plant("good", "ADR-0001", SUBSTANTIVE);
+    plant("weak", "ADR-0001", STUB);
+    // A weak fixture with NO front-matter: runEval silently skips it, so without the
+    // coverage check it would vanish from the matrix — a fixture-authoring error.
+    const orphan = join(corpus, "weak", "docs", "adr", "ADR-0002.md");
+    writeFileSync(orphan, "Just a bare stub with no front-matter block.\n");
+    expect(() => runCalibrate({ corpus, config: CFG })).toThrow(
+      /corpus doc\(s\) not graded[\s\S]*ADR-0002\.md/,
+    );
+  });
+
+  it("throws when a corpus doc lives under a dir no configured type covers (F3)", () => {
+    plant("good", "ADR-0001", SUBSTANTIVE);
+    plant("weak", "ADR-0001", STUB);
+    const strayDir = join(corpus, "good", "docs", "unknown-type");
+    mkdirSync(strayDir, { recursive: true });
+    writeFileSync(join(strayDir, "DOC-0001.md"), `${FM("DOC-0001")}${SUBSTANTIVE}`);
+    expect(() => runCalibrate({ corpus, config: CFG })).toThrow(
+      /corpus tree .*good.*not graded.*DOC-0001\.md/,
+    );
+  });
+
+  it("calibrates the standard corpus layout even when the HOST config sets docs.root (F13)", () => {
+    // RFC-0007: a host repo governed under .govkit must still grade the corpus, whose
+    // convention is type dirs directly under good/ and weak/ — docs.root is forced to ".".
+    plant("good", "ADR-0001", SUBSTANTIVE);
+    plant("weak", "ADR-0001", STUB);
+    const hosted: GovkitConfig = { ...CFG, docs: { ...CFG.docs, root: ".govkit" } };
+    const r = runCalibrate({ corpus, config: hosted });
+    expect(r.counts).toEqual({ tp: 1, fp: 0, fn: 0, tn: 1 });
+    expect(r.ok).toBe(true);
   });
 
   it("throws the govkit: operational error when good/ or weak/ is missing", () => {
@@ -150,7 +203,8 @@ describe("CLI calibrate (e2e on dist/cli.js against the repo's labeled corpus)",
     const path = join(corpus, "baseline.json");
     const write = cli(["calibrate", "--corpus", FIXTURES, "--baseline", path, "--update-baseline"]);
     expect(write.status).toBe(0);
-    expect(write.stdout).toContain("baseline updated");
+    // The confirmation is a status line, not a result: stderr, so --json stdout stays pure.
+    expect(write.stderr).toContain("baseline updated");
     const baseline = JSON.parse(readFileSync(path, "utf8"));
     expect(baseline.floor.precision).toBe(1);
     expect(baseline.counts.fp).toBe(0);
@@ -158,6 +212,31 @@ describe("CLI calibrate (e2e on dist/cli.js against the repo's labeled corpus)",
     const rerun = cli(["calibrate", "--corpus", FIXTURES, "--baseline", path]);
     expect(rerun.status).toBe(0);
     expect(rerun.stdout).toContain("(ok)"); // the baseline comparison line is printed
+  });
+
+  it("a missing --baseline file WITHOUT --update-baseline is a hard error naming the path (F1)", () => {
+    const path = join(corpus, "no-such-baseline.json");
+    const r = cli(["calibrate", "--corpus", FIXTURES, "--baseline", path]);
+    expect(r.status).toBe(1);
+    expect(r.stderr).toContain(`govkit: baseline file not found: ${path}`);
+    expect(r.stderr).toContain("--update-baseline to create it");
+  });
+
+  it("--json --update-baseline keeps stdout pure JSON (F2)", () => {
+    const path = join(corpus, "baseline.json");
+    const r = cli([
+      "calibrate",
+      "--json",
+      "--corpus",
+      FIXTURES,
+      "--baseline",
+      path,
+      "--update-baseline",
+    ]);
+    expect(r.status).toBe(0);
+    const parsed = JSON.parse(r.stdout); // throws (fails the test) on any non-JSON noise
+    expect(parsed.counts.fp).toBe(0);
+    expect(r.stderr).toContain("baseline updated");
   });
 
   it("exits 2 with a usage line when --corpus is missing", () => {
