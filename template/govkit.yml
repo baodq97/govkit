@@ -4,6 +4,12 @@
 # govkit by editing this file.
 schemaVersion: 1
 
+# Opt-in surfaces (RFC-0012 / RFC-0014) — uncomment to use:
+# journal:                    # gate-outcome sensor: verify/eval/check --journal append here
+#   path: .govkit/journal.jsonl
+# tiers:                      # downgrade a verify kind to a warning (default: all blocking)
+#   index: advisory
+
 # ── Layer 1: the structural GATE (`govkit verify`) ───────────────────────────
 # Front-matter completeness · status ∈ allowed set · id↔filename convention ·
 # INDEX sync · globally-unique ids · no unresolved placeholders. Binary pass/fail.
