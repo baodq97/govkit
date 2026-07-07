@@ -4,6 +4,11 @@
 # govkit by editing this file.
 schemaVersion: 1
 
+# Optional `--journal` sensor destination (verify/eval/check append one JSON line per
+# run; observational only — never affects exit codes). Default shown; must stay in-repo.
+# journal:
+#   path: .govkit/journal.jsonl
+
 # ── Layer 1: the structural GATE (`govkit verify`) ───────────────────────────
 # Front-matter completeness · status ∈ allowed set · id↔filename convention ·
 # INDEX sync · globally-unique ids · no unresolved placeholders. Binary pass/fail.

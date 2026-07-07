@@ -111,6 +111,20 @@ export function gitMatchCount(root: string, pathspecs: string[]): number {
   }
 }
 
+/** Current HEAD commit sha, or undefined when git (or any commit) is absent. Feeds the
+ *  `--journal` sensor's `gitSha` field — a sensor annotation, so absence is NOT an error:
+ *  the field is simply omitted (same degrade-not-fail posture as `stale`). */
+export function gitHeadSha(root: string): string | undefined {
+  if (!gitAvailable(root)) return undefined;
+  try {
+    const sha = git(root, ["rev-parse", "HEAD"]).trim();
+    return sha === "" ? undefined : sha;
+  } catch {
+    // safe to omit: a repo with no commits yet has no HEAD — the journal drops the field.
+    return undefined;
+  }
+}
+
 function git(root: string, args: string[]): string {
   try {
     return execFileSync("git", args, {

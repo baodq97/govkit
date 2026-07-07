@@ -1,21 +1,26 @@
+import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import { parseArgs } from "node:util";
 import { type AdoptResult, runAdopt } from "./commands/adopt";
 import { type AuditDecision, auditWrite, type HookInput } from "./commands/audit-write";
+import { type CalibrateResult, type CalibrationBaseline, runCalibrate } from "./commands/calibrate";
 import { type EvalResult, runEval } from "./commands/eval";
 import { type InitResult, runInit } from "./commands/init";
 import { type ReportResult, runReport } from "./commands/report";
 import { runStale, type StaleResult } from "./commands/stale";
 import { runVerify, type VerifyResult } from "./commands/verify";
-import { gitChangedDocs, resolveChangedBase } from "./util";
+import { loadConfig } from "./config";
+import { appendJournal, buildJournalRecord, resolveJournalPath } from "./journal";
+import { gitChangedDocs, gitHeadSha, resolveChangedBase } from "./util";
 
 const HELP = `govkit — deterministic docs-as-code governance engine
 
 Usage:
   govkit init         [--root <dir>] [--force] [--docs-root <dir>]
   govkit init --adopt [--root <dir>] [--apply]  (migrate existing prose metadata → front-matter)
-  govkit check        [--root <dir>] [--changed [--base <ref>]]  (verify + eval — the no-key CI gate)
-  govkit verify       [--root <dir>] [--json] [--changed [--base <ref>]]
-  govkit eval         [--root <dir>] [--json] [--changed [--base <ref>]]
+  govkit check        [--root <dir>] [--changed [--base <ref>]] [--journal]  (verify + eval — the no-key CI gate)
+  govkit verify       [--root <dir>] [--json] [--changed [--base <ref>]] [--journal]
+  govkit eval         [--root <dir>] [--json] [--changed [--base <ref>]] [--journal]
+  govkit calibrate    --corpus <dir> [--root <dir>] [--json] [--baseline <file> [--update-baseline]]
   govkit report       [--root <dir>] [--json]   (lifecycle histogram — done / in-flight / cleanup)
   govkit stale        [--root <dir>] [--json]   (advisory: governed code newer than its doc — needs git)
   govkit audit-write  [--root <dir>]        (reads a PreToolUse hook payload on stdin)
@@ -34,6 +39,11 @@ Commands:
                sync, unique ids, no placeholders. Binary pass/fail (quality control).
   eval         Quality signal: a required structural FLOOR (blocks) + an advisory
                0–100 score against the deterministic rubric in govkit.yml.
+  calibrate    The eval's own regression harness: grade a LABELED corpus (good/ must
+               pass the required floor, weak/ must fail it) and report the floor's
+               confusion matrix + precision/recall/f1. Exits 1 on ANY false positive
+               (a good doc blocked — the zero-FP hard invariant) or, with --baseline,
+               on a recall/f1 drop vs the committed baseline.
   report       Advisory lifecycle view: per-type status histogram with the ids in
                each bucket, marking which statuses are terminal (decided/shipped per
                terminalStatuses). Answers "what is done / in-flight / cleanup". Never
@@ -57,6 +67,15 @@ Options:
                checks (only the report is scoped, so a new duplicate id / dangling ref is
                still caught); eval scores only the changed docs. Requires git.
   --base       Base ref for --changed (default: origin/main, else HEAD).
+  --journal    Sensor mode (verify, eval, check): append one JSON line per run to the
+               journal (.govkit/journal.jsonl, or journal.path in govkit.yml). Purely
+               observational — a journal write failure warns on stderr and NEVER
+               changes the command's exit code.
+  --corpus     (calibrate) Labeled corpus dir containing good/ and weak/ subtrees.
+  --baseline   (calibrate) Baseline JSON to compare the floor matrix against.
+  --update-baseline
+               (calibrate) Rewrite --baseline from the current run. Refused (exit 1,
+               nothing written) when the run has false positives or regressed.
   --adopt      Migration mode for init (see above). Dry-run unless --apply.
   --apply      Write the proposed front-matter to disk (init --adopt only).
   --docs-root  (init only, RFC-0007) Parent dir for kit-managed docs, e.g. .govkit —
@@ -260,6 +279,88 @@ function printStale(result: StaleResult): void {
   );
 }
 
+function printCalibrate(result: CalibrateResult): void {
+  const stream = result.ok ? process.stdout : process.stderr;
+  const r3 = (n: number): string => n.toFixed(3).replace(/\.?0+$/, "") || "0";
+  const { tp, fp, fn, tn } = result.counts;
+  stream.write(
+    `govkit calibrate: ${result.ok ? "OK" : "FAIL"} — floor matrix: ` +
+      `tp ${tp}, fp ${fp}, fn ${fn}, tn ${tn}; ` +
+      `precision ${r3(result.floor.precision)}, recall ${r3(result.floor.recall)}, ` +
+      `f1 ${r3(result.floor.f1)}; advisory avg: good ${result.advisory.goodAverageScore}/100, ` +
+      `weak ${result.advisory.weakAverageScore}/100.\n`,
+  );
+  for (const file of result.falsePositives) {
+    stream.write(`  FP ${file} — good artifact blocked by the required floor (must be zero)\n`);
+  }
+  for (const file of result.falseNegatives) {
+    stream.write(
+      `  FN ${file} — weak artifact cleared the required floor (a stub the gate misses)\n`,
+    );
+  }
+  if (result.baseline) {
+    const b = result.baseline;
+    const tag = b.recallRegressed || b.f1Regressed ? "REGRESSION" : "ok";
+    stream.write(
+      `  baseline: recall ${r3(b.floor.recall)} → ${r3(result.floor.recall)}, ` +
+        `f1 ${r3(b.floor.f1)} → ${r3(result.floor.f1)} (${tag})\n`,
+    );
+  }
+}
+
+// Load + shape-check a calibration baseline. Malformed JSON or a missing floor block is an
+// operational error (thrown as `govkit: …`) — comparing against garbage would let a
+// regression pass on an undefined < undefined false.
+function readBaseline(path: string): CalibrationBaseline {
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(readFileSync(path, "utf8"));
+  } catch (err) {
+    const detail = err instanceof Error ? err.message : String(err);
+    throw new Error(`govkit: cannot read baseline ${path}: ${detail}`);
+  }
+  const baseline = parsed as CalibrationBaseline;
+  const floor = baseline?.floor;
+  if (
+    typeof floor?.precision !== "number" ||
+    typeof floor?.recall !== "number" ||
+    typeof floor?.f1 !== "number"
+  ) {
+    throw new Error(
+      `govkit: baseline ${path} is malformed — expected { "floor": { "precision", "recall", "f1" }, … }`,
+    );
+  }
+  return baseline;
+}
+
+// The `--journal` sensor write. Runs AFTER printing, and NO failure in here — an escaping
+// journal.path, an unwritable destination — may change the command's exit code: a broken
+// sensor must never break (or un-break) the gate. One warning line, then move on.
+function writeJournal(
+  cmd: "verify" | "eval" | "check",
+  root: string,
+  durationMs: number,
+  parts: { verify?: VerifyResult; eval?: EvalResult },
+  ok: boolean,
+): void {
+  try {
+    const config = loadConfig(root);
+    const record = buildJournalRecord({
+      cmd,
+      root,
+      gitSha: gitHeadSha(root),
+      verify: parts.verify,
+      eval: parts.eval,
+      ok,
+      durationMs,
+    });
+    appendJournal(resolveJournalPath(root, config), record);
+  } catch (err) {
+    const detail = err instanceof Error ? err.message : String(err);
+    process.stderr.write(`govkit: journal write failed: ${detail}\n`);
+  }
+}
+
 async function main(argv: string[]): Promise<number> {
   const { values, positionals } = parseArgs({
     args: argv,
@@ -269,6 +370,10 @@ async function main(argv: string[]): Promise<number> {
       json: { type: "boolean", default: false },
       changed: { type: "boolean", default: false },
       base: { type: "string" },
+      journal: { type: "boolean", default: false },
+      corpus: { type: "string" },
+      baseline: { type: "string" },
+      "update-baseline": { type: "boolean", default: false },
       adopt: { type: "boolean", default: false },
       apply: { type: "boolean", default: false },
       "docs-root": { type: "string" },
@@ -300,6 +405,28 @@ async function main(argv: string[]): Promise<number> {
   }
   if (values["docs-root"] !== undefined && command !== "init") {
     process.stderr.write("govkit: --docs-root is only valid for init\n");
+    return 2;
+  }
+  // `--journal` is a sensor on the gate commands only; on anything else the user clearly
+  // expected a record that would never be written — reject loudly (same guard as --changed).
+  if (values.journal && command !== "verify" && command !== "eval" && command !== "check") {
+    process.stderr.write("govkit: --journal is only valid for verify, eval, or check\n");
+    return 2;
+  }
+  if (values.corpus !== undefined && command !== "calibrate") {
+    process.stderr.write("govkit: --corpus is only valid for calibrate\n");
+    return 2;
+  }
+  if (values.baseline !== undefined && command !== "calibrate") {
+    process.stderr.write("govkit: --baseline is only valid for calibrate\n");
+    return 2;
+  }
+  if (values["update-baseline"] && command !== "calibrate") {
+    process.stderr.write("govkit: --update-baseline is only valid for calibrate\n");
+    return 2;
+  }
+  if (values["update-baseline"] && values.baseline === undefined) {
+    process.stderr.write("govkit: --update-baseline requires --baseline <file>\n");
     return 2;
   }
 
@@ -352,15 +479,23 @@ async function main(argv: string[]): Promise<number> {
       return 0;
     }
     case "verify": {
-      const result = runVerify({ root: values.root ?? process.cwd(), changed });
+      const root = values.root ?? process.cwd();
+      const started = Date.now();
+      const result = runVerify({ root, changed });
+      const durationMs = Date.now() - started;
       if (values.json) process.stdout.write(`${JSON.stringify(result, null, 2)}\n`);
       else printVerify(result);
+      if (values.journal) writeJournal("verify", root, durationMs, { verify: result }, result.ok);
       return result.ok ? 0 : 1;
     }
     case "eval": {
-      const result = runEval({ root: values.root ?? process.cwd(), changed });
+      const root = values.root ?? process.cwd();
+      const started = Date.now();
+      const result = runEval({ root, changed });
+      const durationMs = Date.now() - started;
       if (values.json) process.stdout.write(`${JSON.stringify(result, null, 2)}\n`);
       else printEval(result);
+      if (values.journal) writeJournal("eval", root, durationMs, { eval: result }, result.ok);
       return result.ok ? 0 : 1;
     }
     case "check": {
@@ -368,11 +503,54 @@ async function main(argv: string[]): Promise<number> {
       // Both run regardless of the other's result, so one pass surfaces every failure.
       // --changed threads into BOTH halves so the whole entrypoint is adoptable (RFC-0005).
       const root = values.root ?? process.cwd();
+      const started = Date.now();
       const verify = runVerify({ root, changed });
-      printVerify(verify);
       const evaluation = runEval({ root, changed });
+      const durationMs = Date.now() - started;
+      printVerify(verify);
       printEval(evaluation);
-      return verify.ok && evaluation.ok ? 0 : 1;
+      const ok = verify.ok && evaluation.ok;
+      if (values.journal) {
+        writeJournal("check", root, durationMs, { verify, eval: evaluation }, ok);
+      }
+      return ok ? 0 : 1;
+    }
+    case "calibrate": {
+      // The eval's regression harness. All file I/O (baseline read/write) stays here so
+      // runCalibrate remains pure like the other commands.
+      if (!values.corpus) {
+        process.stderr.write(
+          "govkit: calibrate requires --corpus <dir> — a labeled corpus containing good/ and weak/\n" +
+            "  usage: govkit calibrate --corpus <dir> [--root <dir>] [--json] " +
+            "[--baseline <file> [--update-baseline]]\n",
+        );
+        return 2;
+      }
+      const root = values.root ?? process.cwd();
+      const baseline =
+        values.baseline && existsSync(values.baseline) ? readBaseline(values.baseline) : undefined;
+      const result = runCalibrate({ corpus: values.corpus, config: loadConfig(root), baseline });
+      if (values.json) process.stdout.write(`${JSON.stringify(result, null, 2)}\n`);
+      else printCalibrate(result);
+      if (values["update-baseline"]) {
+        // Refuse to lower the bar in the same breath as a regression: a run with any FP or
+        // a recall/f1 drop cannot become the new baseline. Better-or-equal is the normal path.
+        if (!result.ok) {
+          process.stderr.write(
+            "govkit calibrate: refusing to update baseline — the current run has false " +
+              "positives or a floor regression; nothing written.\n",
+          );
+          return 1;
+        }
+        const next: CalibrationBaseline = {
+          floor: result.floor,
+          counts: result.counts,
+          advisory: result.advisory,
+        };
+        writeFileSync(values.baseline as string, `${JSON.stringify(next, null, 2)}\n`, "utf8");
+        process.stdout.write(`govkit calibrate: baseline updated → ${values.baseline}\n`);
+      }
+      return result.ok ? 0 : 1;
     }
     case "report": {
       // Advisory lifecycle view (RFC-0008). Read-only, no exit-code effect: a report that
