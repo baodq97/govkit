@@ -36,6 +36,18 @@ keyword-salad with the right headings. So `eval` is a **floor**, tuned for zero
 false-positive on legitimate docs, accepting that a determined gamer passes it. Judging
 whether the prose is *sound* is a keyed reviewer's job, never part of the no-key CI gate.
 
+## Measuring the gate itself (RFC-0012)
+
+- **`--journal`** on `verify` / `eval` / `check`: append one JSONL gate-outcome record per
+  run to `.govkit/journal.jsonl` (configurable via `journal.path`; root-confined; a write
+  failure warns and never changes the exit code; crashed runs still record `ok: false`).
+- **`govkit calibrate --corpus <dir> [--baseline <file> [--update-baseline]]`**: run the
+  eval floor against a labeled corpus — `<dir>/good/` must pass, `<dir>/weak/` must fail —
+  and exit 1 on any false positive, on recall/F1 regression, or on corpus shrinkage vs the
+  committed baseline. A missing baseline file is a hard error (no fail-open); an ungraded
+  corpus fixture is a hard error (no green-on-nothing). Author your own corpus; the tarball
+  ships none.
+
 ## Config, not code
 
 Doc dirs, required keys, the status lifecycle, and the quality rubric are all declared in a

@@ -66,7 +66,11 @@ record per run, with fields:
   absent, never an error;
 - `verify` — `{ docs, violations: [{ path, kind }] }` — and/or `eval` — `{ artifacts,
   floorPassRate, advisoryPassRate, averageScore }`, per what ran;
-- `ok`, `durationMs`.
+- `ok`, `durationMs`; `changed` (the resolved base ref) when the run was `--changed`-scoped, so
+  a 1-doc scoped run is never trended against full-repo runs;
+- `error` on a crashed run: a thrown gate still appends `ok: false` with the first line of the
+  error before rethrowing — the sensor must stay honest exactly when the gate fails hardest,
+  or a dashboard reading the journal undercounts failures precisely during an incident.
 
 The journal path comes from a new optional `journal.path` key in `govkit.yml`, defaulting to
 `.govkit/journal.jsonl`; the parent directory is auto-created, and the path is confined under
@@ -81,9 +85,19 @@ containing `good/` and `weak/` subtrees, then scores the gate:
   precision, recall, F1 on the required floor and advisory-score stats per tree.
 - Flags: `--corpus <dir>` (required), `--baseline <file>` (optional), `--update-baseline`
   (writes the current matrix to the baseline file — a deliberate human act, recorded in git),
-  `--json`. Config resolves from `--root` like every other command.
+  `--json`. Config resolves from `--root` like every other command, except that `docs.root`
+  (RFC-0007) is forced to `.` inside the corpus trees: the corpus layout is the type dirs
+  directly under `good/` and `weak/`, independent of where the host repo keeps its live docs.
+- **Nothing fails open.** A `--baseline` path that does not exist is a hard error unless
+  `--update-baseline` is bootstrapping it — a missing file must not silently disable the
+  regression guard. A corpus doc that exists but cannot be graded (missing/broken
+  front-matter, no matching type dir, no rubric) is a fixture-authoring error and fails loud —
+  a "weak" stub the floor never even sees would otherwise prove nothing while looking covered.
 - **Exit semantics:** FP>0 ⇒ exit 1 always — the FP=0 north star is a hard gate. With a
-  baseline: recall below baseline recall, or F1 below baseline F1 ⇒ exit 1. Otherwise 0.
+  baseline: recall below baseline recall, F1 below baseline F1, **or corpus coverage shrunk**
+  (current tp+fn or tn+fp below the baseline counts — the committed counts pin coverage, so
+  deleting fixtures cannot silently keep recall at 1) ⇒ exit 1. Otherwise 0. The
+  baseline-updated confirmation prints to stderr so `--json` stdout stays pure JSON.
 
 The repo wires `calibrate --corpus packages/govkit/eval/fixtures --baseline
 packages/govkit/eval/baseline.json` into `bun run check` — a repo-script change only. The CLI
@@ -115,6 +129,11 @@ omission when absent — the same posture as `stale` (RFC-0009).
   posture).
 - **Rollback** is removing the flag and the command; the journal file and baseline are inert
   data, and nothing else reads them.
+- **The published tarball does not ship a corpus.** The npm `files` allowlist stays
+  `dist`+`templates`; `packages/govkit/eval/` is this repo's own corpus, not a consumer
+  artifact. A consumer authors their own `good/`/`weak/` trees (their governance, their
+  fixtures) and points `--corpus` at them — the READMEs document that invocation, so the
+  in-repo paths are never mistaken for a shipped surface.
 
 ## Open questions
 
