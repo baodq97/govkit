@@ -1,7 +1,7 @@
 ---
 id: RFC-0012
 title: Gate-outcome journal and confusion-matrix calibration — the deterministic sensor for the learning flywheel (R7)
-status: draft
+status: implemented
 owner: baodq97
 date: 2026-07-07
 governs:
@@ -144,6 +144,34 @@ omission when absent — the same posture as `stale` (RFC-0009).
 - **When the corpus grows via escape-log distillation, does baseline update stay a human
   act?** Yes for now — `--update-baseline` is deliberately manual and git-recorded; revisit at
   R7 phase 2 when the distiller exists.
+
+## As-built
+
+Shipped in PR #2 as one slice, both features exactly at the recorded layer split: pure
+`runCalibrate`/`parseBaseline` in `commands/calibrate.ts`, record shape + path confinement in
+`journal.ts`, every side effect (timing, printing, the append, exit codes) at the cli layer
+through a single `runGate` wiring shared by `verify`/`eval`/`check`. An 8-angle adversarial
+review pass ran between first implementation and merge; its 15 confirmed findings hardened the
+design *before* acceptance — the "nothing fails open" clauses in § Design (missing-baseline
+hard error, ungraded-fixture hard error, corpus-shrinkage regression, `docs.root` forced to `.`
+inside corpus trees, stderr confirmation under `--json`) entered the text from that review, so
+the accepted design and the shipped code are the same object. Validation at merge: 132 tests
+(26 new across feature + review fixes), biome + typecheck clean, full `bun run check` exit 0
+under bun and stock node, floor matrix tp 4 / fp 0 / fn 0 / tn 4 with baseline comparison ok.
+
+## Deviations from design
+
+- **`parseBaseline` takes a `source` param** (the file path) so operational errors keep naming
+  the offending file while the function stays pure — cli.ts retains only the `readFileSync`.
+- **`--update-baseline` on a shrink-only run rewrites and exits 0** — a deliberate,
+  git-recorded coverage rewrite per § Exit semantics; FP>0 and recall/F1 regressions still
+  refuse to write.
+- **`journal.path` resolving to the root directory itself is rejected** (the `isInside`
+  self-reference case) rather than failing later at the append — surfaced when the confinement
+  guard was unified into `util.isInside` during review.
+- **Journal `durationMs` includes report printing**, a consequence of restoring
+  print-verify-before-eval in `check`; the field measures the observable gate run, which is
+  the honest reading of its name.
 
 ## Recommendation
 

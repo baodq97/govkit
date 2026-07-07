@@ -20,8 +20,8 @@
     "format": "biome format --write .",
     "verify": "bun packages/govkit/dist/cli.js verify",
     "eval": "bun packages/govkit/dist/cli.js eval",
-    "govkit-check": "bun packages/govkit/dist/cli.js check",
-    "govkit-check:node": "node packages/govkit/dist/cli.js check",
+    "govkit-check": "bun packages/govkit/dist/cli.js check --journal",
+    "govkit-check:node": "node packages/govkit/dist/cli.js check --journal",
     "govkit-calibrate": "bun packages/govkit/dist/cli.js calibrate --corpus packages/govkit/eval/fixtures --baseline packages/govkit/eval/baseline.json",
     "check": "biome check . && bun run --filter '*' typecheck && bun run --filter '*' build && bun run --filter '*' test && bun run govkit-check && bun run govkit-check:node && bun run govkit-calibrate"
   },
