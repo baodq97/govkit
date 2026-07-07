@@ -36,6 +36,10 @@ land where they are cheap to undo, and make escalation to a human rare but high-
    violation is skipping a fired trigger *silently*. This is the escape valve that keeps
    the skill from degrading a strong model: over-constraint displaces judgment with
    ceremony, so the contract forbids only unexamined skipping, never judgment.
+   Proportionality: N/A lines may be batched into one sentence ("items 7, 10, 16: N/A —
+   trivial copy fix"), and at the trivial change class an item that fired but changed
+   nothing needs no individual line — itemized evidence is owed only where it decided
+   something.
 4. **Dosage follows change class**, using the consumer repo's own lifecycle table (for this
    repo: root `AGENTS.md` § Lifecycle). Do not invent a new taxonomy:
 

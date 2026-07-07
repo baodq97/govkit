@@ -7,6 +7,7 @@ date: 2026-07-07
 governs:
   - plugins/swe-flow/skills/working-discipline/SKILL.md
   - plugins/swe-flow/skills/working-discipline/references/discipline-items.md
+  - plugins/swe-flow/skills/working-discipline/references/eval-scenarios.md
 ---
 
 > Proposes a new public, LLM-facing surface (root `AGENTS.md` § Lifecycle: a new skill is a
@@ -100,7 +101,10 @@ mitigated by the evidence-artifact contract and the explicit N/A escape valve.
   question.
 - **Item-set versioning.** If real use shows an item never fires or always returns N/A, it
   should be cut; the item catalog is expected to shrink before it grows. The eval signal for
-  this is the escape log itself.
+  this is the escape log itself, plus the pinned behavioral benchmark
+  (`references/eval-scenarios.md` — five blind scenarios with pre-registered expected
+  outcomes, run A/B on Fable/Opus/Sonnet at authoring time; re-run on any new target model
+  before trusting the skill there).
 
 ## Recommendation
 
