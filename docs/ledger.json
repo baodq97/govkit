@@ -67,7 +67,15 @@
       "id": "F-R1-N3",
       "title": "third dissimilar consumer validates generality (unblocks the R5 harness generator)",
       "spec": "PRD-0001",
-      "passes": false
+      "passes": false,
+      "check": "config-surface half shipped as F-R1-CONFIG (ml-research fixture, in-repo); this entry stays red until an EXTERNAL consumer outside the author's DNA adopts — PRD-0001's monoculture risk is the unproven half"
+    },
+    {
+      "id": "F-R1-CONFIG",
+      "title": "R1 config-surface generality: a third dissimilar taxonomy (ML lab: exp/mc/ds) runs the shipped CLI end-to-end with zero engine changes",
+      "spec": "PRD-0001",
+      "passes": true,
+      "check": "packages/govkit/test/generality.test.ts — 10 e2e cases over fixtures/ml-research: .govkit docs.root, custom statuses/prefixes/required keys, cross-type refs, requiredSectionsByStatus, demoted index tier, custom journal+ledger paths, drift+ledger git surface"
     },
     {
       "id": "F-R2-JUDGE",
