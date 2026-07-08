@@ -1,7 +1,7 @@
 {
   "name": "swe-flow",
-  "version": "0.6.0",
-  "description": "LLM authoring companion to the govkit governance engine. Skills drive the SDLC chain — goal-define, domain-decompose, api-designer, data-model, and spec-author (PRD/RFC/ADR/US) — plus workflow-author (scaffold reusable .claude/workflows/*.js orchestration), working-discipline (trigger-gated thinking checkpoints that cut agent error and escalation), distill-learnings (the R7 learning loop: distill the gate journal + escape log into proposal-only guardrail changes), substance-judge (the keyed Layer-3 substance evaluation: pinned anchors, cross-model agreement, deepeval-compatible records — RFC-0019), and implementer/reviewer/doc-keeper/distiller/judge agents. Authors artifacts and orchestration, calls `npx govkit verify`; never embeds the deterministic gate.",
+  "version": "0.7.0",
+  "description": "LLM authoring companion to the govkit governance engine. Skills drive the SDLC chain — goal-define, domain-decompose, api-designer, data-model, and spec-author (PRD/RFC/ADR/US) — plus workflow-author (scaffold reusable .claude/workflows/*.js orchestration), working-discipline (trigger-gated thinking checkpoints that cut agent error and escalation), distill-learnings (the R7 learning loop: distill the gate journal + escape log into proposal-only guardrail changes), substance-judge (the keyed Layer-3 substance evaluation: pinned anchors, cross-model agreement, deepeval-compatible records — RFC-0019; selftest-gated per RFC-0020 — the judge proves itself on calibrate + a ranking probe or refuses to judge), spec-red-team (the keyed adversarial doc red-team: steelman then attack, falsifiable failure modes, one kill criterion — RFC-0022), and implementer/reviewer/doc-keeper/distiller/judge agents. Authors artifacts and orchestration, calls `npx govkit verify`; never embeds the deterministic gate.",
   "author": {
     "name": "baodq97"
   },

@@ -82,7 +82,10 @@ function checkFrontMatter(data: Record<string, unknown>, required: string[]): st
   const problems: string[] = [];
   for (const key of required) {
     if (str(data[key]) === "") {
-      problems.push(`missing or empty required front-matter key: ${key}`);
+      problems.push(
+        `missing or empty required front-matter key: ${key} — add \`${key}: <value>\` ` +
+          `to the leading \`---\` block`,
+      );
     }
   }
   return problems;
@@ -96,7 +99,10 @@ function checkPlaceholder(data: Record<string, unknown>, required: string[]): st
     const value = str(data[key]);
     if (value === "") continue; // empty is the front-matter check's job, not this one
     if (/<[^>]*>/.test(value) || PLACEHOLDER_TOKENS.has(value.toUpperCase())) {
-      problems.push(`unresolved placeholder in '${key}': ${value}`);
+      problems.push(
+        `unresolved placeholder in '${key}': ${value} — replace it with a real value ` +
+          `(owner: TBD is the one legal sentinel until a human takes ownership)`,
+      );
     }
   }
   return problems;
@@ -138,7 +144,11 @@ function checkIndex(dir: string, typeName: string, docs: Doc[]): Finding[] {
         file: indexPath,
         type: typeName,
         kind: "index",
-        problems: [`missing INDEX.md for ${docs.length} ${typeName} doc(s)`],
+        // scopeToChanged filters index problems on this exact "missing INDEX.md" prefix.
+        problems: [
+          `missing INDEX.md for ${docs.length} ${typeName} doc(s) — create it with one ` +
+            `row per doc (id, title, status)`,
+        ],
       },
     ];
   }
@@ -150,10 +160,17 @@ function checkIndex(dir: string, typeName: string, docs: Doc[]): Finding[] {
     const status = str(doc.data.status);
     if (!id) continue;
     const row = lines.find((line) => line.includes(id));
+    // scopeToChanged keys per-doc index problems on the leading doc id — keep it first.
     if (!row) {
-      problems.push(`${id} (${basename(doc.file)}) has no row in INDEX.md`);
+      problems.push(
+        `${id} (${basename(doc.file)}) has no row in INDEX.md — add a row carrying the ` +
+          `id and its status`,
+      );
     } else if (status && !row.includes(status)) {
-      problems.push(`${id} INDEX row status is stale (front-matter status: ${status})`);
+      problems.push(
+        `${id} INDEX row status is stale (front-matter status: ${status}) — update the ` +
+          `row to '${status}'`,
+      );
     }
   }
   return problems.length > 0 ? [{ file: indexPath, type: typeName, kind: "index", problems }] : [];
