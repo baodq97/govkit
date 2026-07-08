@@ -1103,3 +1103,14 @@ this file, and the session escape set from PRs #1–#9 + the 0.6.0 release.
 `fetch-depth: 0` comment in both workflows the day the gates shipped (pre-mortem, not escape).
 
 **Validation:** full `bun run check` green end to end after all encodings; calibrate FP=0 held.
+
+**Round-1 addendum (same day):** lesson 1's failure class claimed a second, bigger victim
+*before* the rule existed — the entire sprint-3 review-hardening commit (`a29564d`: 16 fixes
+incl. the `HEAD:./` append-only repair) was silently dropped when a stop-hook `--reset-author`
+amend diverged local from remote and the follow-up `git push` failed non-fast-forward behind a
+`| tail -1`. PR #5 merged without it while the gitignored `dist/` (built from the fixed source)
+kept every gate green locally — the gap only surfaced when a rebuild regressed `drift`'s raw
+`reconciled:` read and RFC-0017's seed parsed as YAML int `0`. Recovered by cherry-pick in the
+RFC-0017 PR; detection credit: the drift gate's own dogfooding. The rule needs no strengthening
+— this instance predates it — but the recovery adds the verification half in practice:
+`git ls-remote` after every push that matters, which this PR's integration performed.

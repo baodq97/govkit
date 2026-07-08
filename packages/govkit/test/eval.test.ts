@@ -1,4 +1,5 @@
 import { describe, expect, it } from "bun:test";
+import { readdirSync } from "node:fs";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { runEval } from "../src/commands/eval";
@@ -14,10 +15,17 @@ const good = join(here, "..", "eval", "fixtures", "good");
 const weak = join(here, "..", "eval", "fixtures", "weak");
 const config = loadConfig(repoRoot);
 
+// The corpus is append-only and GROWS (each distill round may add fixtures — RFC-0017), so
+// expected counts are derived from the trees, never pinned: a pinned count breaks per round.
+const fixtureCount = (tree: string): number =>
+  readdirSync(tree, { recursive: true, encoding: "utf8" }).filter(
+    (f) => f.endsWith(".md") && !f.endsWith("INDEX.md"),
+  ).length;
+
 describe("govkit eval — floor + advisory on the labeled corpus", () => {
   it("clears every good fixture: floor passes and advisory score is high", () => {
     const r = runEval({ root: good, config });
-    expect(r.scored).toBe(4); // one per type: prd, rfc, adr, us
+    expect(r.scored).toBe(fixtureCount(good)); // every fixture on disk is graded — none skipped
     expect(r.ok).toBe(true); // CI floor: all required rules pass
     expect(r.floorPassRate).toBe(1);
     expect(r.advisoryPassRate).toBe(1);
@@ -26,7 +34,8 @@ describe("govkit eval — floor + advisory on the labeled corpus", () => {
 
   it("blocks every weak fixture on the required floor (a stub cannot pass)", () => {
     const r = runEval({ root: weak, config });
-    expect(r.scored).toBe(4);
+    expect(r.scored).toBe(fixtureCount(weak));
+    expect(r.scored).toBeGreaterThanOrEqual(4); // the original corpus is the floor, growth-only
     expect(r.ok).toBe(false); // blocked
     expect(r.floorPassRate).toBe(0);
     for (const a of r.artifacts) {
