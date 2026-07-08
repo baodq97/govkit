@@ -21,3 +21,6 @@
 | [RFC-0017](./RFC-0017-learning-distiller.md) | Learning-distiller — the keyed DISTILL step of the R7 flywheel, proposal-only by construction (swe-flow:distiller) | implemented | baodq97 | 2026-07-08 |
 | [RFC-0018](./RFC-0018-governs-existence-check.md) | Governs-existence check — a ghost pathspec is a broken declaration, gated in drift | implemented | baodq97 | 2026-07-08 |
 | [RFC-0019](./RFC-0019-substance-judge.md) | Substance judge — the keyed Layer-3 verdict govkit's floor deliberately defers (swe-flow:judge) | implemented | baodq97 | 2026-07-08 |
+| [RFC-0020](./RFC-0020-selftest-gated-judge.md) | Selftest-gated substance judge — the judge must prove itself before it judges | implemented | baodq97 | 2026-07-08 |
+| [RFC-0021](./RFC-0021-report-pr-body.md) | report --pr-body — render governance state as an idempotent fenced markdown block for PR bodies | implemented | baodq97 | 2026-07-08 |
+| [RFC-0022](./RFC-0022-spec-red-team.md) | spec-red-team — an adversarial review skill for governed docs (swe-flow) | implemented | baodq97 | 2026-07-08 |

@@ -170,7 +170,8 @@ export function loadConfig(root: string): GovkitConfig {
   const escaped = relative(resolve(root), resolve(root, docsRoot));
   if (escaped.startsWith("..") || isAbsolute(escaped)) {
     throw new Error(
-      `govkit: docs.root '${docsRoot}' resolves outside the repo root — it must stay within --root`,
+      `govkit: docs.root '${docsRoot}' in ${path} resolves outside the repo root — ` +
+        `it must stay within --root`,
     );
   }
   // `tiers` fails LOUD at load, unlike the tolerant `journal` passthrough: a typo'd kind
@@ -181,20 +182,21 @@ export function loadConfig(root: string): GovkitConfig {
   if (tiers !== undefined) {
     if (typeof tiers !== "object" || tiers === null || Array.isArray(tiers)) {
       throw new Error(
-        `govkit: tiers must be a map of verify kind → blocking|advisory ` +
+        `govkit: tiers must be a map of verify kind → blocking|advisory in ${path} ` +
           `(valid kinds: ${VIOLATION_KINDS.join(", ")})`,
       );
     }
     for (const [kind, tier] of Object.entries(tiers)) {
       if (!(VIOLATION_KINDS as readonly string[]).includes(kind)) {
         throw new Error(
-          `govkit: tiers names unknown verify kind '${kind}' — ` +
+          `govkit: tiers names unknown verify kind '${kind}' in ${path} — ` +
             `valid kinds: ${VIOLATION_KINDS.join(", ")}`,
         );
       }
       if (tier !== "blocking" && tier !== "advisory") {
         throw new Error(
-          `govkit: tiers.${kind} must be 'blocking' or 'advisory' (got '${String(tier)}')`,
+          `govkit: tiers.${kind} must be 'blocking' or 'advisory' (got '${String(tier)}' ` +
+            `in ${path})`,
         );
       }
     }

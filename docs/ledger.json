@@ -104,6 +104,34 @@
       "spec": "RFC-0015",
       "passes": true,
       "check": "RFC-0015 § Amendment; drift.test.ts pins squash-rewrite staying green + legacy-claim migration via --ack; repo's 7 opted-in docs migrated to sha256: claims in one --ack diff"
+    },
+    {
+      "id": "F-R2-SELFTEST",
+      "title": "selftest-gated judge: calibrate green + strict good>weak ranking probe before any verdict, refusal recorded, provenance (exact model id, temperature 0, anchorsHash) pinned per record",
+      "spec": "RFC-0020",
+      "passes": true,
+      "check": "skill-side contract only, engine untouched by construction — substance-judge SKILL.md step 3 + judge.md provenance fields + pinned fixture pair under references/selftest-fixtures/ (keyed and opt-in, so no CI test exists to cite; the contract text is the shipped surface)"
+    },
+    {
+      "id": "F-REPORT-PRBODY",
+      "title": "report --pr-body: marker-fenced, deterministic GFM rendering of the lifecycle report for idempotent PR-body splicing",
+      "spec": "RFC-0021",
+      "passes": true,
+      "check": "packages/govkit/test/report-pr-body.test.ts — 10 e2e cases: exact begin/end markers, byte-identical re-runs, per-type tables with terminal ✔, --pr-body+--json rejected exit 2, plain report byte-unchanged; splice recipe in plugins/swe-flow/README.md"
+    },
+    {
+      "id": "F-RED-TEAM",
+      "title": "spec-red-team skill: steelman-then-attack adversarial pass over one governed doc before a status flip, read-only by construction",
+      "spec": "RFC-0022",
+      "passes": true,
+      "check": "plugins/swe-flow/skills/spec-red-team/ SKILL.md allowed-tools grant Read/Grep/Glob + scoped govkit/git Bash only — no Write/Edit/Task (structural read-only); finding format + ranking rubric pinned in references/finding-format.md; briefs land in PR body/comment only"
+    },
+    {
+      "id": "F-SYNC-GUARD",
+      "title": "check-sync guard: plugin.json ↔ marketplace version sync + root↔template allowlist byte-compare, first link in the check chain (class rule for US-0004's silent drift)",
+      "spec": "US-0004",
+      "passes": true,
+      "check": "node scripts/check-sync.mjs wired first in package.json \"check\" — swe-flow plugin.json and marketplace entry agree at 0.7.0 (description synced byte-identical), allowlisted root↔template pairs byte-identical; no key, no network"
     }
   ]
 }

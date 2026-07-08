@@ -300,7 +300,10 @@ export function resolveChangedBase(
   };
   if (requested && requested.length > 0) {
     if (!resolves(requested)) {
-      throw new Error(`govkit --changed: base ref '${requested}' does not resolve to a commit`);
+      throw new Error(
+        `govkit --changed: base ref '${requested}' does not resolve to a commit — ` +
+          `pass --base <ref> naming a ref this clone has (e.g. origin/main or HEAD)`,
+      );
     }
     return { ref: requested, implicitFallback: false };
   }

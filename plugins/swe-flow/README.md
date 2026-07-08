@@ -42,6 +42,16 @@ Everything **calls** `npx govkit verify` to validate — nothing embeds the dete
   a weaker model is forced to externalize its reasoning as auditable artifacts. Governed
   by RFC-0011.
 
+**Skill — the adversarial layer:**
+
+- **`skills/spec-red-team`** — attack ONE governed PRD/RFC/ADR **before its status advances**:
+  steelman the doc first, then attack; phrase every weakness as a falsifiable "Fails if ___"
+  condition (never a vibe); self-refute each candidate against what the doc already answers;
+  rank survivors by impact × likelihood × cheapness-to-test; return ranked findings + evidence
+  to gather + one explicit **kill criterion**. Advisory and read-only *by construction* — its
+  `allowed-tools` grant no Write/Edit, it never flips a status, and it is never wired into
+  no-key CI, hooks, or exit codes (the gate stays `govkit verify`/`eval`). Governed by RFC-0022.
+
 **Agents** (plugin-namespaced — usable from the `sdlc` workflow):
 
 - **`agents/implementer`** — write-only fan-out member; builds one file-disjoint work package
@@ -67,6 +77,12 @@ Everything **calls** `npx govkit verify` to validate — nothing embeds the dete
   `.govkit/evals/`, and in cross-model mode reports per-doc agreement spread (>20 points
   flags the doc for a human, not the judge). Never wired into CI, hooks, or exit codes —
   the no-key invariant outranks the feature.
+- **Selftest-gated (RFC-0020):** before any verdict, the judge must prove itself — the
+  deterministic `govkit calibrate` must be green AND the judge must rank a pinned known-good
+  fixture strictly above a known-weak one — or it **refuses to judge** and appends the refusal
+  to the same `.govkit/evals/` record stream. Every verdict (and refusal) pins the exact model
+  id, temperature 0, and an `anchorsHash` of the scoring-anchors file actually read, so any
+  score is reproducible and auditable after the fact.
 
 ## The learning loop — R7 DISTILL (RFC-0017)
 
@@ -81,6 +97,31 @@ Everything **calls** `npx govkit verify` to validate — nothing embeds the dete
   corpus is append-only (fixtures may be added, never removed or weakened). On a thin
   journal it says "insufficient data" and stops. Run on demand or from a scheduled session —
   deliberately **not** a hook: a keyed step never sits in the no-key path.
+
+## PR-body injection — the splice recipe (RFC-0021)
+
+`npx govkit report --pr-body` renders the lifecycle report as GitHub-flavoured markdown fenced
+by stable `<!-- govkit:report:begin -->` / `<!-- govkit:report:end -->` markers — deterministic
+bytes (sorted ids/statuses, no timestamps), exit 0 always, no network. govkit **emits**; writing
+the block into a PR body is the caller's job. The recipe — skills and CI call the flag and
+splice, never reimplement the report:
+
+```sh
+export REPORT="$(npx govkit report --pr-body)"
+gh pr view "$PR" --json body -q .body | node -e '
+  const body = require("node:fs").readFileSync(0, "utf8");
+  const span = /<!-- govkit:report:begin -->[\s\S]*?<!-- govkit:report:end -->/;
+  const next = span.test(body)
+    ? body.replace(span, process.env.REPORT)
+    : `${body}\n\n${process.env.REPORT}`;
+  process.stdout.write(next);
+' > /tmp/pr-body.md
+gh pr edit "$PR" --body-file /tmp/pr-body.md
+```
+
+Idempotent by construction: the markers make the splice **replace-not-append** (the block is
+added only when no span exists yet), and determinism means re-running on unchanged governance
+state is a byte-identical no-op — the block changes only when the state does.
 
 ## Install
 
