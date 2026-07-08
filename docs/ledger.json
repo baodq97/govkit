@@ -80,8 +80,9 @@
     {
       "id": "F-R2-JUDGE",
       "title": "keyed substance-judge plugin (Layer 3) — opt-in, never in no-key CI",
-      "spec": "PRD-0001",
-      "passes": false
+      "spec": "RFC-0019",
+      "passes": true,
+      "check": "swe-flow:judge agent (pinned rubric substance-v1, strict deepeval-compatible JSON) + substance-judge skill (floor-gated fan-out, cross-model spread, .govkit/evals records); engine untouched by construction"
     },
     {
       "id": "F-R0-PROVENANCE",

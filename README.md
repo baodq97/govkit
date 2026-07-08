@@ -25,7 +25,7 @@ been produced by an LLM — does not make it good. govkit separates the two ques
 |---|---|---|---|
 | **Gate** (quality *control*) | `govkit verify` | Is it well-**formed**? | binary pass/fail — blocks merge |
 | **Eval** (quality *signal*) | `govkit eval` | Is it a complete, non-stub doc? | required **floor** blocks + advisory **0–100** score |
-| **Reviewer** (substance *judge*) | `swe-flow:reviewer` agent | Is the reasoning **sound**? | opt-in, needs a key — **never** in no-key CI |
+| **Judge** (substance *verdict*) | `swe-flow:judge` + `substance-judge` skill (RFC-0019) | Is the prose **sound**? | opt-in, needs a key — **never** in no-key CI; anchored 0–100, deepeval-compatible records |
 
 The gate enforces front-matter, the status lifecycle, id↔filename convention, INDEX
 sync, unique ids, no placeholders, chain referential-integrity (RFC-0003),
@@ -53,7 +53,7 @@ e.g. `.govkit` to isolate kit-managed docs under one folder.
 *cannot* tell a real artifact from a keyword-salad with the right headings. So `eval` is
 deliberately scoped as a **floor**, tuned for zero false-positive on legitimate docs and
 accepting that a determined gamer passes it. Judging whether the prose is *sound* is the
-swe-flow `reviewer` agent's job (opt-in, keyed, outside CI). The floor's own trust is
+swe-flow `judge` agent's job (RFC-0019 — opt-in, keyed, outside CI). The floor's own trust is
 pinned by an **adversarial corpus** (`packages/govkit/eval/`) the test suite asserts
 catches every known gaming vector while passing MADR/Nygard/terse styles.
 
@@ -135,7 +135,7 @@ then `npx govkit verify` until green.
 
 # 2. Install the authoring companion (Claude Code):
 claude plugin marketplace add baodq97/govkit   # the marketplace lives in this repo
-claude plugin install swe-flow@govkit          # spec-author, workflow-author, working-discipline, 3 agents
+claude plugin install swe-flow@govkit          # spec-author, workflow-author, working-discipline, substance-judge, 5 agents
 
 # 3. Daily loop:
 npx govkit verify    # structural gate (what blocks)
@@ -190,7 +190,7 @@ on consumers (ADR-0002). Node ≥ 20 is the distribution baseline.
 MVP adoptable. Both trust layers ship and run no-key in CI: `govkit verify` (front-matter,
 status enum, id convention, INDEX sync, unique ids, no placeholders) and `govkit eval`
 (graded rubric proven by a labeled corpus), plus `govkit init` (scaffold) and the
-`audit-write` hook. The `swe-flow` plugin (goal→domain→API→data→spec-author + 3 agents)
+`audit-write` hook. The `swe-flow` plugin (goal→domain→API→data→spec-author + 5 agents)
 and the `sdlc` workflow author the artifacts the engine grades. See `AGENTS.md` for the
 governance this repo runs on itself. Next: publish (`npx govkit` / marketplace) and an
 optional opt-in LLM-judge eval layer (RFC-0001 § Open questions).

@@ -26,8 +26,9 @@ enum, id convention, INDEX sync, unique ids, no placeholders) — binary, blocks
 sections) that blocks CI **plus an advisory 0–100 score** to watch trend. Both no-key.
 An adversarial red-team proved a presence rubric cannot judge *substance* — so `eval`
 is scoped as a zero-FP floor (a gamer can pass it), and **substance judgment is the
-swe-flow `reviewer` agent** (opt-in, keyed, never in no-key CI). The floor's own trust
-is pinned by the adversarial corpus + `eval-hardening.test.ts`.
+swe-flow `judge` agent + `substance-judge` skill** (RFC-0019: pinned anchors, opt-in,
+keyed, never in no-key CI). The floor's own trust is pinned by the adversarial corpus +
+`eval-hardening.test.ts`.
 
 ## Commands
 

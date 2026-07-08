@@ -49,10 +49,24 @@ Everything **calls** `npx govkit verify` to validate — nothing embeds the dete
 - **`agents/reviewer`** — read-only governance review → `APPROVE` / `SHIP-WITH-CAVEATS` / `BLOCK`.
 - **`agents/doc-keeper`** — keeps front-matter + INDEX in sync; proposes status flips and owner
   assignments, never applies them.
+- **`agents/judge`** — scores ONE governed doc's **substance** (0–100) against the pinned
+  anchors in `skills/substance-judge/references/scoring-anchors.md`; strict JSON out,
+  read-only, refuses unfloored docs.
 
 > Agents ship as **plugin** agents (dispatchable as `swe-flow:implementer`, `swe-flow:reviewer`,
 > `swe-flow:doc-keeper`). Project `.claude/agents/` are **not** dispatchable from a workflow —
 > verified empirically — so the plugin form is required for the `sdlc` workflow to use them.
+
+## The substance layer — R2 Layer 3 (RFC-0019)
+
+- **`skills/substance-judge`** + **`agents/judge`** — the keyed, opt-in verdict the
+  deterministic floor deliberately defers (RFC-0001's honest boundary): is the prose
+  **sound**? The skill discovers the corpus from `govkit.yml`, gates on `npx govkit check`
+  first, fans one judge per doc against **rubric substance-v1** (four dimensions × five
+  anchored bands; uncertainty scores down), appends **deepeval-compatible** verdicts to
+  `.govkit/evals/`, and in cross-model mode reports per-doc agreement spread (>20 points
+  flags the doc for a human, not the judge). Never wired into CI, hooks, or exit codes —
+  the no-key invariant outranks the feature.
 
 ## The learning loop — R7 DISTILL (RFC-0017)
 
