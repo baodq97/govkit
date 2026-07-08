@@ -4,9 +4,11 @@ title: Hook-wireable gates — a blocking-hook contract for verify/eval/check (-
 status: implemented
 owner: baodq97
 date: 2026-07-07
+reconciled: c6840a4b44b3992cb24bb2a2d780da1dcd9dfe9a
 governs:
   - packages/govkit/src/cli.ts
-  - packages/govkit/templates/settings.example.json
+  - template/.claude/hooks/stop-gate.mjs
+  - template/.claude/settings.json
 ---
 
 > Makes the gate consumable as an in-loop agent guardrail, not just a CI step: a `--hook` flag

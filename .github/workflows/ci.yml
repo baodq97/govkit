@@ -9,6 +9,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 # drift + ledger read commit history; a shallow clone reads as 'no history'
 
       # Dev toolchain is bun (ADR-0002): install + the test runner.
       - name: Setup Bun
