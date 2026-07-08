@@ -4,7 +4,7 @@ title: Substance judge — the keyed Layer-3 verdict govkit's floor deliberately
 status: implemented
 owner: baodq97
 date: 2026-07-08
-reconciled: sha256:66e6c64bec86682a
+reconciled: sha256:25b26eeb1376383a
 governs:
   - plugins/swe-flow/agents/judge.md
   - plugins/swe-flow/skills/substance-judge/SKILL.md
@@ -56,9 +56,12 @@ reports the per-doc spread; a spread above 20 points flags the DOC (ambiguous su
 exactly the docs a human should read first), not the judge.
 
 **The invariant, restated as a hard boundary.** Everything here needs a key and is opt-in:
-nothing in `govkit check`, no exit-code contract, no hook wiring, and the record path lives
-under the gitignored `.govkit/`. The deterministic CLI does not learn this layer exists —
-skills call govkit, never the reverse (AGENTS.md's one-directional rule).
+nothing in `govkit check`, no exit-code contract, no hook wiring. The record path follows
+the journal's `.govkit/` convention — ignored in THIS repo, but a consumer choice in
+general (an RFC-0007 `docs.root: .govkit` consumer commits that tree), so the skill checks
+and reports whether the record file is tracked instead of assuming. The deterministic CLI
+does not learn this layer exists — skills call govkit, never the reverse (AGENTS.md's
+one-directional rule).
 
 ## Alternatives
 
@@ -74,8 +77,9 @@ skills call govkit, never the reverse (AGENTS.md's one-directional rule).
 - Plugin-only surface: swe-flow 0.5.0 → 0.6.0; the govkit engine is byte-for-byte untouched.
 - Opt-in by invocation ("judge substance", "run the substance judge"); nothing runs it
   implicitly, no CI workflow references it.
-- Verdict records land under `.govkit/` (gitignored at the repo root) — a consumer who wants
-  history commits them deliberately, mirroring the journal's posture.
+- Verdict records land under `.govkit/evals/` — whether that tree is ignored or committed
+  is the consumer's call (RFC-0007 consumers commit `.govkit/`), so the skill reports the
+  record file's tracked/ignored state; history is committed deliberately, never silently.
 - Rollback is deleting the agent + skill; no engine state, no config keys, no migration.
 
 ## Open questions
@@ -106,8 +110,11 @@ construction — no engine test changes exist to make).
 
 ## Deviations from design
 
-None at ship time — post-review hardening, if any, lands in this PR before merge (the
-RFC-0012 precedent).
+Post-review hardening (adversarial review-changes pass, same PR): the original text assumed
+`.govkit/` is gitignored everywhere — false for RFC-0007 `docs.root: .govkit` consumers, who
+commit that tree. The skill now checks and reports the record file's tracked state instead
+of assuming, and the judge agent no longer restates the dimension weights inline (the
+anchors file is the one pinned source). Folded into § Design above.
 
 ## Recommendation
 

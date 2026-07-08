@@ -4,7 +4,7 @@ title: Governs-existence check — a ghost pathspec is a broken declaration, gat
 status: implemented
 owner: baodq97
 date: 2026-07-08
-reconciled: sha256:5daae30337f8723a
+reconciled: sha256:eb483d6f09c04b88
 governs:
   - packages/govkit/src/commands/drift.ts
 ---
@@ -91,8 +91,17 @@ ack-all CANNOT case.
 
 ## Deviations from design
 
-None — the shipped behavior is the section above; review hardening, if any, lands as deltas
-here per the RFC-0010 ritual.
+Review hardening (adversarial review-changes pass, same PR) added two deltas beyond the
+original text:
+
+- **Unevaluable ≠ ghost.** A pathspec git refuses to evaluate at all (invalid magic, exit
+  128) is named as its own violation class ("git cannot evaluate governs pathspec(s): …"),
+  never misdiagnosed as "matches no tracked file" — `gitMatchCount` now returns null for a
+  git error, and `stale` treats null as its existing dangling skip.
+- **The FAIL header counts governed docs, not opted-in docs.** With a governs-only doc
+  failing the existence check, the old "N of M opted-in doc(s) drifted" could render N > M
+  while calling the failing doc "skipped"; the header now reads "N governed doc(s) in
+  violation (K opted into the claim check)".
 
 ## Recommendation
 

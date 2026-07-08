@@ -224,10 +224,13 @@ export function gitShowHead(root: string, relPath: string): string | null {
   }
 }
 
-/** Count of TRACKED files matching `pathspecs` (git glob semantics). Lets `stale` tell a dangling
- *  `governs:` glob (matches nothing → its own advisory line, never silently "fresh") from a glob
- *  that genuinely resolves (RFC-0009). */
-export function gitMatchCount(root: string, pathspecs: string[]): number {
+/** Count of TRACKED files matching `pathspecs` (git glob semantics), or null when git itself
+ *  refused to evaluate them (e.g. an invalid pathspec magic — exit 128). The null keeps the two
+ *  failure modes apart: "matches nothing" is a ghost path (RFC-0018), "git errored" is a broken
+ *  pathspec the caller must name as such, never misdiagnose as a ghost. Lets `stale` tell a
+ *  dangling `governs:` glob (matches nothing → its own advisory line, never silently "fresh")
+ *  from a glob that genuinely resolves (RFC-0009). */
+export function gitMatchCount(root: string, pathspecs: string[]): number | null {
   try {
     const out = execFileSync("git", ["ls-files", "--", ...pathspecs], {
       cwd: root,
@@ -236,7 +239,8 @@ export function gitMatchCount(root: string, pathspecs: string[]): number {
     }).trim();
     return out === "" ? 0 : out.split(/\r?\n/).length;
   } catch {
-    return 0;
+    // git could not evaluate the pathspecs at all — distinct from "0 matches".
+    return null;
   }
 }
 

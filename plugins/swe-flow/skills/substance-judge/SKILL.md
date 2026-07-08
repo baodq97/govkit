@@ -39,9 +39,11 @@ into CI, decline and cite RFC-0001/RFC-0019 — the no-key invariant outranks th
    each verdict is truthful.
 
 4. **Record.** Append each verdict as ONE line of JSON to
-   `.govkit/evals/substance-<UTC yyyymmdd-HHMM>.jsonl` (create the dir; the path rides the
-   repo's gitignored `.govkit/`, mirroring the journal's posture — committing history is the
-   human's deliberate act). Do not reformat the judge's JSON; the deepeval-compatible shape
+   `.govkit/evals/substance-<UTC yyyymmdd-HHMM>.jsonl` (create the dir). Do NOT assume
+   `.govkit/` is gitignored — a consumer using `docs.root: .govkit` (RFC-0007) COMMITS that
+   tree. Check this repo's ignore rules and say in the report whether the record file is
+   tracked; committing verdict history is the human's deliberate act, never a silent side
+   effect. Do not reformat the judge's JSON; the deepeval-compatible shape
    (`name`/`input`/`score`/`threshold`/`success`/`reason` + `rubricVersion`/`model`/
    `dimensions`) is the contract.
 

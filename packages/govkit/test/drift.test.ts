@@ -35,11 +35,11 @@ const cli = (args: string[]) =>
 const headSha = (): string =>
   execFileSync("git", ["rev-parse", "HEAD"], { cwd: root, encoding: "utf8" }).trim();
 
-/** The canonical claim the gate computes for `pathspecs`: sha256 over the governed files'
- *  index manifest (git's own blob OIDs), first 16 hex. Mirrors the shipped derivation so the
- *  ack-surgery assertions can predict the exact token; the SEMANTICS (what should drift, what
- *  must survive a squash) are pinned by the behavioral tests, not by this helper. */
-function governedHash(...pathspecs: string[]): string {
+/** Full 64-hex digest the gate computes for `pathspecs`: sha256 over the governed files'
+ *  index manifest (git's own blob OIDs). Mirrors the shipped derivation so claim assertions
+ *  can predict exact tokens; the SEMANTICS (what should drift, what must survive a squash)
+ *  are pinned by the behavioral tests, not by this helper. */
+function governedDigest(...pathspecs: string[]): string {
   const out = execFileSync("git", ["ls-files", "-s", "-z", "--", ...pathspecs], {
     cwd: root,
     encoding: "utf8",
@@ -48,7 +48,12 @@ function governedHash(...pathspecs: string[]): string {
     .split("\0")
     .filter((r) => r !== "")
     .join("\n");
-  return `sha256:${createHash("sha256").update(manifest).digest("hex").slice(0, 16)}`;
+  return createHash("sha256").update(manifest).digest("hex");
+}
+
+/** The canonical claim token (`sha256:` + first 16 digest hex) — what `--ack` writes. */
+function governedHash(...pathspecs: string[]): string {
+  return `sha256:${governedDigest(...pathspecs).slice(0, 16)}`;
 }
 
 /** A doc opting in (or not) to the drift gate. `reconciled: null` omits the key entirely —
@@ -98,14 +103,7 @@ describe("govkit drift — the RFC-0015 gate (e2e)", () => {
   });
 
   it("matches a SHORT reconciled claim by digest prefix (sha256: + 8–64 hex chars)", () => {
-    const manifest = execFileSync("git", ["ls-files", "-s", "-z", "--", "src/thing.ts"], {
-      cwd: root,
-      encoding: "utf8",
-    })
-      .split("\0")
-      .filter((r) => r !== "")
-      .join("\n");
-    const full = createHash("sha256").update(manifest).digest("hex");
+    const full = governedDigest("src/thing.ts");
     reconcileAtContent(`sha256:${full.slice(0, 8)}`);
     expect(cli(["drift", "--root", root]).status).toBe(0);
     reconcileAtContent(`sha256:${full}`); // the full 64-hex digest is also a legal claim
@@ -219,6 +217,26 @@ describe("govkit drift — the RFC-0015 gate (e2e)", () => {
     expect(result.skipped).toBe(1); // still not opted into the CLAIM check
     expect(result.drifted).toHaveLength(1);
     expect(result.drifted[0]?.ghost).toEqual(["src/ghost.ts"]);
+  });
+
+  it("names a git-UNEVALUABLE pathspec as its own class — never misdiagnosed as a ghost", () => {
+    // `:(bogus)` is invalid pathspec magic: git ls-files dies with exit 128. That is a broken
+    // pathspec SYNTAX, not "matches no tracked file" — the violation must say which.
+    writeFileSync(join(root, DOC), rfcDoc({ governs: ":(bogus)src", reconciled: null }));
+    const r = cli(["drift", "--root", root]);
+    expect(r.status).toBe(1);
+    expect(r.stderr).toContain("git cannot evaluate governs pathspec(s): :(bogus)src");
+    expect(r.stderr).not.toContain("match no tracked file");
+  });
+
+  it("frames the FAIL header around governed docs, not opted-in docs — no 'N of M' with N > M", () => {
+    // One governs-only ghost doc: drifted=1 while checked=0. The old header rendered
+    // "1 of 0 opted-in doc(s) drifted" and simultaneously called the failing doc "skipped".
+    writeFileSync(join(root, DOC), rfcDoc({ governs: "src/ghost.ts", reconciled: null }));
+    const r = cli(["drift", "--root", root]);
+    expect(r.status).toBe(1);
+    expect(r.stderr).toContain("1 governed doc(s) in violation (0 opted into the claim check)");
+    expect(r.stderr).not.toContain("of 0 opted-in");
   });
 
   it("flags a well-formed claim whose governs paths match NO tracked file — never silently green", () => {

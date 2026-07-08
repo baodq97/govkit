@@ -334,7 +334,7 @@ function printDrift(result: DriftResult, toStderr = false): void {
   const stream = toStderr || !result.ok ? process.stderr : process.stdout;
   const skipTail =
     result.skipped > 0
-      ? ` (${result.skipped} governs-only doc(s) skipped — no reconciled: claim)`
+      ? ` (${result.skipped} governs-only doc(s) outside the claim check — existence-checked only)`
       : "";
   if (result.ok) {
     stream.write(
@@ -342,8 +342,10 @@ function printDrift(result: DriftResult, toStderr = false): void {
     );
     return;
   }
+  // `drifted` may include governs-only docs failing the RFC-0018 existence check, so the
+  // header counts GOVERNED docs in violation — never "N of M opted-in" with N > M.
   stream.write(
-    `govkit drift: FAIL — ${result.drifted.length} of ${result.checked} opted-in doc(s) drifted${skipTail}:\n`,
+    `govkit drift: FAIL — ${result.drifted.length} governed doc(s) in violation (${result.checked} opted into the claim check)${skipTail}:\n`,
   );
   for (const e of result.drifted) {
     stream.write(`  DRIFT  ${e.path} [${e.type}] — ${e.problem}\n`);

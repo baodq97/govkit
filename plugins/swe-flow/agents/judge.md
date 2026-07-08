@@ -43,8 +43,9 @@ spot-checking claims against reality). Steps:
 }
 ```
 
-- `dimensions.*.score` are the raw 0–100 anchored scores; `score` is their weighted mean
-  (35/25/20/20) divided by 100; `success` = `score >= threshold`.
+- `dimensions.*.score` are the raw 0–100 anchored scores; `score` is their weighted mean —
+  weights come from the anchors file's Dimensions table (the ONE pinned source; never
+  restate or improvise them) — divided by 100; `success` = `score >= threshold`.
 - Refusal shape (structurally broken input): same object with `"score": null`,
   `"success": false`, and `reason` starting with `"refused: "` naming what the floor must
   fix first.

@@ -163,7 +163,7 @@ function judge(doc: DriftDoc, manifest: string | null): DriftEntry | null {
   }
   // The claim is well-formed but the governed paths match no tracked file (untracked, or a
   // glob matching nothing) — an unverifiable claim fails loud, never silently green.
-  if (digest === null || currentSha === null) {
+  if (digest === null) {
     return {
       ...base,
       problem: `governs paths match no tracked file — the reconciled claim cannot be checked (${doc.governs.join(", ")})`,
@@ -201,17 +201,37 @@ export function runDrift(opts: DriftOptions): DriftResult {
     // Governs-existence check (RFC-0018), EVERY governed doc — opted in or not: a `governs:`
     // pathspec matching no tracked file is a broken declaration on its own (a moved/renamed
     // file, a typo), and it silently shrinks what drift AND stale cover. Not fixable by ack —
-    // the governs list itself needs the hand edit.
-    const ghost = doc.governs.filter((g) => gitMatchCount(opts.root, [g]) === 0);
-    if (ghost.length > 0) {
+    // the governs list itself needs the hand edit. A pathspec git REFUSES to evaluate (invalid
+    // magic — gitMatchCount null) is its own violation class, named as such rather than
+    // misdiagnosed as a ghost (review hardening, RFC-0018 § Deviations).
+    const ghost: string[] = [];
+    const unevaluable: string[] = [];
+    for (const g of doc.governs) {
+      const n = gitMatchCount(opts.root, [g]);
+      if (n === null) unevaluable.push(g);
+      else if (n === 0) ghost.push(g);
+    }
+    if (ghost.length > 0 || unevaluable.length > 0) {
+      const parts = [
+        ...(unevaluable.length > 0
+          ? [
+              `git cannot evaluate governs pathspec(s): ${unevaluable.join(", ")} — fix the pathspec syntax`,
+            ]
+          : []),
+        ...(ghost.length > 0
+          ? [
+              `governs pathspec(s) match no tracked file: ${ghost.join(", ")} — fix or remove them (a ghost path silently shrinks drift/stale coverage)`,
+            ]
+          : []),
+      ];
       drifted.push({
         path: doc.path,
         type: doc.type,
         governs: doc.governs,
         reconciled: doc.reconciled,
         currentSha: null,
-        ghost,
-        problem: `governs pathspec(s) match no tracked file: ${ghost.join(", ")} — fix or remove them (a ghost path silently shrinks drift/stale coverage)`,
+        ghost: [...unevaluable, ...ghost],
+        problem: parts.join("; "),
       });
       continue;
     }
