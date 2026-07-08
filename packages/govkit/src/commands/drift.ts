@@ -1,27 +1,34 @@
+import { createHash } from "node:crypto";
 import { readFileSync, writeFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { type GovkitConfig, loadConfig } from "../config";
 import { frontMatterSpan } from "../frontmatter";
-import { gitAvailable, gitLastShaFor, scanGoverned, toPathspec } from "../util";
+import { gitAvailable, gitIndexManifest, scanGoverned, toPathspec } from "../util";
 
-// The deterministic spec↔code drift GATE (RFC-0015) — the blocking sibling of RFC-0009's
-// `stale` advisory. The move that makes a gate honest where the proxy could not be: stop
-// asking git WHEN things changed and check the code STATE the author actually vouched for.
-// A doc opts in by carrying BOTH `governs:` (RFC-0009) and `reconciled: <sha>` — the recorded
-// claim "this doc is true as of this commit". Drift = the newest commit touching any governs
-// path no longer matches that claim; the only exits are the two honest ones (update the doc,
-// or `--ack` that the change didn't invalidate it — the gate NEVER acks itself). Git-gated
-// like `stale`, so it lives outside the no-key pure-fs floor and `check` never calls it; git
-// absent degrades to a note + exit 0, never a crash (a gate you cannot run is reported, not
-// failed — only an evaluated mismatch blocks).
+// The deterministic spec↔code drift GATE (RFC-0015, as amended) — the blocking sibling of
+// RFC-0009's `stale` advisory. The move that makes a gate honest where the proxy could not
+// be: stop asking git WHEN things changed and check the code STATE the author actually
+// vouched for. A doc opts in by carrying BOTH `governs:` (RFC-0009) and
+// `reconciled: sha256:<hex>` — the recorded claim "this doc is true as of this content
+// state". The claim is a content-derived hash over the governed files' index manifest (git's
+// own blob OIDs), NEVER a commit sha: squash merges rewrite every branch commit sha without
+// changing a byte of content, which orphaned every pre-merge ack (the CI escape that forced
+// the amendment). Drift = the governed CONTENT no longer matches the claim; the only exits
+// are the two honest ones (update the doc, or `--ack` that the change didn't invalidate it —
+// the gate NEVER acks itself). Git-gated like `stale`, so it lives outside the no-key
+// pure-fs floor and `check` never calls it; git absent degrades to a note + exit 0, never a
+// crash (a gate you cannot run is reported, not failed — only an evaluated mismatch blocks).
 //
 // The `reconciled:` value is read from — and rewritten in — the RAW front-matter block text
-// (span located by frontmatter.ts's one block grammar), never through parsed YAML: YAML
-// coerces an unquoted all-digit sha (`0123456`) to a number, dropping the leading zero, and
-// the gate would then judge the doc against a value that is not on disk.
+// (span located by frontmatter.ts's one block grammar), never through parsed YAML — the
+// byte-exact claim is what gets judged and what the ack surgery replaces.
 
-/** A recorded `reconciled` value must look like a (possibly short) git sha to be checkable. */
-const SHA_RE = /^[0-9a-f]{7,40}$/i;
+/** A checkable `reconciled` claim: `sha256:` + 8–64 hex chars (prefix of the full digest —
+ *  the short-sha convention carried over; `--ack` writes the canonical 16). */
+const CLAIM_RE = /^sha256:([0-9a-f]{8,64})$/i;
+/** The pre-amendment claim shape (a bare commit sha) — recognized only to name the exact
+ *  migration in the violation, never checked: commit shas are what squash merges orphan. */
+const LEGACY_SHA_RE = /^[0-9a-f]{7,40}$/i;
 
 export interface DriftEntry {
   /** Doc path relative to --root, forward slashes (the same spelling `--ack` accepts). */
@@ -31,7 +38,8 @@ export interface DriftEntry {
   /** The doc's recorded claim, verbatim from the raw block text — possibly garbage, which is
    *  its own violation. */
   reconciled: string;
-  /** Newest commit sha touching any governs path; null when none has commit history. */
+  /** Canonical claim for the CURRENT governed content (`sha256:<16 hex>`); null when the
+   *  governs paths match no tracked file. Also what `--ack` writes. */
   currentSha: string | null;
   /** Human-readable reason this entry is a violation. */
   problem: string;
@@ -90,8 +98,8 @@ function locateReconciled(content: string): ReconciledToken | null {
   const commentAt = tail.search(/(?:^|[ \t])#/);
   const value = (commentAt >= 0 ? tail.slice(0, commentAt) : tail).trimEnd();
   const start = span.start + line.index + "reconciled:".length + (line[1] ?? "").length;
-  // A quoted sha (`"abc1234"`) is a legal YAML spelling of the same claim: strip ONE matching
-  // quote pair for the read; a rewrite replaces the whole token (a sha needs no quoting).
+  // A quoted claim (`"sha256:abc…"`) is a legal YAML spelling of the same claim: strip ONE
+  // matching quote pair for the read; a rewrite replaces the whole token (needs no quoting).
   const unquoted = /^(['"])(.*)\1$/.exec(value);
   return { start, end: start + value.length, value: unquoted ? (unquoted[2] ?? "") : value };
 }
@@ -115,15 +123,19 @@ function scanDrift(root: string, config: GovkitConfig): DriftDoc[] {
 /** The pathspecs a doc's drift is judged against: its governs, with the doc's OWN path always
  *  excluded — a doc can never drift ITSELF. Without the exclusion, a doc whose governs globs
  *  match its own path (e.g. `governs: docs/**`) re-drifts on every ack commit forever: the
- *  ack edit bumps the governed sha past the claim it just recorded, so the ritual could never
- *  converge. */
+ *  ack edit itself changes the doc's governed content past the claim it just recorded (once
+ *  staged), so the ritual could never converge. */
 function governedPathspecs(doc: DriftDoc): string[] {
   return [...doc.governs, `:(exclude)${doc.path}`];
 }
 
-/** The verdict for one opted-in doc: null = in sync, else the violation entry. A recorded
- *  short sha matches when the full current sha starts with it (7–40 hex chars). */
-function judge(doc: DriftDoc, currentSha: string | null): DriftEntry | null {
+/** The verdict for one opted-in doc: null = in sync, else the violation entry. A short claim
+ *  matches when the full 64-hex digest starts with its hex (8–64 chars, the short-sha
+ *  convention). `manifest` is the governed index manifest; null ⇒ nothing tracked matches. */
+function judge(doc: DriftDoc, manifest: string | null): DriftEntry | null {
+  const digest = manifest === null ? null : createHash("sha256").update(manifest).digest("hex");
+  // Canonical claim token: `sha256:` + the digest's first 16 hex — what `--ack` writes.
+  const currentSha = digest === null ? null : `sha256:${digest.slice(0, 16)}`;
   const base = {
     path: doc.path,
     type: doc.type,
@@ -131,29 +143,34 @@ function judge(doc: DriftDoc, currentSha: string | null): DriftEntry | null {
     reconciled: doc.reconciled,
     currentSha,
   };
-  // An empty or non-sha `reconciled` is a VIOLATION naming the doc, never a crash: the doc
-  // claimed a code state it cannot be checked against, which is exactly a broken claim.
-  if (!SHA_RE.test(doc.reconciled)) {
+  // An empty or malformed `reconciled` is a VIOLATION naming the doc, never a crash: the doc
+  // claimed a content state it cannot be checked against, which is exactly a broken claim.
+  // A pre-amendment commit-sha claim gets the exact migration named — squash merges rewrite
+  // commit shas without changing content, so that claim shape is uncheckable by design.
+  if (!CLAIM_RE.test(doc.reconciled)) {
     return {
       ...base,
       problem:
         doc.reconciled === ""
-          ? "reconciled: is empty — record the sha you vouch for (or drop the key to opt out)"
-          : `reconciled '${doc.reconciled}' is not a git sha (expected 7–40 hex chars)`,
+          ? "reconciled: is empty — record the content hash you vouch for (or drop the key to opt out)"
+          : LEGACY_SHA_RE.test(doc.reconciled)
+            ? `reconciled '${doc.reconciled.slice(0, 12)}' is a legacy commit-sha claim — squash merges rewrite commit shas and orphan the ack; re-vouch with \`govkit drift --ack\` (writes a content hash)`
+            : `reconciled '${doc.reconciled}' is not a content-hash claim (expected sha256:<8–64 hex chars>)`,
     };
   }
-  // The claim is well-formed but the governed paths have no commit history (untracked, or a
+  // The claim is well-formed but the governed paths match no tracked file (untracked, or a
   // glob matching nothing) — an unverifiable claim fails loud, never silently green.
-  if (currentSha === null) {
+  if (digest === null || currentSha === null) {
     return {
       ...base,
-      problem: `governs paths have no commit history — the reconciled claim cannot be checked (${doc.governs.join(", ")})`,
+      problem: `governs paths match no tracked file — the reconciled claim cannot be checked (${doc.governs.join(", ")})`,
     };
   }
-  if (!currentSha.toLowerCase().startsWith(doc.reconciled.toLowerCase())) {
+  const claimHex = doc.reconciled.slice("sha256:".length).toLowerCase();
+  if (!digest.startsWith(claimHex)) {
     return {
       ...base,
-      problem: `governed code moved: reconciled ${doc.reconciled.slice(0, 12)} but the newest governed commit is ${currentSha.slice(0, 12)}`,
+      problem: `governed content moved: reconciled ${doc.reconciled.slice(0, 23)} but the current governed content is ${currentSha}`,
     };
   }
   return null;
@@ -173,12 +190,12 @@ export function runDrift(opts: DriftOptions): DriftResult {
       drifted: [],
       skipped,
       ok: true,
-      note: `git unavailable, ${opted.length} opted-in doc(s) skipped — drift needs commit history.`,
+      note: `git unavailable, ${opted.length} opted-in doc(s) skipped — drift needs the git index.`,
     };
   }
   const drifted: DriftEntry[] = [];
   for (const doc of opted) {
-    const entry = judge(doc, gitLastShaFor(opts.root, governedPathspecs(doc)));
+    const entry = judge(doc, gitIndexManifest(opts.root, governedPathspecs(doc)));
     if (entry) drifted.push(entry);
   }
   return {
@@ -199,11 +216,11 @@ export interface DriftAckResult {
   gitAvailable: boolean;
   /** The drift computation the ack ran FIRST — acks only write where this found drift. */
   check: DriftResult;
-  /** Docs whose `reconciled:` was rewritten, old claim → new sha. */
+  /** Docs whose `reconciled:` was rewritten, old claim → new claim. */
   acked: Array<{ path: string; from: string; to: string }>;
   /** Already in sync — deliberately reported so a no-op ack says so instead of staying mute. */
   upToDate: Array<{ path: string; reconciled: string }>;
-  /** Drifted but with no current sha to write (governs has no commit history) — an ack
+  /** Drifted but with no current claim to write (governs matches no tracked file) — an ack
    *  cannot vouch for a state that does not exist, so these stay red. */
   unackable: Array<{ path: string; problem: string }>;
   ok: boolean;
@@ -235,13 +252,13 @@ export function runDriftAck(opts: DriftAckOptions): DriftAckResult {
   const check = runDrift({ root: opts.root, config });
   const empty = { acked: [], upToDate: [], unackable: [] };
   if (!check.gitAvailable) {
-    // Nothing to write without git: an ack records the CURRENT sha, which does not exist.
+    // Nothing to write without git: an ack records the CURRENT content state, which does not exist.
     return {
       gitAvailable: false,
       check,
       ...empty,
       ok: true,
-      note: "git unavailable — an ack records the current governed sha, so there is nothing to write.",
+      note: "git unavailable — an ack records the current governed content hash, so there is nothing to write.",
     };
   }
 
@@ -261,7 +278,7 @@ export function runDriftAck(opts: DriftAckOptions): DriftAckResult {
     if (!doc.hasReconciled) {
       throw new Error(
         `govkit: --ack '${opts.docPath}' has no 'reconciled:' front-matter key — ` +
-          `add one (any sha) to opt the doc into the drift gate, then re-run --ack`,
+          `add one (any value) to opt the doc into the drift gate, then re-run --ack`,
       );
     }
     targets = [doc];

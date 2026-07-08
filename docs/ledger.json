@@ -93,8 +93,8 @@
       "id": "F-DRIFT-CONTENT-HASH",
       "title": "drift reconciled: switches from commit sha to content-derived hash — squash merge rewrites shas and orphans every pre-merge ack (CI escape, run 28918975371)",
       "spec": "RFC-0015",
-      "passes": false,
-      "check": "needs an RFC-0015 amendment: hash the governed paths' blob content (stable across squash/rebase) instead of git log -1"
+      "passes": true,
+      "check": "RFC-0015 § Amendment; drift.test.ts pins squash-rewrite staying green + legacy-claim migration via --ack; repo's 7 opted-in docs migrated to sha256: claims in one --ack diff"
     }
   ]
 }

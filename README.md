@@ -150,8 +150,9 @@ npx govkit check --hook            # gate failure => exit 2 + report on stderr â
                                    # advisory warnings (default: all blocking)
 
 # 5. Specâ†”code drift gate + feature ledger (RFC-0015/0016, opt-in):
-npx govkit drift                   # docs with governs:+reconciled:<sha> FAIL when governed
-npx govkit drift --ack [doc]       # code moved past the recorded sha; --ack re-vouches
+npx govkit drift                   # docs with governs:+reconciled:sha256:<hex> FAIL when the
+npx govkit drift --ack [doc]       # governed CONTENT moved past the recorded claim (stable
+                                   # across squash/rebase); --ack re-vouches
 npx govkit ledger                  # gate a committed docs/ledger.json: schema, unique ids,
                                    # spec refs resolve, append-only vs HEAD (anti-gaming)
 

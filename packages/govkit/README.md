@@ -50,11 +50,12 @@ whether the prose is *sound* is a keyed reviewer's job, never part of the no-key
 
 ## Spec↔code drift and the feature ledger (RFC-0015 / RFC-0016)
 
-- **`govkit drift [--ack [doc]]`**: a doc carrying `governs:` + `reconciled: <sha>` fails the
-  gate when the newest commit touching its governed paths no longer matches the recorded
-  sha — the deterministic spec↔code drift gate no SDD tool ships. `--ack` rewrites only the
-  sha line (a deliberate, git-visible act); docs without `reconciled:` stay covered by the
-  advisory `stale` only, so adoption is per-doc and zero-FP.
+- **`govkit drift [--ack [doc]]`**: a doc carrying `governs:` + `reconciled: sha256:<hex>`
+  fails the gate when its governed CONTENT (a hash over the files' git blob OIDs — stable
+  across squash/rebase, which rewrite commit shas and would orphan the claim) no longer
+  matches the recorded claim — the deterministic spec↔code drift gate no SDD tool ships.
+  `--ack` rewrites only the claim value (a deliberate, git-visible act); docs without
+  `reconciled:` stay covered by the advisory `stale` only, so adoption is per-doc and zero-FP.
 - **`govkit ledger`**: validates a committed JSON feature ledger (`docs/ledger.json`,
   `ledger.path` configurable): schema, unique ids, every `spec` resolving to a governed doc,
   and git-backed anti-gaming — removing an entry or its `check` field vs HEAD is a violation;

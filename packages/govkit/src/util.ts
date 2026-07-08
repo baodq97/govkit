@@ -181,21 +181,24 @@ export function gitCommitTime(root: string, pathspecs: string[]): number | null 
   }
 }
 
-/** Most recent commit SHA touching ANY of `pathspecs`, or null when none of them has any
- *  commit (untracked, or a glob matching no tracked file). The drift gate's (RFC-0015) ground
- *  truth: the sha names the exact code state a doc's `reconciled:` claim is checked against —
- *  a STATE, not a recency proxy, which is what lets drift block where `stale` may only warn.
+/** Index manifest of the tracked files matching `pathspecs` — one `<mode> <blobOid> <stage>\t<path>`
+ *  record per file (git ls-files -s), NUL-separated for byte-exact paths, or null when nothing
+ *  matches. The drift gate's (RFC-0015, as amended) ground truth: blob OIDs are git's OWN
+ *  content hashes, so the manifest names the exact CONTENT state a doc's `reconciled:` claim
+ *  is checked against — stable across squash/rebase (which rewrite commit shas but never blob
+ *  OIDs) and across CRLF working trees (the index blob is what's committed on every platform).
  *  Same single-spawn try/catch degrade as `gitCommitTime` (null, never a throw). */
-export function gitLastShaFor(root: string, pathspecs: string[]): string | null {
+export function gitIndexManifest(root: string, pathspecs: string[]): string | null {
   try {
-    const out = execFileSync("git", ["log", "-1", "--format=%H", "--", ...pathspecs], {
+    const out = execFileSync("git", ["ls-files", "-s", "-z", "--", ...pathspecs], {
       cwd: root,
       encoding: "utf8",
       stdio: ["ignore", "pipe", "ignore"],
-    }).trim();
-    return out === "" ? null : out;
+    });
+    const records = out.split("\0").filter((r) => r !== "");
+    return records.length === 0 ? null : records.join("\n");
   } catch {
-    // safe to degrade: no git / no commits — the caller surfaces the skip, never a crash.
+    // safe to degrade: no git / no index — the caller surfaces the skip, never a crash.
     return null;
   }
 }
