@@ -88,6 +88,13 @@
       "spec": "RFC-0015",
       "passes": false,
       "check": "needs its own RFC — verify-or-drift layer decision open"
+    },
+    {
+      "id": "F-DRIFT-CONTENT-HASH",
+      "title": "drift reconciled: switches from commit sha to content-derived hash — squash merge rewrites shas and orphans every pre-merge ack (CI escape, run 28918975371)",
+      "spec": "RFC-0015",
+      "passes": false,
+      "check": "needs an RFC-0015 amendment: hash the governed paths' blob content (stable across squash/rebase) instead of git log -1"
     }
   ]
 }

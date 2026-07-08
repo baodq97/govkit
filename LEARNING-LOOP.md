@@ -1114,3 +1114,13 @@ kept every gate green locally — the gap only surfaced when a rebuild regressed
 RFC-0017 PR; detection credit: the drift gate's own dogfooding. The rule needs no strengthening
 — this instance predates it — but the recovery adds the verification half in practice:
 `git ls-remote` after every push that matters, which this PR's integration performed.
+
+**Round-1 second addendum — a fresh escape, caught by CI (run 28918975371):** drift acks
+record a `git log -1` commit sha, but the repo merges by SQUASH — the merge rewrites history,
+so every ack recorded on a branch is orphaned the moment its PR lands, and main goes red on
+the very next CI run. Local gates could not catch this (the branch's shas are self-consistent);
+only the post-merge layer could — which is why CI exists as a layer with uncorrelated failure
+modes. Interim: ack-only follow-up PRs (they touch no governed code, so their own squash is
+stable). Systemic fix queued as ledger `F-DRIFT-CONTENT-HASH`: `reconciled:` should pin a
+content-derived hash of the governed paths (stable across squash/rebase), not a commit sha —
+an RFC-0015 amendment, since the recorded design chose the sha explicitly.
