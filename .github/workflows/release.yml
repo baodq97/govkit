@@ -20,6 +20,8 @@ jobs:
       id-token: write # npm --provenance
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 # drift + ledger read commit history; a shallow clone reads as 'no history'
 
       - name: Setup Bun
         uses: oven-sh/setup-bun@v2

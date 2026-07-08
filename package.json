@@ -23,7 +23,9 @@
     "govkit-check": "bun packages/govkit/dist/cli.js check --journal",
     "govkit-check:node": "node packages/govkit/dist/cli.js check --journal",
     "govkit-calibrate": "bun packages/govkit/dist/cli.js calibrate --corpus packages/govkit/eval/fixtures --baseline packages/govkit/eval/baseline.json",
-    "check": "biome check . && bun run --filter '*' typecheck && bun run --filter '*' build && bun run --filter '*' test && bun run govkit-check && bun run govkit-check:node && bun run govkit-calibrate"
+    "govkit-drift": "bun packages/govkit/dist/cli.js drift --journal",
+    "govkit-ledger": "bun packages/govkit/dist/cli.js ledger --journal",
+    "check": "biome check . && bun run --filter '*' typecheck && bun run --filter '*' build && bun run --filter '*' test && bun run govkit-check && bun run govkit-check:node && bun run govkit-calibrate && bun run govkit-drift && bun run govkit-ledger"
   },
   "devDependencies": {
     "@biomejs/biome": "^2.2.0"
