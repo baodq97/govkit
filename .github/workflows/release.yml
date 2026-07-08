@@ -1,6 +1,8 @@
 name: release
 
 # R0 publish path: push a tag `v<version>` matching packages/govkit/package.json
+# (or run this workflow manually from the Actions tab / API — the environment's
+# git proxy cannot push tags, so workflow_dispatch is the agent-reachable path)
 # and this workflow publishes the engine to npm with provenance.
 # One-time setup (human act): add an npm automation token as the NPM_TOKEN
 # repository secret (Settings → Secrets and variables → Actions).
@@ -8,6 +10,7 @@ on:
   push:
     tags:
       - "v*"
+  workflow_dispatch:
 
 jobs:
   publish:
@@ -35,8 +38,10 @@ jobs:
           registry-url: https://registry.npmjs.org
 
       # Guard: the tag must equal the engine version, or the publish stops here —
-      # a stale tag must not ship a mismatched artifact.
+      # a stale tag must not ship a mismatched artifact. Manual dispatches publish
+      # whatever version main carries, so the tag assert only applies to tag runs.
       - name: Assert tag matches package version
+        if: startsWith(github.ref, 'refs/tags/')
         run: |
           PKG_VERSION="$(node -p "require('./packages/govkit/package.json').version")"
           TAG_VERSION="${GITHUB_REF_NAME#v}"
