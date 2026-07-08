@@ -26,8 +26,9 @@ enum, id convention, INDEX sync, unique ids, no placeholders) — binary, blocks
 sections) that blocks CI **plus an advisory 0–100 score** to watch trend. Both no-key.
 An adversarial red-team proved a presence rubric cannot judge *substance* — so `eval`
 is scoped as a zero-FP floor (a gamer can pass it), and **substance judgment is the
-swe-flow `reviewer` agent** (opt-in, keyed, never in no-key CI). The floor's own trust
-is pinned by the adversarial corpus + `eval-hardening.test.ts`.
+swe-flow `judge` agent + `substance-judge` skill** (RFC-0019: pinned anchors, opt-in,
+keyed, never in no-key CI). The floor's own trust is pinned by the adversarial corpus +
+`eval-hardening.test.ts`.
 
 ## Commands
 
@@ -102,11 +103,29 @@ ship as **plugin agents** (`swe-flow:implementer`, …) to be usable from the `s
 - Never self-approve, self-merge, or act as code owner.
 - Halt at a Lifecycle threshold when the required artifact is missing — do not invent it.
 
+## The minimalism ladder (before writing ANY code)
+
+Walk it top-down for every piece of code you are about to write; stop at the first rung
+that answers. The best code is the code never written — but never minimize away trust
+boundaries, data-loss handling, security, or accessibility.
+
+1. Does this need to exist?   → no: skip it (YAGNI)
+2. Already in this codebase?  → reuse it, don't rewrite
+3. Stdlib does it?            → use it
+4. Native platform feature?   → use it
+5. Installed dependency?      → use it
+6. One line?                  → one line
+7. Only then: the minimum that works
+
+Same spirit everywhere (KISS): the boring, obvious solution wins by default — cleverness,
+abstraction, and configurability must each earn their place with a concrete, present need
+(YAGNI), and anything that already exists once is reused, never re-implemented (DRY).
+
 ## Workflow per task
 
 1. **Understand** — read this file + nearest sub-tree `AGENTS.md` + existing tests.
 2. **Plan** — if above a Lifecycle threshold, halt and surface it.
-3. **Implement** — match neighbour conventions.
+3. **Implement** — walk the minimalism ladder first; match neighbour conventions.
 4. **Verify** — `bun run lint` + `bun run typecheck` + scoped `bun run test`; at least one test
    exercises the shipped CLI surface as a consumer would. **Exception:** for a rename/vocab
    cross-cutting change, do not trust a scoped run mid-task — run the FULL `bun run test`; a

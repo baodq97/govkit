@@ -70,7 +70,8 @@ export function runStale(opts: StaleOptions): StaleResult {
     // moved/renamed), OR it matches staged-but-never-committed files so there is no commit time.
     // Both mean the governs link cannot be evaluated for recency — the honest verdict is the
     // same skip, not a green "fresh". (Reported by the dogfooded swe-flow reviewer.)
-    if (gitMatchCount(opts.root, governs) === 0 || codeTime === null) {
+    // A git-unevaluable pathspec (null) cannot be judged either — same honest skip as 0 matches.
+    if ((gitMatchCount(opts.root, governs) ?? 0) === 0 || codeTime === null) {
       entries.push({ file, type, governs, status: "dangling", docTime });
       continue;
     }

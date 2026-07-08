@@ -1,0 +1,18 @@
+{
+  "entries": [
+    {
+      "id": "L-CHAMPION-SELECTED",
+      "title": "production churn model selected by a published, reproducible experiment",
+      "spec": "EXP-0001",
+      "passes": true,
+      "check": "EXP-0001 published with Results + Reproducibility; MC-0001 released with parent EXP-0001"
+    },
+    {
+      "id": "L-WINDOW-ABLATION",
+      "title": "feature-window cost quantified before the pipeline simplification ships",
+      "spec": "EXP-0002",
+      "passes": false,
+      "check": "EXP-0002 analyzed; publication blocked on the seasonality holdout"
+    }
+  ]
+}

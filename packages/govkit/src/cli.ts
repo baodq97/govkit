@@ -30,8 +30,8 @@ Usage:
   govkit calibrate    --corpus <dir> [--root <dir>] [--json] [--baseline <file> [--update-baseline]]
   govkit report       [--root <dir>] [--json]   (lifecycle histogram — done / in-flight / cleanup)
   govkit stale        [--root <dir>] [--json]   (advisory: governed code newer than its doc — needs git)
-  govkit drift        [--root <dir>] [--json] [--journal] [--hook]  (gate: reconciled sha vs governed code — needs git)
-  govkit drift --ack [docPath] [--root <dir>] [--json] [--journal]  (rewrite 'reconciled:' to the current governed sha)
+  govkit drift        [--root <dir>] [--json] [--journal] [--hook]  (gate: reconciled content hash vs governed code — needs git)
+  govkit drift --ack [docPath] [--root <dir>] [--json] [--journal]  (rewrite 'reconciled:' to the current governed content hash)
   govkit ledger       [--root <dir>] [--json] [--journal] [--hook]  (gate: the committed feature ledger — needs git)
   govkit audit-write  [--root <dir>]        (reads a PreToolUse hook payload on stdin)
 
@@ -63,11 +63,15 @@ Commands:
                time against the newest commit of the code it governs and warn when
                the code moved on. A PROXY ('code changed'), never 'doc wrong' — so it
                NEVER blocks (always exits 0) and check never calls it. Needs git.
-  drift        Deterministic spec↔code GATE (RFC-0015): a doc opts in by carrying BOTH
-               'governs:' and 'reconciled: <sha>' (the author's recorded claim "this doc
-               is true as of this code state"); it fails (exit 1) when the newest commit
-               touching its governed paths no longer matches that sha. The honest exits
-               are updating the doc or an explicit --ack — the gate never acks itself.
+  drift        Deterministic spec↔code GATE (RFC-0015, as amended): a doc opts in by
+               carrying BOTH 'governs:' and 'reconciled: sha256:<hex>' (the author's
+               recorded claim "this doc is true as of this content state" — a hash over
+               the governed files' git blob OIDs, stable across squash/rebase); it fails
+               (exit 1) when the governed content no longer matches that claim. The honest
+               exits are updating the doc or an explicit --ack — the gate never acks
+               itself. Every governed doc (opted in or not) is also checked per-pathspec
+               for governs existence (RFC-0018): a spec matching no tracked file is a
+               violation naming it — ghost paths silently shrink drift/stale coverage.
                Git absent degrades to a note + exit 0; check never calls it.
   ledger       Feature-ledger GATE (RFC-0016): gates the committed JSON ledger
                ({ entries: [{ id, title, spec, passes, check? }] }, docs/ledger.json or
@@ -97,13 +101,13 @@ Options:
                only, never drift --ack): map gate failure to exit 2 + report on stderr —
                wire as a blocking hook. Fail-closed: an operational error (broken config)
                also exits 2, so a broken guardrail blocks.
-  --ack        (drift) Reconcile: rewrite 'reconciled:' to the current governed sha for the
-               doc named by the positional path after the command, or for ALL opted-in
-               docs when no path is given. Runs the drift check first and writes only
-               where drifted (a no-op ack says so); the rewrite is surgical — only the
-               sha value changes, every other byte (a trailing comment included) is
-               preserved for the reviewed diff. Combines with --journal (the record is
-               marked ack: true) but never with --hook — hooks gate, they don't ack.
+  --ack        (drift) Reconcile: rewrite 'reconciled:' to the current governed content
+               hash for the doc named by the positional path after the command, or for
+               ALL opted-in docs when no path is given. Runs the drift check first and
+               writes only where drifted (a no-op ack says so); the rewrite is surgical —
+               only the claim value changes, every other byte (a trailing comment
+               included) is preserved for the reviewed diff. Combines with --journal (the
+               record is marked ack: true) but never with --hook — hooks gate, they don't ack.
   --corpus     (calibrate) Labeled corpus dir containing good/ and weak/ subtrees.
   --baseline   (calibrate) Baseline JSON to compare the floor matrix against. A missing
                file is an error unless --update-baseline creates it (bootstrap).
@@ -330,7 +334,7 @@ function printDrift(result: DriftResult, toStderr = false): void {
   const stream = toStderr || !result.ok ? process.stderr : process.stdout;
   const skipTail =
     result.skipped > 0
-      ? ` (${result.skipped} governs-only doc(s) skipped — no reconciled: claim)`
+      ? ` (${result.skipped} governs-only doc(s) outside the claim check — existence-checked only)`
       : "";
   if (result.ok) {
     stream.write(
@@ -338,8 +342,10 @@ function printDrift(result: DriftResult, toStderr = false): void {
     );
     return;
   }
+  // `drifted` may include governs-only docs failing the RFC-0018 existence check, so the
+  // header counts GOVERNED docs in violation — never "N of M opted-in" with N > M.
   stream.write(
-    `govkit drift: FAIL — ${result.drifted.length} of ${result.checked} opted-in doc(s) drifted${skipTail}:\n`,
+    `govkit drift: FAIL — ${result.drifted.length} governed doc(s) in violation (${result.checked} opted into the claim check)${skipTail}:\n`,
   );
   for (const e of result.drifted) {
     stream.write(`  DRIFT  ${e.path} [${e.type}] — ${e.problem}\n`);

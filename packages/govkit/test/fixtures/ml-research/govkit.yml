@@ -1,0 +1,67 @@
+# The THIRD dissimilar consumer (PRD-0001 R1 / ledger F-R1-N3, config-surface half):
+# an ML research lab governing experiment protocols, model cards, and dataset records.
+# Deliberately shares NOTHING with the shipped default taxonomy: no PRD/RFC/ADR/US types,
+# a different lifecycle vocabulary per type, extra required keys (metric, dataset, license),
+# kit docs isolated under .govkit (RFC-0007), a demoted INDEX tier (RFC-0014), and custom
+# journal/ledger destinations. Every diverging surface R1 names is exercised here and pinned
+# by generality.test.ts against the SHIPPED CLI.
+schemaVersion: 1
+docs:
+  root: .govkit
+  ignore: [INDEX.md, _TEMPLATE.md]
+  base:
+    required: [id, title, status, owner, date]
+  types:
+    exp:
+      dir: docs/experiments
+      required: [id, title, status, owner, date, metric, dataset]
+      idPrefix: EXP
+      startStatus: designed
+      statuses: [designed, running, analyzed, published, abandoned]
+      terminalStatuses: [published, abandoned]
+      # a published experiment must carry its results + repro note (RFC-0010 machinery,
+      # keyed to a lab-specific status the default taxonomy does not have)
+      requiredSectionsByStatus:
+        published: ["Results", "Reproducibility"]
+      refs: [{ key: dataset, type: ds }]
+    mc:
+      dir: docs/model-cards
+      required: [id, title, status, owner, date, parent]
+      idPrefix: MC
+      startStatus: draft
+      statuses: [draft, released, deprecated]
+      terminalStatuses: [released, deprecated]
+      refs: [{ key: parent, type: exp }]
+    ds:
+      dir: docs/datasets
+      required: [id, title, status, owner, date, license]
+      idPrefix: DS
+      startStatus: proposed
+      statuses: [proposed, collected, validated, retired]
+      terminalStatuses: [validated, retired]
+# The lab demotes INDEX sync to advisory while a bulk import backfills rows (RFC-0014).
+tiers:
+  index: advisory
+eval:
+  threshold: 60
+  rubrics:
+    exp:
+      - { id: hypothesis, weight: 25, kind: section, pattern: 'hypothesis|question|goal', desc: "stated hypothesis" }
+      - { id: protocol, weight: 25, kind: section, pattern: 'protocol|method|setup|procedure', desc: "protocol / method" }
+      - { id: metricval, weight: 15, kind: regex, pattern: '\d+(\.\d+)?\s*(%|auc|f1|bleu|rmse)', desc: "a quantified metric (advisory)" }
+      - { id: substance, weight: 25, kind: minWords, min: 40, required: true, desc: "not an empty stub (>=40 words of prose)" }
+      - { id: nofiller, weight: 10, kind: forbid, pattern: 'lorem ipsum|to be written|placeholder text', required: true, desc: "no template filler left in" }
+    mc:
+      - { id: intended, weight: 30, kind: section, pattern: 'intended use|scope|usage', desc: "intended-use section" }
+      - { id: limits, weight: 30, kind: section, pattern: 'limitation|risk|caveat|bias', desc: "limitations / risks section" }
+      - { id: substance, weight: 30, kind: minWords, min: 30, required: true, desc: "not an empty stub (>=30 words of prose)" }
+      - { id: nofiller, weight: 10, kind: forbid, pattern: 'lorem ipsum|to be written|placeholder text', required: true, desc: "no template filler left in" }
+    ds:
+      - { id: provenance, weight: 35, kind: section, pattern: 'provenance|source|collection', desc: "provenance section" }
+      - { id: license, weight: 25, kind: frontmatter, key: license, desc: "license recorded (presence only)" }
+      - { id: substance, weight: 30, kind: minWords, min: 30, required: true, desc: "not an empty stub (>=30 words of prose)" }
+      - { id: nofiller, weight: 10, kind: forbid, pattern: 'lorem ipsum|to be written|placeholder text', required: true, desc: "no template filler left in" }
+journal:
+  path: .govkit/telemetry/journal.jsonl
+ledger:
+  path: .govkit/ledger.json

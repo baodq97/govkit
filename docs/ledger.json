@@ -26,7 +26,7 @@
       "title": "--hook blocking-gate contract: exit 2 + stderr report, fail-closed",
       "spec": "RFC-0013",
       "passes": true,
-      "check": "packages/govkit/test/hook.test.ts e2e; template Stop gate via stop-gate.mjs"
+      "check": "packages/govkit/test/hook.test.ts e2e; template Stop gate wired directly in template/.claude/settings.json (npx govkit check --hook) — the once-claimed stop-gate.mjs never shipped, caught by RFC-0018's ghost-path check on its first run"
     },
     {
       "id": "F-TIERS",
@@ -67,13 +67,22 @@
       "id": "F-R1-N3",
       "title": "third dissimilar consumer validates generality (unblocks the R5 harness generator)",
       "spec": "PRD-0001",
-      "passes": false
+      "passes": false,
+      "check": "config-surface half shipped as F-R1-CONFIG (ml-research fixture, in-repo); this entry stays red until an EXTERNAL consumer outside the author's DNA adopts — PRD-0001's monoculture risk is the unproven half"
+    },
+    {
+      "id": "F-R1-CONFIG",
+      "title": "R1 config-surface generality: a third dissimilar taxonomy (ML lab: exp/mc/ds) runs the shipped CLI end-to-end with zero engine changes",
+      "spec": "PRD-0001",
+      "passes": true,
+      "check": "packages/govkit/test/generality.test.ts — 10 e2e cases over fixtures/ml-research: .govkit docs.root, custom statuses/prefixes/required keys, cross-type refs, requiredSectionsByStatus, demoted index tier, custom journal+ledger paths, drift+ledger git surface"
     },
     {
       "id": "F-R2-JUDGE",
       "title": "keyed substance-judge plugin (Layer 3) — opt-in, never in no-key CI",
-      "spec": "PRD-0001",
-      "passes": false
+      "spec": "RFC-0019",
+      "passes": true,
+      "check": "swe-flow:judge agent (pinned rubric substance-v1, strict deepeval-compatible JSON) + substance-judge skill (floor-gated fan-out, cross-model spread, .govkit/evals records); engine untouched by construction"
     },
     {
       "id": "F-R0-PROVENANCE",
@@ -85,16 +94,16 @@
     {
       "id": "F-GOVERNS-EXIST",
       "title": "deterministic check: every governs: path must resolve to an existing file (ghost-path class from Distill Round 1)",
-      "spec": "RFC-0015",
-      "passes": false,
-      "check": "needs its own RFC — verify-or-drift layer decision open"
+      "spec": "RFC-0018",
+      "passes": true,
+      "check": "RFC-0018 (drift layer decided: git's matcher, per-pathspec, every governed doc); drift.test.ts pins ghost-among-live, governs-only ghost, and ack-all CANNOT"
     },
     {
       "id": "F-DRIFT-CONTENT-HASH",
       "title": "drift reconciled: switches from commit sha to content-derived hash — squash merge rewrites shas and orphans every pre-merge ack (CI escape, run 28918975371)",
       "spec": "RFC-0015",
-      "passes": false,
-      "check": "needs an RFC-0015 amendment: hash the governed paths' blob content (stable across squash/rebase) instead of git log -1"
+      "passes": true,
+      "check": "RFC-0015 § Amendment; drift.test.ts pins squash-rewrite staying green + legacy-claim migration via --ack; repo's 7 opted-in docs migrated to sha256: claims in one --ack diff"
     }
   ]
 }

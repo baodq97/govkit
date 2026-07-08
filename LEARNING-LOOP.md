@@ -1124,3 +1124,35 @@ modes. Interim: ack-only follow-up PRs (they touch no governed code, so their ow
 stable). Systemic fix queued as ledger `F-DRIFT-CONTENT-HASH`: `reconciled:` should pin a
 content-derived hash of the governed paths (stable across squash/rebase), not a commit sha —
 an RFC-0015 amendment, since the recorded design chose the sha explicitly.
+
+## Round 16 — 2026-07-08: two ledger debts closed by their own medicine, and an honest n=3
+
+Three moves in one arc, each one a queued ledger debt paying out:
+
+**`F-DRIFT-CONTENT-HASH` closed (RFC-0015 amendment).** `reconciled:` now pins
+`sha256:<hex>` over the governed files' *index manifest* — git's own blob OIDs, so the
+engine reads no file contents and the claim survives every history rewrite that preserves
+content. The Round-1 escape class (squash orphans commit-sha acks) is now structurally
+impossible, and the regression test performs a literal squash and asserts green. The
+sharp lesson recorded in the RFC: the original Alternatives table had *rejected*
+content-hashing as a "false-positive factory" — the churn argument compared against the
+wrong baseline (a commit sha churns on strictly more events than a content hash). A
+design rationale can be confidently wrong in a way only production falsifies; the
+reversal is written into the same table it came from, struck through, not erased.
+
+**`F-GOVERNS-EXIST` closed (RFC-0018).** Per-pathspec governs-existence, decided into the
+`drift` layer (honest glob resolution needs git's matcher; the verify floor stays
+pure-fs). Dogfood theatre on its very first run: it flagged RFC-0013's
+`template/.claude/hooks/stop-gate.mjs` — a file that *never shipped* (the template Stop
+gate is wired directly in settings.json). The check found a live instance of the exact
+class it was built from before its commit was even made.
+
+**`F-R1-N3` split, not gamed.** The third dissimilar consumer now exists as
+`fixtures/ml-research` — an ML lab taxonomy (exp/mc/ds, lab lifecycle vocabulary, extra
+required keys, `.govkit` isolation, demoted index tier, custom journal/ledger paths) run
+end-to-end through the shipped CLI with zero engine changes, 10 e2e cases. That proves
+R1's *config-surface* claim and is ledgered as `F-R1-CONFIG: true`. It does NOT prove
+generality outside the author's DNA — the fixture shares an author with the engine, which
+is precisely PRD-0001's monoculture risk. `F-R1-N3` stays red with the boundary written
+into its check field. The flywheel's whole value is that the ledger cannot be talked into
+optimism, including by the person holding the pen.

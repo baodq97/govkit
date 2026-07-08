@@ -4,7 +4,7 @@ title: Deterministic spec↔code drift gate — reconciled shas and an explicit 
 status: implemented
 owner: baodq97
 date: 2026-07-07
-reconciled: 79437f7948ceb25429652d740228fbfb995b6cb5
+reconciled: sha256:eb483d6f09c04b88
 governs:
   - packages/govkit/src/commands/drift.ts
 ---
@@ -59,25 +59,30 @@ untouched — `stale` keeps covering them advisorily, and `drift` never mentions
 is per-doc, so the gate is zero-false-positive by construction: nothing fails that did not
 explicitly claim a code state.
 
-**The check.** For each opted-in doc, `govkit drift` resolves the most recent commit sha
-touching ANY of its governs paths (`git log -1` over the pathspecs) and compares it to the
-recorded `reconciled` sha. Mismatch ⇒ violation, exit 1, with a message naming the doc, the
-stale sha, the current sha, and the two honest exits: update the doc and then ack, or ack
-directly if the code change did not invalidate the doc. Two precision rules keep the
-comparison honest: the doc's OWN path is always excluded from its governed pathspecs (a doc
-can never drift itself — otherwise a self-matching glob re-drifts on every ack commit and the
-ritual never converges), and the recorded claim is read as the raw front-matter token, never
-through YAML's type coercion (an unquoted all-digit sha must not lose its leading zero). A
-malformed claim is itself a violation, never a crash or a skip: an empty/garbage `reconciled`
-value, or governs paths with no commit history at all, fail loud naming the doc.
+**The check** (as amended — see § Amendment). For each opted-in doc, `govkit drift` computes
+a content hash over the governed files' git index manifest — the `<mode> <blobOid> <path>`
+records `git ls-files -s` yields for its governs pathspecs — and compares it to the recorded
+`reconciled: sha256:<hex>` claim (8–64 hex chars, prefix-matched like a short sha; `--ack`
+writes the canonical 16). Blob OIDs are git's own content hashes, so the claim names a
+CONTENT state: stable across squash/rebase (which rewrite commit shas but never blobs) and
+across CRLF working trees (the index blob is what's committed on every platform). Mismatch ⇒
+violation, exit 1, with a message naming the doc, the stale claim, the current claim, and the
+two honest exits: update the doc and then ack, or ack directly if the code change did not
+invalidate the doc. Two precision rules keep the comparison honest: the doc's OWN path is
+always excluded from its governed pathspecs (a doc can never drift itself — otherwise a
+self-matching glob re-drifts on every ack commit and the ritual never converges), and the
+recorded claim is read as the raw front-matter token the ack surgery rewrites. A malformed
+claim is itself a violation, never a crash or a skip: an empty/garbage `reconciled` value, a
+pre-amendment bare commit-sha claim (the violation names the exact migration: re-vouch with
+`--ack`), or governs paths matching no tracked file, fail loud naming the doc.
 
-**The ack.** `govkit drift --ack [docPath]` rewrites `reconciled:` to the current sha for one
-doc, or for all opted-in docs when no argument is given. The rewrite is a working-tree edit
-that lands in the diff a reviewer reads — the vouching is visible, attributable, and
-reversible. The gate itself never updates the key. The rewrite is surgical down to the token:
-only the sha value changes (a same-line `# comment` after it survives), and a `reconciled:`
-line carrying no same-line value (the value on a YAML continuation line) is refused with a
-rewrite-by-hand error rather than corrupted.
+**The ack.** `govkit drift --ack [docPath]` rewrites `reconciled:` to the current content
+claim for one doc, or for all opted-in docs when no argument is given. The rewrite is a
+working-tree edit that lands in the diff a reviewer reads — the vouching is visible,
+attributable, and reversible. The gate itself never updates the key. The rewrite is surgical
+down to the token: only the claim value changes (a same-line `# comment` after it survives),
+and a `reconciled:` line carrying no same-line value (the value on a YAML continuation line)
+is refused with a rewrite-by-hand error rather than corrupted.
 
 **Where it lives.** `drift` is a sibling git-gated command like `stale`, NOT a verify kind.
 The verify core stays pure-fs; the no-git floor invariant (README, RFC-0009) outranks tiers
@@ -89,7 +94,7 @@ semantics: drift found ⇒ would-be exit 1 ⇒ exit 2 under `--hook`.
 
 | Option | Why rejected |
 |---|---|
-| **Content-hash the governed files into the doc** | Hash churn on every whitespace or comment commit makes it a false-positive factory — the avalanche RFC-0009 refused, rebuilt with hashes instead of timestamps. A sha names a state; the ack ritual supplies the judgment. |
+| **Content-hash the governed files into the doc** | ~~Hash churn on every whitespace or comment commit makes it a false-positive factory.~~ **Reversed by § Amendment** — the churn argument was wrong on inspection: a commit sha churns on MORE events than a content hash (every rebase/squash/merge rewrite included), never fewer. The original rejection conflated this option with RFC-0009's recency avalanche. |
 | **Make drift a verify kind** | Breaks verify's no-git purity — the defining invariant that the default gate runs pure-fs with no key. `--changed` and `stale` set the precedent: git-touching paths are opt-in siblings, never folded into the floor. |
 | **Auto-ack when the doc is edited** | Destroys the ritual: any edit near the sha line would silently vouch for code the author never read. The ack must be a distinct, deliberate act that a reviewer can see and question. |
 | **Keep drift advisory-only inside `stale`** | The research gap is precisely the absence of a GATE. An advisory that no one is forced to reconcile is what every surveyed SDD tool already fails to enforce; shipping a second advisory would not close F2. |
@@ -159,10 +164,40 @@ the load-bearing ones are folded into § Design above and recorded here as post-
   record carries `drift.ack: true` so a sensor consumer can tell it from a check run
   (`drifted > 0` with `ok: true` is legal only there).
 
+## Amendment — content-derived claims (2026-07-08)
+
+**What broke.** The shipped design recorded a COMMIT sha and resolved the current state with
+`git log -1`. A squash merge rewrites every branch commit sha without changing a byte of
+content, so every ack recorded pre-merge was orphaned the moment the PR landed — main went
+red on docs whose governed code had not moved (CI escape, run 28918975371; hotfixed by
+re-acking against main's squash sha in PR #11, which any future squash re-breaks). A claim
+format that a routine merge strategy falsifies is a false-positive factory, and FP → 0 is the
+north star (PRD-0001).
+
+**The fix.** The claim becomes what the design's own thesis always wanted — the CODE STATE
+itself, not a name for it in a rewritable history graph. `reconciled: sha256:<hex>` is a
+sha256 over the governed files' git index manifest (`git ls-files -s` records: mode, blob
+OID, path — the doc's own path still excluded). Blob OIDs are content hashes git already
+maintains, so the gate reads no file contents, and the claim is invariant under every
+history rewrite that preserves content (squash, rebase, amend) while still moving on any real
+content, mode, or governed-set change. Claims are prefix-matched (8–64 hex after the
+`sha256:` tag); `--ack` writes the canonical 16.
+
+**Migration.** A pre-amendment bare-sha claim is a violation naming the exact remedy —
+`govkit drift --ack` rewrites it to a content claim in one reviewed diff. It is deliberately
+NOT silently re-checked via `git log`: keeping the broken claim shape checkable would keep
+the escape class alive. The original Alternatives rejection of content-hashing is reversed
+above; its churn argument compared against the wrong baseline.
+
+**One semantic shift, stated out loud:** the claim is judged against the git INDEX (staged
+content), where `git log -1` saw only commits. A staged-but-uncommitted governed change now
+drifts immediately — earlier and more honest, since that is the state the next commit ships.
+
 ## Recommendation
 
 Ship `govkit drift` as the deterministic spec↔code gate: per-doc opt-in via `reconciled:`,
-sha-comparison against the governs pathspecs, exit 1 on mismatch, and a never-automatic
-`--ack` ritual whose rewrite is reviewed in the diff. Prefer this over content-hashing (false-
-positive factory), over a verify kind (breaks the no-git floor), over auto-ack (silent
-vouching), and over staying advisory (the gap F2 names) — each rejected above.
+content-hash comparison against the governs pathspecs (§ Amendment), exit 1 on mismatch, and
+a never-automatic `--ack` ritual whose rewrite is reviewed in the diff. Prefer this over a
+commit-sha claim (orphaned by every squash merge — reversed above), over a verify kind
+(breaks the no-git floor), over auto-ack (silent vouching), and over staying advisory (the
+gap F2 names).

@@ -4,7 +4,7 @@ title: Working-discipline — a trigger-gated thinking-checkpoint skill that red
 status: implemented
 owner: baodq97
 date: 2026-07-07
-reconciled: 710f47d2e22c300b5a2cece5ff6e6697277c5dd3
+reconciled: sha256:35f6b008fab9c55d
 governs:
   - plugins/swe-flow/skills/working-discipline/SKILL.md
   - plugins/swe-flow/skills/working-discipline/references/discipline-items.md

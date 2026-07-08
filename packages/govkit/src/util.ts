@@ -181,21 +181,24 @@ export function gitCommitTime(root: string, pathspecs: string[]): number | null 
   }
 }
 
-/** Most recent commit SHA touching ANY of `pathspecs`, or null when none of them has any
- *  commit (untracked, or a glob matching no tracked file). The drift gate's (RFC-0015) ground
- *  truth: the sha names the exact code state a doc's `reconciled:` claim is checked against —
- *  a STATE, not a recency proxy, which is what lets drift block where `stale` may only warn.
+/** Index manifest of the tracked files matching `pathspecs` — one `<mode> <blobOid> <stage>\t<path>`
+ *  record per file (git ls-files -s), NUL-separated for byte-exact paths, or null when nothing
+ *  matches. The drift gate's (RFC-0015, as amended) ground truth: blob OIDs are git's OWN
+ *  content hashes, so the manifest names the exact CONTENT state a doc's `reconciled:` claim
+ *  is checked against — stable across squash/rebase (which rewrite commit shas but never blob
+ *  OIDs) and across CRLF working trees (the index blob is what's committed on every platform).
  *  Same single-spawn try/catch degrade as `gitCommitTime` (null, never a throw). */
-export function gitLastShaFor(root: string, pathspecs: string[]): string | null {
+export function gitIndexManifest(root: string, pathspecs: string[]): string | null {
   try {
-    const out = execFileSync("git", ["log", "-1", "--format=%H", "--", ...pathspecs], {
+    const out = execFileSync("git", ["ls-files", "-s", "-z", "--", ...pathspecs], {
       cwd: root,
       encoding: "utf8",
       stdio: ["ignore", "pipe", "ignore"],
-    }).trim();
-    return out === "" ? null : out;
+    });
+    const records = out.split("\0").filter((r) => r !== "");
+    return records.length === 0 ? null : records.join("\n");
   } catch {
-    // safe to degrade: no git / no commits — the caller surfaces the skip, never a crash.
+    // safe to degrade: no git / no index — the caller surfaces the skip, never a crash.
     return null;
   }
 }
@@ -221,10 +224,13 @@ export function gitShowHead(root: string, relPath: string): string | null {
   }
 }
 
-/** Count of TRACKED files matching `pathspecs` (git glob semantics). Lets `stale` tell a dangling
- *  `governs:` glob (matches nothing → its own advisory line, never silently "fresh") from a glob
- *  that genuinely resolves (RFC-0009). */
-export function gitMatchCount(root: string, pathspecs: string[]): number {
+/** Count of TRACKED files matching `pathspecs` (git glob semantics), or null when git itself
+ *  refused to evaluate them (e.g. an invalid pathspec magic — exit 128). The null keeps the two
+ *  failure modes apart: "matches nothing" is a ghost path (RFC-0018), "git errored" is a broken
+ *  pathspec the caller must name as such, never misdiagnose as a ghost. Lets `stale` tell a
+ *  dangling `governs:` glob (matches nothing → its own advisory line, never silently "fresh")
+ *  from a glob that genuinely resolves (RFC-0009). */
+export function gitMatchCount(root: string, pathspecs: string[]): number | null {
   try {
     const out = execFileSync("git", ["ls-files", "--", ...pathspecs], {
       cwd: root,
@@ -233,7 +239,8 @@ export function gitMatchCount(root: string, pathspecs: string[]): number {
     }).trim();
     return out === "" ? 0 : out.split(/\r?\n/).length;
   } catch {
-    return 0;
+    // git could not evaluate the pathspecs at all — distinct from "0 matches".
+    return null;
   }
 }
 

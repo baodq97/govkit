@@ -4,7 +4,7 @@ title: Gate-outcome journal and confusion-matrix calibration — the determinist
 status: implemented
 owner: baodq97
 date: 2026-07-07
-reconciled: 79437f7948ceb25429652d740228fbfb995b6cb5
+reconciled: sha256:94a72c9015074935
 governs:
   - packages/govkit/src/journal.ts
   - packages/govkit/src/commands/calibrate.ts

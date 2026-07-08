@@ -23,5 +23,6 @@ Thumbs.db
 # local research/scratch notes (kept on disk, never shipped in the OSS repo)
 /IMPROVEMENTS.md
 
-# govkit --journal / calibrate local run records (sensor output, never committed)
-.govkit/
+# govkit --journal / calibrate local run records (sensor output, never committed).
+# Anchored to the repo root: test fixtures legitimately SHIP a .govkit docs tree.
+/.govkit/
