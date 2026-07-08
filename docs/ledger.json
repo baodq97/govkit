@@ -59,9 +59,9 @@
     {
       "id": "F-R7-DISTILL",
       "title": "learning-distiller: journal + escape-log distilled into proposed corpus fixtures and rules via PR (keyed, opt-in, proposal-only)",
-      "spec": "PRD-0001",
-      "passes": false,
-      "check": "deliberately blocked on journal data accumulation — R7 phase 2"
+      "spec": "RFC-0017",
+      "passes": true,
+      "check": "RFC-0017 shipped (agent+skill) + Distill Round 1 in LEARNING-LOOP.md: 2 AGENTS.md rules, 1 corpus fixture (tp 4->5, fp 0), 1 ledger entry, 1 dropped-as-covered"
     },
     {
       "id": "F-R1-N3",
@@ -81,6 +81,13 @@
       "spec": "PRD-0001",
       "passes": false,
       "check": "re-add --provenance in .github/workflows/release.yml (npm 422s provenance from private repos)"
+    },
+    {
+      "id": "F-GOVERNS-EXIST",
+      "title": "deterministic check: every governs: path must resolve to an existing file (ghost-path class from Distill Round 1)",
+      "spec": "RFC-0015",
+      "passes": false,
+      "check": "needs its own RFC — verify-or-drift layer decision open"
     }
   ]
 }

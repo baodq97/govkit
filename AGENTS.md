@@ -85,6 +85,11 @@ ship as **plugin agents** (`swe-flow:implementer`, …) to be usable from the `s
 - **Never pipe a gate through `head`/`tail`/`grep` inside a `&&` chain** — the pipe swallows the
   failing exit code and turns a blocking gate into a no-op. Capture to a file or check
   `${PIPESTATUS[0]}`/`$?` explicitly before chaining (LEARNING-LOOP Round 12; it bit us live).
+- **Never pipe `git push` output either** — a swallowed non-zero exit turned a failed push into
+  an empty-diff PR that merged clean (Distill Round 1: PR #6/#7). When the push outcome matters,
+  confirm the remote ref actually moved (`git ls-remote origin <ref>`).
+- **`git fetch` before any `checkout -B <branch> origin/<ref>`** — a stale remote-tracking ref
+  silently rebases new work onto history main has already left behind (Distill Round 1).
 - **Cross-cutting rename/vocab change:** before the first edit, produce an exhaustive
   symbol/call-site inventory (grep/codegraph) and state the count. The rename lands as ONE
   coherent change set — intermediate states are expected not to compile — and verifies with the
