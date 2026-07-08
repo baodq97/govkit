@@ -1,9 +1,12 @@
 ---
 id: RFC-0021
 title: report --pr-body — render governance state as an idempotent fenced markdown block for PR bodies
-status: accepted
+status: implemented
 owner: baodq97
 date: 2026-07-08
+reconciled: sha256:b3ba398d70d039b2
+governs:
+  - packages/govkit/src/commands/report.ts
 ---
 
 > Extends RFC-0008's advisory lifecycle report with a human-readable output mode: a new
@@ -127,6 +130,30 @@ contributor and any CI; no LLM-judge involvement anywhere near it.
 - **Marker versioning.** If the block format ever changes incompatibly, do the markers carry a
   version (`govkit:report:v2:begin`)? Lean no — the outer markers are a span-location contract,
   not a schema; the content is for humans.
+
+## As-built
+
+Shipped as `renderReportPrBody` in `commands/report.ts` plus the `--pr-body` flag wiring in
+`cli.ts`: the block opens/closes with exactly `<!-- govkit:report:begin -->` /
+`<!-- govkit:report:end -->`, renders one GFM table per doc type with
+`| type | status | count | ids |` columns, and marks terminal statuses with ✔ (U+2714).
+`--pr-body` with `--json` is rejected exit 2 (one stdout, one machine channel); plain
+`report` and `--json` output are byte-unchanged. Ten tests in
+`packages/govkit/test/report-pr-body.test.ts` pin the markers, determinism, exclusivity,
+and the unchanged plain output. The caller-side splice recipe is documented in
+`plugins/swe-flow/README.md` with a pointer from `template/AGENTS.md`.
+
+## Deviations from design
+
+- **Table shape reconciled.** The Design text said "one markdown table per doc type" while
+  the Summary's example showed a single typed table. Shipped per-type tables that each carry
+  the `type` column — a reading that satisfies both texts; the columns match the example
+  exactly.
+- **Recipe-level splice test deferred** (Impact's test (e)): the splice is caller-side by
+  design, so the engine suite pins only the emitted block; the recipe lives as documentation
+  (`plugins/swe-flow/README.md` + the template pointer), not as a fixture test.
+- **Zero-doc type renders a header-only table** — a case the RFC left unpinned; the
+  header keeps the type visible rather than silently dropping it.
 
 ## Recommendation
 

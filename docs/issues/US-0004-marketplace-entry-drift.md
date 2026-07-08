@@ -1,7 +1,7 @@
 ---
 id: US-0004
 title: swe-flow marketplace entry drifted from plugin.json — version and description stale
-status: in-progress
+status: done
 owner: baodq97
 date: 2026-07-08
 priority: P2
@@ -35,24 +35,24 @@ and agent surface.
 The class rule matters as much as the instance fix (working-discipline item 7: record the
 one concrete rule that makes the *class* impossible, not just patch the escape).
 
-- [ ] **Instance fix:** the swe-flow entry in `.claude-plugin/marketplace.json` carries
+- [x] **Instance fix:** the swe-flow entry in `.claude-plugin/marketplace.json` carries
       `version: 0.6.0` and a description matching the current `plugin.json` surface —
       including `substance-judge` and the `judge` agent.
-- [ ] **Class rule (version sync):** a deterministic repo check in `scripts/`, wired into
+- [x] **Class rule (version sync):** a deterministic repo check in `scripts/`, wired into
       the root `package.json` `"check"` chain, fails when
       `plugins/swe-flow/.claude-plugin/plugin.json` and the swe-flow entry in
       `.claude-plugin/marketplace.json` disagree on `version`. Given the two files agree,
       when `bun run check` runs, then the check passes; given they disagree, then it fails
       naming both files and both versions.
-- [ ] **Class rule (root↔template sync):** the same check byte-compares an **explicit
+- [x] **Class rule (root↔template sync):** the same check byte-compares an **explicit
       allowlist** of intentionally-identical root↔template file pairs —
       `.claude/workflows/sdlc.js` ↔ `template/.claude/workflows/sdlc.js` and
       `.claude/hooks/session-freshness.mjs` ↔ `template/.claude/hooks/session-freshness.mjs`.
       Allowlist only — no directory-wide sweep — because `template/.github/workflows/ci.yml`
       intentionally differs from the root CI workflow and must not be flagged.
-- [ ] The check runs with **no API key** and no network (root `AGENTS.md` constraint: the
+- [x] The check runs with **no API key** and no network (root `AGENTS.md` constraint: the
       deterministic gate/check layer is keyed-nothing); it is plain file/JSON comparison.
-- [ ] The check does **not** couple the govkit CLI version (`packages/govkit/package.json`,
+- [x] The check does **not** couple the govkit CLI version (`packages/govkit/package.json`,
       currently 0.7.0): the CLI is a separate deliverable and versions independently of
       the plugin — asserting plugin↔CLI version equality would be a false positive.
 

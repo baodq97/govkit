@@ -4,7 +4,7 @@ title: Substance judge — the keyed Layer-3 verdict govkit's floor deliberately
 status: implemented
 owner: baodq97
 date: 2026-07-08
-reconciled: sha256:25b26eeb1376383a
+reconciled: sha256:9dc7b009883f659c
 governs:
   - plugins/swe-flow/agents/judge.md
   - plugins/swe-flow/skills/substance-judge/SKILL.md
@@ -115,6 +115,15 @@ Post-review hardening (adversarial review-changes pass, same PR): the original t
 commit that tree. The skill now checks and reports the record file's tracked state instead
 of assuming, and the judge agent no longer restates the dimension weights inline (the
 anchors file is the one pinned source). Folded into § Design above.
+
+**Amendment (RFC-0020, selftest-gated judge).** The judge contract is now selftest-gated:
+before any verdict the skill requires `govkit calibrate` green AND a keyed ranking probe
+that scores the pinned known-good fixture strictly above the known-weak one, else it refuses
+with `judge not trustworthy: <why>` and appends one refusal record per planned doc-run to
+`.govkit/evals/`. Every verdict additionally pins its provenance — exact model id,
+`temperature: 0`, and an `anchorsHash` (sha256 of the CRLF→LF-normalized
+scoring-anchors.md) — closing this RFC's "calibration corpus for the judge itself" open
+question. The governed judge.md/SKILL.md changed accordingly; re-acked.
 
 ## Recommendation
 

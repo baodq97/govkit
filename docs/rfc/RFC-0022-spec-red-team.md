@@ -1,9 +1,12 @@
 ---
 id: RFC-0022
 title: spec-red-team — an adversarial review skill for governed docs (swe-flow)
-status: accepted
+status: implemented
 owner: baodq97
 date: 2026-07-08
+reconciled: sha256:ead1244615d1c4d6
+governs:
+  - plugins/swe-flow/skills/spec-red-team
 ---
 
 > Proposes a new swe-flow skill that runs an adversarial pass over a PRD/RFC/ADR **before its
@@ -124,6 +127,23 @@ and no score communicates it.
   practice) to test a "Fails if" claim needs real usage data.
 - **Fan-out.** One doc per invocation ships first; whether a chain-level attack (PRD + its
   RFCs together, hunting cross-doc contradictions) earns its cost is deferred.
+
+## As-built
+
+Shipped as `plugins/swe-flow/skills/spec-red-team/` (SKILL.md + the pinned
+`references/finding-format.md` for the finding template and ranking rubric). Read-only is
+structural as designed: `allowed-tools` grants Read/Grep/Glob plus a scoped Bash allowlist
+of `npx govkit verify`/`eval`/`check` and `git log`/`git diff` only — no Write, no Edit, no
+Task. The five-step method (steelman → "Fails if" attack → self-refutation → impact ×
+likelihood × cheapness ranking → brief with one kill criterion) is pinned in the SKILL.md;
+briefs return as response text for the PR body or review comment.
+
+## Deviations from design
+
+One tightening: the design's tool posture left room to argue for a narrowly-scoped Write
+(a findings-report file). Shipped with Write fully absent — briefs land in the PR body or a
+review comment only, never in a file — so the read-only property holds with no carve-out
+to police.
 
 ## Recommendation
 

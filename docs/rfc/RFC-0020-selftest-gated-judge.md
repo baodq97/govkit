@@ -1,9 +1,12 @@
 ---
 id: RFC-0020
 title: Selftest-gated substance judge — the judge must prove itself before it judges
-status: accepted
+status: implemented
 owner: baodq97
 date: 2026-07-08
+reconciled: sha256:036e97aabb6dd272
+governs:
+  - plugins/swe-flow/skills/substance-judge/references
 ---
 
 > Amends RFC-0019 (substance-judge) and extends RFC-0012's immune-system posture to the keyed
@@ -124,6 +127,23 @@ the keyed layer *more* honest without making it any more required.
   keeps the keyed sensor honest without engine surface.
 - **Selftest result validity window.** Per-invocation now; caching a green selftest across a
   session trades cost against staleness and needs evidence the cost matters first.
+
+## As-built
+
+Shipped skill-side only — zero engine change, exactly as designed. The `substance-judge`
+SKILL.md gained selftest step 3 (the no-key calibrate half, plus the keyed strict good>weak
+ranking probe on the pinned fixture pair under `references/selftest-fixtures/good|weak/`);
+any failure prints `judge not trustworthy: <why>` and appends one refusal record per planned
+doc-run to the `.govkit/evals/` JSONL before stopping. `agents/judge.md` extended with the
+provenance contract: `temperature: 0`, `anchorsHash` (sha256 of the CRLF→LF-normalized
+scoring-anchors.md, computed once by the skill and passed to every dispatch), and the
+exact-model-id requirement. RFC-0019 carries the matching amendment note in its Deviations.
+
+## Deviations from design
+
+None material — the skill-step placement, fixture-pair asset, refusal-record shape, and
+provenance fields shipped as specified. The anchors hash normalizes CRLF→LF (the Design
+said "LF-normalized"; the shipped one-liner makes Windows checkouts first-class explicitly).
 
 ## Recommendation
 

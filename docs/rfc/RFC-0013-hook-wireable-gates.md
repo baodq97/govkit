@@ -4,7 +4,7 @@ title: Hook-wireable gates — a blocking-hook contract for verify/eval/check (-
 status: implemented
 owner: baodq97
 date: 2026-07-07
-reconciled: sha256:530202d91d851642
+reconciled: sha256:13cec992226a7321
 governs:
   - packages/govkit/src/cli.ts
   - template/.claude/settings.json
