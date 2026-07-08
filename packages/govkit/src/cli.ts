@@ -12,7 +12,7 @@ import { type DriftAckResult, type DriftResult, runDrift, runDriftAck } from "./
 import { type EvalResult, runEval } from "./commands/eval";
 import { type InitResult, runInit } from "./commands/init";
 import { type LedgerResult, runLedger } from "./commands/ledger";
-import { type ReportResult, runReport } from "./commands/report";
+import { type ReportResult, renderReportPrBody, runReport } from "./commands/report";
 import { runStale, type StaleResult } from "./commands/stale";
 import { runVerify, type VerifyResult } from "./commands/verify";
 import { type GovkitConfig, loadConfig } from "./config";
@@ -28,7 +28,7 @@ Usage:
   govkit verify       [--root <dir>] [--json] [--changed [--base <ref>]] [--journal] [--hook]
   govkit eval         [--root <dir>] [--json] [--changed [--base <ref>]] [--journal] [--hook]
   govkit calibrate    --corpus <dir> [--root <dir>] [--json] [--baseline <file> [--update-baseline]]
-  govkit report       [--root <dir>] [--json]   (lifecycle histogram — done / in-flight / cleanup)
+  govkit report       [--root <dir>] [--json | --pr-body]   (lifecycle histogram — done / in-flight / cleanup)
   govkit stale        [--root <dir>] [--json]   (advisory: governed code newer than its doc — needs git)
   govkit drift        [--root <dir>] [--json] [--journal] [--hook]  (gate: reconciled content hash vs governed code — needs git)
   govkit drift --ack [docPath] [--root <dir>] [--json] [--journal]  (rewrite 'reconciled:' to the current governed content hash)
@@ -57,7 +57,9 @@ Commands:
   report       Advisory lifecycle view: per-type status histogram with the ids in
                each bucket, marking which statuses are terminal (decided/shipped per
                terminalStatuses). Answers "what is done / in-flight / cleanup". Never
-               blocks — read-only, always exits 0. (RFC-0008)
+               blocks — read-only, always exits 0. (RFC-0008) With --pr-body: the same
+               view as GitHub markdown fenced by stable HTML comment markers, for
+               idempotent replace-not-append injection into a PR body. (RFC-0021)
   stale        Advisory staleness (RFC-0009): for every doc that declares a
                'governs: [glob]' front-matter key, compare the doc's last-commit
                time against the newest commit of the code it governs and warn when
@@ -88,6 +90,11 @@ Commands:
 Options:
   --root       Repo root containing govkit.yml (default: cwd, or the hook's cwd).
   --json       Machine-readable output (verify, eval, report, stale, drift, ledger).
+  --pr-body    (report) Emit the lifecycle view as a markdown block fenced by
+               <!-- govkit:report:begin/end --> markers, deterministic on unchanged state
+               (sorted, timestamp-free) so an injector splices with zero diff noise. govkit
+               only emits — writing it into a PR body is the caller's job (gh pr edit).
+               Mutually exclusive with --json.
   --changed    Adoption mode (verify, eval, check): restrict to docs that are
                new-or-modified vs --base. verify still scans the whole repo for cross-doc
                checks (only the report is scoped, so a new duplicate id / dangling ref is
@@ -451,6 +458,7 @@ async function main(argv: string[]): Promise<number> {
       // (`govkit drift --ack [docPath]`) — parseArgs has no "string with optional value",
       // and a positional keeps `--ack` alone meaning "all opted-in docs" unambiguous.
       ack: { type: "boolean", default: false },
+      "pr-body": { type: "boolean", default: false },
       "docs-root": { type: "string" },
       force: { type: "boolean", default: false },
       help: { type: "boolean", short: "h", default: false },
@@ -483,6 +491,7 @@ async function main(argv: string[]): Promise<number> {
     { set: values.journal, flag: "--journal", allowed: sensorCommands },
     { set: values.hook, flag: "--hook", allowed: sensorCommands },
     { set: values.ack, flag: "--ack", allowed: ["drift"] },
+    { set: values["pr-body"], flag: "--pr-body", allowed: ["report"] },
     { set: values.corpus !== undefined, flag: "--corpus", allowed: ["calibrate"] },
     { set: values.baseline !== undefined, flag: "--baseline", allowed: ["calibrate"] },
     { set: values["update-baseline"], flag: "--update-baseline", allowed: ["calibrate"] },
@@ -505,6 +514,14 @@ async function main(argv: string[]): Promise<number> {
   }
   if (values["update-baseline"] && values.baseline === undefined) {
     process.stderr.write("govkit: --update-baseline requires --baseline <file>\n");
+    return 2;
+  }
+  // Two machine channels on one stdout would be ambiguous (RFC-0021): the fenced markdown
+  // block and the JSON payload are each consumed whole by their caller.
+  if (values["pr-body"] && values.json) {
+    process.stderr.write(
+      "govkit: --pr-body cannot be combined with --json — one stdout, one machine channel\n",
+    );
     return 2;
   }
   // An ack REWRITES docs; a blocking hook must never mutate — hooks gate, they don't ack.
@@ -749,7 +766,10 @@ async function main(argv: string[]): Promise<number> {
       // could fail CI would tempt someone to gate on advisory output, the exact thing the
       // gate/eval split exists to prevent.
       const result = runReport({ root: values.root ?? process.cwd() });
-      if (values.json) process.stdout.write(`${JSON.stringify(result, null, 2)}\n`);
+      // --pr-body (RFC-0021) is a rendering choice over the same ReportResult, not a gate:
+      // stdout gets the marker-fenced block; splicing it into a PR body is the caller's job.
+      if (values["pr-body"]) process.stdout.write(renderReportPrBody(result));
+      else if (values.json) process.stdout.write(`${JSON.stringify(result, null, 2)}\n`);
       else printReport(result);
       return 0;
     }
