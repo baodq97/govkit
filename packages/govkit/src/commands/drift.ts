@@ -3,7 +3,7 @@ import { readFileSync, writeFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { type GovkitConfig, loadConfig } from "../config";
 import { frontMatterSpan } from "../frontmatter";
-import { gitAvailable, gitIndexManifest, scanGoverned, toPathspec } from "../util";
+import { gitAvailable, gitIndexManifest, gitMatchCount, scanGoverned, toPathspec } from "../util";
 
 // The deterministic spec↔code drift GATE (RFC-0015, as amended) — the blocking sibling of
 // RFC-0009's `stale` advisory. The move that makes a gate honest where the proxy could not
@@ -41,6 +41,9 @@ export interface DriftEntry {
   /** Canonical claim for the CURRENT governed content (`sha256:<16 hex>`); null when the
    *  governs paths match no tracked file. Also what `--ack` writes. */
   currentSha: string | null;
+  /** Governs pathspecs matching NO tracked file (RFC-0018) — a broken declaration `--ack`
+   *  can never vouch past; absent for claim-mismatch entries. */
+  ghost?: string[];
   /** Human-readable reason this entry is a violation. */
   problem: string;
 }
@@ -194,7 +197,25 @@ export function runDrift(opts: DriftOptions): DriftResult {
     };
   }
   const drifted: DriftEntry[] = [];
-  for (const doc of opted) {
+  for (const doc of governed) {
+    // Governs-existence check (RFC-0018), EVERY governed doc — opted in or not: a `governs:`
+    // pathspec matching no tracked file is a broken declaration on its own (a moved/renamed
+    // file, a typo), and it silently shrinks what drift AND stale cover. Not fixable by ack —
+    // the governs list itself needs the hand edit.
+    const ghost = doc.governs.filter((g) => gitMatchCount(opts.root, [g]) === 0);
+    if (ghost.length > 0) {
+      drifted.push({
+        path: doc.path,
+        type: doc.type,
+        governs: doc.governs,
+        reconciled: doc.reconciled,
+        currentSha: null,
+        ghost,
+        problem: `governs pathspec(s) match no tracked file: ${ghost.join(", ")} — fix or remove them (a ghost path silently shrinks drift/stale coverage)`,
+      });
+      continue;
+    }
+    if (!doc.hasReconciled) continue; // existence-checked only; the claim check is opt-in
     const entry = judge(doc, gitIndexManifest(opts.root, governedPathspecs(doc)));
     if (entry) drifted.push(entry);
   }
@@ -204,8 +225,8 @@ export function runDrift(opts: DriftOptions): DriftResult {
     drifted,
     skipped,
     ok: drifted.length === 0,
-    ...(opted.length === 0
-      ? { note: "no governed doc declares both `governs:` and `reconciled:` — nothing opted in." }
+    ...(governed.length === 0
+      ? { note: "no governed doc declares a `governs:` key — nothing to check." }
       : {}),
   };
 }
@@ -308,6 +329,18 @@ export function runDriftAck(opts: DriftAckOptions): DriftAckResult {
     }
     writeFileSync(doc.file, rewritten, "utf8");
     result.acked.push({ path: doc.path, from: doc.reconciled, to: entry.currentSha });
+  }
+  if (opts.docPath === undefined) {
+    // Ack-all promises "green afterwards, or told why not": a governs-only doc failing the
+    // RFC-0018 ghost-path check is never a rewrite target (no claim to rewrite, and an ack
+    // could not vouch past a broken governs list anyway) — surface it instead of exiting 0
+    // while the very next `drift` run stays red.
+    const targeted = new Set(targets.map((d) => d.path));
+    for (const entry of check.drifted) {
+      if (!targeted.has(entry.path)) {
+        result.unackable.push({ path: entry.path, problem: entry.problem });
+      }
+    }
   }
   // An unackable doc stays a live violation after the ack, so the ack cannot report success.
   result.ok = result.unackable.length === 0;

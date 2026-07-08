@@ -26,7 +26,7 @@
       "title": "--hook blocking-gate contract: exit 2 + stderr report, fail-closed",
       "spec": "RFC-0013",
       "passes": true,
-      "check": "packages/govkit/test/hook.test.ts e2e; template Stop gate via stop-gate.mjs"
+      "check": "packages/govkit/test/hook.test.ts e2e; template Stop gate wired directly in template/.claude/settings.json (npx govkit check --hook) — the once-claimed stop-gate.mjs never shipped, caught by RFC-0018's ghost-path check on its first run"
     },
     {
       "id": "F-TIERS",
@@ -85,9 +85,9 @@
     {
       "id": "F-GOVERNS-EXIST",
       "title": "deterministic check: every governs: path must resolve to an existing file (ghost-path class from Distill Round 1)",
-      "spec": "RFC-0015",
-      "passes": false,
-      "check": "needs its own RFC — verify-or-drift layer decision open"
+      "spec": "RFC-0018",
+      "passes": true,
+      "check": "RFC-0018 (drift layer decided: git's matcher, per-pathspec, every governed doc); drift.test.ts pins ghost-among-live, governs-only ghost, and ack-all CANNOT"
     },
     {
       "id": "F-DRIFT-CONTENT-HASH",

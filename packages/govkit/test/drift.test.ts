@@ -197,6 +197,30 @@ describe("govkit drift — the RFC-0015 gate (e2e)", () => {
     expect(r.stderr).toContain("reconciled: is empty");
   });
 
+  it("flags a GHOST pathspec among live ones (RFC-0018) — coverage may not silently shrink", () => {
+    // src/thing.ts is tracked, src/ghost.ts is not: the manifest is non-empty, so the claim
+    // would check green — but one declared path governs NOTHING. Per-pathspec existence is
+    // the RFC-0018 gate; the violation names exactly the dead spec.
+    const claim = governedHash("src/thing.ts");
+    writeFileSync(
+      join(root, DOC),
+      `---\nid: RFC-0001\ntitle: x\nstatus: accepted\ngoverns:\n  - src/thing.ts\n  - src/ghost.ts\nreconciled: ${claim}\n---\n\nbody prose\n`,
+    );
+    const r = cli(["drift", "--root", root]);
+    expect(r.status).toBe(1);
+    expect(r.stderr).toContain("match no tracked file: src/ghost.ts");
+  });
+
+  it("flags a ghost pathspec on a governs-only doc too (no reconciled — the declaration itself is broken)", () => {
+    writeFileSync(join(root, DOC), rfcDoc({ governs: "src/ghost.ts", reconciled: null }));
+    const r = cli(["drift", "--root", root, "--json"]);
+    expect(r.status).toBe(1);
+    const result = JSON.parse(r.stdout ? r.stdout : r.stderr) as DriftResult;
+    expect(result.skipped).toBe(1); // still not opted into the CLAIM check
+    expect(result.drifted).toHaveLength(1);
+    expect(result.drifted[0]?.ghost).toEqual(["src/ghost.ts"]);
+  });
+
   it("flags a well-formed claim whose governs paths match NO tracked file — never silently green", () => {
     writeFileSync(
       join(root, DOC),
@@ -364,6 +388,21 @@ describe("govkit drift --ack — the reconciliation ritual (e2e)", () => {
     const rerun = cli(["drift", "--root", root]);
     expect(rerun.status).toBe(0); // green stays green across the ack commit
     expect(rerun.stdout).toContain("in sync");
+  });
+
+  it("reports a ghost-path doc as CANNOT in an ack-all run — never exit 0 with drift still red", () => {
+    reconcileAtContent(); // one healthy opted-in doc
+    const ghostDoc = join("docs", "rfc", "RFC-0002-y.md");
+    writeFileSync(
+      join(root, ghostDoc),
+      `---\nid: RFC-0002\ntitle: y\nstatus: accepted\ngoverns:\n  - src/ghost.ts\n---\n\nbody prose\n`,
+    );
+    const before = readFileSync(join(root, ghostDoc), "utf8");
+    const r = cli(["drift", "--ack", "--root", root]);
+    expect(r.status).toBe(1);
+    expect(r.stdout + r.stderr).toContain("CANNOT");
+    expect(r.stdout + r.stderr).toContain("src/ghost.ts");
+    expect(readFileSync(join(root, ghostDoc), "utf8")).toBe(before); // an ack can't fix governs
   });
 
   it("marks an ack run in the --journal record (drift.ack: true) so drifted>0 ∧ ok stays legible", () => {

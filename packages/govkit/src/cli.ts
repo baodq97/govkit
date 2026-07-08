@@ -69,7 +69,10 @@ Commands:
                the governed files' git blob OIDs, stable across squash/rebase); it fails
                (exit 1) when the governed content no longer matches that claim. The honest
                exits are updating the doc or an explicit --ack — the gate never acks
-               itself. Git absent degrades to a note + exit 0; check never calls it.
+               itself. Every governed doc (opted in or not) is also checked per-pathspec
+               for governs existence (RFC-0018): a spec matching no tracked file is a
+               violation naming it — ghost paths silently shrink drift/stale coverage.
+               Git absent degrades to a note + exit 0; check never calls it.
   ledger       Feature-ledger GATE (RFC-0016): gates the committed JSON ledger
                ({ entries: [{ id, title, spec, passes, check? }] }, docs/ledger.json or
                ledger.path) — parse/schema, unique ids, every spec resolves to a governed

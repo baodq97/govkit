@@ -56,6 +56,9 @@ whether the prose is *sound* is a keyed reviewer's job, never part of the no-key
   matches the recorded claim — the deterministic spec↔code drift gate no SDD tool ships.
   `--ack` rewrites only the claim value (a deliberate, git-visible act); docs without
   `reconciled:` stay covered by the advisory `stale` only, so adoption is per-doc and zero-FP.
+  Every governed doc is additionally existence-checked per pathspec (RFC-0018): a `governs:`
+  spec matching no tracked file fails, named verbatim — an ack can't clear it, the governs
+  list needs the hand edit.
 - **`govkit ledger`**: validates a committed JSON feature ledger (`docs/ledger.json`,
   `ledger.path` configurable): schema, unique ids, every `spec` resolving to a governed doc,
   and git-backed anti-gaming — removing an entry or its `check` field vs HEAD is a violation;
