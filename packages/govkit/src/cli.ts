@@ -31,7 +31,7 @@ Usage:
   govkit report       [--root <dir>] [--json]   (lifecycle histogram — done / in-flight / cleanup)
   govkit stale        [--root <dir>] [--json]   (advisory: governed code newer than its doc — needs git)
   govkit drift        [--root <dir>] [--json] [--journal] [--hook]  (gate: reconciled sha vs governed code — needs git)
-  govkit drift --ack [docPath] [--root <dir>] [--json]  (rewrite 'reconciled:' to the current governed sha)
+  govkit drift --ack [docPath] [--root <dir>] [--json] [--journal]  (rewrite 'reconciled:' to the current governed sha)
   govkit ledger       [--root <dir>] [--json] [--journal] [--hook]  (gate: the committed feature ledger — needs git)
   govkit audit-write  [--root <dir>]        (reads a PreToolUse hook payload on stdin)
 
@@ -93,14 +93,17 @@ Options:
                run to the journal (.govkit/journal.jsonl, or journal.path in govkit.yml).
                Purely observational — a journal write failure warns on stderr and NEVER
                changes the command's exit code.
-  --hook       Blocking-hook mode (verify, eval, check, drift, ledger): map gate failure
-               to exit 2 + report on stderr — wire as a blocking hook. Fail-closed: an
-               operational error (broken config) also exits 2, so a broken guardrail blocks.
+  --hook       Blocking-hook mode (verify, eval, check, drift, ledger — check-mode runs
+               only, never drift --ack): map gate failure to exit 2 + report on stderr —
+               wire as a blocking hook. Fail-closed: an operational error (broken config)
+               also exits 2, so a broken guardrail blocks.
   --ack        (drift) Reconcile: rewrite 'reconciled:' to the current governed sha for the
                doc named by the positional path after the command, or for ALL opted-in
                docs when no path is given. Runs the drift check first and writes only
                where drifted (a no-op ack says so); the rewrite is surgical — only the
-               sha value changes, every other byte is preserved for the reviewed diff.
+               sha value changes, every other byte (a trailing comment included) is
+               preserved for the reviewed diff. Combines with --journal (the record is
+               marked ack: true) but never with --hook — hooks gate, they don't ack.
   --corpus     (calibrate) Labeled corpus dir containing good/ and weak/ subtrees.
   --baseline   (calibrate) Baseline JSON to compare the floor matrix against. A missing
                file is an error unless --update-baseline creates it (bootstrap).
@@ -498,6 +501,13 @@ async function main(argv: string[]): Promise<number> {
     process.stderr.write("govkit: --update-baseline requires --baseline <file>\n");
     return 2;
   }
+  // An ack REWRITES docs; a blocking hook must never mutate — hooks gate, they don't ack.
+  if (values.ack && values.hook) {
+    process.stderr.write(
+      "govkit: --ack cannot be combined with --hook — an ack rewrites docs, and a blocking hook must never mutate\n",
+    );
+    return 2;
+  }
 
   // `--changed` adoption scoping (RFC-0004/0005): resolved ONCE here, shared by verify,
   // eval, and check. This is the only path that touches git (lazily); the un-flagged
@@ -542,8 +552,9 @@ async function main(argv: string[]): Promise<number> {
     verify?: VerifyResult;
     eval?: EvalResult;
     // drift/ledger (RFC-0015/0016) record pre-summarized counts — their full results carry
-    // absolute paths and per-entry prose the sensor does not need.
-    drift?: { checked: number; drifted: number; skipped: number };
+    // absolute paths and per-entry prose the sensor does not need. `ack: true` marks a
+    // rewrite run, where drifted > 0 with ok: true is legal (see journal.ts).
+    drift?: { checked: number; drifted: number; skipped: number; ack?: true };
     ledger?: { entries: number; passing: number; violations: number };
     ok: boolean;
   };
@@ -761,13 +772,16 @@ async function main(argv: string[]): Promise<number> {
         if (values.ack) {
           // The ack ritual: runs the same drift computation, then rewrites `reconciled:`
           // where drifted. Journaled like a gate run — the record captures what drift SAW
-          // (pre-ack counts) with ok = "nothing left unackable".
+          // (pre-ack counts) with ok = "nothing left unackable", marked `ack: true` so a
+          // sensor consumer never mistakes it for a check run (drifted > 0 with ok: true
+          // would corrupt the drifted⇔ok reading otherwise). --hook was rejected above:
+          // an ack mutates docs, which a blocking hook must never do.
           const result = runDriftAck({ root, config, docPath });
           if (values.json) process.stdout.write(`${JSON.stringify(result, null, 2)}\n`);
-          else printDriftAck(result, values.hook);
+          else printDriftAck(result);
           const c = result.check;
           return {
-            drift: { checked: c.checked, drifted: c.drifted.length, skipped: c.skipped },
+            drift: { checked: c.checked, drifted: c.drifted.length, skipped: c.skipped, ack: true },
             ok: result.ok,
           };
         }

@@ -8,7 +8,15 @@ import {
   type ViolationTier,
 } from "../config";
 import { isParseError, parseFrontMatter } from "../frontmatter";
-import { headingLines, listMarkdown, matches, str, stripNonProse, typeDir } from "../util";
+import {
+  collectGovernedIds,
+  headingLines,
+  listMarkdown,
+  matches,
+  str,
+  stripNonProse,
+  typeDir,
+} from "../util";
 
 // The canonical kind list (and these two types) live in config.ts so loadConfig can
 // validate `tiers:` keys against it without a config↔verify import cycle; re-exported
@@ -183,15 +191,12 @@ function checkDuplicateIds(docs: Doc[]): Finding[] {
 // resolve to a known doc id anywhere in the chain — else a dangling reference (a `parent`
 // pointing at an id that was renamed or never existed). Resolve-only: empty/absent values are
 // optional links and skipped; `ref.type` is recorded in config but not enforced here; a ref is
-// a single scalar id (arrays are a future extension). Builds its own id Set for membership
-// (duplicate detection keeps an id→docs Map for collision reporting — a different shape, not
-// shared) — same deterministic, no-key category as INDEX-sync / unique-ids.
-function checkReferences(docs: Doc[], types: Record<string, DocType>): Finding[] {
-  const ids = new Set<string>();
-  for (const doc of docs) {
-    const id = str(doc.data.id);
-    if (id) ids.add(id);
-  }
+// a single scalar id (arrays are a future extension). The id universe (`ids`) comes from the
+// shared `collectGovernedIds` collector — the same set the ledger's spec resolution
+// (RFC-0016) uses, so the two can never disagree on which ids exist (duplicate detection
+// keeps an id→docs Map for collision reporting — a different shape, not shared) — same
+// deterministic, no-key category as INDEX-sync / unique-ids.
+function checkReferences(docs: Doc[], types: Record<string, DocType>, ids: Set<string>): Finding[] {
   const violations: Finding[] = [];
   for (const doc of docs) {
     const refs = types[doc.type]?.refs;
@@ -435,7 +440,7 @@ export function runVerify(opts: VerifyOptions): VerifyResult {
   }
 
   violations.push(...checkDuplicateIds(allDocs));
-  violations.push(...checkReferences(allDocs, types));
+  violations.push(...checkReferences(allDocs, types, collectGovernedIds(opts.root, config)));
   violations.push(...checkCoherence(allDocs, types));
   violations.push(...checkRequiredSections(allDocs, types));
 

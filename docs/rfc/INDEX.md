@@ -18,3 +18,4 @@
 | [RFC-0014](./RFC-0014-risk-tiered-checks.md) | Risk-tiered verify checks — advisory vs blocking, per kind, in config | implemented | baodq97 | 2026-07-07 |
 | [RFC-0015](./RFC-0015-drift-gate.md) | Deterministic spec↔code drift gate — reconciled shas and an explicit ack ritual (govkit drift) | implemented | baodq97 | 2026-07-07 |
 | [RFC-0016](./RFC-0016-feature-ledger.md) | Machine-checkable feature ledger — append-only done-ness agents cannot game (govkit ledger) | implemented | baodq97 | 2026-07-07 |
+| [RFC-0017](./RFC-0017-learning-distiller.md) | Learning-distiller — the keyed DISTILL step of the R7 flywheel, proposal-only by construction (swe-flow:distiller) | implemented | baodq97 | 2026-07-08 |

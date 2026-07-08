@@ -4,7 +4,7 @@ title: Gate-outcome journal and confusion-matrix calibration — the determinist
 status: implemented
 owner: baodq97
 date: 2026-07-07
-reconciled: c6840a4b44b3992cb24bb2a2d780da1dcd9dfe9a
+reconciled: 16052d6dce74be49684d9867a940d25a991d5aee
 governs:
   - packages/govkit/src/journal.ts
   - packages/govkit/src/commands/calibrate.ts
@@ -173,6 +173,13 @@ under bun and stock node, floor matrix tp 4 / fp 0 / fn 0 / tn 4 with baseline c
 - **Journal `durationMs` includes report printing**, a consequence of restoring
   print-verify-before-eval in `check`; the field measures the observable gate run, which is
   the honest reading of its name.
+- **The journal surface grew in sprint 3** (RFC-0015/0016): the record's `cmd` union gained
+  `drift` and `ledger`; two optional pre-summarized record parts (`drift: { checked, drifted,
+  skipped }`, `ledger: { entries, passing, violations }`) joined `verify`/`eval`; and
+  `drift.ack: true` marks a `drift --ack` run so `drifted > 0` with `ok: true` stays legible
+  to a sensor consumer (an ack rewrites the drifted docs — without the marker it would be
+  indistinguishable from a check run). Recorded here because this RFC governs `journal.ts`;
+  the additions are purely additive fields, so pre-existing lines and consumers are unaffected.
 
 ## Recommendation
 

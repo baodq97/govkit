@@ -5,13 +5,13 @@
     "f1": 1
   },
   "counts": {
-    "tp": 4,
+    "tp": 5,
     "fp": 0,
     "fn": 0,
     "tn": 4
   },
   "advisory": {
     "goodAverageScore": 98,
-    "weakAverageScore": 8
+    "weakAverageScore": 23
   }
 }

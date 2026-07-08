@@ -180,6 +180,53 @@ describe("govkit ledger — the RFC-0016 gate (e2e)", () => {
     expect(escaped.stderr).toContain("resolves outside the repo root");
   });
 
+  it("runs the append-only layer when --root is a SUBDIRECTORY of the repo (HEAD paths are cwd-relative)", () => {
+    // `git show HEAD:<path>` resolves from the repo TOP LEVEL; with a nested --root the
+    // baseline lookup must use the cwd-relative `HEAD:./<path>` form or it always misses
+    // and the append-only layer silently never runs — the exact bypass this pins.
+    const sub = join(root, "gov");
+    mkdirSync(join(sub, "docs", "rfc"), { recursive: true });
+    writeFileSync(join(sub, "govkit.yml"), GOVKIT_YML);
+    writeFileSync(join(sub, "docs", "rfc", "RFC-0001-x.md"), RFC_DOC);
+    writeFileSync(
+      join(sub, LEDGER),
+      `${JSON.stringify({ entries: [entry(), entry({ id: "F-002" })] }, null, 2)}\n`,
+    );
+    commitAll("nested govkit root");
+    // Remove F-002 in the working tree — the gate must see the committed baseline and fail.
+    writeFileSync(join(sub, LEDGER), `${JSON.stringify({ entries: [entry()] }, null, 2)}\n`);
+    const r = cli(["ledger", "--root", sub]);
+    expect(r.status).toBe(1);
+    expect(r.stderr).toContain("entry 'F-002' exists in HEAD but was removed");
+    expect(r.stderr).not.toContain("no committed baseline");
+  });
+
+  it("catches the rename bypass: pointing ledger.path at a fresh file abandons the committed evidence", () => {
+    writeLedger([entry()]);
+    commitAll("ledger");
+    // Swap the path and seed a fresh empty ledger in the same change — F-001's committed
+    // evidence would vanish without the path-continuity guard (the fresh file has no HEAD
+    // baseline, so layer 4 would silently degrade to the skip note).
+    writeFileSync(join(root, "govkit.yml"), `${GOVKIT_YML}ledger:\n  path: docs/ledger2.json\n`);
+    writeFileSync(join(root, "docs", "ledger2.json"), `${JSON.stringify({ entries: [] })}\n`);
+    const r = cli(["ledger", "--root", root]);
+    expect(r.status).toBe(1);
+    expect(r.stderr).toContain("ledger path changed from docs/ledger.json to docs/ledger2.json");
+    expect(r.stderr).toContain("append-only continuity broken");
+  });
+
+  it("still degrades gracefully for a legitimate FIRST ledger at a committed custom path", () => {
+    writeFileSync(join(root, "govkit.yml"), `${GOVKIT_YML}ledger:\n  path: docs/ledger2.json\n`);
+    commitAll("declare the ledger path"); // config committed BEFORE the ledger exists
+    writeFileSync(
+      join(root, "docs", "ledger2.json"),
+      `${JSON.stringify({ entries: [entry()] })}\n`,
+    );
+    const r = cli(["ledger", "--root", root]);
+    expect(r.status).toBe(0); // bootstrap, not bypass: committed path == current path
+    expect(r.stderr).toContain("no committed baseline");
+  });
+
   it("writes a --journal record { cmd: ledger, ledger: { entries, passing, violations } }", () => {
     writeLedger([entry(), entry({ id: "F-002", passes: false })]);
     commitAll("ledger");

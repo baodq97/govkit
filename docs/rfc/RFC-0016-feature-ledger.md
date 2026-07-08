@@ -4,7 +4,7 @@ title: Machine-checkable feature ledger — append-only done-ness agents cannot 
 status: implemented
 owner: baodq97
 date: 2026-07-07
-reconciled: c6840a4b44b3992cb24bb2a2d780da1dcd9dfe9a
+reconciled: 16052d6dce74be49684d9867a940d25a991d5aee
 governs:
   - packages/govkit/src/commands/ledger.ts
 ---
@@ -88,13 +88,16 @@ semantics: violation ⇒ would-be exit 1 ⇒ exit 2 under `--hook`.
 
 ## Impact / rollout
 
-- **Opt-in and dark:** no ledger file, no gate — `govkit ledger` reports nothing to check and
-  exits 0; `verify`/`eval`/`check` are untouched and the no-key CI gate never runs it.
+- **Opt-in and dark until invoked, fail-loud once invoked:** `verify`/`eval`/`check` are
+  untouched and the no-key CI gate never runs `govkit ledger`. But running the command against
+  a missing ledger file is an operational error naming the expected path (exit 1, `--hook` 2),
+  never a green exit — an opt-in gate pointed at nothing must never pass silently.
 - **Adoption path:** seed the ledger from open US docs (`spec` pointing at each), all
   `passes: false`; from then on the only reviewed motions are boolean flips and new entries.
-- **Reuses existing plumbing:** id resolution rides the RFC-0003 resolver; the git call is the
-  `execFileSync` discipline of `stale`/`drift`; `--journal`/`--hook` ride the RFC-0012/13
-  cli edge unchanged.
+- **Reuses existing plumbing:** spec resolution consumes the shared governed-id collector
+  (`util.collectGovernedIds`) — literally the same id universe verify's RFC-0003 reference
+  check resolves against; the git call is the `execFileSync` discipline of `stale`/`drift`;
+  `--journal`/`--hook` ride the RFC-0012/13 cli edge unchanged.
 - **Rollback** is deleting the ledger file and the optional `ledger.path` key; nothing else
   reads either.
 
@@ -124,7 +127,24 @@ only — it never touches the exit code.
 
 ## Deviations from design
 
-Recorded at merge if review forces changes — the fixer updates this section.
+Review hardening (sprint-3 fixer pass) changed the shipped behavior in four ways:
+
+- **The missing-file exit-0 flipped to fail-loud** (review decision): the draft Impact bullet
+  said "no ledger file, no gate — exits 0"; shipped, a missing file at the configured path is
+  an operational error naming the expected path (exit 1, `--hook` 2). An opt-in gate pointed
+  at nothing must never pass silently — § Impact above now records the shipped semantics.
+- **`git show HEAD:./<path>`** (git's cwd-relative form) replaced the bare `HEAD:<path>`
+  spelling: the bare form resolves from the repo TOP LEVEL, so with `--root` a subdirectory of
+  the repo the append-only baseline lookup always missed and layer 4 silently never ran.
+- **Path-continuity guard:** when the configured ledger path has no HEAD baseline, the gate
+  also reads HEAD's own govkit.yml — if the COMMITTED config's ledger path (explicit or
+  defaulted) has a baseline that differs from the current path, that is a `path-moved`
+  violation. This closes the rename bypass (point `ledger.path` at a fresh file in the same
+  change and the committed evidence vanishes unseen); a genuine first-ever ledger still
+  degrades to the surfaced skip note. Migrate by keeping the committed path in the same change.
+- **Shared id collector:** spec resolution was reimplemented at first; it now consumes
+  `util.collectGovernedIds`, the same collector verify's reference check uses, so the two id
+  universes can never disagree — the § Impact reuse claim is one function, not a parallel walk.
 
 ## Recommendation
 

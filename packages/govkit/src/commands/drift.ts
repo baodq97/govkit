@@ -1,16 +1,8 @@
 import { readFileSync, writeFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { type GovkitConfig, loadConfig } from "../config";
-import { isParseError, parseFrontMatter } from "../frontmatter";
-import {
-  gitAvailable,
-  gitLastShaFor,
-  listMarkdown,
-  normalizeGoverns,
-  str,
-  toPathspec,
-  typeDir,
-} from "../util";
+import { frontMatterSpan } from "../frontmatter";
+import { gitAvailable, gitLastShaFor, scanGoverned, toPathspec } from "../util";
 
 // The deterministic spec↔code drift GATE (RFC-0015) — the blocking sibling of RFC-0009's
 // `stale` advisory. The move that makes a gate honest where the proxy could not be: stop
@@ -22,6 +14,11 @@ import {
 // like `stale`, so it lives outside the no-key pure-fs floor and `check` never calls it; git
 // absent degrades to a note + exit 0, never a crash (a gate you cannot run is reported, not
 // failed — only an evaluated mismatch blocks).
+//
+// The `reconciled:` value is read from — and rewritten in — the RAW front-matter block text
+// (span located by frontmatter.ts's one block grammar), never through parsed YAML: YAML
+// coerces an unquoted all-digit sha (`0123456`) to a number, dropping the leading zero, and
+// the gate would then judge the doc against a value that is not on disk.
 
 /** A recorded `reconciled` value must look like a (possibly short) git sha to be checkable. */
 const SHA_RE = /^[0-9a-f]{7,40}$/i;
@@ -31,7 +28,8 @@ export interface DriftEntry {
   path: string;
   type: string;
   governs: string[];
-  /** The doc's recorded claim, verbatim — possibly garbage, which is its own violation. */
+  /** The doc's recorded claim, verbatim from the raw block text — possibly garbage, which is
+   *  its own violation. */
   reconciled: string;
   /** Newest commit sha touching any governs path; null when none has commit history. */
   currentSha: string | null;
@@ -58,44 +56,74 @@ export interface DriftOptions {
 }
 
 /** One governed doc as the drift scanner sees it — the shared substrate of check and ack. */
-interface GovernedDoc {
+interface DriftDoc {
   file: string;
   path: string;
   type: string;
   governs: string[];
-  /** Key PRESENCE, not value: `reconciled:` with an empty value is a violation, absence is
-   *  merely not-opted-in — the two must never be conflated (empty ≠ unclaimed). */
+  /** Key PRESENCE, not value: a `reconciled:` line with an empty value is a violation,
+   *  absence is merely not-opted-in — the two must never be conflated (empty ≠ unclaimed). */
   hasReconciled: boolean;
   reconciled: string;
 }
 
-/** Pure-fs scan of every governed doc that declares `governs:`. Unparseable front-matter is
- *  the verify gate's job, not drift's — skipped here exactly as `stale` skips it. */
-function scanGoverned(root: string, config: GovkitConfig): GovernedDoc[] {
-  const { ignore, types, root: docsRoot = "." } = config.docs;
-  const docs: GovernedDoc[] = [];
-  for (const [typeName, def] of Object.entries(types)) {
-    for (const file of listMarkdown(typeDir(root, docsRoot, def.dir), ignore)) {
-      const fm = parseFrontMatter(readFileSync(file, "utf8"));
-      if (!fm || isParseError(fm)) continue; // unparseable front-matter is the gate's job
-      const governs = normalizeGoverns(fm.data.governs);
-      if (governs.length === 0) continue; // opt-in at the doc level, same as stale
-      docs.push({
-        file,
-        path: toPathspec(root, file),
-        type: typeName,
-        governs,
-        hasReconciled: "reconciled" in fm.data,
-        reconciled: str(fm.data.reconciled),
-      });
-    }
-  }
-  return docs;
+/** Where the `reconciled:` value token lives in the raw text: its [start, end) span and its
+ *  text. null when the front-matter block has no `reconciled:` line at all. A same-line
+ *  `  # comment` after the value is NOT part of the token, so an ack rewrite preserves it. */
+interface ReconciledToken {
+  start: number;
+  end: number;
+  /** Raw value text (one surrounding quote pair stripped for reading); "" when the line
+   *  carries no same-line value (bare key, or a continuation-line scalar). */
+  value: string;
+}
+
+function locateReconciled(content: string): ReconciledToken | null {
+  const span = frontMatterSpan(content);
+  if (span === null) return null;
+  const block = content.slice(span.start, span.end);
+  const line = /^reconciled:([ \t]*)([^\r\n]*)/m.exec(block);
+  if (line === null) return null;
+  const tail = line[2] ?? "";
+  // YAML starts a same-line comment only at a `#` in value position or preceded by blank —
+  // everything before it (right-trimmed) is the value token; the comment stays untouched.
+  const commentAt = tail.search(/(?:^|[ \t])#/);
+  const value = (commentAt >= 0 ? tail.slice(0, commentAt) : tail).trimEnd();
+  const start = span.start + line.index + "reconciled:".length + (line[1] ?? "").length;
+  // A quoted sha (`"abc1234"`) is a legal YAML spelling of the same claim: strip ONE matching
+  // quote pair for the read; a rewrite replaces the whole token (a sha needs no quoting).
+  const unquoted = /^(['"])(.*)\1$/.exec(value);
+  return { start, end: start + value.length, value: unquoted ? (unquoted[2] ?? "") : value };
+}
+
+/** The drift view of every governed doc: the shared scan (util.scanGoverned) plus the raw
+ *  `reconciled:` token read from the block text (see the module note on YAML coercion). */
+function scanDrift(root: string, config: GovkitConfig): DriftDoc[] {
+  return scanGoverned(root, config).map((d) => {
+    const token = locateReconciled(d.content);
+    return {
+      file: d.file,
+      path: d.rel,
+      type: d.type,
+      governs: d.governs,
+      hasReconciled: token !== null,
+      reconciled: token?.value ?? "",
+    };
+  });
+}
+
+/** The pathspecs a doc's drift is judged against: its governs, with the doc's OWN path always
+ *  excluded — a doc can never drift ITSELF. Without the exclusion, a doc whose governs globs
+ *  match its own path (e.g. `governs: docs/**`) re-drifts on every ack commit forever: the
+ *  ack edit bumps the governed sha past the claim it just recorded, so the ritual could never
+ *  converge. */
+function governedPathspecs(doc: DriftDoc): string[] {
+  return [...doc.governs, `:(exclude)${doc.path}`];
 }
 
 /** The verdict for one opted-in doc: null = in sync, else the violation entry. A recorded
  *  short sha matches when the full current sha starts with it (7–40 hex chars). */
-function judge(doc: GovernedDoc, currentSha: string | null): DriftEntry | null {
+function judge(doc: DriftDoc, currentSha: string | null): DriftEntry | null {
   const base = {
     path: doc.path,
     type: doc.type,
@@ -133,7 +161,7 @@ function judge(doc: GovernedDoc, currentSha: string | null): DriftEntry | null {
 
 export function runDrift(opts: DriftOptions): DriftResult {
   const config = opts.config ?? loadConfig(opts.root);
-  const governed = scanGoverned(opts.root, config);
+  const governed = scanDrift(opts.root, config);
   const opted = governed.filter((d) => d.hasReconciled);
   const skipped = governed.length - opted.length;
   if (!gitAvailable(opts.root)) {
@@ -150,7 +178,7 @@ export function runDrift(opts: DriftOptions): DriftResult {
   }
   const drifted: DriftEntry[] = [];
   for (const doc of opted) {
-    const entry = judge(doc, gitLastShaFor(opts.root, doc.governs));
+    const entry = judge(doc, gitLastShaFor(opts.root, governedPathspecs(doc)));
     if (entry) drifted.push(entry);
   }
   return {
@@ -189,24 +217,17 @@ export interface DriftAckOptions {
   docPath?: string;
 }
 
-/** Surgical front-matter rewrite: replace ONLY the `reconciled:` line's value inside the
+/** Surgical front-matter rewrite: replace ONLY the `reconciled:` VALUE token inside the
  *  leading front-matter block, preserving every other byte (CRLF line endings, BOM, spacing,
- *  the whole body). Returns null when no such line exists in the block — the caller turns
- *  that into an operational error, never a silent skip. */
+ *  a trailing same-line `# comment`, the whole body). Returns null when the block has no
+ *  `reconciled:` line OR the line carries no same-line value token (e.g. the value lives on a
+ *  continuation line — writing a sha onto the key line would corrupt it into a two-line
+ *  scalar); the caller turns null into the rewrite-by-hand operational error, never a silent
+ *  skip. */
 export function rewriteReconciled(content: string, sha: string): string | null {
-  // Preserve a UTF-8 BOM by slicing around it rather than stripping it.
-  const bom = content.charCodeAt(0) === 0xfeff ? 1 : 0;
-  const block = /^---\r?\n[\s\S]*?\r?\n---[ \t]*(?:\r?\n|$)/.exec(content.slice(bom));
-  if (!block) return null;
-  const lineRe = /^(reconciled:)([ \t]*)[^\r\n]*/m;
-  if (!lineRe.test(block[0])) return null;
-  const next = block[0].replace(
-    lineRe,
-    // Keep the author's own spacing after the colon; a bare `reconciled:` gains the one
-    // space YAML needs for a scalar value.
-    (_, key: string, ws: string) => `${key}${ws === "" ? " " : ws}${sha}`,
-  );
-  return content.slice(0, bom) + next + content.slice(bom + block[0].length);
+  const token = locateReconciled(content);
+  if (token === null || token.value === "") return null;
+  return content.slice(0, token.start) + sha + content.slice(token.end);
 }
 
 export function runDriftAck(opts: DriftAckOptions): DriftAckResult {
@@ -224,7 +245,7 @@ export function runDriftAck(opts: DriftAckOptions): DriftAckResult {
     };
   }
 
-  const governed = scanGoverned(opts.root, config);
+  const governed = scanDrift(opts.root, config);
   let targets = governed.filter((d) => d.hasReconciled);
   if (opts.docPath !== undefined) {
     // A NAMED doc gets operational errors, not skips: the user pointed at this exact file,
@@ -260,10 +281,12 @@ export function runDriftAck(opts: DriftAckOptions): DriftAckResult {
     }
     const rewritten = rewriteReconciled(readFileSync(doc.file, "utf8"), entry.currentSha);
     if (rewritten === null) {
-      // The parsed front-matter said the key exists but the line surgery cannot find it
-      // (e.g. an exotic YAML spelling) — fail loud rather than silently leave the doc red.
+      // The key line exists but carries no same-line value the surgery can safely replace
+      // (bare key, or a continuation-line scalar) — fail loud rather than corrupt the doc
+      // or silently leave it red.
       throw new Error(
-        `govkit: --ack could not locate the 'reconciled:' line in ${doc.path} — rewrite it by hand`,
+        `govkit: --ack could not rewrite ${doc.path} — its 'reconciled:' line carries no ` +
+          `same-line value token; rewrite it by hand`,
       );
     }
     writeFileSync(doc.file, rewritten, "utf8");

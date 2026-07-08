@@ -1,6 +1,8 @@
 import { execFileSync } from "node:child_process";
-import { existsSync, readdirSync } from "node:fs";
+import { existsSync, readdirSync, readFileSync } from "node:fs";
 import { isAbsolute, join, relative, resolve } from "node:path";
+import type { GovkitConfig } from "./config";
+import { type FrontMatter, isParseError, parseFrontMatter } from "./frontmatter";
 
 /** Root-confinement check shared by every path the engine is handed from outside (a hook's
  *  file_path, a config `journal.path`): true only when `file` resolves STRICTLY inside `dir`.
@@ -93,6 +95,60 @@ export function toPathspec(root: string, file: string): string {
   return relative(root, file).split(/[/\\]/).join("/");
 }
 
+/** One governed doc as the git-backed readers see it: parseable front-matter declaring a
+ *  non-empty `governs:`. */
+export interface GovernedDoc {
+  /** Absolute file path. */
+  file: string;
+  /** Root-relative forward-slash pathspec — the spelling git and `drift --ack` use. */
+  rel: string;
+  type: string;
+  governs: string[];
+  fm: FrontMatter;
+  /** Raw file text — `drift` reads/rewrites the `reconciled:` token in the raw block text,
+   *  never through parsed YAML (which would number-coerce an unquoted all-digit sha). */
+  content: string;
+}
+
+/** The one walk over every configured type dir yielding each doc whose front-matter PARSES.
+ *  Unparseable front-matter is the verify gate's job to surface, not the git-backed
+ *  siblings' — skipped here exactly as `stale` always skipped it. */
+function scanParsedDocs(root: string, config: GovkitConfig): Omit<GovernedDoc, "governs">[] {
+  const { ignore, types, root: docsRoot = "." } = config.docs;
+  const docs: Omit<GovernedDoc, "governs">[] = [];
+  for (const [typeName, def] of Object.entries(types)) {
+    for (const file of listMarkdown(typeDir(root, docsRoot, def.dir), ignore)) {
+      const content = readFileSync(file, "utf8");
+      const fm = parseFrontMatter(content);
+      if (!fm || isParseError(fm)) continue;
+      docs.push({ file, rel: toPathspec(root, file), type: typeName, fm, content });
+    }
+  }
+  return docs;
+}
+
+/** The governed-doc scan shared by `stale` (RFC-0009) and `drift` (RFC-0015): every parseable
+ *  doc declaring a non-empty `governs:`. ONE scanner so the two governs-readers can never
+ *  disagree on which docs are governed; per-caller filtering (e.g. drift's `reconciled:`
+ *  presence) stays at the call site. */
+export function scanGoverned(root: string, config: GovkitConfig): GovernedDoc[] {
+  return scanParsedDocs(root, config)
+    .map((d) => ({ ...d, governs: normalizeGoverns(d.fm.data.governs) }))
+    .filter((d) => d.governs.length > 0);
+}
+
+/** Every governed doc id across the configured type dirs — the id universe that BOTH
+ *  verify's reference check (RFC-0003) and the ledger's spec resolution (RFC-0016) resolve
+ *  into. One collector so the two can never disagree on which ids exist. */
+export function collectGovernedIds(root: string, config: GovkitConfig): Set<string> {
+  const ids = new Set<string>();
+  for (const doc of scanParsedDocs(root, config)) {
+    const id = str(doc.fm.data.id);
+    if (id) ids.add(id);
+  }
+  return ids;
+}
+
 /** True when `root` is inside a git work tree. Staleness (RFC-0009) needs git history; when this
  *  is false the `stale` command degrades to an advisory note rather than erroring — git absence is
  *  not a failure for an advisory, opt-in tool (it never runs in the no-key floor). */
@@ -150,7 +206,11 @@ export function gitLastShaFor(root: string, pathspecs: string[]): string | null 
  *  skipped layer — degrade-and-say-so, never an error, never silently green. */
 export function gitShowHead(root: string, relPath: string): string | null {
   try {
-    return execFileSync("git", ["show", `HEAD:${relPath}`], {
+    // `HEAD:<path>` resolves from the repo TOP LEVEL, not the cwd — with a --root that is a
+    // subdirectory of the repo the bare form always misses and the caller silently degrades.
+    // `HEAD:./<path>` is git's documented cwd-relative spelling, matching how every other
+    // pathspec here is resolved (cwd = root).
+    return execFileSync("git", ["show", `HEAD:./${relPath}`], {
       cwd: root,
       encoding: "utf8",
       stdio: ["ignore", "pipe", "ignore"],

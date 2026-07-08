@@ -54,6 +54,20 @@ Everything **calls** `npx govkit verify` to validate — nothing embeds the dete
 > `swe-flow:doc-keeper`). Project `.claude/agents/` are **not** dispatchable from a workflow —
 > verified empirically — so the plugin form is required for the `sdlc` workflow to use them.
 
+## The learning loop — R7 DISTILL (RFC-0017)
+
+- **`skills/distill-learnings`** + **`agents/distiller`** — the keyed DISTILL step of the R7
+  flywheel (SENSE = govkit's `--journal`, RATIFY = a human merge). The distiller reads
+  `.govkit/journal.jsonl`, the escape log (`LEARNING-LOOP.md`), and the git delta since the
+  last round, then emits **proposals only** — corpus fixtures, `AGENTS.md` rule lines,
+  `govkit.yml` tweaks, ledger entries — each with cited evidence, handed off as a PR. Three
+  hard laws: proposal-only (never merges, never flips a status, never edits the baseline
+  except proposing the `--update-baseline` human path); every gate-touching proposal must
+  pass `govkit calibrate` with FP=0 and non-regressing recall before entering the PR; the
+  corpus is append-only (fixtures may be added, never removed or weakened). On a thin
+  journal it says "insufficient data" and stops. Run on demand or from a scheduled session —
+  deliberately **not** a hook: a keyed step never sits in the no-key path.
+
 ## Install
 
 This repo is its own marketplace (`.claude-plugin/marketplace.json`).

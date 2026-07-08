@@ -4,7 +4,7 @@ title: Deterministic spec↔code drift gate — reconciled shas and an explicit 
 status: implemented
 owner: baodq97
 date: 2026-07-07
-reconciled: c6840a4b44b3992cb24bb2a2d780da1dcd9dfe9a
+reconciled: 16052d6dce74be49684d9867a940d25a991d5aee
 governs:
   - packages/govkit/src/commands/drift.ts
 ---
@@ -63,12 +63,21 @@ explicitly claim a code state.
 touching ANY of its governs paths (`git log -1` over the pathspecs) and compares it to the
 recorded `reconciled` sha. Mismatch ⇒ violation, exit 1, with a message naming the doc, the
 stale sha, the current sha, and the two honest exits: update the doc and then ack, or ack
-directly if the code change did not invalidate the doc.
+directly if the code change did not invalidate the doc. Two precision rules keep the
+comparison honest: the doc's OWN path is always excluded from its governed pathspecs (a doc
+can never drift itself — otherwise a self-matching glob re-drifts on every ack commit and the
+ritual never converges), and the recorded claim is read as the raw front-matter token, never
+through YAML's type coercion (an unquoted all-digit sha must not lose its leading zero). A
+malformed claim is itself a violation, never a crash or a skip: an empty/garbage `reconciled`
+value, or governs paths with no commit history at all, fail loud naming the doc.
 
 **The ack.** `govkit drift --ack [docPath]` rewrites `reconciled:` to the current sha for one
 doc, or for all opted-in docs when no argument is given. The rewrite is a working-tree edit
 that lands in the diff a reviewer reads — the vouching is visible, attributable, and
-reversible. The gate itself never updates the key.
+reversible. The gate itself never updates the key. The rewrite is surgical down to the token:
+only the sha value changes (a same-line `# comment` after it survives), and a `reconciled:`
+line carrying no same-line value (the value on a YAML continuation line) is refused with a
+rewrite-by-hand error rather than corrupted.
 
 **Where it lives.** `drift` is a sibling git-gated command like `stale`, NOT a verify kind.
 The verify core stays pure-fs; the no-git floor invariant (README, RFC-0009) outranks tiers
@@ -125,7 +134,30 @@ unchanged.
 
 ## Deviations from design
 
-Recorded at merge if review forces changes — the fixer updates this section.
+Review hardening (sprint-3 fixer pass) changed the shipped behavior beyond the original text;
+the load-bearing ones are folded into § Design above and recorded here as post-review deltas:
+
+- **Two extra violation classes** beyond the sha mismatch: an empty or non-sha `reconciled`
+  value is a violation naming the doc (a claim that cannot be checked is a broken claim), and
+  governs paths with no commit history fail loud as unverifiable — such docs are also
+  *unackable* (an ack cannot vouch for a code state that does not exist), so an ack run
+  reporting them exits non-zero.
+- **Self-path exclusion:** the doc's own path is appended as an `:(exclude)` pathspec when
+  resolving its governed sha — added after review found the livelock where a doc whose governs
+  glob matches itself (e.g. `docs/**`) re-drifts on every ack commit forever.
+- **Comment-preserving, bare-key-refusing ack:** the rewrite replaces only the value token, so
+  a same-line `# comment` survives; a `reconciled:` line with no same-line value token
+  (continuation-line YAML) is refused with the rewrite-by-hand operational error instead of
+  being half-rewritten into a corrupt two-line scalar.
+- **Raw-token reading:** the claim is judged from the front-matter block's raw text (the same
+  line-location machinery the ack rewrite uses, on the block span exported by
+  `frontmatter.ts`), not the YAML-parsed value — YAML coerces an unquoted all-digit sha like
+  `0123456` to a number and drops the leading zero, producing a false violation quoting a
+  value not on disk.
+- **`--ack` is rejected in combination with `--hook`** (exit 2): an ack rewrites docs, and a
+  blocking hook must never mutate — hooks gate, they don't ack. With `--journal`, an ack run's
+  record carries `drift.ack: true` so a sensor consumer can tell it from a check run
+  (`drifted > 0` with `ok: true` is legal only there).
 
 ## Recommendation
 

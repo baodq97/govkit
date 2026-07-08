@@ -1074,3 +1074,43 @@ need), so the honest next move is the deferred high-leverage levers — publish 
 dual-runtime CI green on a real runner — both gated on going beyond local-only, not another round of
 self-inspection. This round earned its keep by closing real drift; it must not become the pretext for
 the next.
+
+
+---
+
+## Distill Round 1 — 2026-07-08 (the R7 DISTILL step's reference run, RFC-0017)
+
+**Inputs:** `.govkit/journal.jsonl` (check/drift/ledger records through sha c74750b),
+this file, and the session escape set from PRs #1–#9 + the 0.6.0 release.
+
+**Lessons → encodings (lowest-cost wins):**
+
+1. *Silent push failure → empty-diff PR merged clean* (PR #6, repaired in #7). Encoded as an
+   AGENTS.md rule: never pipe `git push` output; verify the remote ref moved when it matters.
+2. *Branch reset from a stale `origin/main` without fetching* (caught mid-sprint-4 by a hook
+   freshness warning). Encoded as an AGENTS.md rule: fetch before `checkout -B ... origin/<ref>`.
+3. *Fence-smuggled prose is pinned only in bun tests, not in the portable corpus* — the
+   adversarial corpus (the trust anchor consumers can calibrate against) did not carry the
+   vector `eval-hardening.test.ts` proves. Encoded as a new weak fixture
+   (`weak/docs/rfc/RFC-0002-fence-smuggle.md`); validated caught (floor matrix tp 4→5, fp 0,
+   recall 1) and the coverage growth pinned via the deliberate `--update-baseline` path.
+4. *`governs:` may reference a path that never existed* (RFC-0013 pointed at a ghost
+   `settings.example.json` for two sprints; drift's own output exposed it). Cheapest sound
+   encoding is a deterministic engine check (governs-paths-must-resolve), which is RFC-scoped
+   work — encoded as ledger entry `F-GOVERNS-EXIST` instead of a prose rule nobody executes.
+
+**Dropped as already-covered:** shallow-clone-breaks-git-backed-gates — already encoded as the
+`fetch-depth: 0` comment in both workflows the day the gates shipped (pre-mortem, not escape).
+
+**Validation:** full `bun run check` green end to end after all encodings; calibrate FP=0 held.
+
+**Round-1 addendum (same day):** lesson 1's failure class claimed a second, bigger victim
+*before* the rule existed — the entire sprint-3 review-hardening commit (`a29564d`: 16 fixes
+incl. the `HEAD:./` append-only repair) was silently dropped when a stop-hook `--reset-author`
+amend diverged local from remote and the follow-up `git push` failed non-fast-forward behind a
+`| tail -1`. PR #5 merged without it while the gitignored `dist/` (built from the fixed source)
+kept every gate green locally — the gap only surfaced when a rebuild regressed `drift`'s raw
+`reconciled:` read and RFC-0017's seed parsed as YAML int `0`. Recovered by cherry-pick in the
+RFC-0017 PR; detection credit: the drift gate's own dogfooding. The rule needs no strengthening
+— this instance predates it — but the recovery adds the verification half in practice:
+`git ls-remote` after every push that matters, which this PR's integration performed.
