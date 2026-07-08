@@ -50,8 +50,11 @@ jobs:
             exit 1
           fi
 
+      # --provenance is off: npm 422s provenance bundles from PRIVATE source repos
+      # ("Only public source repositories are supported"). Re-add the flag the day
+      # this repo goes public — the marketplace install flow wants that anyway.
       - name: Publish govkit
         working-directory: packages/govkit
-        run: npm publish --provenance --access public
+        run: npm publish --access public
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
