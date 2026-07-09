@@ -4,6 +4,24 @@
 # govkit by editing this file.
 schemaVersion: 1
 
+# Optional `--journal` sensor destination (verify/eval/check append one JSON line per
+# run; observational only — never affects exit codes). Default shown; must stay in-repo.
+# journal:
+#   path: .govkit/journal.jsonl
+
+# Optional risk tiers for verify checks: demote a kind to `advisory` and it is still
+# reported (warn prefix + its own count) but never fails the gate — e.g. keep INDEX-sync
+# visible-but-non-blocking while a big adoption backfills rows. Unlisted kinds stay blocking.
+# tiers:
+#   index: advisory
+
+# Optional `govkit ledger` feature-ledger location (default shown; must stay in-repo).
+# A committed JSON file — { "entries": [{ "id", "title", "spec", "passes", "check"? }] } —
+# gated for schema, unique ids, spec→doc-id resolution, and append-only vs git HEAD
+# (entries and their check provenance may never vanish; `passes` flips are always legal).
+# ledger:
+#   path: docs/ledger.json
+
 # ── Layer 1: the structural GATE (`govkit verify`) ───────────────────────────
 # Front-matter completeness · status ∈ allowed set · id↔filename convention ·
 # INDEX sync · globally-unique ids · no unresolved placeholders. Binary pass/fail.

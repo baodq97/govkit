@@ -40,3 +40,6 @@ front-matter, sets `owner: TBD` + the start status, updates `INDEX.md`, and self
 
 `npx govkit verify` is the source of truth (front-matter completeness + INDEX sync). The
 `PreToolUse` hook runs the per-write twin (`govkit audit-write`). Both run with no API key.
+For PR review context, `npx govkit report --pr-body` emits a marker-fenced markdown block —
+splice it into the PR body (replace the span, e.g. `gh pr edit --body-file`); advisory,
+idempotent, never a gate (RFC-0021).

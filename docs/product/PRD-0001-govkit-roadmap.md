@@ -1,8 +1,8 @@
 ---
 id: PRD-0001
 title: govkit roadmap & product vision
-status: draft
-owner: TBD
+status: approved
+owner: baodq97
 date: 2026-06-09
 ---
 
@@ -47,7 +47,7 @@ grounds: alert-triage's quality loop lifted its judge mean from 73.8 to 84.1 and
 verify-hook false flags from 10 to 3 cases — that eval loop is the measurement template
 this roadmap generalizes into govkit.
 
-## Scope — roadmap themes (R0–R6)
+## Scope — roadmap themes (R0–R7)
 
 Sequenced by leverage and dependency. Each theme cites the consumer evidence that
 justifies it.
@@ -61,10 +61,21 @@ justifies it.
 | **R4** | Glue / loop plugins | One-person-company automation layer; strictly one-directional (plugins consume govkit, govkit never consumes a plugin) | customs `.claude/` wave harness; loop/harness-engineering discourse |
 | **R5** | Harness generator | Meta-plugin that emits per-usecase skill/agent **structure** + a product-domain glossary; never fabricates rules | n=2 kernel defines what is generatable; **gated until n≥3** |
 | **R6** | Adoption-driven feature loop | Make RFC-0008/0009/0010 opt-in with onboarding that pulls real consumer need; measure features by consumer adoption | Both consumers needed as-built honesty yet adopted it by hand, not via RFC-0010 |
+| **R7** | Learning flywheel | Deterministic gate-outcome journal (`--journal` JSONL sensor) + `govkit calibrate` (confusion-matrix precision/recall/F1 vs the labeled adversarial corpus, pinned baseline, FP>0 fails CI) as the no-key foundation; then an opt-in, keyed swe-flow `learning-distiller` that turns journal + escape-log into PROPOSED corpus fixtures / AGENTS.md rules via PR (never auto-applied; corpus append-only; every gate change must pass calibrate) | Evidence: 2026-07 deep-research sweep — OpenAI agentic-governance cookbook ("run evals on every policy repo change"), Anthropic hooks guidance (deterministic enforcement), Fowler SDD review (no tool has deterministic drift detection); RFC-0012 is the first slice. |
 
 Running spine across all themes: a **friction log** (per consumer wave, classify each
 `verify`/`eval` outcome as FP / FN / scope-escape) feeding the confusion matrix and the
 adversarial corpus.
+
+### R7 rationale — closing the loop
+
+The running spine above is today manual: a human classifies each wave outcome and
+hand-feeds the confusion matrix. R7 automates SENSE (the journal, deterministic core)
+and DISTILL (the keyed plugin, proposal-only) while RATIFY stays human — proposals land
+as PRs, never as applied changes. `calibrate` is the immune system that makes
+self-improvement safe: a learning loop that can weaken its own gates would otherwise
+learn to pass itself. The 2025-07 research finding was that the F1–F5 candidates map
+onto R1/R2/R4/R5/R6 extensions; R7 is the only genuinely new theme.
 
 ## Non-goals
 
@@ -106,3 +117,4 @@ adversarial corpus.
 | Date | Change |
 |---|---|
 | 2026-06-09 | Initial draft — first govkit roadmap, grounded in n=2 consumer evidence. |
+| 2026-07-07 | R7 (learning flywheel) added from the harness/loop-engineering deep-research sweep (23 claims survived 3-vote adversarial verification); RFC-0011 (working-discipline skill) shipped and mapped to R4; RFC-0012 (journal + calibrate) drafted as R7's first slice. |

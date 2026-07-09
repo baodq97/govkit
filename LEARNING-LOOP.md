@@ -1098,3 +1098,85 @@ need), so the honest next move is the deferred high-leverage levers — publish 
 dual-runtime CI green on a real runner — both gated on going beyond local-only, not another round of
 self-inspection. This round earned its keep by closing real drift; it must not become the pretext for
 the next.
+
+
+---
+
+## Distill Round 1 — 2026-07-08 (the R7 DISTILL step's reference run, RFC-0017)
+
+**Inputs:** `.govkit/journal.jsonl` (check/drift/ledger records through sha c74750b),
+this file, and the session escape set from PRs #1–#9 + the 0.6.0 release.
+
+**Lessons → encodings (lowest-cost wins):**
+
+1. *Silent push failure → empty-diff PR merged clean* (PR #6, repaired in #7). Encoded as an
+   AGENTS.md rule: never pipe `git push` output; verify the remote ref moved when it matters.
+2. *Branch reset from a stale `origin/main` without fetching* (caught mid-sprint-4 by a hook
+   freshness warning). Encoded as an AGENTS.md rule: fetch before `checkout -B ... origin/<ref>`.
+3. *Fence-smuggled prose is pinned only in bun tests, not in the portable corpus* — the
+   adversarial corpus (the trust anchor consumers can calibrate against) did not carry the
+   vector `eval-hardening.test.ts` proves. Encoded as a new weak fixture
+   (`weak/docs/rfc/RFC-0002-fence-smuggle.md`); validated caught (floor matrix tp 4→5, fp 0,
+   recall 1) and the coverage growth pinned via the deliberate `--update-baseline` path.
+4. *`governs:` may reference a path that never existed* (RFC-0013 pointed at a ghost
+   `settings.example.json` for two sprints; drift's own output exposed it). Cheapest sound
+   encoding is a deterministic engine check (governs-paths-must-resolve), which is RFC-scoped
+   work — encoded as ledger entry `F-GOVERNS-EXIST` instead of a prose rule nobody executes.
+
+**Dropped as already-covered:** shallow-clone-breaks-git-backed-gates — already encoded as the
+`fetch-depth: 0` comment in both workflows the day the gates shipped (pre-mortem, not escape).
+
+**Validation:** full `bun run check` green end to end after all encodings; calibrate FP=0 held.
+
+**Round-1 addendum (same day):** lesson 1's failure class claimed a second, bigger victim
+*before* the rule existed — the entire sprint-3 review-hardening commit (`a29564d`: 16 fixes
+incl. the `HEAD:./` append-only repair) was silently dropped when a stop-hook `--reset-author`
+amend diverged local from remote and the follow-up `git push` failed non-fast-forward behind a
+`| tail -1`. PR #5 merged without it while the gitignored `dist/` (built from the fixed source)
+kept every gate green locally — the gap only surfaced when a rebuild regressed `drift`'s raw
+`reconciled:` read and RFC-0017's seed parsed as YAML int `0`. Recovered by cherry-pick in the
+RFC-0017 PR; detection credit: the drift gate's own dogfooding. The rule needs no strengthening
+— this instance predates it — but the recovery adds the verification half in practice:
+`git ls-remote` after every push that matters, which this PR's integration performed.
+
+**Round-1 second addendum — a fresh escape, caught by CI (run 28918975371):** drift acks
+record a `git log -1` commit sha, but the repo merges by SQUASH — the merge rewrites history,
+so every ack recorded on a branch is orphaned the moment its PR lands, and main goes red on
+the very next CI run. Local gates could not catch this (the branch's shas are self-consistent);
+only the post-merge layer could — which is why CI exists as a layer with uncorrelated failure
+modes. Interim: ack-only follow-up PRs (they touch no governed code, so their own squash is
+stable). Systemic fix queued as ledger `F-DRIFT-CONTENT-HASH`: `reconciled:` should pin a
+content-derived hash of the governed paths (stable across squash/rebase), not a commit sha —
+an RFC-0015 amendment, since the recorded design chose the sha explicitly.
+
+## Round 16 — 2026-07-08: two ledger debts closed by their own medicine, and an honest n=3
+
+Three moves in one arc, each one a queued ledger debt paying out:
+
+**`F-DRIFT-CONTENT-HASH` closed (RFC-0015 amendment).** `reconciled:` now pins
+`sha256:<hex>` over the governed files' *index manifest* — git's own blob OIDs, so the
+engine reads no file contents and the claim survives every history rewrite that preserves
+content. The Round-1 escape class (squash orphans commit-sha acks) is now structurally
+impossible, and the regression test performs a literal squash and asserts green. The
+sharp lesson recorded in the RFC: the original Alternatives table had *rejected*
+content-hashing as a "false-positive factory" — the churn argument compared against the
+wrong baseline (a commit sha churns on strictly more events than a content hash). A
+design rationale can be confidently wrong in a way only production falsifies; the
+reversal is written into the same table it came from, struck through, not erased.
+
+**`F-GOVERNS-EXIST` closed (RFC-0018).** Per-pathspec governs-existence, decided into the
+`drift` layer (honest glob resolution needs git's matcher; the verify floor stays
+pure-fs). Dogfood theatre on its very first run: it flagged RFC-0013's
+`template/.claude/hooks/stop-gate.mjs` — a file that *never shipped* (the template Stop
+gate is wired directly in settings.json). The check found a live instance of the exact
+class it was built from before its commit was even made.
+
+**`F-R1-N3` split, not gamed.** The third dissimilar consumer now exists as
+`fixtures/ml-research` — an ML lab taxonomy (exp/mc/ds, lab lifecycle vocabulary, extra
+required keys, `.govkit` isolation, demoted index tier, custom journal/ledger paths) run
+end-to-end through the shipped CLI with zero engine changes, 10 e2e cases. That proves
+R1's *config-surface* claim and is ledgered as `F-R1-CONFIG: true`. It does NOT prove
+generality outside the author's DNA — the fixture shares an author with the engine, which
+is precisely PRD-0001's monoculture risk. `F-R1-N3` stays red with the boundary written
+into its check field. The flywheel's whole value is that the ledger cannot be talked into
+optimism, including by the person holding the pen.

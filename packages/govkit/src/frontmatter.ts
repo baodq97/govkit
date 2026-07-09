@@ -23,6 +23,19 @@ export function isParseError(fm: FrontMatter | FrontMatterError | null): fm is F
 const FRONT_MATTER = /^---\r?\n([\s\S]*?)\r?\n---[ \t]*\r?\n?/;
 const BOM = 0xfeff;
 
+/** The [start, end) span of the leading front-matter block within `content` — `start` points
+ *  AT the opening `---` (past any BOM), `end` just past the closing delimiter line. null when
+ *  there is no block. This is the ONE block grammar (the same FRONT_MATTER regex
+ *  parseFrontMatter matches) exported as a raw-text span, so byte-level surgery on the block
+ *  (drift's `reconciled:` read/rewrite) and YAML parsing can never disagree about where the
+ *  block is — one grammar, one owner. */
+export function frontMatterSpan(content: string): { start: number; end: number } | null {
+  const bom = content.charCodeAt(0) === BOM ? 1 : 0;
+  const match = FRONT_MATTER.exec(content.slice(bom));
+  if (!match) return null;
+  return { start: bom, end: bom + match[0].length };
+}
+
 export function parseFrontMatter(content: string): FrontMatter | FrontMatterError | null {
   // Strip a UTF-8 BOM (Windows editors add it) before matching.
   const text = content.charCodeAt(0) === BOM ? content.slice(1) : content;

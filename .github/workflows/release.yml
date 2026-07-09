@@ -1,0 +1,62 @@
+name: release
+
+# R0 publish path: push a tag `v<version>` matching packages/govkit/package.json
+# (or run this workflow manually from the Actions tab / API — the environment's
+# git proxy cannot push tags, so workflow_dispatch is the agent-reachable path)
+# and this workflow publishes the engine to npm with provenance.
+# One-time setup (human act): add an npm automation token as the NPM_TOKEN
+# repository secret (Settings → Secrets and variables → Actions).
+on:
+  push:
+    tags:
+      - "v*"
+  workflow_dispatch:
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write # npm --provenance
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 # drift + ledger read commit history; a shallow clone reads as 'no history'
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.3.14
+
+      - run: bun install --frozen-lockfile
+
+      # The same one-shot gate CI runs — a release must clear everything a PR does.
+      - run: bun run check
+
+      - name: Setup Node (registry auth + provenance)
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          registry-url: https://registry.npmjs.org
+
+      # Guard: the tag must equal the engine version, or the publish stops here —
+      # a stale tag must not ship a mismatched artifact. Manual dispatches publish
+      # whatever version main carries, so the tag assert only applies to tag runs.
+      - name: Assert tag matches package version
+        if: startsWith(github.ref, 'refs/tags/')
+        run: |
+          PKG_VERSION="$(node -p "require('./packages/govkit/package.json').version")"
+          TAG_VERSION="${GITHUB_REF_NAME#v}"
+          if [ "$PKG_VERSION" != "$TAG_VERSION" ]; then
+            echo "tag v$TAG_VERSION != packages/govkit version $PKG_VERSION" >&2
+            exit 1
+          fi
+
+      # --provenance is off: npm 422s provenance bundles from PRIVATE source repos
+      # ("Only public source repositories are supported"). Re-add the flag the day
+      # this repo goes public — the marketplace install flow wants that anyway.
+      - name: Publish govkit
+        working-directory: packages/govkit
+        run: npm publish --access public
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}

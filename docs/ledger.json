@@ -1,0 +1,137 @@
+{
+  "entries": [
+    {
+      "id": "F-R7-SKILL",
+      "title": "working-discipline skill shipped + A/B benchmarked across Fable/Opus/Sonnet",
+      "spec": "RFC-0011",
+      "passes": true,
+      "check": "plugins/swe-flow/skills/working-discipline/references/eval-scenarios.md — 15/15 with-skill runs pass, 6 baselines calibrate the delta"
+    },
+    {
+      "id": "F-R7-SENSE",
+      "title": "--journal gate-outcome sensor wired into the repo's own check chain",
+      "spec": "RFC-0012",
+      "passes": true,
+      "check": "bun run check appends to .govkit/journal.jsonl under bun and stock node"
+    },
+    {
+      "id": "F-R7-CALIBRATE",
+      "title": "confusion-matrix floor calibration with committed baseline",
+      "spec": "RFC-0012",
+      "passes": true,
+      "check": "bun run govkit-calibrate — tp 4 / fp 0 / fn 0 / tn 4, baseline non-regressing"
+    },
+    {
+      "id": "F-HOOK",
+      "title": "--hook blocking-gate contract: exit 2 + stderr report, fail-closed",
+      "spec": "RFC-0013",
+      "passes": true,
+      "check": "packages/govkit/test/hook.test.ts e2e; template Stop gate wired directly in template/.claude/settings.json (npx govkit check --hook) — the once-claimed stop-gate.mjs never shipped, caught by RFC-0018's ghost-path check on its first run"
+    },
+    {
+      "id": "F-TIERS",
+      "title": "risk-tiered verify checks (tiers: blocking|advisory), audit-write honors them",
+      "spec": "RFC-0014",
+      "passes": true,
+      "check": "packages/govkit/test/tiers.test.ts + audit-write tier tests"
+    },
+    {
+      "id": "F-DRIFT",
+      "title": "spec-to-code drift gate; RFC-0011..0016 opted in via reconciled: shas",
+      "spec": "RFC-0015",
+      "passes": true,
+      "check": "bun run govkit-drift — 6 opted-in docs in sync"
+    },
+    {
+      "id": "F-LEDGER",
+      "title": "feature ledger gate (this file) with git-backed append-only checks",
+      "spec": "RFC-0016",
+      "passes": true,
+      "check": "bun run govkit-ledger"
+    },
+    {
+      "id": "F-R0-NPM",
+      "title": "govkit published to npm, latest dist-tag",
+      "spec": "PRD-0001",
+      "passes": true,
+      "check": "npm view govkit dist-tags — latest: 0.6.0 (run 28917849720)"
+    },
+    {
+      "id": "F-R7-DISTILL",
+      "title": "learning-distiller: journal + escape-log distilled into proposed corpus fixtures and rules via PR (keyed, opt-in, proposal-only)",
+      "spec": "RFC-0017",
+      "passes": true,
+      "check": "RFC-0017 shipped (agent+skill) + Distill Round 1 in LEARNING-LOOP.md: 2 AGENTS.md rules, 1 corpus fixture (tp 4->5, fp 0), 1 ledger entry, 1 dropped-as-covered"
+    },
+    {
+      "id": "F-R1-N3",
+      "title": "third dissimilar consumer validates generality (unblocks the R5 harness generator)",
+      "spec": "PRD-0001",
+      "passes": false,
+      "check": "config-surface half shipped as F-R1-CONFIG (ml-research fixture, in-repo); this entry stays red until an EXTERNAL consumer outside the author's DNA adopts — PRD-0001's monoculture risk is the unproven half"
+    },
+    {
+      "id": "F-R1-CONFIG",
+      "title": "R1 config-surface generality: a third dissimilar taxonomy (ML lab: exp/mc/ds) runs the shipped CLI end-to-end with zero engine changes",
+      "spec": "PRD-0001",
+      "passes": true,
+      "check": "packages/govkit/test/generality.test.ts — 10 e2e cases over fixtures/ml-research: .govkit docs.root, custom statuses/prefixes/required keys, cross-type refs, requiredSectionsByStatus, demoted index tier, custom journal+ledger paths, drift+ledger git surface"
+    },
+    {
+      "id": "F-R2-JUDGE",
+      "title": "keyed substance-judge plugin (Layer 3) — opt-in, never in no-key CI",
+      "spec": "RFC-0019",
+      "passes": true,
+      "check": "swe-flow:judge agent (pinned rubric substance-v1, strict deepeval-compatible JSON) + substance-judge skill (floor-gated fan-out, cross-model spread, .govkit/evals records); engine untouched by construction"
+    },
+    {
+      "id": "F-R0-PROVENANCE",
+      "title": "npm provenance re-enabled once the source repo goes public",
+      "spec": "PRD-0001",
+      "passes": false,
+      "check": "re-add --provenance in .github/workflows/release.yml (npm 422s provenance from private repos)"
+    },
+    {
+      "id": "F-GOVERNS-EXIST",
+      "title": "deterministic check: every governs: path must resolve to an existing file (ghost-path class from Distill Round 1)",
+      "spec": "RFC-0018",
+      "passes": true,
+      "check": "RFC-0018 (drift layer decided: git's matcher, per-pathspec, every governed doc); drift.test.ts pins ghost-among-live, governs-only ghost, and ack-all CANNOT"
+    },
+    {
+      "id": "F-DRIFT-CONTENT-HASH",
+      "title": "drift reconciled: switches from commit sha to content-derived hash — squash merge rewrites shas and orphans every pre-merge ack (CI escape, run 28918975371)",
+      "spec": "RFC-0015",
+      "passes": true,
+      "check": "RFC-0015 § Amendment; drift.test.ts pins squash-rewrite staying green + legacy-claim migration via --ack; repo's 7 opted-in docs migrated to sha256: claims in one --ack diff"
+    },
+    {
+      "id": "F-R2-SELFTEST",
+      "title": "selftest-gated judge: calibrate green + strict good>weak ranking probe before any verdict, refusal recorded, provenance (exact model id, temperature 0, anchorsHash) pinned per record",
+      "spec": "RFC-0020",
+      "passes": true,
+      "check": "skill-side contract only, engine untouched by construction — substance-judge SKILL.md step 3 + judge.md provenance fields + pinned fixture pair under references/selftest-fixtures/ (keyed and opt-in, so no CI test exists to cite; the contract text is the shipped surface)"
+    },
+    {
+      "id": "F-REPORT-PRBODY",
+      "title": "report --pr-body: marker-fenced, deterministic GFM rendering of the lifecycle report for idempotent PR-body splicing",
+      "spec": "RFC-0021",
+      "passes": true,
+      "check": "packages/govkit/test/report-pr-body.test.ts — 10 e2e cases: exact begin/end markers, byte-identical re-runs, per-type tables with terminal ✔, --pr-body+--json rejected exit 2, plain report byte-unchanged; splice recipe in plugins/swe-flow/README.md"
+    },
+    {
+      "id": "F-RED-TEAM",
+      "title": "spec-red-team skill: steelman-then-attack adversarial pass over one governed doc before a status flip, read-only by construction",
+      "spec": "RFC-0022",
+      "passes": true,
+      "check": "plugins/swe-flow/skills/spec-red-team/ SKILL.md allowed-tools grant Read/Grep/Glob + scoped govkit/git Bash only — no Write/Edit/Task (structural read-only); finding format + ranking rubric pinned in references/finding-format.md; briefs land in PR body/comment only"
+    },
+    {
+      "id": "F-SYNC-GUARD",
+      "title": "check-sync guard: plugin.json ↔ marketplace version sync + root↔template allowlist byte-compare, first link in the check chain (class rule for US-0004's silent drift)",
+      "spec": "US-0004",
+      "passes": true,
+      "check": "node scripts/check-sync.mjs wired first in package.json \"check\" — swe-flow plugin.json and marketplace entry agree at 0.7.0 (description synced byte-identical), allowlisted root↔template pairs byte-identical; no key, no network"
+    }
+  ]
+}

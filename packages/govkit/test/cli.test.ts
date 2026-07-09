@@ -160,6 +160,8 @@ describe("CLI entrypoint — govkit dist/cli.js", () => {
     expect(out).toContain("govkit");
     expect(out).toContain("verify");
     expect(out).toContain("check");
+    expect(out).toContain("calibrate");
+    expect(out).toContain("--journal");
   });
 
   // (d-ii) no args → exit 1, HELP printed to STDERR.

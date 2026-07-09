@@ -24,6 +24,17 @@
           }
         ]
       }
+    ],
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "npx --yes govkit check --hook --root \"${CLAUDE_PROJECT_DIR}\"",
+            "timeout": 60
+          }
+        ]
+      }
     ]
   }
 }

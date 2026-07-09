@@ -12,5 +12,17 @@
 | [RFC-0008](./RFC-0008-doc-code-drift-chain-coherence.md) | Doc–code drift, gate-half — chain-status coherence and a cleanup report | implemented | baodq97 | 2026-06-01 |
 | [RFC-0009](./RFC-0009-staleness-advisory.md) | Staleness advisory — link a doc to the code it governs and warn when the code moved on | implemented | baodq97 | 2026-06-01 |
 | [RFC-0010](./RFC-0010-design-implementation-reconciliation.md) | Controlling design↔implementation divergence — make as-built deviations explicit and reviewable | implemented | baodq97 | 2026-06-01 |
-| [RFC-0011](./RFC-0011-config-generality-hardening.md) | Config generality hardening — let a divergent consumer retire its parallel bash gate | draft | TBD | 2026-06-09 |
-| [RFC-0012](./RFC-0012-firm-thin-and-rule-evolution.md) | Name the firm/thin/honor-system line and make rules evolve from friction | accepted | baodq97 | 2026-06-10 |
+| [RFC-0011](./RFC-0011-working-discipline-skill.md) | Working-discipline — a trigger-gated thinking-checkpoint skill that reduces agent error and escalation | implemented | baodq97 | 2026-07-07 |
+| [RFC-0012](./RFC-0012-gate-journal-and-calibrate.md) | Gate-outcome journal and confusion-matrix calibration — the deterministic sensor for the learning flywheel (R7) | implemented | baodq97 | 2026-07-07 |
+| [RFC-0013](./RFC-0013-hook-wireable-gates.md) | Hook-wireable gates — a blocking-hook contract for verify/eval/check (--hook) | implemented | baodq97 | 2026-07-07 |
+| [RFC-0014](./RFC-0014-risk-tiered-checks.md) | Risk-tiered verify checks — advisory vs blocking, per kind, in config | implemented | baodq97 | 2026-07-07 |
+| [RFC-0015](./RFC-0015-drift-gate.md) | Deterministic spec↔code drift gate — reconciled shas and an explicit ack ritual (govkit drift) | implemented | baodq97 | 2026-07-07 |
+| [RFC-0016](./RFC-0016-feature-ledger.md) | Machine-checkable feature ledger — append-only done-ness agents cannot game (govkit ledger) | implemented | baodq97 | 2026-07-07 |
+| [RFC-0017](./RFC-0017-learning-distiller.md) | Learning-distiller — the keyed DISTILL step of the R7 flywheel, proposal-only by construction (swe-flow:distiller) | implemented | baodq97 | 2026-07-08 |
+| [RFC-0018](./RFC-0018-governs-existence-check.md) | Governs-existence check — a ghost pathspec is a broken declaration, gated in drift | implemented | baodq97 | 2026-07-08 |
+| [RFC-0019](./RFC-0019-substance-judge.md) | Substance judge — the keyed Layer-3 verdict govkit's floor deliberately defers (swe-flow:judge) | implemented | baodq97 | 2026-07-08 |
+| [RFC-0020](./RFC-0020-selftest-gated-judge.md) | Selftest-gated substance judge — the judge must prove itself before it judges | implemented | baodq97 | 2026-07-08 |
+| [RFC-0021](./RFC-0021-report-pr-body.md) | report --pr-body — render governance state as an idempotent fenced markdown block for PR bodies | implemented | baodq97 | 2026-07-08 |
+| [RFC-0022](./RFC-0022-spec-red-team.md) | spec-red-team — an adversarial review skill for governed docs (swe-flow) | implemented | baodq97 | 2026-07-08 |
+| [RFC-0023](./RFC-0023-config-generality-hardening.md) | Config generality hardening — let a divergent consumer retire its parallel bash gate | draft | TBD | 2026-06-09 |
+| [RFC-0024](./RFC-0024-firm-thin-and-rule-evolution.md) | Name the firm/thin/honor-system line and make rules evolve from friction | accepted | baodq97 | 2026-06-10 |

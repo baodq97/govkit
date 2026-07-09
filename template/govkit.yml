@@ -4,6 +4,14 @@
 # govkit by editing this file.
 schemaVersion: 1
 
+# Opt-in surfaces (RFC-0012 / RFC-0014 / RFC-0016) — uncomment to use:
+# journal:                    # gate-outcome sensor: verify/eval/check/drift/ledger --journal append here
+#   path: .govkit/journal.jsonl
+# ledger:                     # feature ledger (RFC-0016): the committed done-ness contract `govkit ledger` gates
+#   path: docs/ledger.json
+# tiers:                      # downgrade a verify kind to a warning (default: all blocking)
+#   index: advisory
+
 # ── Layer 1: the structural GATE (`govkit verify`) ───────────────────────────
 # Front-matter completeness · status ∈ allowed set · id↔filename convention ·
 # INDEX sync · globally-unique ids · no unresolved placeholders. Binary pass/fail.

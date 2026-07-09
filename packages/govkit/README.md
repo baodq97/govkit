@@ -36,6 +36,48 @@ keyword-salad with the right headings. So `eval` is a **floor**, tuned for zero
 false-positive on legitimate docs, accepting that a determined gamer passes it. Judging
 whether the prose is *sound* is a keyed reviewer's job, never part of the no-key CI gate.
 
+## Measuring the gate itself (RFC-0012)
+
+- **`--journal`** on `verify` / `eval` / `check`: append one JSONL gate-outcome record per
+  run to `.govkit/journal.jsonl` (configurable via `journal.path`; root-confined; a write
+  failure warns and never changes the exit code; crashed runs still record `ok: false`).
+- **`govkit calibrate --corpus <dir> [--baseline <file> [--update-baseline]]`**: run the
+  eval floor against a labeled corpus — `<dir>/good/` must pass, `<dir>/weak/` must fail —
+  and exit 1 on any false positive, on recall/F1 regression, or on corpus shrinkage vs the
+  committed baseline. A missing baseline file is a hard error (no fail-open); an ungraded
+  corpus fixture is a hard error (no green-on-nothing). Author your own corpus; the tarball
+  ships none.
+
+## Spec↔code drift and the feature ledger (RFC-0015 / RFC-0016)
+
+- **`govkit drift [--ack [doc]]`**: a doc carrying `governs:` + `reconciled: sha256:<hex>`
+  fails the gate when its governed CONTENT (a hash over the files' git blob OIDs — stable
+  across squash/rebase, which rewrite commit shas and would orphan the claim) no longer
+  matches the recorded claim — the deterministic spec↔code drift gate no SDD tool ships.
+  `--ack` rewrites only the claim value (a deliberate, git-visible act); docs without
+  `reconciled:` stay covered by the advisory `stale` only, so adoption is per-doc and zero-FP.
+  Every governed doc is additionally existence-checked per pathspec (RFC-0018): a `governs:`
+  spec matching no tracked file fails, named verbatim — an ack can't clear it, the governs
+  list needs the hand edit.
+- **`govkit ledger`**: validates a committed JSON feature ledger (`docs/ledger.json`,
+  `ledger.path` configurable): schema, unique ids, every `spec` resolving to a governed doc,
+  and git-backed anti-gaming — removing an entry or its `check` field vs HEAD is a violation;
+  flipping `passes` either way is legal. Advisory `N/M passing` line never affects the exit.
+- Both join `--journal` and `--hook`.
+
+## Wiring the gate into an agent loop (RFC-0013 / RFC-0014)
+
+- **`--hook`** on `verify` / `eval` / `check`: maps any gate failure to **exit 2** and routes
+  the report to stderr — the blocking-hook convention (Claude Code feeds exit-2 stderr back
+  to the model). Fail-closed: an operational error under `--hook` also exits 2; a broken
+  guardrail blocks rather than waves through. Example (Stop hook):
+  `npx --yes govkit check --hook` — the session cannot end on a red gate.
+- **`tiers:`** in `govkit.yml`: downgrade chosen verify kinds to `advisory` (warn, don't
+  block): `tiers: { index: advisory }`. Default: every kind blocking — zero behavior change
+  until you opt in. Unknown kind or value fails loud at config load. Advisory violations
+  still print, reach `--json`, and land in the journal with their tier — visible, just not
+  blocking. The eval floor is untouched (it has its own required/advisory split).
+
 ## Config, not code
 
 Doc dirs, required keys, the status lifecycle, and the quality rubric are all declared in a

@@ -1,5 +1,5 @@
 ---
-id: RFC-0011
+id: RFC-0023
 title: Config generality hardening — let a divergent consumer retire its parallel bash gate
 status: draft
 owner: TBD

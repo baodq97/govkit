@@ -25,7 +25,7 @@ been produced by an LLM — does not make it good. govkit separates the two ques
 |---|---|---|---|
 | **Gate** (quality *control*) | `govkit verify` | Is it well-**formed**? | binary pass/fail — blocks merge |
 | **Eval** (quality *signal*) | `govkit eval` | Is it a complete, non-stub doc? | required **floor** blocks + advisory **0–100** score |
-| **Reviewer** (substance *judge*) | `swe-flow:reviewer` agent | Is the reasoning **sound**? | opt-in, needs a key — **never** in no-key CI |
+| **Judge** (substance *verdict*) | `swe-flow:judge` + `substance-judge` skill (RFC-0019) | Is the prose **sound**? | opt-in, needs a key — **never** in no-key CI; anchored 0–100, deepeval-compatible records |
 
 The gate enforces front-matter, the status lifecycle, id↔filename convention, INDEX
 sync, unique ids, no placeholders, chain referential-integrity (RFC-0003),
@@ -39,6 +39,13 @@ quality trend — both no-key. Two advisory, read-only commands never affect an 
 `govkit report` gives a lifecycle view (done / in-flight / cleanup), and `govkit stale`
 (RFC-0009) flags a doc whose `governs:` code has newer commits than the doc — a **proxy**
 ("code moved", not "doc wrong"), git-gated and outside the no-key floor by construction.
+Two R7 learning-flywheel surfaces (RFC-0012), both no-key: an opt-in `--journal` flag on
+`verify`/`eval`/`check` appends one JSONL gate-outcome record per run (crashed runs
+included — the sensor stays honest during incidents), and `govkit calibrate` scores the
+gate itself against a labeled `good/`/`weak/` corpus, failing CI on any false positive, on
+recall/F1 regression, or on corpus shrinkage vs a committed baseline. This repo calibrates
+its own floor in `bun run check` against `packages/govkit/eval/fixtures` (not shipped to
+npm — consumers author their own corpus).
 Where the governed docs live is configurable via `docs.root` (default `.`, RFC-0007) — set
 e.g. `.govkit` to isolate kit-managed docs under one folder.
 
@@ -46,7 +53,7 @@ e.g. `.govkit` to isolate kit-managed docs under one folder.
 *cannot* tell a real artifact from a keyword-salad with the right headings. So `eval` is
 deliberately scoped as a **floor**, tuned for zero false-positive on legitimate docs and
 accepting that a determined gamer passes it. Judging whether the prose is *sound* is the
-swe-flow `reviewer` agent's job (opt-in, keyed, outside CI). The floor's own trust is
+swe-flow `judge` agent's job (RFC-0019 — opt-in, keyed, outside CI). The floor's own trust is
 pinned by an **adversarial corpus** (`packages/govkit/eval/`) the test suite asserts
 catches every known gaming vector while passing MADR/Nygard/terse styles.
 
@@ -136,13 +143,34 @@ then `npx govkit verify` until green.
 
 # 2. Install the authoring companion (Claude Code):
 claude plugin marketplace add baodq97/govkit   # the marketplace lives in this repo
-claude plugin install swe-flow@govkit          # spec-author, workflow-author, 3 agents
+claude plugin install swe-flow@govkit          # spec-author, workflow-author, working-discipline, substance-judge, 5 agents
 
 # 3. Daily loop:
 npx govkit verify    # structural gate (what blocks)
 npx govkit eval      # quality floor + advisory 0–100 score
 npx govkit report    # lifecycle view: done / in-flight / cleanup (advisory)
 npx govkit stale     # docs whose `governs:` code moved on (advisory, needs git)
+
+# 4. Agent-loop guardrail mode (RFC-0013/0014, opt-in):
+npx govkit check --hook            # gate failure => exit 2 + report on stderr — wire as a
+                                   # blocking hook (the template ships a Stop hook doing this);
+                                   # tiers: in govkit.yml downgrades chosen verify kinds to
+                                   # advisory warnings (default: all blocking)
+
+# 5. Spec↔code drift gate + feature ledger (RFC-0015/0016, opt-in):
+npx govkit drift                   # docs with governs:+reconciled:sha256:<hex> FAIL when the
+npx govkit drift --ack [doc]       # governed CONTENT moved past the recorded claim (stable
+                                   # across squash/rebase); --ack re-vouches
+npx govkit ledger                  # gate a committed docs/ledger.json: schema, unique ids,
+                                   # spec refs resolve, append-only vs HEAD (anti-gaming)
+
+# 6. Learning-flywheel sensor + immune system (RFC-0012, opt-in):
+npx govkit verify --journal        # append one JSONL gate-outcome record (.govkit/journal.jsonl)
+npx govkit calibrate --corpus <dir> --baseline <file>
+                     # score the gate itself: confusion matrix (FP/FN, precision/recall/F1)
+                     # against YOUR labeled corpus — <dir> holds good/ (must pass the floor)
+                     # and weak/ (must fail it); exits 1 on any FP, on recall/F1 regression,
+                     # or on corpus shrinkage vs the committed baseline
 ```
 
 ## Quickstart (hacking on this monorepo)
@@ -170,7 +198,7 @@ on consumers (ADR-0002). Node ≥ 20 is the distribution baseline.
 MVP adoptable. Both trust layers ship and run no-key in CI: `govkit verify` (front-matter,
 status enum, id convention, INDEX sync, unique ids, no placeholders) and `govkit eval`
 (graded rubric proven by a labeled corpus), plus `govkit init` (scaffold) and the
-`audit-write` hook. The `swe-flow` plugin (goal→domain→API→data→spec-author + 3 agents)
+`audit-write` hook. The `swe-flow` plugin (goal→domain→API→data→spec-author + 5 agents)
 and the `sdlc` workflow author the artifacts the engine grades. See `AGENTS.md` for the
 governance this repo runs on itself. Next: publish (`npx govkit` / marketplace) and an
 optional opt-in LLM-judge eval layer (RFC-0001 § Open questions).

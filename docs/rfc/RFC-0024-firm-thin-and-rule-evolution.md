@@ -1,5 +1,5 @@
 ---
-id: RFC-0012
+id: RFC-0024
 title: Name the firm/thin/honor-system line and make rules evolve from friction
 status: accepted
 owner: baodq97
@@ -79,7 +79,7 @@ only the third touches code.
    to exactly one recorded outcome — **PROMOTE** (becomes a firm rule in `govkit.yml` *plus* a RED
    fixture in `packages/govkit/eval/` that pins it before the fix lands), **KEEP-THIN** (stays
    advisory/honor-system with a one-line why), or **DROP**. The invariant: *no firm rule lands
-   without a RED fixture first.* This formalizes the habit RFC-0011 already followed and makes
+   without a RED fixture first.* This formalizes the habit RFC-0023 already followed and makes
    "rules exist to be broken into better rules" a repeatable mechanism rather than a slogan.
 
 **The only code change** is one additive branch on the existing `remind` channel in

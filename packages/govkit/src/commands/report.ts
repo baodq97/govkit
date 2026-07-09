@@ -41,6 +41,36 @@ export interface ReportOptions {
 // status-less governed doc is not silently absent from its own lifecycle view.
 const NO_STATUS = "(no status)";
 
+// The PR-body span markers (RFC-0021) — the STABLE idempotency contract. An injector locates
+// the begin…end span in an existing PR body and REPLACES it (appending only when absent), so
+// re-running never duplicates the section. The markers are the API; the block content between
+// them may evolve (named inner sub-sections are reserved for the gate/advisory follow-up).
+export const PR_BODY_BEGIN = "<!-- govkit:report:begin -->";
+export const PR_BODY_END = "<!-- govkit:report:end -->";
+
+// Render the lifecycle view as a marker-fenced GitHub-markdown block (RFC-0021). Determinism
+// IS the idempotency guarantee: no timestamps, no run-ids, no absolute paths — ids and
+// statuses arrive pre-sorted from runReport, so unchanged repo state renders identical bytes
+// and the caller's splice is a zero-diff no-op. One table per doc type; a terminal
+// (decided/shipped) status is marked ✔ per the type's terminalStatuses — same config-grounded
+// judgment as the plain report, nothing invented in the rendering.
+export function renderReportPrBody(result: ReportResult): string {
+  const tables = result.types.map((t) => {
+    const rows = t.buckets.map(
+      (b) =>
+        `| ${t.type} | ${b.status}${b.terminal ? " ✔" : ""} | ${b.count} | ${b.ids.join(", ")} |`,
+    );
+    return ["| type | status | count | ids |", "|---|---|---|---|", ...rows].join("\n");
+  });
+  // Blank lines BETWEEN tables only — adjacent GFM tables merge without one; the heading and
+  // the markers hug the content exactly as the RFC's example block pins.
+  const body = tables.join("\n\n");
+  const parts = [PR_BODY_BEGIN, "### govkit governance report"];
+  if (body) parts.push(body);
+  parts.push(PR_BODY_END);
+  return `${parts.join("\n")}\n`;
+}
+
 export function runReport(opts: ReportOptions): ReportResult {
   const config = opts.config ?? loadConfig(opts.root);
   const { ignore, types, root: docsRoot = "." } = config.docs;
