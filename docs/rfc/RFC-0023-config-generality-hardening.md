@@ -1,9 +1,10 @@
 ---
 id: RFC-0023
 title: Config generality hardening — let a divergent consumer retire its parallel bash gate
-status: draft
-owner: TBD
+status: implemented
+owner: baodq97
 date: 2026-06-09
+reconciled: sha256:24a05ee2ca494fcc
 governs:
   - packages/govkit/src/config.ts
   - packages/govkit/src/commands/verify.ts
@@ -136,3 +137,37 @@ verify.sh exists.
 - **Does owner-cell matching over-fit customs' table?** A consumer whose INDEX has no owner column
   but sets `sync: [owner]` would fail every row. Decision: that is a correct failure (they asked
   to sync a column that does not exist); document it.
+
+## As-built
+
+Shipped as designed — three optional, non-breaking config fields plus bounded INDEX matching, no
+new command and no change to the no-key invariant:
+
+- **`config.ts`** — `IndexConfig` (`false | { sync: string[] }`), `DocType.excludeBase`,
+  `DocType.index`, and a load-time guard that fails loud if `excludeBase` drops `id`/`title` (the
+  Open-question guard was taken, not deferred).
+- **`verify.ts`** — G1 `excludeBase` subtraction in `runVerify`'s effective-required set and
+  `checkIndex`'s `index === false` skip; G2 bounded id lookup (`rowHasId`) and cell match
+  (`rowHasCell`) replacing the substring `includes()`; G3 configurable multi-key `sync` (default
+  status-only, fail-soft on empty).
+- **Tests** — `packages/govkit/test/config-generality.test.ts` covers loadConfig fields, the
+  id/title exclusion guard, and G1/G2/G3 runVerify behaviour.
+
+Verified against the real divergent consumer: with an extended `govkit.yml` (status-less
+`runbook`/`postmortem` types + owner-sync), the consumer's corpus verifies with 0 violations —
+the measurable success criterion (retire the doc-governance half of its parallel `scripts/verify.sh`)
+is met. Gate green on merge into `main`: 238 tests, `verify`/`eval`/`drift`/`ledger` all OK.
+
+## Deviations from design
+
+- **Quote tolerance, added beyond the original design.** Real-consumer data exposed a case the
+  synthetic fixtures missed: an INDEX owner cell written `"@handle"` (literal YAML quotes) against
+  a parser-unquoted front-matter value. `rowHasCell` strips one surrounding quote pair
+  (`stripQuotes`) before comparing — mirroring the consumer's own bash `tr -d`. Not in the drafted
+  decision; recorded as a friction→fixture per RFC-0024's loop.
+- **Renumbered RFC-0011 → RFC-0023.** This RFC was authored as RFC-0011 on a divergent local line;
+  when that line merged with `origin/main` (which had independently shipped a different RFC-0011),
+  it was renumbered to RFC-0023 to keep ids unique. No design change — filename, `id:`, and the
+  cross-reference in RFC-0024 were updated together.
+- **G4 (template sentinels, `.env`-leak, AGENTS.md-size) left out of scope**, as the Decision
+  section scoped it — the consumer keeps only that non-govkit remainder of its bash gate.
