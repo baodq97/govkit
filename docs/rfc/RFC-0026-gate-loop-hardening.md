@@ -9,6 +9,7 @@ governs:
   - .claude/workflows/gate-loop.js
   - plugins/swe-flow/agents/verifier.md
   - plugins/swe-flow/agents/implementer.md
+  - AGENTS.md
 parent: PRD-0001
 ---
 
@@ -22,9 +23,12 @@ parent: PRD-0001
 ## Summary
 
 Round 17 built RFC-0025 end to end and logged nine findings — none in the deterministic core, all
-in the layer around it. Four are cheap to close deterministically or by contract; this RFC does
-exactly that and nothing more. It is a hardening pass, not a platform: each lesson lands at its
-lowest-cost surface.
+in the layer around it. Five are cheap to close deterministically or by contract; this RFC does
+exactly that and nothing more. The fifth, C5, was not in the Round-17 log at all — it was
+discovered DURING this RFC's own dogfood close, when the first production invocation of
+`gate-loop.js` hit a real caller shape the design had not anticipated. That is the strongest
+evidence the loop works: it caught a live defect in itself while closing itself. It is a
+hardening pass, not a platform: each lesson lands at its lowest-cost surface.
 
 | # | Lesson (Round-17 evidence) | Surface |
 |---|---|---|
@@ -32,6 +36,7 @@ lowest-cost surface.
 | C2 | **Orphan-artifact detector** — a test/script wired to no gate is invisible (F4: `skill-lint.test.mjs`) | `scripts/check-sync.mjs` |
 | C3 | **Reconcile-as-you-go** — drift discovered at close-time is an accumulation failure (round-1 BLOCK on RFC-0017/0019/0022 `reconciled:` hashes) | one AGENTS.md bullet + `implementer.md` line |
 | C4 | **Dispatch preflight/fallback** — `swe-flow:*` cannot resolve pre-release (F7) | `.claude/workflows/gate-loop.js` |
+| C5 | **JSON-string args tolerance** — gate-loop args arrive as a JSON-encoded string from real callers (F10: observed live, run `wf_3ce99e82`, fixed in commit `9647f13`); the workflow now parses string args, failing loud on malformed JSON | `.claude/workflows/gate-loop.js` |
 
 ## Motivation
 
@@ -53,6 +58,12 @@ contract line agents cannot skip (C1, C3). The evidence:
 - **C4** — the freshly-built role agents could not be dispatched by name: `agentType` resolves
   against the INSTALLED plugin (still 0.7.0). The e2e sim fell back to generic agents reading the
   role files at runtime — a pattern that worked and should ship, not stay a sim workaround.
+- **F10** — the FIRST production invocation of `gate-loop.js` failed at arg-parse: the caller
+  passed `args` as a stringified JSON blob, not an object, so `args?.verifyCmd` read `undefined`
+  and the workflow threw its own "required" error, naming the missing arg instead of silently
+  proceeding. Fail-loud did its job, but the premise was wrong — the caller's shape was valid
+  JSON, just string-encoded. Tolerance for that shape was added the same session (commit
+  `9647f13`).
 
 ## Design
 
@@ -89,12 +100,21 @@ of failing, not merely asserted.
 
 ### C3 — reconcile-as-you-go
 
-One AGENTS.md bullet plus one `implementer.md` line: **any change that edits a file under a
-governed doc's `governs:` pathspec must, in the same change, either update that doc's
-as-built/reconciled record or explicitly hand the ack decision to the owner.** Drift red found at
-close-time is an accumulation failure — each edit that defers its reconcile compounds the debt.
-The ack itself stays the owner's act (the RFC-0015 drift ritual is unchanged); the rule only
-forbids *silently* accumulating unreconciled edits behind the gate's committed-content blind spot.
+One AGENTS.md bullet states the rule directly: **any change that edits a file under a governed
+doc's `governs:` pathspec must, in the same change, either update that doc's as-built/reconciled
+record or explicitly hand the ack decision to the owner.** Drift red found at close-time is an
+accumulation failure — each edit that defers its reconcile compounds the debt. The ack itself
+stays the owner's act (the RFC-0015 drift ritual is unchanged); the rule only forbids *silently*
+accumulating unreconciled edits behind the gate's committed-content blind spot.
+
+`implementer.md` does not restate that bullet verbatim — it enforces the same intent through a
+role-appropriate clause in the report contract instead. Two duties were added to what the
+implementer must hand back: `verifierShouldRun` must name the FULL gate command (e.g. `bun run
+check`), never a narrower one, since `node cli.js check` is verify+eval only and cannot back a
+green claim (`plugins/swe-flow/agents/implementer.md:93-96`); and a new `governedDocsTouched`
+field requires a governs-grep over `filesWritten` (`grep 'governs:' docs/rfc -A5`) so that any hit
+is named for the doc owner instead of silently accumulating as drift. The implementer still never
+performs the reconcile itself — naming the hit is how the ack reaches the owner.
 
 ### C4 — dispatch preflight/fallback
 
@@ -103,6 +123,15 @@ installed plugin cannot resolve the `agentType`, falls back to a generic agent i
 the role file (`plugins/swe-flow/agents/<name>.md`) and execute it. This is the sim's proven
 pattern (Round 17 F7) promoted into the shipped workflow. The `template/.claude/workflows/gate-loop.js`
 copy stays byte-identical, so the drift assertion in `check-sync.mjs` continues to hold.
+
+### C5 — JSON-string args tolerance
+
+`.claude/workflows/gate-loop.js` now normalizes its `args` parameter before reading any field:
+`const ARGS = typeof args === "string" ? JSON.parse(args) : (args ?? {})`. Real callers were
+observed passing `args` as a JSON-encoded string rather than an object (F10, run `wf_3ce99e82`);
+the workflow accepts either shape transparently. A malformed string still throws at
+`JSON.parse` — the tolerance widens the accepted input shape, it does not widen the failure mode
+into a silent default.
 
 ## Alternatives considered
 
@@ -124,10 +153,16 @@ copy stays byte-identical, so the drift assertion in `check-sync.mjs` continues 
   byte-identical (drift-gated).
 - **`verifier.md`, `implementer.md`, AGENTS.md** gain contract/rule lines. No behaviour change to
   any deterministic command.
+- **C5 (commit `9647f13`)** — the same `gate-loop.js`/`template/` pair also gains the JSON-string
+  `args` tolerance; both copies stay byte-identical, so no separate drift-gating surface is needed.
+- **C4's dispatch fallback was proven live, not merely designed, on this RFC's own close**: the
+  `swe-flow:red-teamer` dispatch errored because the installed plugin was still on 0.7.0, and
+  `dispatchRole`'s file-read fallback caught the resolution failure and returned the verdict
+  anyway — the mechanism this RFC shipped is the one that closed it.
 - **No engine change, no `govkit verify`/`eval` change, no new CLI subcommand, no `govkit.yml`
   change.** Nothing enters the no-key CI path except the additive `check-sync.mjs` step.
-- **Rollback** is per-surface: revert the `check-sync.mjs` check, the workflow wrapper, and the
-  contract lines. No migration, no state.
+- **Rollback** is per-surface: revert the `check-sync.mjs` check, the workflow wrapper (including
+  the C5 args tolerance), and the contract lines. No migration, no state.
 
 ## Open questions
 
