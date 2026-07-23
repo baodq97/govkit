@@ -11,6 +11,15 @@ shared state; you write files only. The task contract is your brief — its
 allowed paths, must-read docs, business rules, acceptance criteria, and stop
 conditions narrow your scope. It does not loosen any repo rule.
 
+## Skill hint (load on demand)
+
+If the Skill tool lists the skill named below, invoke it first and follow it — it is the
+canonical procedure and this file is its summary. If the skill is not listed (the plugin is
+not installed, or you are running on a harness without skills), run the embedded procedure
+below; it is complete on its own.
+
+Canonical skill: `swe-flow:working-discipline`
+
 ## Before you write
 - Read the nearest `AGENTS.md` for every subtree your contract touches (the
   root plus the closest sub-tree `AGENTS.md` — deltas only).
@@ -22,6 +31,9 @@ conditions narrow your scope. It does not loosen any repo rule.
   ownership map. Read what the contract's must-read list points you to.
 - Read a neighbouring file before creating one. Mimic before invent — match its
   style, structure, and tone (root § Coding rules).
+- Work arrives as **paths, not pasted content**: when the lead hands you a brief, a doc, or a
+  prior agent's output, it comes as file paths you Read yourself — never trust a pasted copy
+  that may be stale. You return paths the same way (see `## Return`), never inlined file bodies.
 
 ## Hard edges (the fan-out contract)
 - Edit ONLY the contract's allowed paths. They are disjoint from other members;
@@ -64,6 +76,22 @@ question that triggered the stop, and state the decision required
 and say why you did not proceed on it. Do not guess past a missing artifact.
 
 ## Return
-A summary of the files you wrote/changed (absolute paths) and a short note on
-what each one does. Do not claim "verified" — validation (`npx govkit verify`,
-`bun run check`, lint/typecheck/tests) is the lead's integration step, not yours.
+
+End every report with an explicit status line — exactly one of:
+
+- `DONE` — every allowed path written, the contract satisfied, no reservations.
+- `DONE_WITH_CONCERNS` — written, but with a caveat the lead must weigh (a style guess, an
+  ambiguous rule you resolved one way). Name each concern.
+- `BLOCKED` — a rule, a missing artifact, or a contradiction stopped you. Cite it and state the
+  `Decision required:`.
+- `NEEDS_CONTEXT` — you cannot proceed without a doc or path the contract did not give you.
+  Name exactly what to hand you.
+
+Then, always:
+- `filesWritten` — the absolute paths you wrote or changed, one line each on what it does.
+- `verifierShouldRun` — the commands a verifier SHOULD run to check your work, DISCOVERED from
+  `package.json`, the `Makefile`, or CI and NAMED, not executed (you never run the gate). E.g.
+  `bun run check`, `node --test path/to.test.mjs`.
+
+Hand back paths, never pasted file contents. Do not claim "verified" — validation (`npx govkit
+verify`, `bun run check`, lint/typecheck/tests) is the lead's integration step, not yours.

@@ -13,10 +13,14 @@
 // judgment). Check B byte-compares an EXPLICIT allowlist of root↔template pairs — no
 // directory-wide sweep, because template/.github/workflows/ci.yml intentionally differs from
 // the root CI workflow and must not be flagged. packages/govkit's version is deliberately NOT
-// coupled: the CLI is a separate deliverable and versions independently of the plugin.
+// coupled: the CLI is a separate deliverable and versions independently of the plugin. Check C
+// reuses Task 2's `lintSurface` to confirm every agent/skill on disk is at least named in
+// plugins/swe-flow/README.md — a cheap substring check, not a prose-quality check, so the
+// README stays the single place a human can see the whole surface without opening every file.
 import { readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
+import { lintSurface } from "./skill-lint.mjs";
 
 const repoRoot = dirname(dirname(fileURLToPath(import.meta.url)));
 
@@ -58,6 +62,7 @@ if (!entry) {
 const mirrorPairs = [
   [".claude/workflows/sdlc.js", "template/.claude/workflows/sdlc.js"],
   [".claude/hooks/session-freshness.mjs", "template/.claude/hooks/session-freshness.mjs"],
+  [".claude/workflows/gate-loop.js", "template/.claude/workflows/gate-loop.js"],
 ];
 
 for (const [rootFile, templateFile] of mirrorPairs) {
@@ -83,6 +88,21 @@ for (const [rootFile, templateFile] of mirrorPairs) {
   }
 }
 
+// Check C: every agent/skill on disk is at least named in the plugin README, so the surface
+// never quietly grows past the doc that is supposed to enumerate it.
+const surface = lintSurface("plugins/swe-flow");
+const onDisk = new Set(surface.docs.map((d) => `${d.kind}/${d.stem}`));
+const readmePath = "plugins/swe-flow/README.md";
+const readme = readFileSync(join(repoRoot, readmePath), "utf8");
+const missing = [...onDisk].filter((s) => !readme.includes(s.split("/")[1]));
+if (missing.length > 0) {
+  failures.push(
+    `${readmePath} does not mention: ${missing.join(", ")}.\n` +
+      `  Fix: add each new agent/skill to the README's component table so the surface stays ` +
+      `documented as it grows.`,
+  );
+}
+
 if (failures.length > 0) {
   console.error(`check-sync: FAIL — ${failures.length} drift issue(s):\n`);
   for (const failure of failures) console.error(`- ${failure}\n`);
@@ -91,6 +111,7 @@ if (failures.length > 0) {
 
 console.log(
   `check-sync: OK — marketplace "${plugin.name}" entry matches ${pluginPath} ` +
-    `(version ${plugin.version}, description byte-identical) and ${mirrorPairs.length} ` +
-    `root↔template mirror pair(s) are byte-identical.`,
+    `(version ${plugin.version}, description byte-identical), ${mirrorPairs.length} ` +
+    `root↔template mirror pair(s) are byte-identical, and ${onDisk.size} agent/skill(s) are ` +
+    `all named in ${readmePath}.`,
 );

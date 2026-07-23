@@ -1,18 +1,13 @@
 ---
 name: workflow-author
-description: >
+description: >-
   Author a reusable, deterministic DYNAMIC WORKFLOW — a `.claude/workflows/<name>.js`
   orchestration script — from a plain description of a repeatable, multi-step process.
-  Use whenever the user wants to create/scaffold a workflow, automate a repeatable flow
-  ("we always do X then Y then Z"), fan work out across agents, set up a review→verify
-  pipeline, run a migration over many files, or extend the `sdlc` workflow. The skill
-  composes the EXISTING swe-flow agents (swe-flow:implementer / reviewer / doc-keeper) and
-  `npx govkit verify` gates into one of three proven shapes — pipeline (review→verify),
-  fan-out in dependency waves, or loop-until-done — and NEVER invents new agents, skills,
-  or teams. It writes the script into `.claude/workflows/` (workflows cannot ship inside a
-  plugin), embeds a MANDATORY manual-fallback header, and validates the result with
-  `node --check`. Trigger on "tạo workflow", "scaffold/author a workflow", "automate this
-  flow", "make a reusable orchestration", "fan this out", "set up a review pipeline".
+  Use whenever the user wants to create or scaffold a workflow, automate a repeatable flow
+  ("we always do X then Y then Z"), fan work out across agents, set up a review-then-verify
+  pipeline, run a migration over many files, or extend the `sdlc` workflow. Trigger on
+  "tạo workflow", "scaffold a workflow", "automate this flow", "make a reusable
+  orchestration", "fan this out", "set up a review pipeline".
 allowed-tools: Read, Grep, Glob, Bash, Write, Edit
 ---
 

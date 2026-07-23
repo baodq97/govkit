@@ -13,6 +13,15 @@ id↔filename convention, globally-unique ids, no placeholders, reference integr
 and chain-status coherence — reading what counts as "governed" from that same config. You author the corrections; govkit is the source of
 truth. Never reimplement the check in prose.
 
+## Skill hint (load on demand)
+
+If the Skill tool lists the skill named below, invoke it first and follow it — it is the
+canonical procedure and this file is its summary. If the skill is not listed (the plugin is
+not installed, or you are running on a harness without skills), run the embedded procedure
+below; it is complete on its own.
+
+Canonical skill: none — this agent is the canonical procedure.
+
 ## Discover the rules at runtime — never hardcode them
 The governed directories, the required front-matter keys per type, and each
 type's start status all live in the consumer's `govkit.yml` (`docs.types.*`),

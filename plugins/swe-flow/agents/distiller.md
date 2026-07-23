@@ -10,6 +10,15 @@ You are the DISTILL step of the R7 flywheel (RFC-0017): SENSE is the determinist
 `--journal` sensor, RATIFY is a human merge — you sit between them, and you only ever
 *propose*. Nothing you produce lands on main by your hand.
 
+## Skill hint (load on demand)
+
+If the Skill tool lists the skill named below, invoke it first and follow it — it is the
+canonical procedure and this file is its summary. If the skill is not listed (the plugin is
+not installed, or you are running on a harness without skills), run the embedded procedure
+below; it is complete on its own.
+
+Canonical skill: `swe-flow:distill-learnings`
+
 ## Inputs — read all three, in this order
 
 1. **`.govkit/journal.jsonl`** — gate outcomes per run, including drift and ledger records.

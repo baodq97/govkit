@@ -1180,3 +1180,83 @@ generality outside the author's DNA — the fixture shares an author with the en
 is precisely PRD-0001's monoculture risk. `F-R1-N3` stays red with the boundary written
 into its check field. The flywheel's whole value is that the ledger cannot be talked into
 optimism, including by the person holding the pen.
+
+---
+
+## Round 17 — 2026-07-23: gate-loop dogfood round 1
+
+**Trigger.** RFC-0025 (the gate-loop workflow + swe-flow role plane,
+`docs/rfc/RFC-0025-gate-loop-role-plane.md`) was built end-to-end from its own plan,
+`docs/superpowers/plans/2026-07-23-swe-flow-gate-loop.md`. Reconciling that build against the
+plan, and running the gate-loop's own Verify/RedTeam phases over the resulting diff, surfaced
+nine findings — stale plan-authoring assumptions, wiring gaps the reviewer chain caught, one
+real false-green only an independent post-integration re-run exposed, and two environment/
+runtime gaps. None were defects in the deterministic core.
+
+**F1 — a line-numbered plan edit had already drifted.** The plan pinned a `package.json` edit
+to "line 29"; by build time the check script sat at line 28. The builder landed it only via a
+unique-string fallback, not the cited line. **Lesson (plan-authoring):** a positional line
+anchor in a plan is a stale-state assumption the moment the file changes again — plans cite a
+unique surrounding string, never a line number.
+
+**F2 — two "measured" numbers about the same string disagreed.** Plan item M5 gave the
+`workflow-author` skill description as 1082 chars; the audit doc it was copied from had
+measured 1029 for the same string (the two measurement paths fold whitespace differently), and
+neither was re-run at plan time. **Lesson:** every quantitative claim carries the command that
+produced it, and that command is re-run — never just copied — wherever the number is reused.
+
+**F3 — the plan drifted from itself mid-flight.** The intro still read "5 → 9 agents" after
+later edits grew the surface to 11, and a newly added item (M9) was missing from the summary —
+a patch agent updated the task list but not its prose mirrors. Caught by reviewer pass R3.
+**Lesson:** repeated facts are single-sourced; restated counts must derive from the task list,
+not be hand-maintained beside it.
+
+**F4 — a test wired into no gate.** `skill-lint.test.mjs` ran under no gate at all — not
+`bun run check`, not anything else; the plan never said to wire it in and the builder followed
+it literally. Caught by reviewer pass R1. **Lesson:** a test no gate executes is a dead test —
+wiring it in is part of the deliverable, not a follow-up.
+
+**F5 — a convention landed on one file, not its class.** The skill-hint block went into
+`reviewer.md` alone; the convention predated the decision to extend it to every agent. Caught
+by reviewer pass R2. **Lesson:** when a convention lands, enumerate and sweep the entire class
+in the same change.
+
+**The headline catch: a real false-green, found only by the independent post-integration
+re-run.** Simulating the gate-loop's own Verify phase found the branch had edited governed
+files — `distiller.md`/`judge.md` under RFC-0017/RFC-0019, `spec-red-team`'s `SKILL.md` under
+RFC-0022 — without updating each RFC's `reconciled:` hash. `bun run check` was green
+**pre-commit** (drift hashes committed content, so an uncommitted edit is invisible to it) and
+**red post-commit** — caught only by re-running the full gate after integration. **Lesson:** a
+gate-green claim must re-run the FULL gate after integration, never before it, and never a
+narrower command — `node cli.js check` alone is verify+eval only, it does not run drift.
+
+**F6 — the new check paid for itself on its first real run.** The first execution of
+`skill-lint.mjs` surfaced an unpredicted 64% description-cosine collision between `distiller`
+and `distill-learnings` — an expected pairing in hindsight (the agent is the skill's own
+summary), not anticipated when the threshold was set. **Lesson:** a new deterministic check
+earns its keep on its first real run; same-family pairs may warrant a declared exemption rather
+than a threshold change.
+
+**F7 — the runtime could not dispatch agents that had not shipped yet.** `agentType`
+resolution reads the INSTALLED plugin (still 0.7.0), so the freshly-built role agents could not
+be dispatched by name until the plugin version ships; the e2e simulation fell back to generic
+agents reading the role files at runtime. **Lesson:** a workflow that dispatches
+plugin-namespaced agents needs a dispatch preflight check or a documented fallback for the
+pre-release window.
+
+**F8 — a cross-account auth mismatch blocked the first remote op.** `git fetch` failed at
+branch-creation time because `gh` was authenticated on the work account; unblocked with
+`gh auth switch baodq97`. **Lesson:** run an environment preflight (account/auth) before the
+first remote operation in a PM-orchestrated run.
+
+**Round-17 verdict:** the deterministic core (verify/eval/drift) was not the thing that broke —
+every one of the nine findings sits in the layer around it: a plan whose line anchors and copied
+numbers went stale before the builder read them (F1–F2), a plan that drifted from its own prose
+mirrors mid-build (F3), a test and a convention that shipped without being wired/swept until the
+reviewer chain caught them (F4–F5), one real false-green that only the *independent, post-
+integration* full-gate re-run exposed (the headline — pre-commit green, post-commit red, on
+`reconciled:` hashes a narrower command would have missed entirely), a new linter earning its
+keep on day one (F6), and two run-time/environment gaps in the pre-release and cross-account
+edges of a PM-orchestrated build (F7–F8). The compounding discipline is unchanged: re-run the
+FULL gate after integration, never before it and never narrower; single-source every repeated
+fact and command; and wire and sweep, don't just write.

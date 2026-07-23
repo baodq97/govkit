@@ -1,15 +1,14 @@
 ---
 name: spec-red-team
-description: >
-  Runs the keyed adversarial pass (RFC-0022) over ONE governed PRD/RFC/ADR before its status
-  advances: steelman the doc first, then attack; phrase every weakness as a falsifiable
-  "Fails if ___" condition; self-refute each candidate against what the doc and repo already
-  say; rank survivors by impact × likelihood × cheapness-to-test; return ranked findings +
-  evidence to gather + one explicit kill criterion. Use when asked to "red-team this RFC",
-  "attack RFC-NNNN before I accept it", "phản biện tài liệu này", or before advancing a
-  PRD/RFC/ADR status (draft → proposed/accepted). Advisory and read-only by construction —
-  it never flips status, never edits the doc it attacks, never gates; NEVER wire it into
-  no-key CI, hooks, or exit codes.
+description: >-
+  Runs the keyed adversarial pass over ONE governed PRD/RFC/ADR before its status advances:
+  steelman first, then attack; phrase every weakness as a falsifiable "Fails if ___";
+  self-refute each candidate against what the document and the repository already say; rank
+  survivors by impact times likelihood times cheapness-to-test; return ranked findings plus
+  one explicit kill criterion. Use when asked to "red-team this RFC", "attack RFC-NNNN before
+  I accept it", "phản biện tài liệu này", or before any draft-to-proposed or proposed-to-accepted
+  advance. Advisory and read-only by construction — it never flips a status, never edits its
+  target, never gates; NEVER wire it into no-key CI, hooks, or exit codes.
 allowed-tools: Read, Grep, Glob, Bash(npx govkit verify:*), Bash(npx govkit eval:*), Bash(npx govkit check:*), Bash(git log:*), Bash(git diff:*)
 ---
 

@@ -59,6 +59,20 @@ docs:
       terminalStatuses: [done]
       # A US's `parent` (the RFC/ADR it implements) must resolve to a real id.
       refs: [{ key: parent, type: rfc }]
+    rel:
+      dir: docs/releases
+      required: [id, title, status, owner, date]
+      idPrefix: REL
+      startStatus: draft
+      statuses: [draft, released, superseded]
+      terminalStatuses: [released, superseded]
+      # Status-conditional required sections, same forcing-function pattern as RFC's
+      # `implemented`: a release at `released` must record what shipped and how to recover.
+      # Inert until a REL is flipped to `released` — zero-false-positive before then.
+      requiredSectionsByStatus:
+        released: ["What shipped", "Migration", "Rollback", "Post-publish smoke"]
+      # A release's `parent` (the RFC it ships) must resolve to a real id. Resolve-only.
+      refs: [{ key: parent, type: rfc }]
 
 # ── Layer 2: the quality EVAL (`govkit eval`) ────────────────────────────────
 # An HONEST deterministic, no-API-key layer. It is a STRUCTURAL FLOOR, not a
@@ -107,3 +121,6 @@ eval:
       - { id: priority, weight: 10, kind: frontmatter, key: priority, desc: "priority set (presence only)" }
       - { id: substance, weight: 15, kind: minWords, min: 30, required: true, desc: "not an empty stub (≥30 words of prose)" }
       - { id: nofiller, weight: 5, kind: forbid, pattern: 'lorem ipsum|to be filled (in|out)|to be written|todo:?\s*write|placeholder text|fill (this )?in later|insert [a-z ]+ here', required: true, desc: "no template filler left in" }
+    rel:
+      - { id: substance, weight: 30, kind: minWords, min: 30, required: true, desc: "not an empty stub (≥30 words of prose)" }
+      - { id: nofiller, weight: 10, kind: forbid, pattern: 'lorem ipsum|to be filled (in|out)|to be written|todo:?\s*write|placeholder text|fill (this )?in later|insert [a-z ]+ here', required: true, desc: "no template filler left in" }
