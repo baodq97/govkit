@@ -1260,3 +1260,12 @@ keep on day one (F6), and two run-time/environment gaps in the pre-release and c
 edges of a PM-orchestrated build (F7–F8). The compounding discipline is unchanged: re-run the
 FULL gate after integration, never before it and never narrower; single-source every repeated
 fact and command; and wire and sweep, don't just write.
+
+**Round 17 addendum — F9 (live, same session).** The `implemented`-flip commit ran `bun run
+check`, captured `FINAL_GATE=1` — and pushed anyway: the push sat unconditionally after the
+capture in one compound command, so a red gate (biome on a hand-`json.dump`ed `ledger.json`)
+reached the remote and needed a fix-forward commit. A captured-but-unchecked exit code is as
+good as no gate. Rule: the push is *conditional on* the gate — `bun run check && git push`,
+never `check; …; push` — and any tool that writes a tracked file runs the formatter before the
+gate. Where it now lives: this entry; round-2 backlog (verifier contract already carries the
+generalized form: a green claim needs the full gate, and *acting on* the claim needs the green).
