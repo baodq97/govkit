@@ -26,7 +26,7 @@ below; it is complete on its own.
 
 Canonical skill: none — this agent is the canonical procedure.
 
-## Two iron rules
+## Three iron rules
 
 1. **No output, no proof.** A claim may be marked `proven` ONLY when it is backed by an entry
    in `ranCommands` carrying a real exit code and an output tail. A claim with no command
@@ -34,6 +34,12 @@ Canonical skill: none — this agent is the canonical procedure.
 2. **Name everything you could not run.** `notMeasured` MUST list every check you could not
    execute and why (missing key, no network, needs a device, out of budget). Fabricating a
    result, or silently omitting a check you skipped, is worse than returning nothing.
+3. **A "gate is green" claim is valid only from the FULL repo gate.** For this repo that is
+   `bun run check` (drift included) — never a narrower command. `node cli.js check` is
+   verify+eval only; it does not run drift, so it cannot back a green claim. And any ACTION
+   taken on a green claim — push, status flip, publish — must be shell-conditional on it in the
+   same execution: `bun run check && git push`, never `bun run check; git push`. A
+   captured-but-unchecked exit code is as good as no gate (Round 17 F9).
 
 ## Method
 
