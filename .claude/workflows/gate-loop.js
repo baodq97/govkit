@@ -40,17 +40,20 @@ export const meta = {
 //   gate: 'doc' | 'slice' | 'release'   // default 'slice'; a 'release' gate REQUIRES args.live
 //   live: { scenario: string, expectations: string[] }  // the real-artifact run; omit to skip Live
 // }
-const verifyCmd = args?.verifyCmd;
+// Callers routinely pass args as a JSON-encoded string (observed live: run wf_3ce99e82) —
+// tolerate it; a malformed string still fails loud at JSON.parse.
+const ARGS = typeof args === "string" ? JSON.parse(args) : (args ?? {});
+const verifyCmd = ARGS.verifyCmd;
 if (!verifyCmd)
   throw new Error(
     "gate-loop: args.verifyCmd is required — name the repo real gate, do not guess it",
   );
 const changeSummary =
-  args?.changeSummary ??
+  ARGS.changeSummary ??
   "A change has landed. Read the recent commits and the cited docs to learn what it does.";
-const flips = args?.flips ?? [];
-const gateKind = args?.gate ?? "slice";
-const liveScenario = args?.live ?? null;
+const flips = ARGS.flips ?? [];
+const gateKind = ARGS.gate ?? "slice";
+const liveScenario = ARGS.live ?? null;
 if (gateKind === "release" && !liveScenario) {
   throw new Error(
     "gate-loop: a release gate REQUIRES a live scenario — set args.live { scenario, expectations } so the verifier can build and run the real artifact",
