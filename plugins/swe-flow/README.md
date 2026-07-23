@@ -7,8 +7,12 @@ Everything **calls** `npx govkit verify` to validate — nothing embeds the dete
 
 ## Components
 
-**Skills — the SDLC chain** (`goal → domain → API → data → governed artifact`):
+**Skills — the SDLC chain** (`slice → goal → domain → API → data → governed artifact`):
 
+- **`skills/work-breakdown`** — split a large piece of work into small, independently shippable
+  vertical slices before writing any doc or code: an XS-to-XL sizing ladder, four break triggers,
+  and how to record ordering when one slice depends on another. Tier-1 and dependency-free —
+  calls no other skill.
 - **`skills/goal-define`** — structure a clear, verifiable goal from rough input.
 - **`skills/domain-decompose`** — DDD: prose → bounded contexts, aggregates, entities, value
   objects, events → `docs/domain` (delta-merge on re-run).
@@ -52,20 +56,48 @@ Everything **calls** `npx govkit verify` to validate — nothing embeds the dete
   `allowed-tools` grant no Write/Edit, it never flips a status, and it is never wired into
   no-key CI, hooks, or exit codes (the gate stays `govkit verify`/`eval`). Governed by RFC-0022.
 
-**Agents** (plugin-namespaced — usable from the `sdlc` workflow):
+**Agents** (plugin-namespaced — usable from the `sdlc` and `gate-loop` workflows), grouped by
+role class — **Author** writes, **Score** independently judges without authoring, **Upkeep**
+keeps metadata honest:
 
-- **`agents/implementer`** — write-only fan-out member; builds one file-disjoint work package
-  from a task contract. Never runs build/git/govkit (the lead integrates).
-- **`agents/reviewer`** — read-only governance review → `APPROVE` / `SHIP-WITH-CAVEATS` / `BLOCK`.
-- **`agents/doc-keeper`** — keeps front-matter + INDEX in sync; proposes status flips and owner
-  assignments, never applies them.
-- **`agents/judge`** — scores ONE governed doc's **substance** (0–100) against the pinned
-  anchors in `skills/substance-judge/references/scoring-anchors.md`; strict JSON out,
-  read-only, refuses unfloored docs.
+| Class | Agent | Role |
+|---|---|---|
+| Author | `agents/analyst` | approved PRD / accepted RFC → testable acceptance criteria + user stories |
+| Author | `agents/architect` | approved PRD / design brief → governed ADR or RFC with contracts and rejected alternatives |
+| Author | `agents/drafter` | brief + already-binding decisions → ONE governed doc; mechanical write-up only |
+| Author | `agents/implementer` | one file-disjoint work package → files written; never runs build/git/govkit |
+| Author | `agents/test-author` | the RED half of TDD — writes a failing test and proves it fails before any implementation |
+| Score | `agents/reviewer` | re-runs the gate, proves it CAN fail, judges the rest → `APPROVE` / `SHIP-WITH-CAVEATS` / `BLOCK` |
+| Score | `agents/red-teamer` | attacks ONE doc before its status advances → `flip-as-is` / `flip-after-reconcile` / `blocked` |
+| Score | `agents/verifier` | builds or packs the real artifact and runs it in a clean scratch dir; reports real exit codes |
+| Score | `agents/judge` | scores ONE governed doc's **substance** (0–100) against pinned anchors; strict JSON out |
+| Upkeep | `agents/doc-keeper` | keeps front-matter + INDEX in sync; proposes flips and owners, never applies them |
+| Upkeep | `agents/distiller` | DISTILL step of the R7 learning loop — journal + escape log → proposals only |
+
+Every agent stops at "ready for review" (or the Score/Upkeep equivalent): none flips a status,
+none self-assigns an owner — those stay human doc-owner acts.
 
 > Agents ship as **plugin** agents (dispatchable as `swe-flow:implementer`, `swe-flow:reviewer`,
 > `swe-flow:doc-keeper`). Project `.claude/agents/` are **not** dispatchable from a workflow —
-> verified empirically — so the plugin form is required for the `sdlc` workflow to use them.
+> verified empirically — so the plugin form is required for the `sdlc` and `gate-loop` workflows
+> to use them.
+
+## The gate loop — PROPOSE → VERIFY → RECONCILE → RED-TEAM → RATIFY (RFC-0025)
+
+- **`skills/gate-close`** + **`.claude/workflows/gate-loop.js`** — one reusable engineering loop
+  that runs at every gate in the govkit chain, so a status flip is always backed by evidence
+  produced by agents that did not author the thing being flipped: PROPOSE (an Author role agent
+  writes) → VERIFY (`agents/reviewer` re-runs the gate from scratch and must prove it CAN fail)
+  → RECONCILE (proposes exact replacement text, never applies) → RED-TEAM (`agents/red-teamer`,
+  one dispatch per flip candidate, returns `flip-as-is` / `flip-after-reconcile` / `blocked`) →
+  RATIFY (one packet; the owner decides; a separate accept commit lands the flip). At a slice- or
+  release-close gate the loop inserts a **Live** verify-for-real station between VERIFY and
+  RED-TEAM: `agents/verifier` builds or packs the shipped artifact and runs it the way a consumer
+  does, in a clean scratch dir — a release gate cannot ratify on a re-run of this repo's own gate
+  alone. The loop is **not** a skill: Tier-1 skills stay atomic and dependency-free, so the chain
+  lives entirely in Tier 2 as one parameterized workflow dispatching plugin-namespaced role
+  agents. `skills/gate-close` is the Tier-2 orchestrator — when to run the loop, how to read the
+  packet, how to land the accept commit.
 
 ## The substance layer — R2 Layer 3 (RFC-0019)
 
