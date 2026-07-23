@@ -184,10 +184,11 @@ cannot ship inside a plugin, and the two copies are kept identical by `check-syn
 
 Three phases run: **Verify** (parallel: `swe-flow:reviewer` gate re-run ‖ `swe-flow:doc-keeper`
 drift reconcile), **Live** (`swe-flow:verifier`, skipped or required per the `gate` selector), and
-**RedTeam** (one `swe-flow:red-teamer` per flip candidate). The workflow returns one packet —
-`{ gate, live, reconcile, redTeam, humanGates }` — and each agent result is validated against an
-explicit JSON schema so a malformed agent return is caught at the workflow boundary, not by the
-human. Closes M3.
+**RedTeam** (one `swe-flow:red-teamer` per flip candidate). The workflow assembles one packet —
+`{ gate, live, reconcile, redTeam, humanGates }` — and surfaces it via `log()`, never a top-level
+`return` (which fails `node --check` on an ESM script; the same convention as `sdlc.js`). Each
+agent result is validated against an explicit JSON schema so a malformed agent return is caught at
+the workflow boundary, not by the human. Closes M3.
 
 ### The skills — `gate-close` and `work-breakdown`
 
@@ -220,10 +221,11 @@ releases the same stub-and-filler floor every other type gets — added because 
 A deterministic, keyless, dependency-free repo-local check wired into `bun run check` (not a
 `govkit` CLI subcommand — it scores govkit's own plugin, never a consumer's docs). It validates
 front-matter shape, enforces the ≤1024-char description budget agents inject into the system
-prompt (catches M5), runs an all-pairs cosine collision matrix over descriptions (warn ≥50%, error
-≥75% — catches M6), and asserts the plugin surface on disk matches the README and both manifests
-(catches M8). Its `lintSurface(root)` export is reused by `check-sync.mjs` for the manifest-sync
-assertion.
+prompt (catches M5), and runs an all-pairs cosine collision matrix over descriptions (warn ≥50%,
+error ≥75% — catches M6). Its `lintSurface(root)` export is reused by `scripts/check-sync.mjs`,
+which asserts every agent/skill on disk is at least named in `plugins/swe-flow/README.md` and
+that the plugin manifest and the marketplace entry stay byte-identical on version and description
+(catches M8) — `skill-lint.mjs` itself does not read the README or either manifest.
 
 ## Alternatives considered
 

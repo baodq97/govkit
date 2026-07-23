@@ -198,6 +198,13 @@ grep -m1 '^status:' docs/rfc/RFC-0025-gate-loop-role-plane.md
 
 Expected: `status: accepted`.
 
+> Deviation flagged at reconcile (2026-07-23): Tasks 2-11 already landed on rfc-0025-gate-loop
+> (commits da889d7..92a3841) with RFC-0025 still status: draft — the accept commit this
+> step blocks on does not exist. Do not silently backfill it: the owner decides, in-session,
+> whether to ratify draft → accepted now (retroactively, citing this note) or treat the landed
+> code as provisional pending a fresh accept. Either way the flip is the owner's, landed in a
+> separate commit citing the authorization — never inferred from the code having shipped.
+
 ---
 
 ## Task 2: `scripts/skill-lint.mjs` — make the surface machine-checked
