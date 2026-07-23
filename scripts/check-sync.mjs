@@ -17,8 +17,11 @@
 // reuses Task 2's `lintSurface` to confirm every agent/skill on disk is at least named in
 // plugins/swe-flow/README.md — a cheap substring check, not a prose-quality check, so the
 // README stays the single place a human can see the whole surface without opening every file.
-import { readFileSync } from "node:fs";
-import { dirname, join } from "node:path";
+// Check D is the orphan-artifact detector (RFC-0026 C2): every scripts/*.test.mjs must be named in
+// a package.json script (so a gate runs it) and every non-test scripts/*.mjs must be referenced by
+// a package.json script or imported by another script — a file reached by neither is a dead orphan.
+import { readdirSync, readFileSync } from "node:fs";
+import { basename, dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { lintSurface } from "./skill-lint.mjs";
 
@@ -103,6 +106,60 @@ if (missing.length > 0) {
   );
 }
 
+// Check D: orphan-artifact detector (RFC-0026 C2). A test or script wired to no gate is invisible —
+// it ships, but nothing ever runs it. Every scripts/*.test.mjs must appear in the "check" script's
+// value specifically — RFC-0026 promises "reachable from the gate", and the gate IS `npm run check`;
+// a test merely named in some OTHER package.json script (e.g. a one-off, non-gating convenience
+// script) is not actually reachable from the gate and would be a false negative here. Every
+// non-test scripts/*.mjs must be either referenced by ANY package.json script or imported by
+// another script (static, re-export, or dynamic) — rule (b) is intentionally broader than rule (a)
+// because a non-test helper script can be legitimately wired to a non-check script. A file that
+// satisfies neither is an orphan. scripts/fixtures/** is exempt — it holds test inputs, not wired
+// artifacts — and only top-level scripts/*.mjs are considered.
+const scriptsDir = "scripts";
+const scriptFiles = readdirSync(join(repoRoot, scriptsDir), { withFileTypes: true })
+  .filter((e) => e.isFile() && e.name.endsWith(".mjs"))
+  .map((e) => e.name);
+
+const rootPkg = JSON.parse(readFileSync(join(repoRoot, "package.json"), "utf8"));
+const pkgScriptText = Object.values(rootPkg.scripts ?? {}).join("\n");
+const referencedInPkg = (name) => pkgScriptText.includes(name);
+const checkScriptText = rootPkg.scripts?.check ?? "";
+const referencedInCheckScript = (name) => checkScriptText.includes(name);
+
+// Build the set of sibling scripts imported by any script. Matches `from "…"`, bare `import "…"`,
+// dynamic `import("…")`, and `export … from "…"`; only relative specifiers count, keyed by basename.
+const importSpecifier = /(?:from|import)\s*\(?\s*["']([^"']+)["']/g;
+const importedNames = new Set();
+for (const name of scriptFiles) {
+  const src = readFileSync(join(repoRoot, scriptsDir, name), "utf8");
+  for (const match of src.matchAll(importSpecifier)) {
+    const spec = match[1];
+    if (spec.startsWith(".")) importedNames.add(basename(spec));
+  }
+}
+
+for (const name of scriptFiles) {
+  const rel = `${scriptsDir}/${name}`;
+  if (name.endsWith(".test.mjs")) {
+    if (!referencedInCheckScript(name)) {
+      failures.push(
+        `orphan test: ${rel} does not appear in package.json's "check" script value, so the gate ` +
+          `never runs it (being named in some OTHER script does not count — that script may never ` +
+          `run).\n` +
+          `  Fix: add it to the "check" chain (e.g. \`node --test ${rel}\`) so the gate executes ` +
+          `it, or delete it.`,
+      );
+    }
+  } else if (!referencedInPkg(name) && !importedNames.has(name)) {
+    failures.push(
+      `orphan script: ${rel} is referenced by no package.json "scripts" value and imported by no ` +
+        `other script — nothing reaches it.\n` +
+        `  Fix: wire it into the "check" chain, import it from a script that already is, or delete it.`,
+    );
+  }
+}
+
 if (failures.length > 0) {
   console.error(`check-sync: FAIL — ${failures.length} drift issue(s):\n`);
   for (const failure of failures) console.error(`- ${failure}\n`);
@@ -112,6 +169,7 @@ if (failures.length > 0) {
 console.log(
   `check-sync: OK — marketplace "${plugin.name}" entry matches ${pluginPath} ` +
     `(version ${plugin.version}, description byte-identical), ${mirrorPairs.length} ` +
-    `root↔template mirror pair(s) are byte-identical, and ${onDisk.size} agent/skill(s) are ` +
-    `all named in ${readmePath}.`,
+    `root↔template mirror pair(s) are byte-identical, ${onDisk.size} agent/skill(s) are ` +
+    `all named in ${readmePath}, and all ${scriptFiles.length} ${scriptsDir}/*.mjs are wired to ` +
+    `a gate or imported (no orphans).`,
 );
