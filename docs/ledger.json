@@ -5,7 +5,7 @@
       "title": "working-discipline skill shipped + A/B benchmarked across Fable/Opus/Sonnet",
       "spec": "RFC-0011",
       "passes": true,
-      "check": "plugins/swe-flow/skills/working-discipline/references/eval-scenarios.md — 15/15 with-skill runs pass, 6 baselines calibrate the delta"
+      "check": "plugins/swe-flow/skills/working-discipline/references/eval-scenarios.md \u2014 15/15 with-skill runs pass, 6 baselines calibrate the delta"
     },
     {
       "id": "F-R7-SENSE",
@@ -19,14 +19,14 @@
       "title": "confusion-matrix floor calibration with committed baseline",
       "spec": "RFC-0012",
       "passes": true,
-      "check": "bun run govkit-calibrate — tp 4 / fp 0 / fn 0 / tn 4, baseline non-regressing"
+      "check": "bun run govkit-calibrate \u2014 tp 4 / fp 0 / fn 0 / tn 4, baseline non-regressing"
     },
     {
       "id": "F-HOOK",
       "title": "--hook blocking-gate contract: exit 2 + stderr report, fail-closed",
       "spec": "RFC-0013",
       "passes": true,
-      "check": "packages/govkit/test/hook.test.ts e2e; template Stop gate wired directly in template/.claude/settings.json (npx govkit check --hook) — the once-claimed stop-gate.mjs never shipped, caught by RFC-0018's ghost-path check on its first run"
+      "check": "packages/govkit/test/hook.test.ts e2e; template Stop gate wired directly in template/.claude/settings.json (npx govkit check --hook) \u2014 the once-claimed stop-gate.mjs never shipped, caught by RFC-0018's ghost-path check on its first run"
     },
     {
       "id": "F-TIERS",
@@ -40,7 +40,7 @@
       "title": "spec-to-code drift gate; RFC-0011..0016 opted in via reconciled: shas",
       "spec": "RFC-0015",
       "passes": true,
-      "check": "bun run govkit-drift — 6 opted-in docs in sync"
+      "check": "bun run govkit-drift \u2014 6 opted-in docs in sync"
     },
     {
       "id": "F-LEDGER",
@@ -54,7 +54,7 @@
       "title": "govkit published to npm, latest dist-tag",
       "spec": "PRD-0001",
       "passes": true,
-      "check": "npm view govkit dist-tags — latest: 0.6.0 (run 28917849720)"
+      "check": "npm view govkit dist-tags \u2014 latest: 0.6.0 (run 28917849720)"
     },
     {
       "id": "F-R7-DISTILL",
@@ -68,18 +68,18 @@
       "title": "third dissimilar consumer validates generality (unblocks the R5 harness generator)",
       "spec": "PRD-0001",
       "passes": false,
-      "check": "config-surface half shipped as F-R1-CONFIG (ml-research fixture, in-repo); this entry stays red until an EXTERNAL consumer outside the author's DNA adopts — PRD-0001's monoculture risk is the unproven half"
+      "check": "config-surface half shipped as F-R1-CONFIG (ml-research fixture, in-repo); this entry stays red until an EXTERNAL consumer outside the author's DNA adopts \u2014 PRD-0001's monoculture risk is the unproven half"
     },
     {
       "id": "F-R1-CONFIG",
       "title": "R1 config-surface generality: a third dissimilar taxonomy (ML lab: exp/mc/ds) runs the shipped CLI end-to-end with zero engine changes",
       "spec": "PRD-0001",
       "passes": true,
-      "check": "packages/govkit/test/generality.test.ts — 10 e2e cases over fixtures/ml-research: .govkit docs.root, custom statuses/prefixes/required keys, cross-type refs, requiredSectionsByStatus, demoted index tier, custom journal+ledger paths, drift+ledger git surface"
+      "check": "packages/govkit/test/generality.test.ts \u2014 10 e2e cases over fixtures/ml-research: .govkit docs.root, custom statuses/prefixes/required keys, cross-type refs, requiredSectionsByStatus, demoted index tier, custom journal+ledger paths, drift+ledger git surface"
     },
     {
       "id": "F-R2-JUDGE",
-      "title": "keyed substance-judge plugin (Layer 3) — opt-in, never in no-key CI",
+      "title": "keyed substance-judge plugin (Layer 3) \u2014 opt-in, never in no-key CI",
       "spec": "RFC-0019",
       "passes": true,
       "check": "swe-flow:judge agent (pinned rubric substance-v1, strict deepeval-compatible JSON) + substance-judge skill (floor-gated fan-out, cross-model spread, .govkit/evals records); engine untouched by construction"
@@ -100,38 +100,45 @@
     },
     {
       "id": "F-DRIFT-CONTENT-HASH",
-      "title": "drift reconciled: switches from commit sha to content-derived hash — squash merge rewrites shas and orphans every pre-merge ack (CI escape, run 28918975371)",
+      "title": "drift reconciled: switches from commit sha to content-derived hash \u2014 squash merge rewrites shas and orphans every pre-merge ack (CI escape, run 28918975371)",
       "spec": "RFC-0015",
       "passes": true,
-      "check": "RFC-0015 § Amendment; drift.test.ts pins squash-rewrite staying green + legacy-claim migration via --ack; repo's 7 opted-in docs migrated to sha256: claims in one --ack diff"
+      "check": "RFC-0015 \u00a7 Amendment; drift.test.ts pins squash-rewrite staying green + legacy-claim migration via --ack; repo's 7 opted-in docs migrated to sha256: claims in one --ack diff"
     },
     {
       "id": "F-R2-SELFTEST",
       "title": "selftest-gated judge: calibrate green + strict good>weak ranking probe before any verdict, refusal recorded, provenance (exact model id, temperature 0, anchorsHash) pinned per record",
       "spec": "RFC-0020",
       "passes": true,
-      "check": "skill-side contract only, engine untouched by construction — substance-judge SKILL.md step 3 + judge.md provenance fields + pinned fixture pair under references/selftest-fixtures/ (keyed and opt-in, so no CI test exists to cite; the contract text is the shipped surface)"
+      "check": "skill-side contract only, engine untouched by construction \u2014 substance-judge SKILL.md step 3 + judge.md provenance fields + pinned fixture pair under references/selftest-fixtures/ (keyed and opt-in, so no CI test exists to cite; the contract text is the shipped surface)"
     },
     {
       "id": "F-REPORT-PRBODY",
       "title": "report --pr-body: marker-fenced, deterministic GFM rendering of the lifecycle report for idempotent PR-body splicing",
       "spec": "RFC-0021",
       "passes": true,
-      "check": "packages/govkit/test/report-pr-body.test.ts — 10 e2e cases: exact begin/end markers, byte-identical re-runs, per-type tables with terminal ✔, --pr-body+--json rejected exit 2, plain report byte-unchanged; splice recipe in plugins/swe-flow/README.md"
+      "check": "packages/govkit/test/report-pr-body.test.ts \u2014 10 e2e cases: exact begin/end markers, byte-identical re-runs, per-type tables with terminal \u2714, --pr-body+--json rejected exit 2, plain report byte-unchanged; splice recipe in plugins/swe-flow/README.md"
     },
     {
       "id": "F-RED-TEAM",
       "title": "spec-red-team skill: steelman-then-attack adversarial pass over one governed doc before a status flip, read-only by construction",
       "spec": "RFC-0022",
       "passes": true,
-      "check": "plugins/swe-flow/skills/spec-red-team/ SKILL.md allowed-tools grant Read/Grep/Glob + scoped govkit/git Bash only — no Write/Edit/Task (structural read-only); finding format + ranking rubric pinned in references/finding-format.md; briefs land in PR body/comment only"
+      "check": "plugins/swe-flow/skills/spec-red-team/ SKILL.md allowed-tools grant Read/Grep/Glob + scoped govkit/git Bash only \u2014 no Write/Edit/Task (structural read-only); finding format + ranking rubric pinned in references/finding-format.md; briefs land in PR body/comment only"
     },
     {
       "id": "F-SYNC-GUARD",
-      "title": "check-sync guard: plugin.json ↔ marketplace version sync + root↔template allowlist byte-compare, first link in the check chain (class rule for US-0004's silent drift)",
+      "title": "check-sync guard: plugin.json \u2194 marketplace version sync + root\u2194template allowlist byte-compare, first link in the check chain (class rule for US-0004's silent drift)",
       "spec": "US-0004",
       "passes": true,
-      "check": "node scripts/check-sync.mjs wired first in package.json \"check\" — swe-flow plugin.json and marketplace entry agree at 0.7.0 (description synced byte-identical), allowlisted root↔template pairs byte-identical; no key, no network"
+      "check": "node scripts/check-sync.mjs wired first in package.json \"check\" \u2014 swe-flow plugin.json and marketplace entry agree at 0.7.0 (description synced byte-identical), allowlisted root\u2194template pairs byte-identical; no key, no network"
+    },
+    {
+      "id": "F-R8-GATELOOP",
+      "title": "gate-loop: one engineering loop per gate (role plane + live verification), dogfooded e2e on its own RFC",
+      "spec": "RFC-0025",
+      "passes": true,
+      "check": "sim wf_7554b4fa: bun run check exit 0; live release preset \u2014 npm pack\u2192install tarball\u2192init/verify exit 0\u2192induced verify exit 1 + check --hook exit 2\u2192restore exit 0; tarball engine-only (tar -tzf grep plugins/ exit 1); 9/10 claims proven by ranCommands"
     }
   ]
 }

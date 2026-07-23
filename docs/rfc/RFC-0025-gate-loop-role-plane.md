@@ -1,9 +1,15 @@
 ---
 id: RFC-0025
 title: Gate loop and the swe-flow role plane
-status: accepted
+status: implemented
 owner: TBD
 date: 2026-07-23
+governs:
+  - plugins/swe-flow/agents
+  - plugins/swe-flow/skills/gate-close
+  - plugins/swe-flow/skills/work-breakdown
+  - .claude/workflows/gate-loop.js
+  - scripts/skill-lint.mjs
 parent: PRD-0001
 ---
 
@@ -284,3 +290,34 @@ that the plugin manifest and the marketplace entry stay byte-identical on versio
 - **The workflow cannot self-test end to end without a live dispatch.** Task 12 dogfoods the loop on
   this RFC, but the deterministic guarantees stop at `node --check` and the schema literals; any
   friction the real run surfaces is recorded in `LEARNING-LOOP.md`, not patched silently.
+
+## As-built
+
+Shipped on branch `rfc-0025-gate-loop` (merged to main at `b1e57af`), all gates green
+(`bun run check` exit 0; live-verified in a scratch consumer — pack → install → init/verify
+green → induced verify exit 1 / hook exit 2 → restore green; tarball engine-only):
+
+- 6 new role agents (`analyst`, `architect`, `drafter`, `red-teamer`, `verifier`, `test-author`)
+  + `reviewer`/`implementer` contract upgrades + skill-hint degradation blocks across the class —
+  11 agents total in the author/score/upkeep taxonomy.
+- `.claude/workflows/gate-loop.js` (Verify → Live → RedTeam; `gate` ∈ doc|slice|release;
+  release requires a live scenario) + byte-identical `template/` copy, drift-gated by
+  `check-sync.mjs`.
+- `gate-close` + `work-breakdown` skills; `workflow-author` description trimmed under 1024;
+  `spec-red-team` de-collided.
+- `rel` doc type (`docs/releases`, draft→released, as-shipped required sections) + minimal rubric.
+- `scripts/skill-lint.mjs` (+5 `node --test` cases) wired into `bun run check`.
+- Plugin v0.8.0 manifests + README taxonomy, surface-sync gated.
+
+## Deviations from design
+
+- The workflow surfaces its packet via `log()`, never a top-level `return` (ESM `node --check`
+  constraint; house convention shared with `sdlc.js`).
+- Agent count grew 5 → 11, not the plan v1's 5 → 9 (verifier + test-author joined via M9).
+- Tasks 2–11 landed on the branch while RFC-0025 was still `draft`; the accept was retroactive,
+  authorized in-session and recorded in the plan's deviation note (main never saw code before
+  the accept).
+- Dispatch caveat: `swe-flow:*` role agents resolve from the INSTALLED plugin — consumers need
+  plugin ≥ 0.8.0 for `gate-loop.js` to dispatch them (learning-loop Round 17, F7).
+- M5's measured description length differed between plan (1082) and audit evidence (1029) —
+  folding-dependent; the lint measures joined length and is now the single source.
