@@ -1,7 +1,7 @@
 ---
 id: RFC-0025
 title: Gate loop and the swe-flow role plane
-status: draft
+status: accepted
 owner: TBD
 date: 2026-07-23
 parent: PRD-0001

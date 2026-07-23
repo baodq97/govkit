@@ -26,4 +26,4 @@
 | [RFC-0022](./RFC-0022-spec-red-team.md) | spec-red-team — an adversarial review skill for governed docs (swe-flow) | implemented | baodq97 | 2026-07-08 |
 | [RFC-0023](./RFC-0023-config-generality-hardening.md) | Config generality hardening — let a divergent consumer retire its parallel bash gate | implemented | baodq97 | 2026-06-09 |
 | [RFC-0024](./RFC-0024-firm-thin-and-rule-evolution.md) | Name the firm/thin/honor-system line and make rules evolve from friction | accepted | baodq97 | 2026-06-10 |
-| [RFC-0025](./RFC-0025-gate-loop-role-plane.md) | Gate loop and the swe-flow role plane | draft | TBD | 2026-07-23 |
+| [RFC-0025](./RFC-0025-gate-loop-role-plane.md) | Gate loop and the swe-flow role plane | accepted | TBD | 2026-07-23 |
