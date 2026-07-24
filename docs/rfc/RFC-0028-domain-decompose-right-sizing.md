@@ -116,9 +116,15 @@ Four edits under `plugins/swe-flow/skills/domain-decompose/`, +129/−15 across 
 `references/output-template.md` — the `model.yaml` schema — changes so that right-sizing is
 *expressible* and a no-aggregate context is a legal shape:
 
-- **New per-context fields** (all optional): `subdomain_type` ∈ `{core, supporting, generic,
-  master-data}`; `tactical_pattern` ∈ `{full-domain-model, transaction-script, crud,
-  bought-adapter}`; `notes` (free-text right-sizing rationale).
+- **`subdomain_type` — existing field, enum extended** (not a new field): the key already exists on
+  `model.yaml` (HEAD enumerates `core | supporting | generic`); this change-set adds **`master-data`
+  as a fourth value**. The gap was not cosmetic — the eval's after-sonnet runner, lacking the value,
+  recorded a lossy workaround, *"Mapped to subdomain_type=generic for model.yaml's 3-value enum"*
+  (`runs/after-sonnet/catalog/model.yaml`), collapsing a master-data context into `generic`; the
+  extra enum value removes that forced mismodelling.
+- **`tactical_pattern` — new field** (optional): ∈ `{full-domain-model, transaction-script, crud,
+  bought-adapter}`.
+- **`notes` — new field** (optional): free-text right-sizing rationale.
 - **Relations enum gains** `partnership` and `customer-supplier` (previously only the
   upstream/downstream family was enumerable).
 - **Schema rule reworded**: the `entities` / `value_objects` / `domain_events` keys are required
