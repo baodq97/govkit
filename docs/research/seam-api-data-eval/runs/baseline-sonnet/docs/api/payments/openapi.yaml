@@ -1,0 +1,159 @@
+openapi: 3.1.0
+info:
+  title: Payments API
+  version: 1.0.0
+  summary: Take card payments (thin adapter over Stripe).
+  description: >
+    Bounded context: Payments (generic). Source: docs/domain/payments/ (DOMAIN-0011).
+    Draft — owner: TBD. Deliberately the thinnest possible surface — no business rules live here.
+  license:
+    name: Internal — RentField proprietary
+    identifier: LicenseRef-Proprietary
+servers:
+  - url: https://api.rentfield.com/payments/v1
+    description: Production
+  - url: https://staging.rentfield.com/payments/v1
+    description: Staging
+
+tags:
+  - name: Payments
+    description: Card payments via Stripe.
+
+paths:
+  /payments:
+    post:
+      operationId: takePayment
+      summary: Take a card payment
+      tags: [Payments]
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/TakePaymentRequest' }
+      responses:
+        '201':
+          description: Payment accepted (see status field for outcome).
+          headers:
+            Location:
+              schema: { type: string, format: uri }
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Payment' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '402':
+          description: Card declined.
+          content:
+            application/problem+json:
+              schema: { $ref: '#/components/schemas/Problem' }
+              example:
+                type: https://api.rentfield.com/problems/card-declined
+                title: Card declined
+                status: 402
+                code: CARD_DECLINED
+        '502':
+          description: Payment provider (Stripe) unavailable.
+          content:
+            application/problem+json:
+              schema: { $ref: '#/components/schemas/Problem' }
+              example:
+                type: https://api.rentfield.com/problems/payment-provider-unavailable
+                title: Payment provider unavailable
+                status: 502
+                code: PAYMENT_PROVIDER_UNAVAILABLE
+
+  /payments/{paymentId}:
+    parameters:
+      - name: paymentId
+        in: path
+        required: true
+        schema: { type: string }
+    get:
+      operationId: getPayment
+      summary: Get a payment's status
+      tags: [Payments]
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Payment found.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Payment' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: JWT issued by Identity (Auth0) — see docs/api/identity/.
+
+  schemas:
+    Money:
+      type: object
+      required: [amount, currency]
+      properties:
+        amount: { type: string, example: "450.00" }
+        currency: { type: string, minLength: 3, maxLength: 3, example: USD }
+
+    TakePaymentRequest:
+      type: object
+      required: [amount, cardToken]
+      properties:
+        amount: { $ref: '#/components/schemas/Money' }
+        cardToken:
+          type: string
+          description: Provider-agnostic tokenized card reference (e.g. from Stripe Elements).
+
+    Payment:
+      type: object
+      required: [id, amount, status]
+      properties:
+        id: { type: string, readOnly: true }
+        amount: { $ref: '#/components/schemas/Money' }
+        status:
+          type: string
+          enum: [succeeded, declined, pending]
+          readOnly: true
+        createdAt: { type: string, format: date-time, readOnly: true }
+
+    Problem:
+      type: object
+      required: [type, title, status]
+      properties:
+        type: { type: string, format: uri }
+        title: { type: string }
+        status: { type: integer }
+        detail: { type: string }
+        instance: { type: string, format: uri }
+        code: { type: string }
+
+  responses:
+    NotFound:
+      description: Payment not found.
+      content:
+        application/problem+json:
+          schema: { $ref: '#/components/schemas/Problem' }
+          example:
+            type: https://api.rentfield.com/problems/payment-not-found
+            title: Payment not found
+            status: 404
+            code: PAYMENT_NOT_FOUND
+    ValidationError:
+      description: Missing/invalid amount or cardToken.
+      content:
+        application/problem+json:
+          schema: { $ref: '#/components/schemas/Problem' }
+    Unauthorized:
+      description: Missing or invalid bearer token.
+      content:
+        application/problem+json:
+          schema: { $ref: '#/components/schemas/Problem' }
+
+security:
+  - bearerAuth: []

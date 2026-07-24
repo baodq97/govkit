@@ -1,0 +1,19 @@
+context: Catalog
+subdomain_type: generic
+tactical_pattern: crud
+ubiquitous_language:
+  - term: Category
+    definition: A node in the equipment category tree (code, optional parentCode).
+  - term: Depot
+    definition: A location record (id, city).
+  - term: Tag
+    definition: A free-form label applied to units.
+aggregates: []
+notes: >
+  Master-data / reference context: plain lookup CRUD over the category tree, depots, and tags. No
+  behaviour beyond storage and retrieval, no rules to enforce. Aggregates, repositories, and domain
+  events are explicitly DECLINED - an empty model is the correct, complete output for a reference
+  context. Resolves the stale draft's open question about a separate reference-data area. NOTE:
+  Rentals carries a TODO to share Catalog's Equipment entity directly, which would be Shared Kernel
+  coupling (see context-map Sharing levels).
+relationships: []

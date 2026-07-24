@@ -1,0 +1,139 @@
+openapi: 3.1.0
+info:
+  title: Asset Sync API
+  version: 1.0.0
+  summary: Clean asset master data translated nightly from the legacy ERP (anti-corruption layer).
+  description: >
+    Bounded context: Asset Sync (supporting, ACL). Source: docs/domain/asset-sync/
+    (DOMAIN-0009). Draft — owner: TBD. Read-only — the ERP is the system of record; this API
+    exposes only the translated clean read-model.
+  license:
+    name: Internal — RentField proprietary
+    identifier: LicenseRef-Proprietary
+servers:
+  - url: https://api.rentfield.com/asset-sync/v1
+    description: Production
+  - url: https://staging.rentfield.com/asset-sync/v1
+    description: Staging
+
+tags:
+  - name: AssetRecords
+    description: Clean asset master data translated from the legacy ERP.
+
+paths:
+  /asset-records:
+    get:
+      operationId: listAssetRecords
+      summary: List clean asset records
+      tags: [AssetRecords]
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: category
+          in: query
+          schema: { type: string }
+        - name: offset
+          in: query
+          schema: { type: integer, minimum: 0, default: 0 }
+        - name: limit
+          in: query
+          schema: { type: integer, minimum: 1, maximum: 100, default: 20 }
+      responses:
+        '200':
+          description: Paginated list of asset records.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items: { $ref: '#/components/schemas/AssetRecord' }
+                  pagination: { $ref: '#/components/schemas/PageInfo' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+
+  /asset-records/{tag}:
+    parameters:
+      - name: tag
+        in: path
+        required: true
+        schema: { type: string }
+    get:
+      operationId: getAssetRecord
+      summary: Get a clean asset record
+      tags: [AssetRecords]
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Asset record found.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AssetRecord' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: JWT issued by Identity (Auth0) — see docs/api/identity/.
+
+  schemas:
+    AssetRecord:
+      type: object
+      required: [tag, category]
+      properties:
+        tag:
+          type: string
+          description: Our clean asset shape after translation. Never a raw ERP field.
+        category: { type: string }
+        lastSyncedAt: { type: string, format: date-time, readOnly: true }
+
+    PageInfo:
+      type: object
+      properties:
+        offset: { type: integer, minimum: 0 }
+        limit: { type: integer, minimum: 1, maximum: 100 }
+        total: { type: integer, minimum: 0 }
+        has_more: { type: boolean }
+
+    Problem:
+      type: object
+      required: [type, title, status]
+      properties:
+        type: { type: string, format: uri }
+        title: { type: string }
+        status: { type: integer }
+        detail: { type: string }
+        instance: { type: string, format: uri }
+        code: { type: string }
+
+  responses:
+    NotFound:
+      description: Asset record not found.
+      content:
+        application/problem+json:
+          schema: { $ref: '#/components/schemas/Problem' }
+          example:
+            type: https://api.rentfield.com/problems/asset-record-not-found
+            title: Asset record not found
+            status: 404
+            code: ASSET_RECORD_NOT_FOUND
+    Unauthorized:
+      description: Missing or invalid bearer token.
+      content:
+        application/problem+json:
+          schema: { $ref: '#/components/schemas/Problem' }
+    Forbidden:
+      description: Authenticated but not authorized.
+      content:
+        application/problem+json:
+          schema: { $ref: '#/components/schemas/Problem' }
+
+security:
+  - bearerAuth: []

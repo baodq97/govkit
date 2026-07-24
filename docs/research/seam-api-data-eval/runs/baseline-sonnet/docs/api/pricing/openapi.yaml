@@ -1,0 +1,172 @@
+openapi: 3.1.0
+info:
+  title: Pricing API
+  version: 1.0.0
+  summary: Quote a dynamic rental price that never falls below a utilization-derived floor.
+  description: >
+    Bounded context: Pricing (core). Source: docs/domain/pricing/ (DOMAIN-0002).
+    Draft — owner: TBD.
+  license:
+    name: Internal — RentField proprietary
+    identifier: LicenseRef-Proprietary
+servers:
+  - url: https://api.rentfield.com/pricing/v1
+    description: Production
+  - url: https://staging.rentfield.com/pricing/v1
+    description: Staging
+
+tags:
+  - name: Quotes
+    description: Compute a price quote for a category and window.
+
+paths:
+  /quotes:
+    post:
+      operationId: quote
+      summary: Quote a price (Quote command)
+      description: >
+        Stateless computation: never returns below the utilization-derived floor
+        (listRate x (0.60 + 0.40 x utilization)). Publishes PriceQuoted (v2) to subscribers.
+        No persisted Quote entity exists today (see README Flags) — returns 200, not 201.
+      tags: [Quotes]
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/QuoteRequest' }
+      responses:
+        '200':
+          description: Computed quote.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Quote' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+
+webhooks:
+  priceQuoted:
+    post:
+      summary: >
+        Sent whenever a quote is computed. Published Language / Open-Host Service — Rentals
+        depends on Pricing.Contracts (this schema), never Pricing internals.
+      operationId: priceQuotedWebhook
+      requestBody:
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/PriceQuotedEventV2' }
+      responses:
+        '200': { description: Subscriber acknowledged receipt. }
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: JWT issued by Identity (Auth0) — see docs/api/identity/.
+
+  schemas:
+    Money:
+      type: object
+      required: [amount, currency]
+      properties:
+        amount:
+          type: string
+          description: Decimal string (avoids float rounding).
+          example: "450.00"
+        currency:
+          type: string
+          minLength: 3
+          maxLength: 3
+          example: USD
+
+    QuoteRequest:
+      type: object
+      required: [category, listRate, utilization]
+      properties:
+        category: { type: string, description: Catalog category code. }
+        listRate: { $ref: '#/components/schemas/Money' }
+        utilization:
+          type: number
+          minimum: 0
+          maximum: 1
+          description: How heavily the fleet is already used (0..1); drives the floor.
+        requestedDiscount:
+          type: number
+          minimum: 0
+          maximum: 1
+          description: What the rep asks for; honoured only down to the floor.
+
+    Quote:
+      type: object
+      required: [category, amount, utilization, floor, contractVersion]
+      properties:
+        category: { type: string }
+        amount: { $ref: '#/components/schemas/Money' }
+        utilization: { type: number, minimum: 0, maximum: 1 }
+        floor:
+          $ref: '#/components/schemas/Money'
+        contractVersion:
+          type: string
+          example: v2
+          description: PriceQuoted Published-Language contract version.
+
+    PriceQuotedEventV2:
+      type: object
+      required: [category, amount, utilization, contractVersion]
+      properties:
+        category: { type: string }
+        amount: { $ref: '#/components/schemas/Money' }
+        utilization: { type: number, minimum: 0, maximum: 1 }
+        contractVersion: { type: string, example: v2 }
+
+    Problem:
+      type: object
+      required: [type, title, status]
+      properties:
+        type: { type: string, format: uri }
+        title: { type: string }
+        status: { type: integer }
+        detail: { type: string }
+        instance: { type: string, format: uri }
+        code: { type: string }
+        errors:
+          type: array
+          items:
+            type: object
+            properties:
+              field: { type: string }
+              code: { type: string }
+              message: { type: string }
+
+  responses:
+    ValidationError:
+      description: Invalid category, listRate, or utilization out of [0,1].
+      content:
+        application/problem+json:
+          schema: { $ref: '#/components/schemas/Problem' }
+          example:
+            type: https://api.rentfield.com/problems/validation-error
+            title: Validation error
+            status: 400
+            code: VALIDATION_ERROR
+            errors:
+              - field: utilization
+                code: OUT_OF_RANGE
+                message: "utilization must be between 0 and 1"
+    Unauthorized:
+      description: Missing or invalid bearer token.
+      content:
+        application/problem+json:
+          schema: { $ref: '#/components/schemas/Problem' }
+    Forbidden:
+      description: Authenticated but not authorized.
+      content:
+        application/problem+json:
+          schema: { $ref: '#/components/schemas/Problem' }
+
+security:
+  - bearerAuth: []

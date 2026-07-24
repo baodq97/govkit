@@ -1,0 +1,251 @@
+openapi: 3.1.0
+info:
+  title: RentField Rentals API
+  version: 1.0.0
+  description: |
+    Rentals bounded context (DOMAIN-0003, supporting). Orchestrates a quote + a reservation into a
+    booked order and hands it to Billing. Emits RentalOrderPlaced. No differentiating invariant.
+  contact:
+    name: Commerce team
+  license:
+    name: MIT
+    url: https://opensource.org/licenses/MIT
+servers:
+  - url: https://api.rentfield.example.com/v1
+    description: Production
+  - url: http://localhost:3000/v1
+    description: Local development
+security:
+  - bearerAuth: []
+tags:
+  - name: Orders
+    description: Place and read rental orders
+paths:
+  /orders:
+    get:
+      summary: List rental orders
+      operationId: listOrders
+      tags: [Orders]
+      parameters:
+        - $ref: '#/components/parameters/Offset'
+        - $ref: '#/components/parameters/Limit'
+        - name: customerId
+          in: query
+          required: false
+          schema: { type: string }
+      responses:
+        '200':
+          description: A page of orders
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/OrderListResponse' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+    post:
+      summary: Place a rental order
+      description: |
+        Books an order for a customer against a committed unit at the quoted amount, and raises its
+        invoice with Billing. No placement invariant is asserted (none stated in the domain).
+      operationId: placeOrder
+      tags: [Orders]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/PlaceOrderRequest' }
+            examples:
+              basic:
+                value:
+                  customerId: ACC-88213
+                  assetTag: EXC-0442
+                  amount: { amount: 408.00, currency: GBP }
+                  quoteContractVersion: v2
+      responses:
+        '201':
+          description: Order placed
+          headers:
+            Location:
+              schema: { type: string, format: uri }
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/RentalOrder' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '502':
+          description: Billing (RaiseInvoice) is unavailable
+          content:
+            application/problem+json:
+              schema: { $ref: '#/components/schemas/Problem' }
+              example:
+                type: https://api.rentfield.example.com/problems/billing-unavailable
+                title: Billing unavailable
+                status: 502
+                detail: Could not raise the invoice; the order was not placed.
+                instance: /orders
+  /orders/{orderId}:
+    parameters:
+      - name: orderId
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+    get:
+      summary: Get a rental order
+      operationId: getOrder
+      tags: [Orders]
+      responses:
+        '200':
+          description: The order
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/RentalOrder' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '404': { $ref: '#/components/responses/NotFound' }
+  /orders/{orderId}/activity:
+    description: |
+      OPTIONAL / FUTURE (QUESTIONS Q-A6). Read-only timeline for Sales, backed by the cross-cutting
+      append-only audit store — NOT part of the RentalOrder aggregate. Declined as a first-class
+      domain concept; sketched here, not required.
+    parameters:
+      - name: orderId
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+    get:
+      summary: Order activity timeline (optional, audit-backed)
+      operationId: listOrderActivity
+      tags: [Orders]
+      parameters:
+        - $ref: '#/components/parameters/Offset'
+        - $ref: '#/components/parameters/Limit'
+      responses:
+        '200':
+          description: A page of activity entries
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ActivityListResponse' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '404': { $ref: '#/components/responses/NotFound' }
+webhooks:
+  rentalOrderPlaced:
+    post:
+      summary: RentalOrderPlaced — consumed by Billing (Customer-Supplier)
+      operationId: onRentalOrderPlaced
+      requestBody:
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/RentalOrderPlacedEvent' }
+      responses:
+        '200': { description: Subscriber acknowledged receipt }
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: Auth0-issued JWT access token (Identity context).
+  parameters:
+    Offset:
+      name: offset
+      in: query
+      required: false
+      schema: { type: integer, minimum: 0, default: 0 }
+    Limit:
+      name: limit
+      in: query
+      required: false
+      schema: { type: integer, minimum: 1, maximum: 100, default: 20 }
+  schemas:
+    Money:
+      type: object
+      required: [amount, currency]
+      properties:
+        amount: { type: number, format: double }
+        currency: { type: string, minLength: 3, maxLength: 3 }
+    RentalOrder:
+      type: object
+      required: [orderId, customerId, assetTag, amount]
+      properties:
+        orderId: { type: string, format: uuid, readOnly: true }
+        customerId:
+          type: string
+          description: Cross-context ref to Customer Accounts SalesAccount.accountId (id only).
+        assetTag:
+          type: string
+          description: Cross-context ref to the committed unit (id only).
+        amount: { $ref: '#/components/schemas/Money' }
+        quoteContractVersion:
+          type: string
+          enum: [v1, v2]
+          description: PriceQuoted contract version consumed (provenance).
+        createdAt: { type: string, format: date-time, readOnly: true }
+    PlaceOrderRequest:
+      type: object
+      required: [customerId, assetTag, amount]
+      properties:
+        customerId: { type: string }
+        assetTag: { type: string }
+        amount: { $ref: '#/components/schemas/Money' }
+        quoteContractVersion: { type: string, enum: [v1, v2] }
+    OrderListResponse:
+      type: object
+      required: [data, pagination]
+      properties:
+        data:
+          type: array
+          items: { $ref: '#/components/schemas/RentalOrder' }
+        pagination: { $ref: '#/components/schemas/Pagination' }
+    ActivityEntry:
+      type: object
+      properties:
+        at: { type: string, format: date-time }
+        actor: { type: string, description: user id who touched the order }
+        action: { type: string, example: order.placed }
+    ActivityListResponse:
+      type: object
+      required: [data, pagination]
+      properties:
+        data:
+          type: array
+          items: { $ref: '#/components/schemas/ActivityEntry' }
+        pagination: { $ref: '#/components/schemas/Pagination' }
+    Pagination:
+      type: object
+      required: [offset, limit, total, has_more]
+      properties:
+        offset: { type: integer, minimum: 0 }
+        limit: { type: integer, minimum: 1 }
+        total: { type: integer, minimum: 0 }
+        has_more: { type: boolean }
+    RentalOrderPlacedEvent:
+      type: object
+      required: [orderId, customerId, assetTag, amount]
+      properties:
+        orderId: { type: string, format: uuid }
+        customerId: { type: string }
+        assetTag: { type: string }
+        amount: { $ref: '#/components/schemas/Money' }
+    Problem:
+      type: object
+      required: [type, title, status]
+      properties:
+        type: { type: string, format: uri }
+        title: { type: string }
+        status: { type: integer }
+        detail: { type: string }
+        instance: { type: string }
+  responses:
+    ValidationError:
+      description: Request validation failed
+      content:
+        application/problem+json:
+          schema: { $ref: '#/components/schemas/Problem' }
+    Unauthorized:
+      description: Missing or invalid access token
+      content:
+        application/problem+json:
+          schema: { $ref: '#/components/schemas/Problem' }
+    NotFound:
+      description: Resource not found
+      content:
+        application/problem+json:
+          schema: { $ref: '#/components/schemas/Problem' }

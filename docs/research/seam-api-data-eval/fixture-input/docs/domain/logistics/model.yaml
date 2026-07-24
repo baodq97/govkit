@@ -1,0 +1,16 @@
+context: Logistics
+subdomain_type: supporting
+tactical_pattern: transaction-script
+ubiquitous_language:
+  - term: DeliveryRun
+    definition: A planned delivery of a committed unit from a depot on a date.
+  - term: Hand-off
+    definition: A depot handing a unit over for delivery.
+aggregates: []
+notes: >
+  Plans depot hand-offs and delivery runs. No invariants to protect and no domain event of its own
+  (DeliveryRun is an internal record built from Allocation's EquipmentAllocated), so no aggregate.
+  Shares model types (Reservation, EquipmentAllocated) DIRECTLY with Allocation: a Shared Kernel /
+  Partnership (same Fulfilment squad, ship together). Cost: mutual-consent change, drift risk.
+relationships:
+  - { to: Allocation, type: shared-kernel }

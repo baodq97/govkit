@@ -1,0 +1,129 @@
+openapi: 3.1.0
+info:
+  title: RentField Asset Sync API
+  version: 1.0.0
+  description: |
+    Asset Sync bounded context (DOMAIN-0009, supporting). Anti-corruption layer over the legacy ERP;
+    exposes clean, translated AssetRecord shapes consumed by Allocation/Maintenance/Catalog. Read
+    only — the ERP is the system of record and the nightly SOAP pull is an internal job.
+  contact:
+    name: Platform team
+  license:
+    name: MIT
+    url: https://opensource.org/licenses/MIT
+servers:
+  - url: https://api.rentfield.example.com/v1
+    description: Production
+  - url: http://localhost:3000/v1
+    description: Local development
+security:
+  - bearerAuth: []
+tags:
+  - name: Assets
+    description: Clean asset master (post-ACL translation)
+paths:
+  /assets:
+    get:
+      summary: List clean asset records
+      operationId: listAssets
+      tags: [Assets]
+      parameters:
+        - $ref: '#/components/parameters/Offset'
+        - $ref: '#/components/parameters/Limit'
+        - name: category
+          in: query
+          required: false
+          schema: { type: string }
+      responses:
+        '200':
+          description: A page of asset records
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AssetListResponse' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+  /assets/{tag}:
+    parameters:
+      - name: tag
+        in: path
+        required: true
+        schema: { type: string }
+    get:
+      summary: Get a clean asset record
+      operationId: getAsset
+      tags: [Assets]
+      responses:
+        '200':
+          description: The asset record
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AssetRecord' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '404': { $ref: '#/components/responses/NotFound' }
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: Auth0-issued JWT access token (Identity context).
+  parameters:
+    Offset:
+      name: offset
+      in: query
+      required: false
+      schema: { type: integer, minimum: 0, default: 0 }
+    Limit:
+      name: limit
+      in: query
+      required: false
+      schema: { type: integer, minimum: 1, maximum: 100, default: 20 }
+  schemas:
+    AssetRecord:
+      type: object
+      description: Clean asset shape after ACL translation. No raw ERP field is ever exposed.
+      required: [tag, category]
+      properties:
+        tag: { type: string, example: EXC-0442 }
+        category: { type: string, example: EXCAVATOR-20T }
+    AssetListResponse:
+      type: object
+      required: [data, pagination]
+      properties:
+        data:
+          type: array
+          items: { $ref: '#/components/schemas/AssetRecord' }
+        pagination: { $ref: '#/components/schemas/Pagination' }
+    Pagination:
+      type: object
+      required: [offset, limit, total, has_more]
+      properties:
+        offset: { type: integer, minimum: 0 }
+        limit: { type: integer, minimum: 1 }
+        total: { type: integer, minimum: 0 }
+        has_more: { type: boolean }
+    Problem:
+      type: object
+      required: [type, title, status]
+      properties:
+        type: { type: string, format: uri }
+        title: { type: string }
+        status: { type: integer }
+        detail: { type: string }
+        instance: { type: string }
+  responses:
+    ValidationError:
+      description: Request validation failed
+      content:
+        application/problem+json:
+          schema: { $ref: '#/components/schemas/Problem' }
+    Unauthorized:
+      description: Missing or invalid access token
+      content:
+        application/problem+json:
+          schema: { $ref: '#/components/schemas/Problem' }
+    NotFound:
+      description: Resource not found
+      content:
+        application/problem+json:
+          schema: { $ref: '#/components/schemas/Problem' }

@@ -65,3 +65,28 @@ resolves `parent` only), so do NOT invent a front-matter key: model the dependen
 user-story body text, as a `Blocked by: US-A (needs its schema change)` line the reader and the
 sequencer can act on. Keep the edges few — a slice blocked by three others is usually mis-cut;
 re-slice so each stands on a single upstream dependency at most.
+
+**Label every edge hard or soft.** A *hard* edge is an artifact or code dependency: the successor
+cannot compile, migrate, or have its behaviour observed until the predecessor lands ("needs its
+schema change"). A *soft* edge is only a product-sequencing preference — nicer to ship in this
+order, nothing breaks otherwise. Write hard edges as `Blocked by:` lines; write a soft edge as a
+plain note, never as blocking. Presenting a soft preference as a hard gate stalls work that could
+have shipped in parallel.
+
+## Parallel-safety is derived, not declared
+
+Before you claim two slices can run at once, list the files each slice expects to create or modify
+— a best-effort read of the codebase, marked as estimates (the code is not written yet). Give each
+slice a `Touches:` line. Parallel-safety is then *derived* from those sets, never asserted:
+
+- **Disjoint touched-file sets → parallel-safe.** The slices can be fanned out to separate
+  implementers.
+- **Any overlap → not parallel-safe.** The overlap forces either a hard blocking edge (one waits)
+  or a merge into one slice — and you must state it in words: "both edit `X`, therefore US-B waits
+  on US-A" or "...therefore they merge". A same-file coupling silently folded into a merged slice
+  is a hidden edge; surface it in the prose.
+
+**End every breakdown with a concurrency statement** — which slices may run concurrently and why
+(disjoint touched files), for fan-out to parallel implementers. Silence is an incomplete breakdown,
+not a safe default: no statement reads as "nobody checked", and two implementers then collide on the
+same file.

@@ -1,0 +1,220 @@
+openapi: 3.1.0
+info:
+  title: RentField Logistics API
+  version: 1.0.0
+  description: |
+    Logistics bounded context (DOMAIN-0004, supporting). Plans depot hand-offs and delivery runs
+    built from Allocation's EquipmentAllocated event. Shared Kernel with Allocation (Fulfilment squad).
+  contact:
+    name: Fulfilment squad
+  license:
+    name: MIT
+    url: https://opensource.org/licenses/MIT
+servers:
+  - url: https://api.rentfield.example.com/v1
+    description: Production
+  - url: http://localhost:3000/v1
+    description: Local development
+security:
+  - bearerAuth: []
+tags:
+  - name: DeliveryRuns
+    description: Plan and hand off delivery runs
+paths:
+  /delivery-runs:
+    get:
+      summary: List delivery runs
+      operationId: listDeliveryRuns
+      tags: [DeliveryRuns]
+      parameters:
+        - $ref: '#/components/parameters/Offset'
+        - $ref: '#/components/parameters/Limit'
+        - name: depotId
+          in: query
+          required: false
+          schema: { type: string }
+        - name: runDate
+          in: query
+          required: false
+          schema: { type: string, format: date }
+        - name: status
+          in: query
+          required: false
+          schema: { $ref: '#/components/schemas/DeliveryRunStatus' }
+      responses:
+        '200':
+          description: A page of delivery runs
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/DeliveryRunListResponse' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+    post:
+      summary: Plan a delivery run
+      operationId: planDeliveryRun
+      tags: [DeliveryRuns]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/PlanDeliveryRunRequest' }
+      responses:
+        '201':
+          description: Delivery run planned
+          headers:
+            Location:
+              schema: { type: string, format: uri }
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/DeliveryRun' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+  /delivery-runs/{runId}:
+    parameters:
+      - name: runId
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+    get:
+      summary: Get a delivery run
+      operationId: getDeliveryRun
+      tags: [DeliveryRuns]
+      responses:
+        '200':
+          description: The delivery run
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/DeliveryRun' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '404': { $ref: '#/components/responses/NotFound' }
+  /delivery-runs/{runId}/hand-off:
+    parameters:
+      - name: runId
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+    put:
+      summary: Record a hand-off (state transition, idempotent)
+      description: A depot hands the unit over for delivery. Idempotent set-once transition.
+      operationId: handOffDeliveryRun
+      tags: [DeliveryRuns]
+      responses:
+        '200':
+          description: Hand-off recorded
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/DeliveryRun' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409':
+          description: Cannot hand off from the current state
+          content:
+            application/problem+json:
+              schema: { $ref: '#/components/schemas/Problem' }
+              example:
+                type: https://api.rentfield.example.com/problems/invalid-transition
+                title: Invalid transition
+                status: 409
+                detail: Run is already delivered.
+                instance: /delivery-runs/{runId}/hand-off
+webhooks:
+  equipmentAllocated:
+    post:
+      summary: Inbound EquipmentAllocated (Shared Kernel from Allocation) — seeds a delivery run
+      operationId: onEquipmentAllocated
+      requestBody:
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/EquipmentAllocatedEvent' }
+      responses:
+        '200': { description: Acknowledged }
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: Auth0-issued JWT access token (Identity context).
+  parameters:
+    Offset:
+      name: offset
+      in: query
+      required: false
+      schema: { type: integer, minimum: 0, default: 0 }
+    Limit:
+      name: limit
+      in: query
+      required: false
+      schema: { type: integer, minimum: 1, maximum: 100, default: 20 }
+  schemas:
+    DeliveryRunStatus:
+      type: string
+      enum: [planned, handed_off, delivered]
+      description: Flagged assumption — domain names DeliveryRun/Hand-off but not the full lifecycle.
+    DeliveryRun:
+      type: object
+      required: [runId, assetTag, depotId, runDate, status]
+      properties:
+        runId: { type: string, format: uuid, readOnly: true }
+        assetTag:
+          type: string
+          description: Shared-Kernel ref to the committed unit (from EquipmentAllocated).
+        depotId: { type: string }
+        runDate: { type: string, format: date }
+        status: { $ref: '#/components/schemas/DeliveryRunStatus' }
+    PlanDeliveryRunRequest:
+      type: object
+      required: [assetTag, depotId, runDate]
+      properties:
+        assetTag: { type: string }
+        depotId: { type: string }
+        runDate: { type: string, format: date }
+    DeliveryRunListResponse:
+      type: object
+      required: [data, pagination]
+      properties:
+        data:
+          type: array
+          items: { $ref: '#/components/schemas/DeliveryRun' }
+        pagination: { $ref: '#/components/schemas/Pagination' }
+    Pagination:
+      type: object
+      required: [offset, limit, total, has_more]
+      properties:
+        offset: { type: integer, minimum: 0 }
+        limit: { type: integer, minimum: 1 }
+        total: { type: integer, minimum: 0 }
+        has_more: { type: boolean }
+    EquipmentAllocatedEvent:
+      type: object
+      required: [reservationId, assetTag, depotId, start]
+      properties:
+        reservationId: { type: string, format: uuid }
+        assetTag: { type: string }
+        depotId: { type: string }
+        start: { type: string, format: date }
+    Problem:
+      type: object
+      required: [type, title, status]
+      properties:
+        type: { type: string, format: uri }
+        title: { type: string }
+        status: { type: integer }
+        detail: { type: string }
+        instance: { type: string }
+  responses:
+    ValidationError:
+      description: Request validation failed
+      content:
+        application/problem+json:
+          schema: { $ref: '#/components/schemas/Problem' }
+    Unauthorized:
+      description: Missing or invalid access token
+      content:
+        application/problem+json:
+          schema: { $ref: '#/components/schemas/Problem' }
+    NotFound:
+      description: Resource not found
+      content:
+        application/problem+json:
+          schema: { $ref: '#/components/schemas/Problem' }

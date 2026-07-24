@@ -1,0 +1,350 @@
+openapi: 3.1.0
+info:
+  title: Catalog API
+  version: 1.0.0
+  summary: The reference lists everyone labels units against — categories, depots, tags.
+  description: >
+    Bounded context: Catalog (generic / master-data). Source: docs/domain/catalog/
+    (DOMAIN-0006). Draft — owner: TBD.
+  license:
+    name: Internal — RentField proprietary
+    identifier: LicenseRef-Proprietary
+servers:
+  - url: https://api.rentfield.com/catalog/v1
+    description: Production
+  - url: https://staging.rentfield.com/catalog/v1
+    description: Staging
+
+tags:
+  - name: Categories
+    description: Equipment category tree lookups.
+  - name: Depots
+    description: Depot location lookups.
+  - name: Tags
+    description: Free-form unit label lookups.
+
+paths:
+  /categories:
+    get:
+      operationId: listCategories
+      summary: List categories
+      tags: [Categories]
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - name: parentCode
+          in: query
+          schema: { type: string }
+        - name: offset
+          in: query
+          schema: { type: integer, minimum: 0, default: 0 }
+        - name: limit
+          in: query
+          schema: { type: integer, minimum: 1, maximum: 100, default: 20 }
+      responses:
+        '200':
+          description: Paginated list of categories.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data: { type: array, items: { $ref: '#/components/schemas/Category' } }
+                  pagination: { $ref: '#/components/schemas/PageInfo' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+    post:
+      operationId: createCategory
+      summary: Create a category
+      tags: [Categories]
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/Category' }
+      responses:
+        '201':
+          description: Category created.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Category' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '409': { $ref: '#/components/responses/Conflict' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+
+  /categories/{code}:
+    parameters:
+      - name: code
+        in: path
+        required: true
+        schema: { type: string }
+    get:
+      operationId: getCategory
+      summary: Get a category
+      tags: [Categories]
+      security: [{ bearerAuth: [] }]
+      responses:
+        '200':
+          description: Category found.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Category' }
+        '404': { $ref: '#/components/responses/NotFound' }
+    put:
+      operationId: replaceCategory
+      summary: Replace a category
+      tags: [Categories]
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/Category' }
+      responses:
+        '200':
+          description: Category replaced.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Category' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '404': { $ref: '#/components/responses/NotFound' }
+    delete:
+      operationId: deleteCategory
+      summary: Delete a category
+      tags: [Categories]
+      security: [{ bearerAuth: [] }]
+      responses:
+        '204': { description: Category deleted. }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  /depots:
+    get:
+      operationId: listDepots
+      summary: List depots
+      tags: [Depots]
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - name: city
+          in: query
+          schema: { type: string }
+        - name: offset
+          in: query
+          schema: { type: integer, minimum: 0, default: 0 }
+        - name: limit
+          in: query
+          schema: { type: integer, minimum: 1, maximum: 100, default: 20 }
+      responses:
+        '200':
+          description: Paginated list of depots.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data: { type: array, items: { $ref: '#/components/schemas/Depot' } }
+                  pagination: { $ref: '#/components/schemas/PageInfo' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+    post:
+      operationId: createDepot
+      summary: Create a depot
+      tags: [Depots]
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/Depot' }
+      responses:
+        '201':
+          description: Depot created.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Depot' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '409': { $ref: '#/components/responses/Conflict' }
+
+  /depots/{id}:
+    parameters:
+      - name: id
+        in: path
+        required: true
+        schema: { type: string }
+    get:
+      operationId: getDepot
+      summary: Get a depot
+      tags: [Depots]
+      security: [{ bearerAuth: [] }]
+      responses:
+        '200':
+          description: Depot found.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Depot' }
+        '404': { $ref: '#/components/responses/NotFound' }
+    put:
+      operationId: replaceDepot
+      summary: Replace a depot
+      tags: [Depots]
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/Depot' }
+      responses:
+        '200':
+          description: Depot replaced.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Depot' }
+        '404': { $ref: '#/components/responses/NotFound' }
+    delete:
+      operationId: deleteDepot
+      summary: Delete a depot
+      tags: [Depots]
+      security: [{ bearerAuth: [] }]
+      responses:
+        '204': { description: Depot deleted. }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  /tags:
+    get:
+      operationId: listTags
+      summary: List tags
+      tags: [Tags]
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - name: offset
+          in: query
+          schema: { type: integer, minimum: 0, default: 0 }
+        - name: limit
+          in: query
+          schema: { type: integer, minimum: 1, maximum: 100, default: 20 }
+      responses:
+        '200':
+          description: Paginated list of tags.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data: { type: array, items: { $ref: '#/components/schemas/Tag' } }
+                  pagination: { $ref: '#/components/schemas/PageInfo' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+    post:
+      operationId: createTag
+      summary: Create a tag
+      tags: [Tags]
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/Tag' }
+      responses:
+        '201':
+          description: Tag created.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Tag' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+
+  /tags/{id}:
+    parameters:
+      - name: id
+        in: path
+        required: true
+        schema: { type: string }
+    get:
+      operationId: getTag
+      summary: Get a tag
+      tags: [Tags]
+      security: [{ bearerAuth: [] }]
+      responses:
+        '200':
+          description: Tag found.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Tag' }
+        '404': { $ref: '#/components/responses/NotFound' }
+    delete:
+      operationId: deleteTag
+      summary: Delete a tag
+      tags: [Tags]
+      security: [{ bearerAuth: [] }]
+      responses:
+        '204': { description: Tag deleted. }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: JWT issued by Identity (Auth0) — see docs/api/identity/.
+
+  schemas:
+    Category:
+      type: object
+      required: [code]
+      properties:
+        code: { type: string }
+        parentCode: { type: string }
+
+    Depot:
+      type: object
+      required: [id, city]
+      properties:
+        id: { type: string }
+        city: { type: string }
+
+    Tag:
+      type: object
+      required: [id, label]
+      properties:
+        id: { type: string, readOnly: true }
+        label: { type: string }
+
+    PageInfo:
+      type: object
+      properties:
+        offset: { type: integer, minimum: 0 }
+        limit: { type: integer, minimum: 1, maximum: 100 }
+        total: { type: integer, minimum: 0 }
+        has_more: { type: boolean }
+
+    Problem:
+      type: object
+      required: [type, title, status]
+      properties:
+        type: { type: string, format: uri }
+        title: { type: string }
+        status: { type: integer }
+        detail: { type: string }
+        instance: { type: string, format: uri }
+        code: { type: string }
+
+  responses:
+    NotFound:
+      description: Resource not found.
+      content:
+        application/problem+json:
+          schema: { $ref: '#/components/schemas/Problem' }
+    Conflict:
+      description: Duplicate natural key.
+      content:
+        application/problem+json:
+          schema: { $ref: '#/components/schemas/Problem' }
+    ValidationError:
+      description: Missing required field.
+      content:
+        application/problem+json:
+          schema: { $ref: '#/components/schemas/Problem' }
+    Unauthorized:
+      description: Missing or invalid bearer token.
+      content:
+        application/problem+json:
+          schema: { $ref: '#/components/schemas/Problem' }
+
+security:
+  - bearerAuth: []

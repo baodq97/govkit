@@ -1,0 +1,188 @@
+openapi: 3.1.0
+info:
+  title: RentField Billing (Invoicing) API
+  version: 1.0.0
+  description: |
+    Billing bounded context (DOMAIN-0007, supporting) — owned by the Billing team. This spec is the
+    Customer-Supplier contract Rentals drives (IInvoicingPort): RaiseInvoice + invoice reads. The
+    invoice model itself lives in the Billing service and is not modelled here.
+  contact:
+    name: Billing team
+  license:
+    name: MIT
+    url: https://opensource.org/licenses/MIT
+servers:
+  - url: https://api.rentfield.example.com/v1
+    description: Production
+  - url: http://localhost:3000/v1
+    description: Local development
+security:
+  - bearerAuth: []
+tags:
+  - name: Invoices
+    description: Raise and read invoices (contract driven by Rentals)
+paths:
+  /invoices:
+    get:
+      summary: List invoices
+      operationId: listInvoices
+      tags: [Invoices]
+      parameters:
+        - $ref: '#/components/parameters/Offset'
+        - $ref: '#/components/parameters/Limit'
+        - name: orderId
+          in: query
+          required: false
+          schema: { type: string }
+      responses:
+        '200':
+          description: A page of invoices
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/InvoiceListResponse' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+    post:
+      summary: Raise an invoice (RaiseInvoice)
+      description: Command Rentals sends over IInvoicingPort for a placed order. Idempotent per order.
+      operationId: raiseInvoice
+      tags: [Invoices]
+      parameters:
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/RaiseInvoiceRequest' }
+            examples:
+              basic:
+                value:
+                  orderId: 3c9a1f22-0b77-4d1e-8b2a-1f0a9c7e5d21
+                  customerId: ACC-88213
+                  amount: { amount: 408.00, currency: GBP }
+      responses:
+        '201':
+          description: Invoice raised
+          headers:
+            Location:
+              schema: { type: string, format: uri }
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Invoice' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '409':
+          description: An invoice was already raised for this order
+          content:
+            application/problem+json:
+              schema: { $ref: '#/components/schemas/Problem' }
+  /invoices/{invoiceId}:
+    parameters:
+      - name: invoiceId
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+    get:
+      summary: Get an invoice
+      operationId: getInvoice
+      tags: [Invoices]
+      responses:
+        '200':
+          description: The invoice
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Invoice' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '404': { $ref: '#/components/responses/NotFound' }
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: Auth0-issued JWT access token (Identity context).
+  parameters:
+    Offset:
+      name: offset
+      in: query
+      required: false
+      schema: { type: integer, minimum: 0, default: 0 }
+    Limit:
+      name: limit
+      in: query
+      required: false
+      schema: { type: integer, minimum: 1, maximum: 100, default: 20 }
+    IdempotencyKey:
+      name: Idempotency-Key
+      in: header
+      required: false
+      schema: { type: string, format: uuid }
+  schemas:
+    Money:
+      type: object
+      required: [amount, currency]
+      properties:
+        amount: { type: number, format: double }
+        currency: { type: string, minLength: 3, maxLength: 3 }
+    RaiseInvoiceRequest:
+      type: object
+      required: [orderId, customerId, amount]
+      properties:
+        orderId: { type: string, description: Cross-context ref to Rentals RentalOrder. }
+        customerId: { type: string, description: Cross-context ref to the customer account. }
+        amount: { $ref: '#/components/schemas/Money' }
+    Invoice:
+      type: object
+      description: Billing-owned shape; fields beyond these are agreed team-to-team, not invented here.
+      required: [invoiceId, orderId, amount, status]
+      properties:
+        invoiceId: { type: string, format: uuid, readOnly: true }
+        orderId: { type: string }
+        customerId: { type: string }
+        amount: { $ref: '#/components/schemas/Money' }
+        status:
+          type: string
+          enum: [raised, paid, void]
+          description: Flagged assumption — Billing owns the true lifecycle (QUESTIONS Q-A10).
+        raisedAt: { type: string, format: date-time, readOnly: true }
+    InvoiceListResponse:
+      type: object
+      required: [data, pagination]
+      properties:
+        data:
+          type: array
+          items: { $ref: '#/components/schemas/Invoice' }
+        pagination: { $ref: '#/components/schemas/Pagination' }
+    Pagination:
+      type: object
+      required: [offset, limit, total, has_more]
+      properties:
+        offset: { type: integer, minimum: 0 }
+        limit: { type: integer, minimum: 1 }
+        total: { type: integer, minimum: 0 }
+        has_more: { type: boolean }
+    Problem:
+      type: object
+      required: [type, title, status]
+      properties:
+        type: { type: string, format: uri }
+        title: { type: string }
+        status: { type: integer }
+        detail: { type: string }
+        instance: { type: string }
+  responses:
+    ValidationError:
+      description: Request validation failed
+      content:
+        application/problem+json:
+          schema: { $ref: '#/components/schemas/Problem' }
+    Unauthorized:
+      description: Missing or invalid access token
+      content:
+        application/problem+json:
+          schema: { $ref: '#/components/schemas/Problem' }
+    NotFound:
+      description: Resource not found
+      content:
+        application/problem+json:
+          schema: { $ref: '#/components/schemas/Problem' }

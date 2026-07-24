@@ -1,0 +1,19 @@
+context: CustomerAccounts
+subdomain_type: supporting
+tactical_pattern: crud
+ubiquitous_language:
+  - term: SalesAccount
+    definition: A customer account mirrored from the CRM (accountId, name, segment).
+  - term: SalesRep (owner)
+    definition: The rep who owns the commercial relationship (SalesRepId); an ownership projection, not audit metadata.
+  - term: Segment
+    definition: The CRM's segment code, taken verbatim.
+aggregates: []
+notes: >
+  Customer master data imported nightly from a third-party CRM. CONFORMIST: we take the CRM's
+  record shapes EXACTLY as they arrive (field names, segment codes, id format) with NO translation -
+  contrast Asset Sync, which uses an ACL. We have no leverage to change the CRM, so we conform.
+  SalesRepId is the commercial-owner projection (a real domain relationship), not audit metadata.
+  No invariants stated, so no aggregate.
+relationships:
+  - { to: Rentals, type: upstream }

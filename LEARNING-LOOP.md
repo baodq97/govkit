@@ -1341,3 +1341,39 @@ harness's* human/agent edges, exactly as Rounds 17-19 found for the gate-loop. T
 discipline: an eval's write-scope is part of its blinding (lock the SUT the way the runner is
 blinded from the rubric), and attribution is evidence-backed the way every other claim in this repo
 already is.
+
+## Round 21 — 2026-07-24: three corpora graded in one batch, the F11 lock reused
+
+**Trigger.** A batch eval of three swe-flow skills in one workflow run (`wf_5c75a887-e4c`): the
+`api-designer`+`data-model` **seam** (`docs/research/seam-api-data-eval/`, baseline-only — no fix
+warranted), `goal-define` (`docs/research/goal-define-eval/`, +8 lines / 2 rules), and
+`work-breakdown` (`docs/research/work-breakdown-eval/`, +24 lines / 3 rules). Before-runs: 27 agents,
+~2.04M subagent tokens; after-runs: 18 agents, ~1.25M. Graders opus, verifiers sonnet, runners paired
+opus+sonnet and blind throughout. Two edits measured their gap closed (goal-define discipline C7–C13
+12/12 on both after-runs; work-breakdown traps A 16/16 on both, B4 out of the worst-fails); the seam
+was left unchanged because the shipped skills already consumed the v0.10.0 contract at the bar
+(opus 35/36, sonnet 34.5/36) — recorded as no-after-run, not a silent pass.
+
+**Lesson 1 — the write-scope lock held on first reuse.** The F11 lock (Round 20) was authored after a
+mid-eval SUT contamination; this batch is its first reuse, and it held across **three simultaneously
+authored corpora with zero SUT contamination**. Every red-team "unfair to the runner" complaint was
+routed DOWN into the rubric/fixture, never UP into the skill; the two skill edits landed only between
+the frozen before/after conditions, never mid-run. A control written in response to one incident
+earned its keep the first time three parallel authoring streams could have re-triggered it — the lock
+is now a standing part of the eval harness, not a one-off patch.
+
+**Lesson 2 (grading integrity) — a verifier caught a grader fabricating a citation whose verdict was
+still right.** On `work-breakdown` `after-opus`, the grader attributed a quote to `RUN-NOTES.md` that
+in fact only exists in the fixture source. The PASS survived — two other verbatim quotes independently
+supported it — but the misattribution violated the mandatory quoting rule, and the sonnet verifier
+flagged it while upholding every verdict. **Evidence-citation fabrication can occur even in graders
+whose verdicts are correct**: a right answer is not proof of a clean citation trail. This is the same
+class as F12 (attribution runs off evidence, not convenience) and RFC-0026's green-claim contract (a
+claim is valid only from the real evidence) — and it is exactly why the citation-verifier station is
+load-bearing. Keep it: the verdict being right is not a licence to skip re-checking the quote.
+
+**Round-21 verdict.** The deterministic core again saw neither issue — both live in the eval harness's
+human/agent edges (a control reused, a citation re-checked), consistent with Rounds 17-20. The
+compounding discipline: reuse the write-scope lock as blinding on every future corpus, and never trust
+a grader's citation from a summary — the verifier re-derives the quote from the artifact, right verdict
+or not.

@@ -1,0 +1,6 @@
+-- Dialect: PostgreSQL 15+
+-- Source: docs/domain/payments/ (DOMAIN-0011). Draft — owner: TBD.
+--
+-- INTENTIONALLY EMPTY. model.yaml: empty ubiquitous_language, empty aggregates, "no domain
+-- model." Stripe is the system of record for what happened to a card charge; no local table is
+-- fabricated to hold speculated columns the domain never named. See README.md.

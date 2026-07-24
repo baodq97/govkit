@@ -1,0 +1,218 @@
+openapi: 3.1.0
+info:
+  title: Maintenance API
+  version: 1.0.0
+  summary: Track when each unit was last serviced, when it is next due, and whether it is out of service.
+  description: >
+    Bounded context: Maintenance (supporting). Source: docs/domain/maintenance/ (DOMAIN-0005).
+    Draft — owner: TBD.
+  license:
+    name: Internal — RentField proprietary
+    identifier: LicenseRef-Proprietary
+servers:
+  - url: https://api.rentfield.com/maintenance/v1
+    description: Production
+  - url: https://staging.rentfield.com/maintenance/v1
+    description: Staging
+
+tags:
+  - name: MaintenanceRecords
+    description: Service records — last serviced, interval, out-of-service flag.
+
+paths:
+  /maintenance-records:
+    get:
+      operationId: listMaintenanceRecords
+      summary: List maintenance records
+      tags: [MaintenanceRecords]
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: outOfService
+          in: query
+          schema: { type: boolean }
+          description: Filter to units currently out of service.
+        - name: offset
+          in: query
+          schema: { type: integer, minimum: 0, default: 0 }
+        - name: limit
+          in: query
+          schema: { type: integer, minimum: 1, maximum: 100, default: 20 }
+      responses:
+        '200':
+          description: Paginated list of maintenance records.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items: { $ref: '#/components/schemas/MaintenanceRecord' }
+                  pagination: { $ref: '#/components/schemas/PageInfo' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+    post:
+      operationId: createMaintenanceRecord
+      summary: Create a maintenance record for a unit
+      tags: [MaintenanceRecords]
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/CreateMaintenanceRecordRequest' }
+      responses:
+        '201':
+          description: Maintenance record created.
+          headers:
+            Location:
+              schema: { type: string, format: uri }
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/MaintenanceRecord' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+
+  /maintenance-records/{assetTag}:
+    parameters:
+      - name: assetTag
+        in: path
+        required: true
+        schema: { type: string }
+    get:
+      operationId: getMaintenanceRecord
+      summary: Get a maintenance record (satisfies Allocation's IsOutOfService query)
+      tags: [MaintenanceRecords]
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Maintenance record found.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/MaintenanceRecord' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+    patch:
+      operationId: updateMaintenanceRecord
+      summary: Record a service event or toggle out-of-service
+      tags: [MaintenanceRecords]
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/UpdateMaintenanceRecordRequest' }
+      responses:
+        '200':
+          description: Maintenance record updated.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/MaintenanceRecord' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: JWT issued by Identity (Auth0) — see docs/api/identity/.
+
+  schemas:
+    MaintenanceRecord:
+      type: object
+      required: [assetTag, lastServiced, intervalDays, nextDue, outOfService]
+      properties:
+        assetTag: { type: string }
+        lastServiced: { type: string, format: date }
+        intervalDays: { type: integer, minimum: 1 }
+        nextDue:
+          type: string
+          format: date
+          readOnly: true
+          description: LastServiced + IntervalDays — the one calculation in this context.
+        outOfService:
+          type: boolean
+          description: A unit pulled for service; Allocation reads this before committing.
+
+    CreateMaintenanceRecordRequest:
+      type: object
+      required: [assetTag, lastServiced, intervalDays]
+      properties:
+        assetTag: { type: string }
+        lastServiced: { type: string, format: date }
+        intervalDays: { type: integer, minimum: 1 }
+        outOfService: { type: boolean, default: false }
+
+    UpdateMaintenanceRecordRequest:
+      type: object
+      properties:
+        lastServiced: { type: string, format: date }
+        intervalDays: { type: integer, minimum: 1 }
+        outOfService: { type: boolean }
+
+    PageInfo:
+      type: object
+      properties:
+        offset: { type: integer, minimum: 0 }
+        limit: { type: integer, minimum: 1, maximum: 100 }
+        total: { type: integer, minimum: 0 }
+        has_more: { type: boolean }
+
+    Problem:
+      type: object
+      required: [type, title, status]
+      properties:
+        type: { type: string, format: uri }
+        title: { type: string }
+        status: { type: integer }
+        detail: { type: string }
+        instance: { type: string, format: uri }
+        code: { type: string }
+        errors:
+          type: array
+          items:
+            type: object
+            properties:
+              field: { type: string }
+              code: { type: string }
+              message: { type: string }
+
+  responses:
+    NotFound:
+      description: Maintenance record not found.
+      content:
+        application/problem+json:
+          schema: { $ref: '#/components/schemas/Problem' }
+          example:
+            type: https://api.rentfield.com/problems/maintenance-record-not-found
+            title: Maintenance record not found
+            status: 404
+            code: MAINTENANCE_RECORD_NOT_FOUND
+    ValidationError:
+      description: Missing assetTag, or invalid lastServiced/intervalDays.
+      content:
+        application/problem+json:
+          schema: { $ref: '#/components/schemas/Problem' }
+    Unauthorized:
+      description: Missing or invalid bearer token.
+      content:
+        application/problem+json:
+          schema: { $ref: '#/components/schemas/Problem' }
+    Forbidden:
+      description: Authenticated but not authorized.
+      content:
+        application/problem+json:
+          schema: { $ref: '#/components/schemas/Problem' }
+
+security:
+  - bearerAuth: []

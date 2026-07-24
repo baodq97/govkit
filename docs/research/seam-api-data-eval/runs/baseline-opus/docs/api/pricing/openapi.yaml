@@ -1,0 +1,207 @@
+openapi: 3.1.0
+info:
+  title: RentField Pricing API
+  version: 1.0.0
+  description: |
+    Pricing bounded context (DOMAIN-0002, core). Computes a utilization-driven quote that can never
+    fall below a floor, and publishes it as the versioned PriceQuoted Published-Language contract
+    (v2). Load-bearing extraction seam: Rentals depends on the contract, never Pricing internals.
+  contact:
+    name: Pricing squad
+  license:
+    name: MIT
+    url: https://opensource.org/licenses/MIT
+servers:
+  - url: https://api.rentfield.example.com/v1
+    description: Production
+  - url: http://localhost:3000/v1
+    description: Local development
+security:
+  - bearerAuth: []
+tags:
+  - name: Quotes
+    description: Request dynamic, floor-protected rental quotes
+paths:
+  /quotes:
+    post:
+      summary: Request a quote
+      description: |
+        Computes a quote for a category and window. The requested discount is honoured only down to
+        floor = listRate * (0.60 + 0.40 * utilization). Returns 201 in the target (persisted-entity)
+        design; see README for the stateless-today alternative (200, no persistence).
+      operationId: createQuote
+      tags: [Quotes]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/QuoteRequest' }
+            examples:
+              basic:
+                value:
+                  category: EXCAVATOR-20T
+                  listRate: { amount: 480.00, currency: GBP }
+                  utilization: 0.75
+                  requestedDiscount: 0.20
+      responses:
+        '201':
+          description: Quote produced (target design — Quote persisted as an entity)
+          headers:
+            Location:
+              description: URL of the quote (provisional — only if persisted)
+              schema: { type: string, format: uri }
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Quote' }
+              example:
+                quoteId: 6f1c2b7e-9d3a-4a1e-9c2f-7b0e2a5d8c11
+                category: EXCAVATOR-20T
+                amount: { amount: 408.00, currency: GBP }
+                floor: { amount: 432.00, currency: GBP }
+                utilization: 0.75
+                contractVersion: v2
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '422':
+          description: Utilization outside 0..1
+          content:
+            application/problem+json:
+              schema: { $ref: '#/components/schemas/Problem' }
+              example:
+                type: https://api.rentfield.example.com/problems/invalid-utilization
+                title: Invalid utilization
+                status: 422
+                detail: utilization must be between 0 and 1.
+                instance: /quotes
+        '429': { $ref: '#/components/responses/RateLimitExceeded' }
+  /quotes/{quoteId}:
+    description: |
+      PROVISIONAL — exists only if the entity-vs-value-object decision persists Quote (QUESTIONS
+      Q-A3). Today Pricing is stateless and quotes are transient.
+    parameters:
+      - name: quoteId
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+    get:
+      summary: Get a quote (provisional)
+      operationId: getQuote
+      tags: [Quotes]
+      responses:
+        '200':
+          description: The quote
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Quote' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '404': { $ref: '#/components/responses/NotFound' }
+webhooks:
+  priceQuoted:
+    post:
+      summary: PriceQuoted — Published Language contract (v2) consumed by Rentals
+      description: |
+        Broadcast when a quote is produced. This is the Open-Host / Published-Language contract.
+        contractVersion is carried in the payload; v2 is current, v1 deprecated. Deliveries of a
+        deprecated payload version carry Deprecation and Sunset headers.
+      operationId: onPriceQuoted
+      requestBody:
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/PriceQuotedEvent' }
+      responses:
+        '200': { description: Subscriber acknowledged receipt }
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: Auth0-issued JWT access token (Identity context).
+  schemas:
+    Money:
+      type: object
+      description: Money Building Block (shared base type; no business policy).
+      required: [amount, currency]
+      properties:
+        amount: { type: number, format: double, example: 408.00 }
+        currency:
+          type: string
+          minLength: 3
+          maxLength: 3
+          description: ISO-4217 code.
+          example: GBP
+    QuoteRequest:
+      type: object
+      required: [category, listRate, utilization, requestedDiscount]
+      properties:
+        category: { type: string, example: EXCAVATOR-20T }
+        listRate: { $ref: '#/components/schemas/Money' }
+        utilization: { type: number, format: double, minimum: 0, maximum: 1 }
+        requestedDiscount:
+          type: number
+          format: double
+          minimum: 0
+          maximum: 1
+          description: Fraction the rep asks for; honoured only down to the floor.
+    Quote:
+      type: object
+      required: [category, amount, floor, utilization, contractVersion]
+      properties:
+        quoteId:
+          type: string
+          format: uuid
+          readOnly: true
+          description: Present only if Quote is persisted (provisional).
+        category: { type: string }
+        amount: { $ref: '#/components/schemas/Money' }
+        floor:
+          allOf: [{ $ref: '#/components/schemas/Money' }]
+          readOnly: true
+          description: The utilization floor; amount is clamped to this.
+        utilization: { type: number, format: double, minimum: 0, maximum: 1 }
+        contractVersion:
+          type: string
+          enum: [v1, v2]
+          description: Published Language contract version (v2 current, v1 deprecated).
+    PriceQuotedEvent:
+      type: object
+      required: [category, amount, utilization, contractVersion]
+      properties:
+        category: { type: string }
+        amount: { $ref: '#/components/schemas/Money' }
+        utilization: { type: number, format: double }
+        contractVersion: { type: string, enum: [v1, v2] }
+    Problem:
+      type: object
+      description: RFC 7807 problem detail.
+      required: [type, title, status]
+      properties:
+        type: { type: string, format: uri }
+        title: { type: string }
+        status: { type: integer }
+        detail: { type: string }
+        instance: { type: string }
+  responses:
+    ValidationError:
+      description: Request validation failed
+      content:
+        application/problem+json:
+          schema: { $ref: '#/components/schemas/Problem' }
+    Unauthorized:
+      description: Missing or invalid access token
+      content:
+        application/problem+json:
+          schema: { $ref: '#/components/schemas/Problem' }
+    NotFound:
+      description: Resource not found
+      content:
+        application/problem+json:
+          schema: { $ref: '#/components/schemas/Problem' }
+    RateLimitExceeded:
+      description: Rate limit exceeded
+      headers:
+        Retry-After:
+          schema: { type: integer }
+      content:
+        application/problem+json:
+          schema: { $ref: '#/components/schemas/Problem' }

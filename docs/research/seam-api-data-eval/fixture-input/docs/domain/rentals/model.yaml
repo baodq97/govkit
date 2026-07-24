@@ -1,0 +1,30 @@
+context: Rentals
+subdomain_type: supporting
+tactical_pattern: transaction-script
+ubiquitous_language:
+  - term: RentalOrder
+    definition: A customer tied to one or more committed units at an agreed price.
+  - term: Place
+    definition: Booking an order and raising its invoice.
+  - term: Quote
+    definition: The last PriceQuoted amount consumed from Pricing (Published Language).
+aggregates:
+  - name: RentalOrder
+    root: RentalOrder
+    entities:
+      - { name: RentalOrder, attributes: [orderId, customerId, assetTag, amount] }
+    value_objects: []
+    domain_events:
+      - { name: RentalOrderPlaced, payload: [orderId, customerId, assetTag, amount] }
+    invariants: []
+notes: >
+  Deliberately light: Rentals orchestrates a quote + a reservation into a booked order and hands it
+  to Billing. The single aggregate exists only to carry the RentalOrderPlaced event (event-flow
+  continuity); no invariants are stated in the input, so none are asserted. Consumes PriceQuoted
+  (Published Language) and references the customer account by id. A TODO in the code proposes
+  sharing Catalog's Equipment entity directly - that would be Shared Kernel coupling (see
+  context-map); not actioned.
+relationships:
+  - { to: Pricing, type: downstream }
+  - { to: Billing, type: customer-supplier }
+  - { to: CustomerAccounts, type: downstream }

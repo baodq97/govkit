@@ -1,0 +1,202 @@
+openapi: 3.1.0
+info:
+  title: Documents API
+  version: 1.0.0
+  summary: Files attached to rentals and accounts — signed agreements, delivery photos, inspection sheets.
+  description: >
+    Bounded context: Documents (supporting). Source: docs/domain/documents/ (DOMAIN-0010).
+    Draft — owner: TBD.
+  license:
+    name: Internal — RentField proprietary
+    identifier: LicenseRef-Proprietary
+servers:
+  - url: https://api.rentfield.com/documents/v1
+    description: Production
+  - url: https://staging.rentfield.com/documents/v1
+    description: Staging
+
+tags:
+  - name: Documents
+    description: Files uploaded and linked to a rental or account.
+
+paths:
+  /documents:
+    get:
+      operationId: listDocuments
+      summary: List documents
+      tags: [Documents]
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: linkedEntityId
+          in: query
+          schema: { type: string }
+        - name: linkedEntityType
+          in: query
+          schema: { type: string, enum: [rental, account] }
+        - name: offset
+          in: query
+          schema: { type: integer, minimum: 0, default: 0 }
+        - name: limit
+          in: query
+          schema: { type: integer, minimum: 1, maximum: 100, default: 20 }
+      responses:
+        '200':
+          description: Paginated list of documents.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items: { $ref: '#/components/schemas/Document' }
+                  pagination: { $ref: '#/components/schemas/PageInfo' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+    post:
+      operationId: uploadDocument
+      summary: Upload a document (Upload)
+      tags: [Documents]
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema: { $ref: '#/components/schemas/UploadDocumentRequest' }
+      responses:
+        '201':
+          description: Document uploaded.
+          headers:
+            Location:
+              schema: { type: string, format: uri }
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Document' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+
+  /documents/{documentId}:
+    parameters:
+      - name: documentId
+        in: path
+        required: true
+        schema: { type: string }
+    get:
+      operationId: getDocument
+      summary: Get a document
+      tags: [Documents]
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Document found.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Document' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '404': { $ref: '#/components/responses/NotFound' }
+    delete:
+      operationId: deleteDocument
+      summary: Delete a document (Delete — owner or admin only)
+      description: >
+        Only the document owner (the uploader) or an admin may delete it — the one stated
+        business rule for this context.
+      tags: [Documents]
+      security:
+        - bearerAuth: []
+      responses:
+        '204': { description: Document deleted. }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403':
+          description: Caller is neither the uploader nor an admin.
+          content:
+            application/problem+json:
+              schema: { $ref: '#/components/schemas/Problem' }
+              example:
+                type: https://api.rentfield.com/problems/not-document-owner
+                title: Not document owner
+                status: 403
+                code: NOT_DOCUMENT_OWNER
+        '404': { $ref: '#/components/responses/NotFound' }
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: JWT issued by Identity (Auth0) — see docs/api/identity/.
+
+  schemas:
+    Document:
+      type: object
+      required: [id, ownerUserId, linkedEntityId, linkedEntityType, filename]
+      properties:
+        id: { type: string, readOnly: true }
+        ownerUserId:
+          type: string
+          description: >
+            Ownership projection (document:uploader-owner) — the uploader who may delete this
+            document. Not audit metadata.
+        linkedEntityId:
+          type: string
+          description: The rental or account this document is attached to.
+        linkedEntityType:
+          type: string
+          enum: [rental, account]
+        filename: { type: string }
+        contentType: { type: string }
+        uploadedAt: { type: string, format: date-time, readOnly: true }
+
+    UploadDocumentRequest:
+      type: object
+      required: [linkedEntityId, linkedEntityType, file]
+      properties:
+        linkedEntityId: { type: string }
+        linkedEntityType: { type: string, enum: [rental, account] }
+        file: { type: string, format: binary }
+
+    PageInfo:
+      type: object
+      properties:
+        offset: { type: integer, minimum: 0 }
+        limit: { type: integer, minimum: 1, maximum: 100 }
+        total: { type: integer, minimum: 0 }
+        has_more: { type: boolean }
+
+    Problem:
+      type: object
+      required: [type, title, status]
+      properties:
+        type: { type: string, format: uri }
+        title: { type: string }
+        status: { type: integer }
+        detail: { type: string }
+        instance: { type: string, format: uri }
+        code: { type: string }
+
+  responses:
+    NotFound:
+      description: Document not found.
+      content:
+        application/problem+json:
+          schema: { $ref: '#/components/schemas/Problem' }
+          example:
+            type: https://api.rentfield.com/problems/document-not-found
+            title: Document not found
+            status: 404
+            code: DOCUMENT_NOT_FOUND
+    ValidationError:
+      description: Missing linkedEntityId/linkedEntityType/file.
+      content:
+        application/problem+json:
+          schema: { $ref: '#/components/schemas/Problem' }
+    Unauthorized:
+      description: Missing or invalid bearer token.
+      content:
+        application/problem+json:
+          schema: { $ref: '#/components/schemas/Problem' }
+
+security:
+  - bearerAuth: []

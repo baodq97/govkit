@@ -1,0 +1,11 @@
+context: Payments
+subdomain_type: generic
+tactical_pattern: bought-adapter
+ubiquitous_language: []
+aggregates: []
+notes: >
+  Card payments via Stripe - commodity, integrated behind a thin adapter (StripePaymentClient). No
+  business rules live here; swap the adapter if a better vendor appears. No domain model. Wiring to
+  Billing (charge on invoice) is implied by the narrative but not present in the reviewed code, so
+  not asserted as a flow.
+relationships: []

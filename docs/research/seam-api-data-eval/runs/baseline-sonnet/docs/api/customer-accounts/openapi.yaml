@@ -1,0 +1,150 @@
+openapi: 3.1.0
+info:
+  title: Customer Accounts API
+  version: 1.0.0
+  summary: Customer accounts imported nightly from the third-party CRM (Conformist — no translation).
+  description: >
+    Bounded context: Customer Accounts (supporting). Source:
+    docs/domain/customer-accounts/ (DOMAIN-0008). Draft — owner: TBD. Read-only surface;
+    the nightly CRM import is an internal batch path, not modelled as a public write endpoint
+    (flagged assumption, see README).
+  license:
+    name: Internal — RentField proprietary
+    identifier: LicenseRef-Proprietary
+servers:
+  - url: https://api.rentfield.com/customer-accounts/v1
+    description: Production
+  - url: https://staging.rentfield.com/customer-accounts/v1
+    description: Staging
+
+tags:
+  - name: SalesAccounts
+    description: Customer accounts conformed verbatim from the CRM.
+
+paths:
+  /sales-accounts:
+    get:
+      operationId: listSalesAccounts
+      summary: List sales accounts
+      tags: [SalesAccounts]
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: segment
+          in: query
+          schema: { type: string }
+        - name: salesRepId
+          in: query
+          schema: { type: string }
+        - name: offset
+          in: query
+          schema: { type: integer, minimum: 0, default: 0 }
+        - name: limit
+          in: query
+          schema: { type: integer, minimum: 1, maximum: 100, default: 20 }
+      responses:
+        '200':
+          description: Paginated list of sales accounts.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items: { $ref: '#/components/schemas/SalesAccount' }
+                  pagination: { $ref: '#/components/schemas/PageInfo' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+
+  /sales-accounts/{accountId}:
+    parameters:
+      - name: accountId
+        in: path
+        required: true
+        schema: { type: string }
+    get:
+      operationId: getSalesAccount
+      summary: Get a sales account (customer lookup, consumed by Rentals)
+      tags: [SalesAccounts]
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Sales account found.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/SalesAccount' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: JWT issued by Identity (Auth0) — see docs/api/identity/.
+
+  schemas:
+    SalesAccount:
+      type: object
+      required: [accountId, name, segment]
+      properties:
+        accountId:
+          type: string
+          description: CRM id format taken verbatim (Conformist — no translation).
+        name: { type: string }
+        segment:
+          type: string
+          description: CRM's segment code, taken verbatim.
+        salesRepId:
+          type: string
+          description: >
+            Ownership projection (account:sales-rep-owner) — the rep who owns the commercial
+            relationship. Not audit metadata.
+
+    PageInfo:
+      type: object
+      properties:
+        offset: { type: integer, minimum: 0 }
+        limit: { type: integer, minimum: 1, maximum: 100 }
+        total: { type: integer, minimum: 0 }
+        has_more: { type: boolean }
+
+    Problem:
+      type: object
+      required: [type, title, status]
+      properties:
+        type: { type: string, format: uri }
+        title: { type: string }
+        status: { type: integer }
+        detail: { type: string }
+        instance: { type: string, format: uri }
+        code: { type: string }
+
+  responses:
+    NotFound:
+      description: Sales account not found.
+      content:
+        application/problem+json:
+          schema: { $ref: '#/components/schemas/Problem' }
+          example:
+            type: https://api.rentfield.com/problems/sales-account-not-found
+            title: Sales account not found
+            status: 404
+            code: SALES_ACCOUNT_NOT_FOUND
+    Unauthorized:
+      description: Missing or invalid bearer token.
+      content:
+        application/problem+json:
+          schema: { $ref: '#/components/schemas/Problem' }
+    Forbidden:
+      description: Authenticated but not authorized.
+      content:
+        application/problem+json:
+          schema: { $ref: '#/components/schemas/Problem' }
+
+security:
+  - bearerAuth: []
