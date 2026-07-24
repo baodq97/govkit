@@ -1290,3 +1290,12 @@ detector that catches its own deliverable is the cheapest possible calibration f
 **Formatter-before-gate, second offense class.** A hand-`json.dump`ed file and an unsorted
 import both reached the gate red this round; both were caught BEFORE commit by the F9 rule
 (`check && commit`). The rule paid for itself within one session of being written.
+
+## Round 19 — 2026-07-24: the first R1 auto-flip
+
+RFC-0027's own close measured the policy it ships: one R0 humanGate (accept), zero bookkeeping
+asks, and this round's `implemented` flip landed citing packet `wf_5773167d` + the policy sha —
+no fresh authorization. Two lessons kept it honest: the reviewer caught the RFC's own load table
+overstating the measured ack count (the loop policing the numbers that justify the loop), and
+the close-gate's strict BLOCK on accept-before-branch-code was adjudicated by the documented
+retroactive pattern rather than silently overridden — the packet surfaces, the owner decides.

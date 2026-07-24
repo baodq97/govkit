@@ -1,7 +1,7 @@
 ---
 id: RFC-0027
 title: Risk-tiered ratification — fewer asks, same provenance
-status: accepted
+status: implemented
 owner: TBD
 date: 2026-07-24
 governs:
@@ -223,3 +223,24 @@ in prose" to "a rule in versioned config with a periodic audit."
   has no `As-built`/`Deviations` forcing function (that is RFC-specific), so a `done` flip's only
   synchronous proof is the gate + packet, with no doc-section backstop. If a US `done` flip turns
   out to need its own record, that is a follow-up, unneeded until the first case.
+
+## As-built
+
+Shipped and merged at `84ca1a9`, all gates green. The `ratification:` block is live in
+`govkit.yml` (commit `5be5075`), gate-close v0.9.0 splits humanGates (R0) from auto-applied R1
+flips, and AGENTS.md § Agent constraints carries the tiered rule deferring all transition lists
+to the canonical block. The RFC-0027 close itself produced the measured proof: its packet
+(`wf_5773167d`) surfaced one R0 humanGate and zero bookkeeping asks — versus five ratification
+events across the two prior rounds.
+
+## Deviations from design
+
+- The close-packet GATE returned BLOCK on the strict accept-before-branch-code reading; the
+  owner adjudicated via the documented retroactive pattern (RFC-0025 Deviations) — accept landed
+  before merge, main never saw code before authorization.
+- Two review Requireds reshaped the draft: the Motivation load table was journal-corrected
+  (5 ratification events, not 7 — the drift-ack was ONE authorization covering 3 docs), and
+  AGENTS.md defers to the canonical lists instead of restating them.
+- THIS `implemented` flip is the policy's first R1 auto-flip: it cites packet run `wf_5773167d`
+  (red-team verdict flip-after-reconcile, reconcile applied at `d9e80e7`) and the policy source
+  `govkit.yml@5be5075` — no fresh in-session ask, per the committed policy.

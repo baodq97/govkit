@@ -146,6 +146,13 @@
       "spec": "RFC-0026",
       "passes": true,
       "check": "run wf_970c53c4: gate SAFE-TO-COMMIT provenFallible=true; red-teamer dispatch errored on 0.7.0 -> file-read fallback returned schema-valid flip-after-reconcile; check-sync orphan probes exit 1/0/1/0; check-sync.test 10/10; bun run check exit 0 at merge"
+    },
+    {
+      "id": "F-R8-RATIFY",
+      "title": "risk-tiered ratification: R0 owner / R1 packet-cited auto-flip / R2 lead \u2014 canonical policy in govkit.yml, gate-close v0.9.0 enforces the split",
+      "spec": "RFC-0027",
+      "passes": true,
+      "check": "close packet wf_5773167d: gate sub-checks green + fallible, red-team flip-after-reconcile (reconcile applied d9e80e7); bun run check exit 0 at merge 84ca1a9; this ledger entry lands via the policy's FIRST R1 auto-flip citing wf_5773167d + govkit.yml@5be5075"
     }
   ]
 }
