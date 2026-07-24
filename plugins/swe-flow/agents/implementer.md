@@ -90,8 +90,16 @@ End every report with an explicit status line — exactly one of:
 Then, always:
 - `filesWritten` — the absolute paths you wrote or changed, one line each on what it does.
 - `verifierShouldRun` — the commands a verifier SHOULD run to check your work, DISCOVERED from
-  `package.json`, the `Makefile`, or CI and NAMED, not executed (you never run the gate). E.g.
-  `bun run check`, `node --test path/to.test.mjs`.
+  `package.json`, the `Makefile`, or CI and NAMED, not executed (you never run the gate). Name
+  the FULL gate command (e.g. `bun run check`), never a narrower subset — `node cli.js check`
+  is verify+eval only, no drift, and cannot back a later green claim. You may additionally name
+  a scoped command (`node --test path/to.test.mjs`) alongside it, never instead of it.
+- `governedDocsTouched` — for each path in `filesWritten`, check whether it sits under a
+  governed doc's `governs:` pathspec (`grep 'governs:' docs/rfc -A5`, or the consumer's governed
+  doc dirs). If it does, name the doc id here (e.g. `RFC-0026`). Reconciling that doc's
+  as-built/reconciled record in the same change is the lead's duty at integration, not yours to
+  perform; naming it here is how the ack reaches the doc owner instead of silently accumulating
+  as drift.
 
 Hand back paths, never pasted file contents. Do not claim "verified" — validation (`npx govkit
 verify`, `bun run check`, lint/typecheck/tests) is the lead's integration step, not yours.

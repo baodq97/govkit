@@ -40,22 +40,51 @@ export const meta = {
 //   gate: 'doc' | 'slice' | 'release'   // default 'slice'; a 'release' gate REQUIRES args.live
 //   live: { scenario: string, expectations: string[] }  // the real-artifact run; omit to skip Live
 // }
-const verifyCmd = args?.verifyCmd;
+// Callers routinely pass args as a JSON-encoded string (observed live: run wf_3ce99e82) —
+// tolerate it; a malformed string still fails loud at JSON.parse.
+const ARGS = typeof args === "string" ? JSON.parse(args) : (args ?? {});
+const verifyCmd = ARGS.verifyCmd;
 if (!verifyCmd)
   throw new Error(
     "gate-loop: args.verifyCmd is required — name the repo real gate, do not guess it",
   );
 const changeSummary =
-  args?.changeSummary ??
+  ARGS.changeSummary ??
   "A change has landed. Read the recent commits and the cited docs to learn what it does.";
-const flips = args?.flips ?? [];
-const gateKind = args?.gate ?? "slice";
-const liveScenario = args?.live ?? null;
+const flips = ARGS.flips ?? [];
+const gateKind = ARGS.gate ?? "slice";
+const liveScenario = ARGS.live ?? null;
 if (gateKind === "release" && !liveScenario) {
   throw new Error(
     "gate-loop: a release gate REQUIRES a live scenario — set args.live { scenario, expectations } so the verifier can build and run the real artifact",
   );
 }
+
+// Dispatch a swe-flow role by short name. Try the installed plugin's namespaced agentType first;
+// when it cannot resolve (the plugin is not installed pre-release — Round 17 F7), fall back to a
+// generic agent told to read the role file on disk and embody it under the SAME prompt and schema.
+// The fallback fires a one-line log() notice so the packet shows which station ran degraded.
+//
+// The .catch MUST discriminate: only a dispatch/agent-type-resolution failure warrants the
+// fallback. A schema-validation failure or a substantive error thrown by a successfully-resolved
+// agent is NOT a resolution failure and must propagate — silently swallowing it would hide a real
+// finding behind a "ran degraded" notice. Match the error message against a resolution-failure
+// pattern; anything else rethrows unchanged.
+const AGENT_RESOLUTION_FAILURE =
+  /agent ?type|unknown agent|not found|unregistered|no such agent|failed to resolve|not available/i;
+const dispatchRole = (name, prompt, opts) =>
+  agent(prompt, { ...opts, agentType: `swe-flow:${name}` }).catch((err) => {
+    const message = String(err?.message ?? err);
+    const match = message.match(AGENT_RESOLUTION_FAILURE);
+    if (!match) throw err;
+    log(
+      `[gate-loop] agentType swe-flow:${name} did not resolve (matched "${match[0]}") — falling back to a generic agent reading plugins/swe-flow/agents/${name}.md`,
+    );
+    return agent(
+      `FIRST read \`plugins/swe-flow/agents/${name}.md\` in full and EXECUTE that role exactly as written — the plugin version carrying it is not installed, so you embody it from the file. Honor every never-rule in it.\n${prompt}`,
+      opts,
+    );
+  });
 
 const GATE = {
   type: "object",
@@ -154,15 +183,16 @@ const VERIFIER = {
 phase("Verify");
 const [gate, reconcile] = await parallel([
   () =>
-    agent(
+    dispatchRole(
+      "reviewer",
       `Independently verify this repo is ready to advance a governed status. Re-run \`${verifyCmd}\` from scratch and report its real exit code, then \`npx govkit check\`. Prove the gate is capable of failing and report gateProvenFallible. Trust no prior summary. What landed: ${changeSummary}`,
-      { agentType: "swe-flow:reviewer", phase: "Verify", label: "gate-verify", schema: GATE },
+      { phase: "Verify", label: "gate-verify", schema: GATE },
     ),
   () =>
-    agent(
+    dispatchRole(
+      "doc-keeper",
       `Reconcile governed-doc drift against what the code actually does now. What landed: ${changeSummary}. For each doc below that names a symbol, mechanism, or gap the code has since changed, propose the EXACT replacement text. Do NOT apply it and do NOT flip any status. Docs: ${flips.map((f) => f.doc).join(", ") || "(none listed — scan the governed dirs)"}`,
       {
-        agentType: "swe-flow:doc-keeper",
         phase: "Verify",
         label: "reconcile drift",
         schema: RECONCILE,
@@ -181,9 +211,10 @@ const live =
         claims: [],
         notMeasured: [{ what: "live artifact run", why: "no args.live scenario was provided" }],
       }
-    : await agent(
+    : await dispatchRole(
+        "verifier",
         `Produce LIVE evidence that this change works. Scenario: ${liveScenario.scenario}. Build or pack the REAL artifact, then run the consumer entrypoint in a CLEAN scratch dir (mktemp -d) — never the source tree in place. Where cheap, induce ONE failure to prove the check is fallible. Expectations to prove: ${(liveScenario.expectations ?? []).join("; ") || "(none named — prove the entrypoint runs green end to end)"}. A claim is "proven" ONLY when a ranCommands entry carries its real exit code and output tail; list everything you could not run under notMeasured. Read-only on the repo checkout; all execution happens in scratch dirs. What landed: ${changeSummary}`,
-        { agentType: "swe-flow:verifier", phase: "Live", label: "live-verify", schema: VERIFIER },
+        { phase: "Live", label: "live-verify", schema: VERIFIER },
       );
 
 phase("RedTeam");
@@ -191,10 +222,10 @@ const redTeam = (
   await parallel(
     flips.map(
       (f) => () =>
-        agent(
+        dispatchRole(
+          "red-teamer",
           `Red-team ${f.doc} BEFORE its owner advances it to "${f.target}". What landed: ${changeSummary}. Assess each acceptance criterion as met / partial / not-yet with file:line; decide whether "${f.target}" is honest; confirm every cited source exists. Steelman, then falsifiable "Fails if ___", then self-refute, then one kill criterion. If the doc must be reworded before the flip is honest, give the EXACT reconciled text. You flip nothing.`,
           {
-            agentType: "swe-flow:red-teamer",
             phase: "RedTeam",
             label: `red-team ${f.id}`,
             schema: REDTEAM,
