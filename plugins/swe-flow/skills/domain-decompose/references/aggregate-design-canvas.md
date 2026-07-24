@@ -4,6 +4,14 @@ Use this when modelling each aggregate inside a context (adapted from the ddd-cr
 Design Canvas). An aggregate is a **consistency boundary**: everything inside stays valid within
 one transaction; everything outside reaches it only through its root.
 
+> **First decide whether this context should have aggregates at all.** Aggregates are the tool for
+> **core** contexts with real invariants to protect. A **supporting** context is usually better as
+> a transaction script / active record (CRUD plus a calculation), a **generic** context is bought
+> behind a thin adapter, and a **master-data / reference** context is plain lookup CRUD — none of
+> those need an aggregate, a repository, or a domain event. Reaching for this canvas on every
+> context, regardless of type, is the cargo-cult failure (SKILL.md step 4). Apply it where the
+> modelling effort pays: the core. For the rest, record the lighter pattern and move on.
+
 ## Template
 
 ```markdown
