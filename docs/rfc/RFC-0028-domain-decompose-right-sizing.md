@@ -1,7 +1,7 @@
 ---
 id: RFC-0028
 title: Domain-decompose right-sizing — proportional tactical modelling and an additive model.yaml contract
-status: draft
+status: accepted
 owner: TBD
 date: 2026-07-24
 governs:
