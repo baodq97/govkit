@@ -107,6 +107,10 @@ Each criterion must be **measurable + verifiable + specific**, and include how t
 
 Reject vague criteria. If user says "it works correctly", ask: "What specific check proves it works?"
 
+**Rule — measurable success is required even when the intake omits it.** If no measurable success criterion is supplied, the goal MUST still carry one, as exactly one of: (a) a targeted owner question, (b) an explicit `TBD` placeholder, or (c) a derived criterion labeled `PROPOSAL — awaiting owner ratification`. "We'll measure later" is never the answer — even from a stakeholder. Record the deferral; do not accept it as resolved. Never invent a number to fill the hole.
+
+**Rule — every number is sourced or labeled where it stands.** Each quantitative threshold in Done-when (target, limit, count, done-when value) either cites a named intake source or is marked `[assumption]` / `PROPOSAL` on the same line it appears. A hedge that lives only in a separate questions file does not license an unlabeled number in the goal text.
+
 ### Phase 8: Escape Hatches (Pause If)
 
 Ask: "What should make us stop instead of pushing through?"
@@ -174,6 +178,8 @@ Before printing the final goal, verify:
 6. **No vague criteria?** — No "works correctly", "looks good", "is complete" without specifics
 7. **Pause-if testable?** — Each condition can be detected programmatically
 8. **No redundancy?** — No section repeats information already in another section
+9. **Measurable success present?** — Done-when carries a real criterion, or an owner question / `TBD` / labeled `PROPOSAL`; "measure later" is never accepted as the answer
+10. **Numbers sourced in place?** — Every threshold traces to an intake source or is labeled `[assumption]`/`PROPOSAL` on its own line
 
 If any check fails, fix inline before printing.
 
@@ -189,6 +195,8 @@ If you notice these in user input, flag and fix:
 | Components without validation | → Add matching validation entry |
 | Context paths that don't exist | → Verify with Glob, remove or correct |
 | Scope too broad for single goal | → Suggest decomposition into sub-goals |
+| "We'll measure later" (no success metric) | → Owner question / `TBD` / labeled `PROPOSAL`; never accept the deferral as the answer |
+| Unsourced number in goal text | → Cite intake source, or label `[assumption]`/`PROPOSAL` on that line |
 
 ## Reference
 
