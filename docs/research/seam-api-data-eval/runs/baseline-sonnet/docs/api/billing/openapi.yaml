@@ -1,0 +1,164 @@
+openapi: 3.1.0
+info:
+  title: Billing API
+  version: 1.0.0
+  summary: Raise and manage invoices for placed rental orders (IInvoicingPort contract surface only).
+  description: >
+    Bounded context: Billing (supporting; model owned by the Billing team). Source:
+    docs/domain/billing/ (DOMAIN-0007). Draft — owner: TBD. This spec documents only the
+    Customer-Supplier contract surface Rentals depends on, not Billing's internal model.
+  license:
+    name: Internal — RentField proprietary
+    identifier: LicenseRef-Proprietary
+servers:
+  - url: https://api.rentfield.com/billing/v1
+    description: Production
+  - url: https://staging.rentfield.com/billing/v1
+    description: Staging
+
+tags:
+  - name: Invoices
+    description: IInvoicingPort contract — RaiseInvoice.
+
+paths:
+  /invoices:
+    post:
+      operationId: raiseInvoice
+      summary: Raise an invoice (RaiseInvoice — driven by Rentals' RentalOrderPlaced)
+      tags: [Invoices]
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/RaiseInvoiceRequest' }
+      responses:
+        '201':
+          description: Invoice raised.
+          headers:
+            Location:
+              schema: { type: string, format: uri }
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Invoice' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '409':
+          description: An invoice already exists for this rental order.
+          content:
+            application/problem+json:
+              schema: { $ref: '#/components/schemas/Problem' }
+              example:
+                type: https://api.rentfield.com/problems/invoice-already-raised
+                title: Invoice already raised
+                status: 409
+                code: INVOICE_ALREADY_RAISED
+
+  /invoices/{invoiceId}:
+    parameters:
+      - name: invoiceId
+        in: path
+        required: true
+        schema: { type: string }
+    get:
+      operationId: getInvoice
+      summary: Get an invoice
+      tags: [Invoices]
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Invoice found.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Invoice' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: JWT issued by Identity (Auth0) — see docs/api/identity/.
+
+  schemas:
+    Money:
+      type: object
+      required: [amount, currency]
+      properties:
+        amount: { type: string, example: "450.00" }
+        currency: { type: string, minLength: 3, maxLength: 3, example: USD }
+
+    RaiseInvoiceRequest:
+      type: object
+      required: [rentalOrderId, customerId, amount]
+      properties:
+        rentalOrderId:
+          type: string
+          description: Reference to the Rentals RentalOrder (by id only — no cross-context FK).
+        customerId: { type: string }
+        amount: { $ref: '#/components/schemas/Money' }
+
+    Invoice:
+      type: object
+      required: [id, rentalOrderId, amount]
+      properties:
+        id: { type: string, readOnly: true }
+        rentalOrderId: { type: string }
+        customerId: { type: string }
+        amount: { $ref: '#/components/schemas/Money' }
+        createdAt: { type: string, format: date-time, readOnly: true }
+
+    Problem:
+      type: object
+      required: [type, title, status]
+      properties:
+        type: { type: string, format: uri }
+        title: { type: string }
+        status: { type: integer }
+        detail: { type: string }
+        instance: { type: string, format: uri }
+        code: { type: string }
+        errors:
+          type: array
+          items:
+            type: object
+            properties:
+              field: { type: string }
+              code: { type: string }
+              message: { type: string }
+
+  responses:
+    NotFound:
+      description: Invoice not found.
+      content:
+        application/problem+json:
+          schema: { $ref: '#/components/schemas/Problem' }
+          example:
+            type: https://api.rentfield.com/problems/invoice-not-found
+            title: Invoice not found
+            status: 404
+            code: INVOICE_NOT_FOUND
+    ValidationError:
+      description: Missing rentalOrderId or amount.
+      content:
+        application/problem+json:
+          schema: { $ref: '#/components/schemas/Problem' }
+    Unauthorized:
+      description: Missing or invalid bearer token.
+      content:
+        application/problem+json:
+          schema: { $ref: '#/components/schemas/Problem' }
+    Forbidden:
+      description: Authenticated but not authorized.
+      content:
+        application/problem+json:
+          schema: { $ref: '#/components/schemas/Problem' }
+
+security:
+  - bearerAuth: []

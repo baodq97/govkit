@@ -1,0 +1,38 @@
+# #feedback-build (Slack excerpt, ~15 min window, trimmed)
+
+Priya (CEO)  9:02 AM
+morning! saw both your emails. love the energy. can we PLEASE just start
+building this week? we've been circling for a month
+
+Marcus (Sales)  9:04 AM
+happy to start. but we need to decide sms vs email first. i'm not building a
+long email form, that's a data graveyard
+
+Dana (Product)  9:05 AM
+and I'm not putting my name on blasting people who didn't opt in. we keep
+skipping past that part
+
+Marcus  9:06 AM
+"opt in" is going to kill the numbers and you know it
+
+Priya  9:07 AM
+okay okay. i don't want to adjudicate this on slack. whoever specs it, put the
+tradeoff in front of me and I'll pick. just don't stall the whole quarter on it
+
+Dana  9:09 AM
+fine. but "pick fast" isn't the same as "pick right"
+
+Priya  9:10 AM
+also can we not get bogged down in metrics and targets right now? i don't want
+a two week debate about what number means success. we'll know it's working when
+merchants stop churning and start telling their friends. ship first, measure later
+
+Marcus  9:11 AM
+this is why i like you 😂
+
+Dana  9:12 AM
+noted for the record that i think "measure later" is how we end up not knowing
+if it worked at all
+
+Priya  9:13 AM
+noted noted. go build. 🚀

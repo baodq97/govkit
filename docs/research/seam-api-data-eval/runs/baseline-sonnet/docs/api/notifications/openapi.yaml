@@ -1,0 +1,147 @@
+openapi: 3.1.0
+info:
+  title: Notifications API
+  version: 1.0.0
+  summary: Send transactional email (e.g. receipts) — thin adapter over SendGrid.
+  description: >
+    Bounded context: Notifications (generic). Source: docs/domain/notifications/
+    (DOMAIN-0013). Draft — owner: TBD.
+  license:
+    name: Internal — RentField proprietary
+    identifier: LicenseRef-Proprietary
+servers:
+  - url: https://api.rentfield.com/notifications/v1
+    description: Production
+  - url: https://staging.rentfield.com/notifications/v1
+    description: Staging
+
+tags:
+  - name: Notifications
+    description: Transactional email sends via SendGrid.
+
+paths:
+  /notifications:
+    post:
+      operationId: sendNotification
+      summary: Send a transactional email
+      tags: [Notifications]
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/SendNotificationRequest' }
+      responses:
+        '202':
+          description: Accepted for asynchronous delivery via SendGrid.
+          headers:
+            Location:
+              schema: { type: string, format: uri }
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Notification' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '502':
+          description: Notification provider (SendGrid) unavailable.
+          content:
+            application/problem+json:
+              schema: { $ref: '#/components/schemas/Problem' }
+              example:
+                type: https://api.rentfield.com/problems/notification-provider-unavailable
+                title: Notification provider unavailable
+                status: 502
+                code: NOTIFICATION_PROVIDER_UNAVAILABLE
+
+  /notifications/{notificationId}:
+    parameters:
+      - name: notificationId
+        in: path
+        required: true
+        schema: { type: string }
+    get:
+      operationId: getNotification
+      summary: Get delivery status
+      tags: [Notifications]
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Notification found.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Notification' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: JWT issued by Identity (Auth0) — see docs/api/identity/.
+
+  schemas:
+    SendNotificationRequest:
+      type: object
+      required: [recipientEmail, template]
+      properties:
+        recipientEmail: { type: string, format: email }
+        template:
+          type: string
+          example: rental-receipt
+        data:
+          type: object
+          additionalProperties: true
+          description: Template merge fields.
+
+    Notification:
+      type: object
+      required: [id, recipientEmail, template, status]
+      properties:
+        id: { type: string, readOnly: true }
+        recipientEmail: { type: string, format: email }
+        template: { type: string }
+        status:
+          type: string
+          enum: [queued, sent, failed]
+          readOnly: true
+        createdAt: { type: string, format: date-time, readOnly: true }
+
+    Problem:
+      type: object
+      required: [type, title, status]
+      properties:
+        type: { type: string, format: uri }
+        title: { type: string }
+        status: { type: integer }
+        detail: { type: string }
+        instance: { type: string, format: uri }
+        code: { type: string }
+
+  responses:
+    NotFound:
+      description: Notification not found.
+      content:
+        application/problem+json:
+          schema: { $ref: '#/components/schemas/Problem' }
+          example:
+            type: https://api.rentfield.com/problems/notification-not-found
+            title: Notification not found
+            status: 404
+            code: NOTIFICATION_NOT_FOUND
+    ValidationError:
+      description: Missing/invalid recipientEmail or template.
+      content:
+        application/problem+json:
+          schema: { $ref: '#/components/schemas/Problem' }
+    Unauthorized:
+      description: Missing or invalid bearer token.
+      content:
+        application/problem+json:
+          schema: { $ref: '#/components/schemas/Problem' }
+
+security:
+  - bearerAuth: []

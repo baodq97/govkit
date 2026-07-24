@@ -1,0 +1,6 @@
+-- Dialect: PostgreSQL 15+
+-- Source: docs/domain/notifications/ (DOMAIN-0013). Draft — owner: TBD.
+--
+-- INTENTIONALLY EMPTY. model.yaml: empty ubiquitous_language, empty aggregates, "no domain
+-- model." SendGrid is the system of record for delivery status; no local table is fabricated.
+-- See README.md.

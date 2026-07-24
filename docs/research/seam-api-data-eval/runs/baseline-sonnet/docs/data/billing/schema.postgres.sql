@@ -1,0 +1,7 @@
+-- Dialect: PostgreSQL 15+
+-- Source: docs/domain/billing/ (DOMAIN-0007). Draft — owner: TBD.
+--
+-- INTENTIONALLY EMPTY. The domain model states the Invoice model is owned and persisted by
+-- another team's Billing service — "not ours to model." This schema documents only the
+-- IInvoicingPort contract surface (see docs/api/billing/openapi.yaml), never Billing's
+-- internal persistence.

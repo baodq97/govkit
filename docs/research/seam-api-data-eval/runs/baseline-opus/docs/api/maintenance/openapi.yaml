@@ -1,0 +1,191 @@
+openapi: 3.1.0
+info:
+  title: RentField Maintenance API
+  version: 1.0.0
+  description: |
+    Maintenance bounded context (DOMAIN-0005, supporting). Service records per unit (last serviced,
+    interval, out-of-service) plus a NextDue calculation. Allocation queries out-of-service state.
+  contact:
+    name: Platform team
+  license:
+    name: MIT
+    url: https://opensource.org/licenses/MIT
+servers:
+  - url: https://api.rentfield.example.com/v1
+    description: Production
+  - url: http://localhost:3000/v1
+    description: Local development
+security:
+  - bearerAuth: []
+tags:
+  - name: MaintenanceRecords
+    description: Service records and out-of-service state
+paths:
+  /maintenance-records:
+    get:
+      summary: List maintenance records
+      operationId: listMaintenanceRecords
+      tags: [MaintenanceRecords]
+      parameters:
+        - $ref: '#/components/parameters/Offset'
+        - $ref: '#/components/parameters/Limit'
+        - name: outOfService
+          in: query
+          required: false
+          schema: { type: boolean }
+        - name: dueBefore
+          in: query
+          description: Return records whose nextDue is on or before this date.
+          required: false
+          schema: { type: string, format: date }
+      responses:
+        '200':
+          description: A page of maintenance records
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/MaintenanceRecordListResponse' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+    post:
+      summary: Create a maintenance record for a unit
+      operationId: createMaintenanceRecord
+      tags: [MaintenanceRecords]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/MaintenanceRecordWrite' }
+      responses:
+        '201':
+          description: Record created
+          headers:
+            Location:
+              schema: { type: string, format: uri }
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/MaintenanceRecord' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '409':
+          description: A record already exists for this assetTag
+          content:
+            application/problem+json:
+              schema: { $ref: '#/components/schemas/Problem' }
+  /maintenance-records/{assetTag}:
+    parameters:
+      - name: assetTag
+        in: path
+        required: true
+        schema: { type: string }
+    get:
+      summary: Get a unit's maintenance record (out-of-service query surface)
+      description: Allocation reads outOfService here before committing a unit.
+      operationId: getMaintenanceRecord
+      tags: [MaintenanceRecords]
+      responses:
+        '200':
+          description: The maintenance record
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/MaintenanceRecord' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '404': { $ref: '#/components/responses/NotFound' }
+    put:
+      summary: Replace a unit's maintenance record
+      operationId: updateMaintenanceRecord
+      tags: [MaintenanceRecords]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/MaintenanceRecordWrite' }
+      responses:
+        '200':
+          description: Record updated
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/MaintenanceRecord' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '404': { $ref: '#/components/responses/NotFound' }
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: Auth0-issued JWT access token (Identity context).
+  parameters:
+    Offset:
+      name: offset
+      in: query
+      required: false
+      schema: { type: integer, minimum: 0, default: 0 }
+    Limit:
+      name: limit
+      in: query
+      required: false
+      schema: { type: integer, minimum: 1, maximum: 100, default: 20 }
+  schemas:
+    MaintenanceRecord:
+      type: object
+      required: [assetTag, lastServiced, intervalDays, outOfService, nextDue]
+      properties:
+        assetTag: { type: string, example: EXC-0442 }
+        lastServiced: { type: string, format: date }
+        intervalDays: { type: integer, minimum: 1 }
+        outOfService: { type: boolean }
+        nextDue:
+          type: string
+          format: date
+          readOnly: true
+          description: Computed as lastServiced + intervalDays.
+    MaintenanceRecordWrite:
+      type: object
+      required: [assetTag, lastServiced, intervalDays, outOfService]
+      properties:
+        assetTag: { type: string }
+        lastServiced: { type: string, format: date }
+        intervalDays: { type: integer, minimum: 1 }
+        outOfService: { type: boolean, default: false }
+    MaintenanceRecordListResponse:
+      type: object
+      required: [data, pagination]
+      properties:
+        data:
+          type: array
+          items: { $ref: '#/components/schemas/MaintenanceRecord' }
+        pagination: { $ref: '#/components/schemas/Pagination' }
+    Pagination:
+      type: object
+      required: [offset, limit, total, has_more]
+      properties:
+        offset: { type: integer, minimum: 0 }
+        limit: { type: integer, minimum: 1 }
+        total: { type: integer, minimum: 0 }
+        has_more: { type: boolean }
+    Problem:
+      type: object
+      required: [type, title, status]
+      properties:
+        type: { type: string, format: uri }
+        title: { type: string }
+        status: { type: integer }
+        detail: { type: string }
+        instance: { type: string }
+  responses:
+    ValidationError:
+      description: Request validation failed
+      content:
+        application/problem+json:
+          schema: { $ref: '#/components/schemas/Problem' }
+    Unauthorized:
+      description: Missing or invalid access token
+      content:
+        application/problem+json:
+          schema: { $ref: '#/components/schemas/Problem' }
+    NotFound:
+      description: Resource not found
+      content:
+        application/problem+json:
+          schema: { $ref: '#/components/schemas/Problem' }

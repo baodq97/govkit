@@ -1,0 +1,80 @@
+openapi: 3.1.0
+info:
+  title: Identity API
+  version: 1.0.0
+  summary: Resolve the identity behind an Auth0-issued token (cross-cutting; login itself is bought via Auth0).
+  description: >
+    Bounded context: Identity (generic, cross-cutting). Source: docs/domain/identity/
+    (DOMAIN-0012). Draft — owner: TBD. No login/token-issuance endpoints — those are Auth0's,
+    not modelled here.
+  license:
+    name: Internal — RentField proprietary
+    identifier: LicenseRef-Proprietary
+servers:
+  - url: https://api.rentfield.com/identity/v1
+    description: Production
+  - url: https://staging.rentfield.com/identity/v1
+    description: Staging
+
+tags:
+  - name: Identity
+    description: Identity resolution for an Auth0-issued token.
+
+paths:
+  /me:
+    get:
+      operationId: getCurrentIdentity
+      summary: Resolve the caller's identity
+      tags: [Identity]
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Identity resolved.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Identity' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: JWT issued by Auth0. Shared security scheme, reused verbatim by every other context's spec.
+
+  schemas:
+    Identity:
+      type: object
+      required: [userId, email]
+      properties:
+        userId: { type: string, description: Auth0 subject id. }
+        email: { type: string, format: email }
+        name: { type: string }
+
+    Problem:
+      type: object
+      required: [type, title, status]
+      properties:
+        type: { type: string, format: uri }
+        title: { type: string }
+        status: { type: integer }
+        detail: { type: string }
+        instance: { type: string, format: uri }
+        code: { type: string }
+
+  responses:
+    Unauthorized:
+      description: Missing, invalid, or expired bearer token.
+      content:
+        application/problem+json:
+          schema: { $ref: '#/components/schemas/Problem' }
+          example:
+            type: https://api.rentfield.com/problems/unauthenticated
+            title: Unauthenticated
+            status: 401
+            code: UNAUTHENTICATED
+
+security:
+  - bearerAuth: []

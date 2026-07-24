@@ -1,0 +1,35 @@
+context: Pricing
+subdomain_type: core
+tactical_pattern: full-domain-model
+ubiquitous_language:
+  - term: Quote
+    definition: A priced offer for a category and window, published as PriceQuoted.
+  - term: Utilization
+    definition: How heavily the fleet is already used (0..1); drives the floor.
+  - term: Floor
+    definition: The lowest permitted price, listRate x (0.60 + 0.40 x utilization).
+  - term: List Rate
+    definition: The category's undiscounted rate (a Money Building Block).
+  - term: Requested Discount
+    definition: What a rep asks for; honoured only down to the floor.
+aggregates:
+  - name: Quote
+    root: Quote
+    entities:
+      - { name: Quote, attributes: [category, amount, utilization, contractVersion] }
+    value_objects:
+      - { name: Utilization, attributes: [ratio] }
+      - { name: PriceFloor, attributes: [amount] }
+    domain_events:
+      - { name: PriceQuoted, payload: [category, amount, utilization, contractVersion] }
+    invariants:
+      - A quote may never fall below a utilization-derived floor.
+      - The floor climbs with utilization; at 100% utilization the floor equals the full list rate (no discount permitted).
+notes: >
+  Currently a STATELESS domain service (PricingEngine) that computes and publishes PriceQuoted on a
+  versioned contract; there is no persisted Quote entity yet, so Quote's entity-vs-value-object
+  identity is an open question (QUESTIONS.md). Money is a shared Building Block, not a Pricing-owned
+  type. PriceQuoted is Published Language (v2), the Open-Host contract Rentals consumes; Rentals is
+  wired (csproj) to depend on Pricing.Contracts only, never Pricing internals.
+relationships:
+  - { to: Rentals, type: open-host }

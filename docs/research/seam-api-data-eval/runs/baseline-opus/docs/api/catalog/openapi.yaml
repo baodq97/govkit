@@ -1,0 +1,330 @@
+openapi: 3.1.0
+info:
+  title: RentField Catalog API
+  version: 1.0.0
+  description: |
+    Catalog bounded context (DOMAIN-0006, generic/reference). Master-data lookups: equipment
+    category tree, depots, and tags. No aggregates, no events, no business rules.
+  contact:
+    name: Commerce team
+  license:
+    name: MIT
+    url: https://opensource.org/licenses/MIT
+servers:
+  - url: https://api.rentfield.example.com/v1
+    description: Production
+  - url: http://localhost:3000/v1
+    description: Local development
+security:
+  - bearerAuth: []
+tags:
+  - name: Categories
+  - name: Depots
+  - name: Tags
+paths:
+  /categories:
+    get:
+      summary: List categories
+      operationId: listCategories
+      tags: [Categories]
+      parameters:
+        - $ref: '#/components/parameters/Offset'
+        - $ref: '#/components/parameters/Limit'
+        - name: parentCode
+          in: query
+          description: Filter to children of a parent category.
+          required: false
+          schema: { type: string }
+      responses:
+        '200':
+          description: A page of categories
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/CategoryListResponse' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+    post:
+      summary: Create a category
+      operationId: createCategory
+      tags: [Categories]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/Category' }
+      responses:
+        '201':
+          description: Created
+          headers:
+            Location:
+              schema: { type: string, format: uri }
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Category' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '409': { $ref: '#/components/responses/Conflict' }
+  /categories/{code}:
+    parameters:
+      - name: code
+        in: path
+        required: true
+        schema: { type: string }
+    get:
+      summary: Get a category
+      operationId: getCategory
+      tags: [Categories]
+      responses:
+        '200':
+          description: The category
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Category' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '404': { $ref: '#/components/responses/NotFound' }
+    put:
+      summary: Replace a category
+      operationId: updateCategory
+      tags: [Categories]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/Category' }
+      responses:
+        '200':
+          description: Updated
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Category' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+    delete:
+      summary: Delete a category
+      operationId: deleteCategory
+      tags: [Categories]
+      responses:
+        '204': { description: Deleted }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
+  /depots:
+    get:
+      summary: List depots
+      operationId: listDepots
+      tags: [Depots]
+      parameters:
+        - $ref: '#/components/parameters/Offset'
+        - $ref: '#/components/parameters/Limit'
+      responses:
+        '200':
+          description: A page of depots
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/DepotListResponse' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+    post:
+      summary: Create a depot
+      operationId: createDepot
+      tags: [Depots]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/Depot' }
+      responses:
+        '201':
+          description: Created
+          headers:
+            Location:
+              schema: { type: string, format: uri }
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Depot' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '409': { $ref: '#/components/responses/Conflict' }
+  /depots/{depotId}:
+    parameters:
+      - name: depotId
+        in: path
+        required: true
+        schema: { type: string }
+    get:
+      summary: Get a depot
+      operationId: getDepot
+      tags: [Depots]
+      responses:
+        '200':
+          description: The depot
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Depot' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '404': { $ref: '#/components/responses/NotFound' }
+  /tags:
+    get:
+      summary: List tags
+      operationId: listTags
+      tags: [Tags]
+      parameters:
+        - $ref: '#/components/parameters/Offset'
+        - $ref: '#/components/parameters/Limit'
+      responses:
+        '200':
+          description: A page of tags
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/TagListResponse' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+    post:
+      summary: Create a tag
+      operationId: createTag
+      tags: [Tags]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/TagWrite' }
+      responses:
+        '201':
+          description: Created
+          headers:
+            Location:
+              schema: { type: string, format: uri }
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Tag' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '409': { $ref: '#/components/responses/Conflict' }
+  /tags/{tagId}:
+    parameters:
+      - name: tagId
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+    delete:
+      summary: Delete a tag
+      operationId: deleteTag
+      tags: [Tags]
+      responses:
+        '204': { description: Deleted }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: Auth0-issued JWT access token (Identity context).
+  parameters:
+    Offset:
+      name: offset
+      in: query
+      required: false
+      schema: { type: integer, minimum: 0, default: 0 }
+    Limit:
+      name: limit
+      in: query
+      required: false
+      schema: { type: integer, minimum: 1, maximum: 100, default: 20 }
+  schemas:
+    Category:
+      type: object
+      required: [code]
+      properties:
+        code: { type: string, example: EXCAVATOR-20T }
+        parentCode:
+          type: [string, 'null']
+          description: In-context ref to another category (tree parent); null at the tree root.
+    Depot:
+      type: object
+      required: [id, city]
+      properties:
+        id: { type: string, example: DEPOT-LEEDS }
+        city: { type: string, example: Leeds }
+    Tag:
+      type: object
+      required: [id, label]
+      properties:
+        id: { type: string, format: uuid, readOnly: true }
+        label: { type: string, example: winter-ready }
+    TagWrite:
+      type: object
+      required: [label]
+      properties:
+        label: { type: string }
+    CategoryListResponse:
+      type: object
+      required: [data, pagination]
+      properties:
+        data:
+          type: array
+          items: { $ref: '#/components/schemas/Category' }
+        pagination: { $ref: '#/components/schemas/Pagination' }
+    DepotListResponse:
+      type: object
+      required: [data, pagination]
+      properties:
+        data:
+          type: array
+          items: { $ref: '#/components/schemas/Depot' }
+        pagination: { $ref: '#/components/schemas/Pagination' }
+    TagListResponse:
+      type: object
+      required: [data, pagination]
+      properties:
+        data:
+          type: array
+          items: { $ref: '#/components/schemas/Tag' }
+        pagination: { $ref: '#/components/schemas/Pagination' }
+    Pagination:
+      type: object
+      required: [offset, limit, total, has_more]
+      properties:
+        offset: { type: integer, minimum: 0 }
+        limit: { type: integer, minimum: 1 }
+        total: { type: integer, minimum: 0 }
+        has_more: { type: boolean }
+    Problem:
+      type: object
+      required: [type, title, status]
+      properties:
+        type: { type: string, format: uri }
+        title: { type: string }
+        status: { type: integer }
+        detail: { type: string }
+        instance: { type: string }
+  responses:
+    ValidationError:
+      description: Request validation failed
+      content:
+        application/problem+json:
+          schema: { $ref: '#/components/schemas/Problem' }
+    Unauthorized:
+      description: Missing or invalid access token
+      content:
+        application/problem+json:
+          schema: { $ref: '#/components/schemas/Problem' }
+    Forbidden:
+      description: Authenticated but not permitted (writes are admin-gated)
+      content:
+        application/problem+json:
+          schema: { $ref: '#/components/schemas/Problem' }
+    NotFound:
+      description: Resource not found
+      content:
+        application/problem+json:
+          schema: { $ref: '#/components/schemas/Problem' }
+    Conflict:
+      description: Duplicate code/id, or category still has children
+      content:
+        application/problem+json:
+          schema: { $ref: '#/components/schemas/Problem' }

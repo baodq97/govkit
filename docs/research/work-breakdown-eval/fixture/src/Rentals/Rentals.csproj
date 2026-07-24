@@ -1,0 +1,16 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <Nullable>enable</Nullable>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!-- Rentals may depend on the shared technical types and on Pricing's
+         stable, versioned contract project only — never on anything inside
+         Pricing. -->
+    <ProjectReference Include="../BuildingBlocks/BuildingBlocks.csproj" />
+    <ProjectReference Include="../Pricing/Pricing.Contracts.csproj" />
+  </ItemGroup>
+
+</Project>

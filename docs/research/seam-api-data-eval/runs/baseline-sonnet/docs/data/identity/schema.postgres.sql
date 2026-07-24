@@ -1,0 +1,7 @@
+-- Dialect: PostgreSQL 15+
+-- Source: docs/domain/identity/ (DOMAIN-0012). Draft — owner: TBD.
+--
+-- INTENTIONALLY EMPTY. model.yaml: empty ubiquitous_language, empty aggregates, "no domain
+-- model." Auth0 is the system of record for identity; no local user table is fabricated.
+-- This is also why every other table's created_by/updated_by column (docs/data/INDEX.md) has
+-- no FK target. See README.md.

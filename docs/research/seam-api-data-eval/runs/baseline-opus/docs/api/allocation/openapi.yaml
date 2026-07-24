@@ -1,0 +1,318 @@
+openapi: 3.1.0
+info:
+  title: RentField Allocation API
+  version: 1.0.0
+  description: |
+    Allocation bounded context (DOMAIN-0001, core). Commits physical units to rental windows and
+    guards the no-double-commit invariant. The Reservation aggregate is the consistency boundary.
+  contact:
+    name: Fulfilment squad
+  license:
+    name: MIT
+    url: https://opensource.org/licenses/MIT
+servers:
+  - url: https://api.rentfield.example.com/v1
+    description: Production
+  - url: http://localhost:3000/v1
+    description: Local development
+security:
+  - bearerAuth: []
+tags:
+  - name: Reservations
+    description: Commit and release physical units for rental windows
+paths:
+  /reservations:
+    get:
+      summary: List reservations
+      description: Paginated list of reservations, filterable per asset/depot/status/window.
+      operationId: listReservations
+      tags: [Reservations]
+      parameters:
+        - $ref: '#/components/parameters/Offset'
+        - $ref: '#/components/parameters/Limit'
+        - name: assetTag
+          in: query
+          description: Filter to one physical unit (per-asset reservation book).
+          required: false
+          schema: { type: string }
+        - name: depotId
+          in: query
+          required: false
+          schema: { type: string }
+        - name: status
+          in: query
+          required: false
+          schema: { $ref: '#/components/schemas/ReservationStatus' }
+        - name: overlaps
+          in: query
+          description: ISO date range 'start/end' to find reservations overlapping a window.
+          required: false
+          schema: { type: string }
+      responses:
+        '200':
+          description: A page of reservations
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ReservationListResponse' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '429': { $ref: '#/components/responses/RateLimitExceeded' }
+    post:
+      summary: Commit a unit to a window
+      description: |
+        Commits one physical unit to one depot for one rental window. Creating the resource is the
+        Commit command. Rejected if it would double-book the unit (409), if the unit is out of
+        service (422), or if the window is under one day (422).
+      operationId: commitReservation
+      tags: [Reservations]
+      parameters:
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/CommitReservationRequest' }
+            examples:
+              basic:
+                value:
+                  assetTag: EXC-0442
+                  depotId: DEPOT-LEEDS
+                  window: { start: '2026-08-01', end: '2026-08-08' }
+      responses:
+        '201':
+          description: Reservation committed
+          headers:
+            Location:
+              description: URL of the committed reservation
+              schema: { type: string, format: uri }
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Reservation' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '409':
+          description: The unit is already committed for an overlapping window
+          content:
+            application/problem+json:
+              schema: { $ref: '#/components/schemas/Problem' }
+              example:
+                type: https://api.rentfield.example.com/problems/reservation-overlap
+                title: Reservation overlap
+                status: 409
+                detail: Unit EXC-0442 is already committed for an overlapping window.
+                instance: /reservations
+        '422':
+          description: Semantic rule breach (out of service, or window under one day)
+          content:
+            application/problem+json:
+              schema: { $ref: '#/components/schemas/Problem' }
+              examples:
+                outOfService:
+                  value:
+                    type: https://api.rentfield.example.com/problems/unit-out-of-service
+                    title: Unit out of service
+                    status: 422
+                    detail: Unit EXC-0442 is pulled for maintenance and cannot be committed.
+                    instance: /reservations
+                invalidWindow:
+                  value:
+                    type: https://api.rentfield.example.com/problems/invalid-window
+                    title: Invalid rental window
+                    status: 422
+                    detail: A rental window must be at least one day (end after start).
+                    instance: /reservations
+        '429': { $ref: '#/components/responses/RateLimitExceeded' }
+  /reservations/{reservationId}:
+    parameters:
+      - name: reservationId
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+    get:
+      summary: Get a reservation
+      operationId: getReservation
+      tags: [Reservations]
+      responses:
+        '200':
+          description: The reservation
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Reservation' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '404': { $ref: '#/components/responses/NotFound' }
+    delete:
+      summary: Release a committed unit
+      description: Releases the reservation, freeing the unit for its window. Idempotent.
+      operationId: releaseReservation
+      tags: [Reservations]
+      responses:
+        '204':
+          description: Released (or already released)
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+webhooks:
+  equipmentAllocated:
+    post:
+      summary: Emitted when a unit is committed (Shared Kernel → Logistics)
+      description: |
+        Published to the Fulfilment Shared Kernel. Logistics builds a DeliveryRun from it. Schema
+        changes by mutual consent with Logistics (same squad).
+      operationId: onEquipmentAllocated
+      requestBody:
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/EquipmentAllocatedEvent' }
+      responses:
+        '200': { description: Subscriber acknowledged receipt }
+  depotTransferRequested:
+    post:
+      summary: Emitted when a unit is committed away from its home depot (ORPHAN — no subscriber)
+      description: |
+        Raised when a unit is committed at a depot other than its home depot. Currently NO consumer
+        exists — depot transfers are still planned by hand. Kept in the contract as a documented
+        orphan (see README / QUESTIONS Q-A2).
+      operationId: onDepotTransferRequested
+      requestBody:
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/DepotTransferRequestedEvent' }
+      responses:
+        '200': { description: Subscriber acknowledged receipt }
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: Auth0-issued JWT access token (Identity context).
+  parameters:
+    Offset:
+      name: offset
+      in: query
+      required: false
+      schema: { type: integer, minimum: 0, default: 0 }
+    Limit:
+      name: limit
+      in: query
+      required: false
+      schema: { type: integer, minimum: 1, maximum: 100, default: 20 }
+    IdempotencyKey:
+      name: Idempotency-Key
+      in: header
+      required: false
+      description: Client-supplied key so a retried commit is not double-applied.
+      schema: { type: string, format: uuid }
+  schemas:
+    ReservationStatus:
+      type: string
+      enum: [active, released]
+      description: Lifecycle status. Value set is a flagged assumption (domain states 'status' only).
+    RentalWindow:
+      type: object
+      required: [start, end]
+      properties:
+        start: { type: string, format: date, example: '2026-08-01' }
+        end:
+          type: string
+          format: date
+          description: Exclusive end; must be after start (window >= 1 day).
+          example: '2026-08-08'
+    Reservation:
+      type: object
+      required: [id, assetTag, depotId, window, status]
+      properties:
+        id: { type: string, format: uuid, readOnly: true }
+        assetTag: { type: string, example: EXC-0442 }
+        depotId:
+          type: string
+          description: Custodian depot holding the unit while committed (ownership projection).
+          example: DEPOT-LEEDS
+        window: { $ref: '#/components/schemas/RentalWindow' }
+        status: { $ref: '#/components/schemas/ReservationStatus' }
+        createdAt: { type: string, format: date-time, readOnly: true }
+    CommitReservationRequest:
+      type: object
+      required: [assetTag, depotId, window]
+      properties:
+        assetTag: { type: string }
+        depotId: { type: string }
+        window: { $ref: '#/components/schemas/RentalWindow' }
+    ReservationListResponse:
+      type: object
+      required: [data, pagination]
+      properties:
+        data:
+          type: array
+          items: { $ref: '#/components/schemas/Reservation' }
+        pagination: { $ref: '#/components/schemas/Pagination' }
+    Pagination:
+      type: object
+      required: [offset, limit, total, has_more]
+      properties:
+        offset: { type: integer, minimum: 0 }
+        limit: { type: integer, minimum: 1 }
+        total: { type: integer, minimum: 0 }
+        has_more: { type: boolean }
+    EquipmentAllocatedEvent:
+      type: object
+      required: [reservationId, assetTag, depotId, start]
+      properties:
+        reservationId: { type: string, format: uuid }
+        assetTag: { type: string }
+        depotId: { type: string }
+        start: { type: string, format: date }
+    DepotTransferRequestedEvent:
+      type: object
+      required: [assetTag, fromDepot, toDepot, when]
+      properties:
+        assetTag: { type: string }
+        fromDepot: { type: string }
+        toDepot: { type: string }
+        when: { type: string, format: date }
+    Problem:
+      type: object
+      description: RFC 7807 problem detail.
+      required: [type, title, status]
+      properties:
+        type: { type: string, format: uri }
+        title: { type: string }
+        status: { type: integer }
+        detail: { type: string }
+        instance: { type: string }
+  responses:
+    ValidationError:
+      description: Request validation failed
+      content:
+        application/problem+json:
+          schema: { $ref: '#/components/schemas/Problem' }
+          example:
+            type: https://api.rentfield.example.com/problems/validation-error
+            title: Validation error
+            status: 400
+            detail: 'window.end must be after window.start'
+            instance: /reservations
+    Unauthorized:
+      description: Missing or invalid access token
+      content:
+        application/problem+json:
+          schema: { $ref: '#/components/schemas/Problem' }
+    Forbidden:
+      description: Authenticated but not permitted
+      content:
+        application/problem+json:
+          schema: { $ref: '#/components/schemas/Problem' }
+    NotFound:
+      description: Resource not found
+      content:
+        application/problem+json:
+          schema: { $ref: '#/components/schemas/Problem' }
+    RateLimitExceeded:
+      description: Rate limit exceeded
+      headers:
+        Retry-After:
+          schema: { type: integer }
+      content:
+        application/problem+json:
+          schema: { $ref: '#/components/schemas/Problem' }

@@ -1,0 +1,216 @@
+openapi: 3.1.0
+info:
+  title: Logistics API
+  version: 1.0.0
+  summary: Plan depot hand-offs and delivery runs for committed units.
+  description: >
+    Bounded context: Logistics (supporting). Source: docs/domain/logistics/ (DOMAIN-0004).
+    Draft — owner: TBD.
+  license:
+    name: Internal — RentField proprietary
+    identifier: LicenseRef-Proprietary
+servers:
+  - url: https://api.rentfield.com/logistics/v1
+    description: Production
+  - url: https://staging.rentfield.com/logistics/v1
+    description: Staging
+
+tags:
+  - name: DeliveryRuns
+    description: Planned delivery of a committed unit from a depot on a date.
+
+paths:
+  /delivery-runs:
+    get:
+      operationId: listDeliveryRuns
+      summary: List delivery runs
+      tags: [DeliveryRuns]
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: depotId
+          in: query
+          schema: { type: string }
+        - name: offset
+          in: query
+          schema: { type: integer, minimum: 0, default: 0 }
+        - name: limit
+          in: query
+          schema: { type: integer, minimum: 1, maximum: 100, default: 20 }
+      responses:
+        '200':
+          description: Paginated list of delivery runs.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items: { $ref: '#/components/schemas/DeliveryRun' }
+                  pagination: { $ref: '#/components/schemas/PageInfo' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+    post:
+      operationId: createDeliveryRun
+      summary: Plan a delivery run
+      tags: [DeliveryRuns]
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/CreateDeliveryRunRequest' }
+      responses:
+        '201':
+          description: Delivery run planned.
+          headers:
+            Location:
+              schema: { type: string, format: uri }
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/DeliveryRun' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+
+  /delivery-runs/{deliveryRunId}:
+    parameters:
+      - name: deliveryRunId
+        in: path
+        required: true
+        schema: { type: string }
+    get:
+      operationId: getDeliveryRun
+      summary: Get a delivery run
+      tags: [DeliveryRuns]
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Delivery run found.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/DeliveryRun' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+    patch:
+      operationId: updateDeliveryRunStatus
+      summary: Record a hand-off (Hand-off — a depot handing a unit over for delivery)
+      tags: [DeliveryRuns]
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/UpdateDeliveryRunStatusRequest' }
+      responses:
+        '200':
+          description: Status updated.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/DeliveryRun' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: JWT issued by Identity (Auth0) — see docs/api/identity/.
+
+  schemas:
+    DeliveryRun:
+      type: object
+      required: [id, assetTag, depotId, deliveryDate, status]
+      properties:
+        id: { type: string, readOnly: true }
+        assetTag:
+          type: string
+          description: Same identifier Allocation uses (Shared Kernel), by design.
+        depotId: { type: string }
+        deliveryDate: { type: string, format: date }
+        status:
+          type: string
+          enum: [planned, handed-off]
+          default: planned
+
+    CreateDeliveryRunRequest:
+      type: object
+      required: [assetTag, depotId, deliveryDate]
+      properties:
+        assetTag: { type: string }
+        depotId: { type: string }
+        deliveryDate: { type: string, format: date }
+
+    UpdateDeliveryRunStatusRequest:
+      type: object
+      required: [status]
+      properties:
+        status:
+          type: string
+          enum: [planned, handed-off]
+
+    PageInfo:
+      type: object
+      properties:
+        offset: { type: integer, minimum: 0 }
+        limit: { type: integer, minimum: 1, maximum: 100 }
+        total: { type: integer, minimum: 0 }
+        has_more: { type: boolean }
+
+    Problem:
+      type: object
+      required: [type, title, status]
+      properties:
+        type: { type: string, format: uri }
+        title: { type: string }
+        status: { type: integer }
+        detail: { type: string }
+        instance: { type: string, format: uri }
+        code: { type: string }
+        errors:
+          type: array
+          items:
+            type: object
+            properties:
+              field: { type: string }
+              code: { type: string }
+              message: { type: string }
+
+  responses:
+    NotFound:
+      description: Delivery run not found.
+      content:
+        application/problem+json:
+          schema: { $ref: '#/components/schemas/Problem' }
+          example:
+            type: https://api.rentfield.com/problems/delivery-run-not-found
+            title: Delivery run not found
+            status: 404
+            code: DELIVERY_RUN_NOT_FOUND
+    ValidationError:
+      description: Missing assetTag, depotId, or deliveryDate.
+      content:
+        application/problem+json:
+          schema: { $ref: '#/components/schemas/Problem' }
+    Unauthorized:
+      description: Missing or invalid bearer token.
+      content:
+        application/problem+json:
+          schema: { $ref: '#/components/schemas/Problem' }
+    Forbidden:
+      description: Authenticated but not authorized.
+      content:
+        application/problem+json:
+          schema: { $ref: '#/components/schemas/Problem' }
+
+security:
+  - bearerAuth: []

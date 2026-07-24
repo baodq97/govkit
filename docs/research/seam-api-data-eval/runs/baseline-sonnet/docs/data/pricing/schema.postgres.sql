@@ -1,0 +1,8 @@
+-- Dialect: PostgreSQL 15+
+-- Source: docs/domain/pricing/ (DOMAIN-0002). Draft — owner: TBD.
+--
+-- INTENTIONALLY EMPTY. The domain model states Quote is a stateless computation with no
+-- persisted entity ("there is no persisted Quote entity yet" — model.yaml notes). Per the
+-- FORWARD hard rule against fabricating domain concepts, no `quote` table is created.
+-- See README.md "What would change this" for the schema this folder would need if that
+-- open question resolves toward persisting Quote.

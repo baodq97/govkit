@@ -1,0 +1,232 @@
+openapi: 3.1.0
+info:
+  title: Rentals API
+  version: 1.0.0
+  summary: Turn a quote and a reservation into a booked order, then hand it to billing.
+  description: >
+    Bounded context: Rentals (supporting). Source: docs/domain/rentals/ (DOMAIN-0003).
+    Draft — owner: TBD.
+  license:
+    name: Internal — RentField proprietary
+    identifier: LicenseRef-Proprietary
+servers:
+  - url: https://api.rentfield.com/rentals/v1
+    description: Production
+  - url: https://staging.rentfield.com/rentals/v1
+    description: Staging
+
+tags:
+  - name: RentalOrders
+    description: Book a rental order and raise its invoice.
+
+paths:
+  /rental-orders:
+    get:
+      operationId: listRentalOrders
+      summary: List rental orders
+      tags: [RentalOrders]
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: customerId
+          in: query
+          schema: { type: string }
+        - name: offset
+          in: query
+          schema: { type: integer, minimum: 0, default: 0 }
+        - name: limit
+          in: query
+          schema: { type: integer, minimum: 1, maximum: 100, default: 20 }
+      responses:
+        '200':
+          description: Paginated list of rental orders.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items: { $ref: '#/components/schemas/RentalOrder' }
+                  pagination: { $ref: '#/components/schemas/PageInfo' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+    post:
+      operationId: placeRentalOrder
+      summary: Place a rental order (Place)
+      description: >
+        Ties a customer to a committed unit at an agreed price and raises its invoice
+        (RaiseInvoice to Billing, Customer-Supplier). Emits RentalOrderPlaced.
+      tags: [RentalOrders]
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/PlaceRentalOrderRequest' }
+      responses:
+        '201':
+          description: Rental order placed.
+          headers:
+            Location:
+              schema: { type: string, format: uri }
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/RentalOrder' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '502':
+          description: Billing (RaiseInvoice) was unavailable.
+          content:
+            application/problem+json:
+              schema: { $ref: '#/components/schemas/Problem' }
+              example:
+                type: https://api.rentfield.com/problems/billing-unavailable
+                title: Billing unavailable
+                status: 502
+                code: BILLING_UNAVAILABLE
+
+  /rental-orders/{orderId}:
+    parameters:
+      - name: orderId
+        in: path
+        required: true
+        schema: { type: string }
+    get:
+      operationId: getRentalOrder
+      summary: Get a rental order
+      tags: [RentalOrders]
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Rental order found.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/RentalOrder' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+webhooks:
+  rentalOrderPlaced:
+    post:
+      summary: Sent when a rental order is placed (consumed by Billing — Customer-Supplier)
+      operationId: rentalOrderPlacedWebhook
+      requestBody:
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/RentalOrderPlacedEvent' }
+      responses:
+        '200': { description: Subscriber acknowledged receipt. }
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: JWT issued by Identity (Auth0) — see docs/api/identity/.
+
+  schemas:
+    Money:
+      type: object
+      required: [amount, currency]
+      properties:
+        amount: { type: string, example: "450.00" }
+        currency: { type: string, minLength: 3, maxLength: 3, example: USD }
+
+    RentalOrder:
+      type: object
+      required: [orderId, customerId, assetTag, amount]
+      properties:
+        orderId: { type: string, readOnly: true }
+        customerId:
+          type: string
+          description: Reference to a Customer Accounts SalesAccount id (downstream query, not embedded).
+        assetTag:
+          type: string
+          description: Reference to the committed unit (Allocation Reservation.assetTag), by id only.
+        amount: { $ref: '#/components/schemas/Money' }
+        createdAt: { type: string, format: date-time, readOnly: true }
+
+    PlaceRentalOrderRequest:
+      type: object
+      required: [customerId, assetTag, amount]
+      properties:
+        customerId: { type: string }
+        assetTag: { type: string }
+        amount: { $ref: '#/components/schemas/Money' }
+
+    RentalOrderPlacedEvent:
+      type: object
+      required: [orderId, customerId, assetTag, amount]
+      properties:
+        orderId: { type: string }
+        customerId: { type: string }
+        assetTag: { type: string }
+        amount: { $ref: '#/components/schemas/Money' }
+
+    PageInfo:
+      type: object
+      properties:
+        offset: { type: integer, minimum: 0 }
+        limit: { type: integer, minimum: 1, maximum: 100 }
+        total: { type: integer, minimum: 0 }
+        has_more: { type: boolean }
+
+    Problem:
+      type: object
+      required: [type, title, status]
+      properties:
+        type: { type: string, format: uri }
+        title: { type: string }
+        status: { type: integer }
+        detail: { type: string }
+        instance: { type: string, format: uri }
+        code: { type: string }
+        errors:
+          type: array
+          items:
+            type: object
+            properties:
+              field: { type: string }
+              code: { type: string }
+              message: { type: string }
+
+  responses:
+    NotFound:
+      description: Rental order not found.
+      content:
+        application/problem+json:
+          schema: { $ref: '#/components/schemas/Problem' }
+          example:
+            type: https://api.rentfield.com/problems/rental-order-not-found
+            title: Rental order not found
+            status: 404
+            code: RENTAL_ORDER_NOT_FOUND
+    ValidationError:
+      description: Missing customerId, assetTag, or amount.
+      content:
+        application/problem+json:
+          schema: { $ref: '#/components/schemas/Problem' }
+          example:
+            type: https://api.rentfield.com/problems/validation-error
+            title: Validation error
+            status: 400
+            code: VALIDATION_ERROR
+    Unauthorized:
+      description: Missing or invalid bearer token.
+      content:
+        application/problem+json:
+          schema: { $ref: '#/components/schemas/Problem' }
+    Forbidden:
+      description: Authenticated but not authorized.
+      content:
+        application/problem+json:
+          schema: { $ref: '#/components/schemas/Problem' }
+
+security:
+  - bearerAuth: []
