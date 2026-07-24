@@ -98,7 +98,8 @@ auditable.
 ### The `ratification:` block (config, not code)
 
 A new top-level block in `govkit.yml`. The engine never reads it; `gate-close` / the gate-loop
-workflow and the acting agent do. Illustrative shape (final key names settle in implementation):
+workflow and the acting agent do. The shape below is the committed shape — `govkit.yml @ 5be5075`
+— key names are settled, not illustrative:
 
 ```yaml
 # ── Ratification policy (RFC-0027) — honor-system, engine never reads this ────
@@ -120,9 +121,9 @@ ratification:
     transitions: [us:open->in-progress, us->blocked]
 ```
 
-This YAML is illustrative, for exposition only — it is not a second normative copy. Once
-committed, `govkit.yml`'s own `ratification:` block is the canonical source for the R0/R1/R2
-transition lists; this RFC does not restate them elsewhere as a copy that could drift from it.
+This YAML is exposition only, not a second normative copy. The committed block in `govkit.yml`
+(`@ 5be5075`) IS the canonical source for the R0/R1/R2 transition lists; this RFC's copy above is
+descriptive and does not restate them elsewhere in a form that could drift from it.
 
 `gate-close`'s "Acting on the packet" step reads this block to decide, per flip in the packet,
 whether the lead may land the accept commit directly (R1, all conditions met and cited) or must
@@ -185,13 +186,19 @@ in prose" to "a rule in versioned config with a periodic audit."
   `verify`/`eval`/`check` behaviour is byte-for-byte unchanged and no test in the deterministic
   suite moves. Editing the block is itself an R0 act.
 - **`AGENTS.md`** § Agent constraints: the blanket "never self-flip a `status:`" bullet is
-  amended to reference the R0/R1/R2 tiers — R0 transitions stay human, R1/R2 are carved out under
-  the cited conditions. § Coding rules gains one line binding an R1 flip commit to cite both the
-  packet run id and `govkit.yml @ <sha>`.
-- **`plugins/swe-flow/skills/gate-close`** SKILL.md "Acting on the packet" step: per flip, read
-  the tier; land R1/R2 directly with the citation, escalate R0 to the owner. The "one packet"
-  framing is unchanged — the packet still carries an independent verify + independent red team;
-  R1 changes only *who signs* a recording-of-reality flip, not *what evidence backs it*.
+  amended, in place, to reference the R0/R1/R2 tiers — R0 transitions stay human, R2 needs no
+  ceremony, and R1 is carved out only when ALL cited conditions hold, including that the flip
+  commit cites both the packet run id and `govkit.yml @ <sha>` (AGENTS.md:113-122). This one
+  bullet carries the whole amendment; § Coding rules is untouched.
+- **`plugins/swe-flow/skills/gate-close`** SKILL.md "Acting on the packet" step (shipped in
+  gate-close v0.9.0): per flip, read the tier from `govkit.yml`. R1 does NOT cite the same
+  evidence as R2 — an R1 auto-apply flip lands in its own commit citing **both** the packet's run
+  id and the policy sha (`govkit.yml @ <short-sha>`), because that citation is the proof its
+  conditions held; an R2 flip has no conditions to prove, so it lands directly citing the policy
+  source only, with no packet-evidence citation required. R0 (including any escalated R1 whose
+  condition failed) still goes to the owner. The "one packet" framing is unchanged — the packet
+  still carries an independent verify + independent red team; R1 changes only *who signs* a
+  recording-of-reality flip, not *what evidence backs it*.
 - **The distiller** (RFC-0017) gains the R1-audit duty above.
 - **No engine change, no new CLI subcommand, no `verify`/`eval`/`drift` change, no new
   dependency, no key in CI.** Rollback is deleting the config block and reverting the three doc
