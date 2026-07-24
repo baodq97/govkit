@@ -124,3 +124,30 @@ eval:
     rel:
       - { id: substance, weight: 30, kind: minWords, min: 30, required: true, desc: "not an empty stub (≥30 words of prose)" }
       - { id: nofiller, weight: 10, kind: forbid, pattern: 'lorem ipsum|to be filled (in|out)|to be written|todo:?\s*write|placeholder text|fill (this )?in later|insert [a-z ]+ here', required: true, desc: "no template filler left in" }
+
+# ── Ratification policy (RFC-0027) — honor-system tier, engine never reads ───
+# It is the RFC-0012 honor-system tier, now WITH a committed text: THE ENGINE
+# NEVER READS THIS BLOCK — `verify`/`eval`/`check` behaviour stays byte-for-byte
+# unchanged, so the stateless, no-key invariant is untouched (a no-git gate
+# cannot see a status transition — RFC-0012, AGENTS.md § Agent constraints
+# already says so). It binds the LEAD + the swe-flow skills (`gate-close`)
+# that perform a transition, not the gate that structurally cannot see one.
+# Tiers status transitions by reversibility (RFC-0027):
+#   • R0_owner  — one-way doors, always in-session human ratification, no
+#     exceptions. Editing THIS block is itself an R0 act.
+#   • R1_packet — recording-of-reality: the lead may flip WITHOUT a fresh ask
+#     iff every condition below holds AND the flip commit cites the evidence.
+#   • R2_lead   — no ceremony.
+ratification:
+  R0_owner:            # one-way doors — always in-session human ratification
+    transitions: [prd->approved, rfc->accepted, adr->accepted, "*->superseded", rel->released]
+    acts: [merge, publish, "edit:ratification"]   # editing this block is itself R0
+  R1_packet:           # recording-of-reality — lead may flip WITHOUT a fresh ask iff ALL hold
+    transitions: [rfc:accepted->implemented, us:in-progress->done, "drift --ack"]
+    conditions:
+      - full_gate_green: bun run check            # the FULL gate, never a narrower command
+      - packet_exists                             # a gate-loop packet for THIS slice
+      - red_team_in: [flip-as-is, flip-after-reconcile]   # reconcile applied first
+      - cite: [packet.runId, "govkit.yml@<sha>"]  # commit cites BOTH the run and the policy
+  R2_lead:             # no ceremony
+    transitions: [us:open->in-progress, us->blocked]
