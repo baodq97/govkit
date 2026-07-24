@@ -1,7 +1,7 @@
 ---
 id: RFC-0026
 title: Gate-loop hardening — round 2 of the dogfood loop
-status: draft
+status: accepted
 owner: TBD
 date: 2026-07-23
 governs:
