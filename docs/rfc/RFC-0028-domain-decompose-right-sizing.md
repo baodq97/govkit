@@ -1,9 +1,10 @@
 ---
 id: RFC-0028
 title: Domain-decompose right-sizing — proportional tactical modelling and an additive model.yaml contract
-status: accepted
+status: implemented
 owner: TBD
 date: 2026-07-24
+reconciled: sha256:8219e5c3e8e1fe63
 governs:
   - plugins/swe-flow/skills/domain-decompose/SKILL.md
   - plugins/swe-flow/skills/domain-decompose/references/ddd-methodology.md
@@ -182,6 +183,24 @@ whole reason a doctrine tweak to a skill rises to an RFC: the artifact is a cont
   `docs/research/domain-decompose-eval/RESULTS.md`.
 - **Deterministic floor.** Full gate `bun run check` green — the change is skill content under a
   governed `governs:` pathspec, so the drift gate must be reconciled at `implemented`.
+
+## As-built
+
+Implemented exactly as accepted, in `46a62fb` (swe-flow v0.10.0, +132/−18 incl. version bumps):
+step-4 right-sizing table; step-3 capability-vs-context wiring + `ddd-methodology.md` §2.6;
+step-6 sharing-level wiring + §2.4; `output-template.md` contract delta (`subdomain_type` enum
++`master-data`, new optional `tactical_pattern`/`notes`, relations +`partnership`
++`customer-supplier`, `aggregates: []` legal with rationale); `aggregate-design-canvas.md`
+decide-if-aggregates-at-all gate. Post-implementation eval held **44/44 on both runners**
+(`docs/research/domain-decompose-eval/runs/after-*`). Full gate green at every commit in the
+sequence (`712d376` → `5079d62` → `0c97566` → `46a62fb`).
+
+## Deviations from design
+
+None against the accepted text. One pre-accept correction is on record: the draft misdescribed
+`subdomain_type` as a brand-new field; the gate-loop packet `wf_ed29c97a-2d0` (reconcile station)
+caught it and the draft was corrected in `5079d62` **before** acceptance, so the accepted design
+and the shipped code agree.
 
 ## Open questions
 

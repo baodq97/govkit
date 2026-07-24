@@ -153,6 +153,13 @@
       "spec": "RFC-0027",
       "passes": true,
       "check": "close packet wf_5773167d: gate sub-checks green + fallible, red-team flip-after-reconcile (reconcile applied d9e80e7); bun run check exit 0 at merge 84ca1a9; this ledger entry lands via the policy's FIRST R1 auto-flip citing wf_5773167d + govkit.yml@5be5075"
+    },
+    {
+      "id": "F-R9-DDD-RIGHTSIZE",
+      "title": "domain-decompose right-sized tactical modelling + capability/sharing doctrine, eval-proven before/after",
+      "spec": "RFC-0028",
+      "passes": true,
+      "check": "eval wf_3d65148a-75e: HEAD opus 41/44 sonnet 35.5/44 -> after 44/44 both (docs/research/domain-decompose-eval/RESULTS.md); gate-loop packet wf_ed29c97a-2d0 red-team flip-after-reconcile, reconcile applied 5079d62; bun run check exit 0 at 712d376/5079d62/0c97566/46a62fb"
     }
   ]
 }
