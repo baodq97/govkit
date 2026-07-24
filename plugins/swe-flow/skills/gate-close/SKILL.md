@@ -59,15 +59,62 @@ vague summary produces a vague red team.
 - `flip-after-reconcile` — apply `reconciledText` first, then flip.
 - `blocked` — do not flip. Fix the code, or scope the claim down to what shipped.
 
+`packet.humanGates` lists every flip candidate flatly — the workflow itself does not tier them.
+The split below (RFC-0027) is this skill's job, done once the packet is back.
+
 ## Acting on the packet
 
-1. Present it to the owner as ONE decision: the flips, the reconcile edits, any limitation the
-   red team surfaced. Recommend with trade-offs; the owner authorizes.
-2. **Only on authorization**, apply `reconcile.edits` and every `reconciledText`. A governed doc
-   must certify exactly what shipped — never round a partial criterion up to done.
-3. Land each flip as a **separate accept commit** that edits the front-matter `status:` and the
-   matching INDEX row, with a message citing the owner's in-session authorization.
-4. Re-run the gate after the flips, and confirm the remote ref actually moved after pushing.
+1. **Tier each flip (RFC-0027).** Read the repo's `govkit.yml` for a top-level `ratification:`
+   block. For each flip, its transition key is `doctype:from->to` — read the doc's CURRENT
+   `status:` (`packet.humanGates` only names the id and the target) to build it.
+   - **Block absent** → every flip is **R0** (owner-tier). This is the pre-RFC-0027 behavior,
+     unchanged — nothing here regresses a repo that has not adopted the block yet.
+   - **Block present**, transition matches `R0_owner.transitions`, matches no tier at all, or IS
+     an edit to the `ratification:` block itself → **R0**. An unmatched transition always falls
+     to R0, never to R1 — the default is the ask, not the skip.
+   - Matches `R1_packet.transitions` (`rfc:accepted->implemented`, `us:in-progress->done`,
+     `drift --ack`) AND every condition holds — `gate.verdict == "SAFE-TO-COMMIT"` with
+     `gate.gateProvenFallible == true` (the FULL gate, never a narrower command), this packet is
+     itself the required evidence, and this flip's `redTeam[].verdict` is `flip-as-is` or
+     `flip-after-reconcile` with `reconciledText` already applied → **R1, auto-apply**.
+   - Matches `R1_packet.transitions` but a condition fails (`gate.verdict == "BLOCK"` or
+     `gateProvenFallible == false`, `redTeam[].verdict == "blocked"`, or a `flip-after-reconcile`
+     whose `reconciledText` was never applied) → **R1, escalate** — fold it into the owner-facing
+     set below, naming the exact condition that failed. Never quietly downgrade an unmet R1 to a
+     silent auto-apply.
+   - Matches `R2_lead.transitions` (`us:open->in-progress`, `us->blocked`) → **R2, no ceremony** —
+     these carry no evidence bar to begin with; land directly, citing the policy source only.
+2. Present the R0 set — including every escalated R1, each tagged with the condition that failed
+   — to the owner as ONE decision: the flips, the reconcile edits, any limitation the red team
+   surfaced. Recommend with trade-offs; the owner authorizes.
+3. **Only on that authorization**, apply `reconcile.edits` and every `reconciledText` for the
+   R0/escalated set. A governed doc must certify exactly what shipped — never round a partial
+   criterion up to done. Land each as a **separate accept commit** that edits the front-matter
+   `status:` and the matching INDEX row, citing the owner's in-session authorization.
+4. **R1 auto-apply (and R2) flips do not wait for step 2.** Apply that flip's `reconciledText`
+   first if its verdict was `flip-after-reconcile`, then land it in its OWN commit whose message
+   cites the packet's run id (the workflow invocation id, e.g. `wf_xxxxxxxx`) and the policy
+   source (`govkit.yml @ <short-sha>`) — that citation REPLACES the in-session owner quote, it
+   does not supplement it.
+5. Re-run the gate after the flips, and confirm the remote ref actually moved after pushing.
+
+## Why fewer asks is safe here
+
+R1 removes the ask; it removes nothing that verifies. Three controls stay exactly as strict as
+before RFC-0027:
+
+- **The deterministic section gate at `implemented` is untouched.** `govkit verify` still fails
+  an RFC flipped to `implemented` (or a `rel` at `released`) that is missing its
+  `requiredSectionsByStatus` sections — As-built / Deviations from design (RFC-0010). An R1 flip
+  that skips the ask still cannot skip proving what shipped.
+- **The distiller audits every R1 flip commit.** DISTILL (RFC-0017) reads each R1 commit against
+  the packet it cites: a flip that cites a red gate, a `blocked` red-team, or no packet at all is
+  an escape, logged to LEARNING-LOOP. The audit lands after the fact, but it is not optional —
+  R1 is fast, not unwatched.
+- **Code approval stays untouched, always.** This tiering covers doc `status:` bookkeeping only.
+  Never self-approve, never self-merge, never act as code owner (AGENTS.md) — R1 does not touch
+  that rule and never will; it only changes who signs the transcription of a fact the gate and
+  the packet already established.
 
 ## Release close
 
