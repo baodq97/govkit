@@ -1,0 +1,24 @@
+context: Logistics
+subdomain_type: supporting
+ubiquitous_language:
+  - term: Delivery run
+    definition: A planned hand-off of one unit from a depot on a given date, triggered by a commit.
+aggregates:
+  - name: DeliveryRun
+    root: DeliveryRun
+    entities:
+      - name: DeliveryRun
+        attributes: [assetTag, fromDepot, date]
+        note: >
+          Modeled as an entity (aggregate root) per DDD default — a root must have identity — but
+          the code currently gives it no explicit id field. Entity-vs-VO nature is genuinely
+          unstated; see QUESTIONS.md Q2.
+    value_objects: []
+    domain_events: []
+    invariants: []
+relationships:
+  - to: Allocation
+    type: shared-kernel
+    note: >
+      Consumes EquipmentAllocated directly via a shared model type; same squad (Fulfilment per
+      teams.yaml), same release.

@@ -1,0 +1,8 @@
+context: Payments
+subdomain_type: generic
+ubiquitous_language:
+  - term: Charge
+    definition: A card payment for a Money amount, delegated to Stripe.
+aggregates: []
+relationships:
+  - { to: Stripe (external), type: conformist }

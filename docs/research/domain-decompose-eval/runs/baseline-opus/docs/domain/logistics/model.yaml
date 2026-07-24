@@ -1,0 +1,16 @@
+context: Logistics
+subdomain_type: supporting
+tactical_pattern: transaction-script
+ubiquitous_language:
+  - term: DeliveryRun
+    definition: A planned depot hand-off / delivery for a committed reservation.
+aggregates: []
+notes: >
+  Supporting record-keeping — a delivery-run list with no invariants to guard atomically.
+  Deliberately no aggregate ceremony. Built by the same squad as Allocation, shares its model types
+  directly, and ships in the same release -> Shared Kernel + Partnership with Allocation. Consumes
+  EquipmentAllocated to plan each run. Candidate consumer of the orphan DepotTransferRequested event
+  (QUESTIONS.md Q7).
+relationships:
+  - { to: Allocation, type: shared-kernel }
+  - { to: Allocation, type: partnership }

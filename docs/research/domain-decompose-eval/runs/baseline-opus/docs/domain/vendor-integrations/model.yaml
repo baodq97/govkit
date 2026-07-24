@@ -1,0 +1,20 @@
+context: VendorIntegrations
+subdomain_type: generic
+tactical_pattern: bought-adapter
+ubiquitous_language:
+  - term: Payments (Stripe)
+    definition: Card charges via Stripe; thin adapter, no rules.
+  - term: Identity (Auth0)
+    definition: Login / user identity via Auth0; thin adapter.
+  - term: Notifications (SendGrid)
+    definition: Transactional email (e.g. receipts) via SendGrid; thin adapter.
+aggregates: []
+notes: >
+  Generic, off-the-shelf commodity services behind thin adapters (Stripe, Auth0, SendGrid). None
+  carry business rules; each wraps a vendor SDK and could be swapped. No model to build. Grouped as
+  one generic context because the code and config treat them as one set of thin adapters with "no
+  model to build here" — whether to split into separate service boundaries is a genuine question
+  (QUESTIONS.md Q5).
+relationships:
+  - { to: Invoicing, type: upstream }
+  - { to: Rentals, type: upstream }

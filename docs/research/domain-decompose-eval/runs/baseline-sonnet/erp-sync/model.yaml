@@ -1,0 +1,16 @@
+context: ErpSync
+subdomain_type: generic
+tactical_pattern: bought-adapter
+ubiquitous_language:
+  - term: Asset record
+    definition: RentField's own clean shape for one ERP asset (tag, category).
+  - term: Raw dump
+    definition: The ERP's inconsistent nightly export.
+aggregates: []
+notes: >
+  Generic Anti-Corruption-Layer integration: translation only, no domain model of RentField's own.
+  tactical_pattern is "bought-adapter" as the closest schema fit for "integrate behind a thin
+  adapter" over a vendor system we do not control, even though RentField built the adapter itself
+  rather than buying it off the shelf.
+relationships:
+  - { to: "ERP (external)", type: acl }

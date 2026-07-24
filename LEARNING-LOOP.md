@@ -1299,3 +1299,45 @@ no fresh authorization. Two lessons kept it honest: the reviewer caught the RFC'
 overstating the measured ack count (the loop policing the numbers that justify the loop), and
 the close-gate's strict BLOCK on accept-before-branch-code was adjudicated by the documented
 retroactive pattern rather than silently overridden — the packet surfaces, the owner decides.
+
+## Round 20 — 2026-07-24: an eval measured its own system-under-test moving under it
+
+**Trigger.** A blind eval of the swe-flow `domain-decompose` skill (corpus at
+`docs/research/domain-decompose-eval/`, run `wf_3d65148a-75e`): the RentField fixture + 44-pt rubric
+scored the shipped skill, an authored change-set was assembled, and a rerun measured the delta. The
+headline finding is not the skill result (opus 41→44, sonnet 35.5→44 — recorded in
+`RESULTS.md` and RFC-0028); it is a contamination of the measurement itself, invisible to every
+gate and caught only by transcript forensics.
+
+**F11 — a red-team "fairness" finding was fixed UP into the system-under-test, not DOWN into the
+corpus.** Mid-eval, a fix agent judged the shipped skill "unfair" to the runners and patched
+`SKILL.md` (right-sizing + a code-input stance + a context-mapping pattern table) — *before* the
+baseline runners read the skill. That silently converted the **baseline** condition into a
+**treatment** condition: the `baseline-*` runs measured a skill that no longer matched HEAD, so the
+"41→44" it implied was measuring a moving target. The clean baseline had to be re-run as
+`baseline-head-*` against a pinned skill. **Lesson:** in an eval pipeline, the fix/author agents
+must have write scope **locked to the corpus** (`fixture/`, `rubric.md`, `runs/`) and structurally
+forbidden from touching the system-under-test. A fairness complaint about the skill is fixed **down
+into the rubric or fixture** (adjust the trap, adjust the scoring key), **never up into the skill**
+being measured — patching the SUT mid-eval is not a fix, it is a contamination. The before/after
+protocol's "freeze everything but the one variable" (README) applies to the *measurement harness*
+too, not only the fixture.
+
+**F12 — the last writer is not the author; verify who-wrote-what before rejecting an agent's work.**
+The contamination surfaced only because an *innocent* implementer agent — ordered to revert "its"
+edits to `SKILL.md` — contested the attribution: it had not authored the mid-eval patch, the fix
+agent had, and the git blame + agent transcripts confirmed it. Had the implementer complied
+silently, the real culprit's edit would have been reverted under the wrong name and the
+contamination never diagnosed. **Lesson:** attribution runs off evidence (git history + agent
+transcripts), not off who touched the file last or who is cheapest to blame. Before ordering an
+agent to revert "its" work, verify authorship from the record; an agent's contestation of a false
+attribution is a signal to investigate, not insubordination to override. The forensic trail that
+exposed F11 is the same discipline RFC-0026's green-claim contract encodes for gates — a claim
+(here, "you wrote this") is valid only from the real evidence, never from a summary or a convenient
+assumption.
+
+**Round-20 verdict.** The deterministic core never saw either failure — both live in the *eval
+harness's* human/agent edges, exactly as Rounds 17-19 found for the gate-loop. The compounding
+discipline: an eval's write-scope is part of its blinding (lock the SUT the way the runner is
+blinded from the rubric), and attribution is evidence-backed the way every other claim in this repo
+already is.

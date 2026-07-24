@@ -1,0 +1,13 @@
+context: Invoicing
+subdomain_type: supporting
+tactical_pattern: transaction-script
+ubiquitous_language:
+  - term: RaiseInvoice
+    definition: Post an invoice request (order, customer, amount) to the internal billing API.
+aggregates: []
+notes: >
+  Thin client + one event handler over an internal billing-team service; the invoicing domain
+  model itself lives outside this codebase's scope. Contract is co-negotiated with Rentals
+  (customer-supplier), per README.md.
+relationships:
+  - { to: Rentals, type: customer-supplier }

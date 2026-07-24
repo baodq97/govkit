@@ -1,0 +1,14 @@
+context: Logistics
+subdomain_type: supporting
+ubiquitous_language:
+  - term: Delivery run
+    definition: A planned hand-off of one unit from a depot on a date.
+aggregates:
+  - name: DeliveryRun
+    root: DeliveryRun
+    entities:
+      - { name: DeliveryRun, attributes: [assetTag, fromDepot, date] }
+    value_objects: []
+    domain_events: []
+relationships:
+  - { to: Allocation, type: shared-kernel }

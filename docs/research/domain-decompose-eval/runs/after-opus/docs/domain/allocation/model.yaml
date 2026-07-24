@@ -1,0 +1,40 @@
+context: Allocation
+subdomain_type: core
+tactical_pattern: full-domain-model
+ubiquitous_language:
+  - term: Reservation
+    definition: A commitment of one physical unit, held at one depot, to one rental window.
+  - term: Commit
+    definition: Committing a unit to a window; rejected if it double-books or the unit is out of service.
+  - term: Rental Window
+    definition: The [start, end) date range a unit is committed for.
+  - term: Custodian Depot
+    definition: The depot holding a committed unit while it is committed (Reservation.DepotId); an ownership projection, not audit metadata.
+  - term: Home Depot
+    definition: A unit's base depot; a commit elsewhere raises a transfer request.
+  - term: Out of service
+    definition: A unit pulled for maintenance is off the books and cannot be committed (state read from Maintenance).
+aggregates:
+  - name: Reservation
+    root: Reservation
+    entities:
+      - { name: Reservation, attributes: [id, assetTag, depotId, start, end, status] }
+    value_objects:
+      - { name: RentalWindow, attributes: [start, end] }
+    domain_events:
+      - { name: EquipmentAllocated, payload: [reservationId, assetTag, depotId, start] }
+      - { name: DepotTransferRequested, payload: [assetTag, fromDepot, toDepot, when] }
+    invariants:
+      - The same physical unit may never be committed twice for overlapping windows, not even from a different depot.
+      - A unit that is out of service (pulled for maintenance) cannot be committed.
+      - A rental window must be at least one day (end must be after start).
+notes: >
+  Consistency-boundary caveat: the no-overlap invariant is set-based over ALL live reservations
+  for one asset, so the true consistency boundary may be a per-asset reservation book rather than a
+  single Reservation (flagged in QUESTIONS.md). DepotTransferRequested is emitted by the shipped
+  code but has no consumer yet (orphan event, see context-map event-flow check). DepotId is the
+  custodian-depot ownership projection, not audit metadata.
+relationships:
+  - { to: Logistics, type: shared-kernel }
+  - { to: Maintenance, type: downstream }
+  - { to: AssetSync, type: downstream }

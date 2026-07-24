@@ -1,0 +1,8 @@
+context: Notifications
+subdomain_type: generic
+ubiquitous_language:
+  - term: Receipt email
+    definition: A transactional email delegated to SendGrid.
+aggregates: []
+relationships:
+  - { to: SendGrid (external), type: conformist }

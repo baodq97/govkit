@@ -1,0 +1,32 @@
+context: Allocation
+subdomain_type: core
+tactical_pattern: full-domain-model
+ubiquitous_language:
+  - term: Reservation
+    definition: The commitment of one physical unit to one depot for one date window.
+  - term: Commit
+    definition: The act of creating a Reservation.
+  - term: Depot
+    definition: The location that owns a unit while it is committed.
+  - term: Out of service
+    definition: A unit pulled for maintenance; off the books entirely.
+aggregates:
+  - name: Reservation
+    root: Reservation
+    entities:
+      - { name: Reservation, attributes: [id, assetTag, depotId, start, end, status] }
+    value_objects: []
+    domain_events:
+      - { name: EquipmentAllocated, payload: [reservationId, assetTag, depotId, start] }
+      - { name: DepotTransferRequested, payload: [assetTag, fromDepot, toDepot, when] }
+    invariants:
+      - "A rental window must be at least one day (end > start)."
+      - "A unit currently out of service cannot be committed."
+      - "The same physical unit can never be committed twice for overlapping windows, not even from a different depot."
+notes: >
+  DepotTransferRequested is emitted but has no consumer in the given source (flagged as an orphan
+  event in context-map.md, not silently dropped). value_objects is empty: Start/End are plain
+  DateOnly fields on the entity, not a separately-typed range object in source — not invented here.
+relationships:
+  - { to: Maintenance, type: downstream }
+  - { to: Logistics, type: shared-kernel }

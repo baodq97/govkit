@@ -1,0 +1,19 @@
+context: Maintenance
+subdomain_type: supporting
+tactical_pattern: transaction-script
+ubiquitous_language:
+  - term: MaintenanceRecord
+    definition: A service record per unit — last serviced, interval, out-of-service flag.
+  - term: Next due
+    definition: Next service date = lastServiced + intervalDays (the one calculation here).
+  - term: Out of service
+    definition: A unit pulled for service; Allocation queries this to keep it off the book.
+aggregates: []
+notes: >
+  Supporting on purpose: routine record-keeping with nothing to keep atomically consistent beyond a
+  single record, plus one calculation (NextDue). No aggregates / repositories / domain events.
+  MaintenanceRecord has an id/lifecycle (an entity), but a transaction script over it is the correct,
+  complete shape here. Upstream of Allocation for out-of-service state via a synchronous query, not
+  an event. The draft note placing maintenance "inside Allocation" is stale (see Conflicts).
+relationships:
+  - { to: Allocation, type: upstream }

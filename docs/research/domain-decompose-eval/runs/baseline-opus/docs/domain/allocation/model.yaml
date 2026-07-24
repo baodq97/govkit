@@ -1,0 +1,40 @@
+context: Allocation
+subdomain_type: core
+tactical_pattern: full-domain-model
+ubiquitous_language:
+  - term: Reservation
+    definition: A commitment of one physical unit, at one depot, to one rental window.
+  - term: Unit / Asset
+    definition: A single physical piece of equipment, identified by AssetTag.
+  - term: Depot
+    definition: The location that owns a unit while it is committed and must release it.
+  - term: Rental window
+    definition: The [Start, End) date range a unit is committed for.
+  - term: Out of service
+    definition: A unit pulled for maintenance; off the allocation book entirely (queried from Maintenance).
+aggregates:
+  - name: Reservation
+    root: Reservation
+    entities:
+      - { name: Reservation, attributes: [id, assetTag, depotId, start, end, status] }
+    value_objects:
+      - { name: RentalWindow, attributes: [start, end] }
+    domain_events:
+      - { name: EquipmentAllocated, payload: [reservationId, assetTag, depotId, start] }
+      - { name: DepotTransferRequested, payload: [assetTag, fromDepot, toDepot, when] }
+    invariants:
+      - The same physical unit is never committed twice for overlapping windows — not even from a different depot.
+      - A unit currently out of service (pulled for maintenance) cannot be committed.
+      - A rental window must be at least one day (end > start).
+      - Allocation priority order is contract > walk-in > internal (currently in SharedDomainRules; belongs here).
+notes: >
+  Availability (the reservation book + overlap check) lives here, not in a separate module (see
+  Conflicts in context-map.md — the draft note that put it standalone and that placed maintenance
+  "inside Allocation" is stale). DepotTransferRequested is emitted but currently has no consumer
+  (orphan emit — flagged, not invented away). Depot-owns-committed-unit is a modelled domain
+  relationship, not audit metadata.
+relationships:
+  - { to: Logistics, type: shared-kernel }
+  - { to: Logistics, type: partnership }
+  - { to: Maintenance, type: downstream }
+  - { to: Catalog, type: downstream }

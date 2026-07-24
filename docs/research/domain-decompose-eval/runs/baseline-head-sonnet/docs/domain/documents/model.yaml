@@ -1,0 +1,27 @@
+context: Documents
+subdomain_type: generic
+ubiquitous_language:
+  - term: Document
+    definition: A stored file, linked to a rental or account by id, with exactly one owner.
+  - term: Owner
+    definition: The user who uploaded the document; only the owner (or an admin) may delete it.
+aggregates:
+  - name: Document
+    root: Document
+    entities:
+      - { name: Document, attributes: [id, fileName, ownerUserId, linkedEntityId] }
+    value_objects: []
+    domain_events: []
+    invariants:
+      - "Only the document's owner (or an admin) may delete it."
+relationships:
+  - to: Rentals
+    type: upstream
+    confidence: inferred
+    note: >
+      INFERRED from the LinkedEntityId convention (signed agreements, delivery photos attached to
+      rentals); no direct code reference either direction. See QUESTIONS.md Q7.
+  - to: Accounts
+    type: upstream
+    confidence: inferred
+    note: "INFERRED similarly, for account-linked documents. See QUESTIONS.md Q7."

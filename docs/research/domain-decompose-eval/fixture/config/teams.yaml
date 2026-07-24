@@ -1,0 +1,20 @@
+# Team ownership of platform modules. Used by the on-call rota generator.
+squads:
+  fulfilment:
+    # one team owns both; they share code and release together
+    owns: [allocation, logistics]
+    release_cadence: shared
+  pricing:
+    owns: [pricing]
+  commerce:
+    owns: [rentals, catalog]
+  billing:
+    # internal invoicing service; rentals is its main consumer and drives its API
+    owns: [invoicing]
+  platform:
+    owns: [maintenance, documents, erp-sync, crm-import]
+
+vendors:
+  payments: stripe
+  identity: auth0
+  email: sendgrid

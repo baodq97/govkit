@@ -37,7 +37,8 @@ the monolith → microservices path.
 Two required blocks:
 
 **Context map** — a Mermaid `graph` showing each bounded context as a node and labelled edges for
-relationships (`upstream`/`downstream`, `shared-kernel`, `conformist`, `ACL`, `open-host`):
+relationships (`upstream`/`downstream`, `shared-kernel`, `conformist`, `ACL`, `open-host`,
+`partnership`, `customer-supplier`):
 
 ```mermaid
 graph LR
@@ -65,11 +66,13 @@ Omit this block only when no existing sources conflict.
 
 ```yaml
 context: <ContextName>          # PascalCase, ubiquitous-language noun
-subdomain_type: core            # core | supporting | generic
+subdomain_type: core            # core | supporting | generic | master-data
+tactical_pattern: full-domain-model  # full-domain-model | transaction-script | crud | bought-adapter
+                                     # size to subdomain_type — see "Right-size first" below
 ubiquitous_language:
   - term: <Term>
     definition: <one line>
-aggregates:
+aggregates:                     # core → real aggregates; supporting/generic/master-data → usually []
   - name: <AggregateName>       # named after its root entity
     root: <RootEntity>
     entities:
@@ -80,14 +83,25 @@ aggregates:
       - { name: <EventPastTense>, payload: [<field>] }  # e.g. OrderPlaced
     invariants:
       - <statement>             # ONLY if the user supplied it; else omit
+notes: <one line>               # for a light context: why it has no aggregates (bought adapter / lookup CRUD / transaction script)
 relationships:
-  - { to: <OtherContext>, type: upstream }        # upstream|downstream|shared-kernel|conformist|acl|open-host
+  # upstream | downstream | shared-kernel | conformist | acl | open-host | partnership | customer-supplier
+  - { to: <OtherContext>, type: upstream }
 ```
 
-**Schema rule:** every aggregate MUST include the keys `entities`, `value_objects`, and
-`domain_events` — use an empty list `[]` when it has none. Never omit a key, so the model stays
-machine-consumable and consumers can rely on the shape. `invariants` is the only optional key
-(include only user-stated rules).
+**Right-size first.** Match tactical depth to `subdomain_type` (SKILL.md step 4) *before* filling
+this in. A **core** context gets real aggregates. A **supporting** context uses a lighter
+transaction-script / CRUD-plus-a-calculation shape. **Generic** and **master-data / reference**
+contexts get **no domain model** — set `aggregates: []` and record the reason in `notes:` (bought
+behind an adapter, or plain lookup CRUD). Uniform aggregate machinery on every context regardless
+of type is the cargo-cult failure this schema must not encourage — `aggregates: []` is a valid,
+correct model for a light context, not a missing piece.
+
+**Schema rule:** when an aggregate **is** present, it MUST include the keys `entities`,
+`value_objects`, and `domain_events` — use an empty list `[]` when it has none. Never omit a key,
+so the model stays machine-consumable and consumers can rely on the shape. `invariants` and
+`notes` are optional (`invariants`: only user-stated rules; `notes`: the right-sizing rationale
+for a context with `aggregates: []`).
 
 ## 5. Frontmatter on generated markdown docs
 

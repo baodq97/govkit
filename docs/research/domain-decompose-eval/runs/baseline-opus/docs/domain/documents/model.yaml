@@ -1,0 +1,17 @@
+context: Documents
+subdomain_type: supporting
+tactical_pattern: transaction-script
+ubiquitous_language:
+  - term: Document
+    definition: A file attached to a rental or account — signed agreement, delivery photo, inspection sheet.
+  - term: Owner
+    definition: The user who uploaded a document; only the owner (or an admin) may delete it.
+aggregates: []
+notes: >
+  Supporting file storage. Document has an id (an entity) and one real rule — only the owning uploader
+  or an admin may delete it — but a transaction script is the right shape, not an aggregate.
+  Owner-of-a-document is a genuine domain relationship (it drives the delete rule), modelled here; the
+  uploader is not audit metadata.
+relationships:
+  - { to: Rentals, type: downstream }
+  - { to: Accounts, type: downstream }

@@ -29,3 +29,4 @@
 | [RFC-0025](./RFC-0025-gate-loop-role-plane.md) | Gate loop and the swe-flow role plane | implemented | TBD | 2026-07-23 |
 | [RFC-0026](./RFC-0026-gate-loop-hardening.md) | Gate-loop hardening — round 2 of the dogfood loop | implemented | TBD | 2026-07-23 |
 | [RFC-0027](./RFC-0027-ratification-policy.md) | Risk-tiered ratification — fewer asks, same provenance | implemented | TBD | 2026-07-24 |
+| [RFC-0028](./RFC-0028-domain-decompose-right-sizing.md) | Domain-decompose right-sizing — proportional tactical modelling and an additive model.yaml contract | implemented | TBD | 2026-07-24 |

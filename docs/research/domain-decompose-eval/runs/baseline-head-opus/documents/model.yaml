@@ -1,0 +1,21 @@
+context: Documents
+subdomain_type: supporting
+ubiquitous_language:
+  - term: Document
+    definition: An uploaded file linked to a rental or account.
+  - term: Owner
+    definition: The user who uploaded the document.
+  - term: Linked entity
+    definition: The rental/account the document is attached to (by id).
+aggregates:
+  - name: Document
+    root: Document
+    entities:
+      - { name: Document, attributes: [id, fileName, ownerUserId, linkedEntityId] }
+    value_objects: []
+    domain_events: []
+    invariants:
+      - Only the document owner (or an admin) may delete a document.
+relationships:
+  - { to: Rentals, type: downstream }
+  - { to: Accounts, type: downstream }

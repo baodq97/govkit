@@ -1,0 +1,16 @@
+context: Vendors
+subdomain_type: generic
+tactical_pattern: bought-adapter
+ubiquitous_language:
+  - term: StripePaymentClient
+    definition: Adapter that charges a card via Stripe.
+  - term: Auth0IdentityClient
+    definition: Adapter that resolves a user id from an Auth0 bearer token.
+  - term: SendGridNotificationClient
+    definition: Adapter that sends transactional email via SendGrid.
+aggregates: []
+notes: >
+  Three independent thin commodity adapters grouped in one module; none carries business rules by
+  design ("no model to build here"). Call sites not evidenced in the given source. Kept as one
+  context rather than three (QUESTIONS.md Q6), matching the actual code module boundary.
+relationships: []

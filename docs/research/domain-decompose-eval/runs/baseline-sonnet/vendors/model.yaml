@@ -1,0 +1,19 @@
+context: Vendors
+subdomain_type: generic
+tactical_pattern: bought-adapter
+ubiquitous_language:
+  - term: Payment charge
+    definition: A card charge made through Stripe.
+  - term: Identity resolution
+    definition: Resolving a bearer token to a user id through Auth0.
+  - term: Receipt notification
+    definition: A transactional email sent through SendGrid.
+aggregates: []
+notes: >
+  Three unrelated commodity adapters (Stripe, Auth0, SendGrid) grouped under one context because
+  the code groups them in one namespace/folder and none carries a domain model -- no business
+  logic to right-size differently between them.
+relationships:
+  - { to: "Stripe (external)", type: conformist }
+  - { to: "Auth0 (external)", type: conformist }
+  - { to: "SendGrid (external)", type: conformist }

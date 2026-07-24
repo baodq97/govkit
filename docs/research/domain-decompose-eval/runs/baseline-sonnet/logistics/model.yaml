@@ -1,0 +1,19 @@
+context: Logistics
+subdomain_type: supporting
+tactical_pattern: transaction-script
+ubiquitous_language:
+  - term: Delivery run
+    definition: A planned hand-off of one unit from a depot on a given date.
+aggregates:
+  - name: DeliveryRun
+    root: DeliveryRun
+    entities:
+      - { name: DeliveryRun, attributes: [assetTag, fromDepot, date] }
+    value_objects: []
+    domain_events: []
+notes: >
+  Light transaction-script derived directly from Allocation's EquipmentAllocated event. Logistics
+  and Allocation are one squad's shared-kernel pair (same team, shared model types, joint
+  releases per README.md and code comments) -- Logistics is not independently owned.
+relationships:
+  - { to: Allocation, type: shared-kernel }

@@ -1,0 +1,20 @@
+context: Catalog
+subdomain_type: master-data
+tactical_pattern: crud
+ubiquitous_language:
+  - term: Category
+    definition: A node in the equipment category tree (optionally parented).
+  - term: Depot
+    definition: A physical location record (id, city).
+  - term: Tag
+    definition: A free-form label usable across the platform.
+  - term: Equipment
+    definition: A tagged category assignment for one unit.
+aggregates: []
+notes: >
+  Master-data/reference context: aggregates, repositories, and domain events are explicitly
+  declined per SKILL.md's subdomain-type table, not omitted by oversight. Rentals is meant to
+  share this context's Equipment type directly (per a TODO in Rentals' own code) but does not yet
+  in the given source -- see context-map.md duplication-debt flag; not modelled as a relationship
+  here since it isn't actually wired.
+relationships: []

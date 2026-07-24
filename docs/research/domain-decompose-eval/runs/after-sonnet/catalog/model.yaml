@@ -1,0 +1,21 @@
+context: Catalog
+subdomain_type: generic
+tactical_pattern: crud
+ubiquitous_language:
+  - term: Equipment
+    definition: A physical unit's tag and category.
+  - term: Category
+    definition: A node in the equipment category tree (optional parent code).
+  - term: Depot
+    definition: A location that can hold units.
+  - term: Tag
+    definition: A free-form label used across the platform.
+aggregates: []
+notes: >
+  Master-data/reference type per ddd-methodology.md - plain lookup CRUD over
+  Category/Depot/Tag/Equipment; explicitly declining aggregates, repositories, and domain events
+  per the code's own comment ("no behaviour beyond storage and retrieval, no rules to enforce").
+  Mapped to subdomain_type=generic for model.yaml's 3-value enum - see context-map.md's mapping
+  note.
+relationships:
+  - { to: ErpSync, type: acl }

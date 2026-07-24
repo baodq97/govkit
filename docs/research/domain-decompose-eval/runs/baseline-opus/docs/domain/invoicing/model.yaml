@@ -1,0 +1,15 @@
+context: Invoicing
+subdomain_type: supporting
+tactical_pattern: transaction-script
+ubiquitous_language:
+  - term: Invoice
+    definition: A billing document raised for a placed rental order.
+aggregates: []
+notes: >
+  An internal invoicing service run by the Billing team. Supporting, not generic: it is custom and
+  its API shape is driven by Rentals, not a bought commodity (supporting-vs-generic is a genuine
+  question — QUESTIONS.md Q2). Customer-Supplier relationship — Rentals is the customer that holds
+  the pen on the contract; Billing supplies and plans around Rentals' requests. Consumes
+  RentalOrderPlaced (and the RaiseInvoice command).
+relationships:
+  - { to: Rentals, type: customer-supplier }

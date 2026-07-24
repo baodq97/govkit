@@ -1,0 +1,47 @@
+context: Catalog
+subdomain_type: generic
+ubiquitous_language:
+  - term: Equipment
+    definition: A unit's tag + category, as reference data.
+  - term: Category
+    definition: A node in the equipment category tree.
+  - term: Depot
+    definition: A physical location.
+  - term: Tag
+    definition: A free-form label.
+aggregates:
+  - name: Equipment
+    root: Equipment
+    entities:
+      - { name: Equipment, attributes: [tag, category] }
+    value_objects: []
+    domain_events: []
+    invariants: []
+  - name: Category
+    root: Category
+    entities:
+      - { name: Category, attributes: [code, parentCode] }
+    value_objects: []
+    domain_events: []
+    invariants: []
+  - name: Depot
+    root: Depot
+    entities:
+      - { name: Depot, attributes: [id, city] }
+    value_objects: []
+    domain_events: []
+    invariants: []
+  - name: Tag
+    root: Tag
+    entities:
+      - { name: Tag, attributes: [name] }
+    value_objects: []
+    domain_events: []
+    invariants: []
+relationships:
+  - to: ErpSync
+    type: upstream
+    confidence: inferred
+    note: >
+      INFERRED possible upstream source for Equipment records (matching Tag/Category shape);
+      unconfirmed — no concrete IAssetWriter implementation shown in code. See QUESTIONS.md Q4.

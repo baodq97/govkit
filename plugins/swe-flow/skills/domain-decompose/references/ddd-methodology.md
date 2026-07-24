@@ -48,7 +48,37 @@ map between polysemic concepts for integration. Ownership and change demands set
 duplicated anti-corruption logic can justify a shared kernel or open-host service (Fowler, Bounded
 Context; GetYourGuide).
 
-### 2.4 Finding boundaries (heuristics)
+### 2.4 What may be shared between contexts
+
+Contexts share concepts (§2.3), but *what* actually crosses the boundary decides how tightly they
+couple. Three distinct things get shared — mislabel one and the coupling goes in by stealth.
+
+| Level | What it is | Coupling | When acceptable |
+|-------|-----------|----------|-----------------|
+| **Building Blocks** | Technical base types (`Entity`, `ValueObject`, `AggregateRoot`, `Enumeration`) — **no business logic** | ~0 (generic, stable) | Always — version it like any library |
+| **Published Language** (+ OHS) | A versioned **contract** (schema / DTO / integration event); each side translates at its own edge | Medium — depends on the contract, not on internals | Common and healthy; the default way to share |
+| **Shared Kernel** | A small **domain model** with real ubiquitous-language meaning, touched live by both sides | **Highest** among cooperating patterns — a change needs mutual consent | Rare and expensive; use least, keep the Core Domain out |
+
+**Three corrections — the mislabels that couple contexts silently:**
+
+1. **Technical building blocks are NOT Evans' Shared Kernel.** A package that holds only base
+   classes is Building Blocks even if it is named `SharedKernel`. Judge by *content*: carries
+   business meaning → Shared Kernel; purely technical → Building Blocks.
+2. **A Shared Kernel deliberately *increases* coupling — it is not a de-duplication tool.** It
+   trades duplication for coordination, and you keep the **Core Domain out of it**. If the goal is
+   removing duplication *while staying loosely coupled*, the right move is **extract a context and
+   integrate via Published Language**, not a Shared Kernel.
+3. **"Core logic every module must follow" is an anti-DDD smell.** That is the single universal
+   model bounded contexts exist to eliminate. Cross-cutting rules everyone must obey belong to
+   **governance / architecture tests** (structure and process), not a shared domain model.
+
+**Rule:** label every artifact shared between two contexts with its level **on the context map**.
+Sharing an **entity / domain class** between contexts is **Shared Kernel coupling** — flag it with
+its cost (mutual-consent change, drift risk, Core-Domain leakage), never accept it silently.
+Prefer, in order of coupling: duplicate (lowest) → extract-a-context + Published Language (medium)
+→ Shared Kernel (highest, last resort).
+
+### 2.5 Finding boundaries (heuristics)
 
 Boundaries are **discovered empirically, not decreed upfront** — large boundaries chosen early
 "risk getting it wrong, and being stuck to them for a long time" (Verraes). Heuristics (ddd-crew):
@@ -63,7 +93,38 @@ Boundaries are **discovered empirically, not decreed upfront** — large boundar
 - **Human/organizational culture** is usually the dominant boundary factor, not just domain
   concepts (Fowler, Bounded Context).
 
-### 2.5 Monolith → Microservices mapping
+### 2.6 The capability-vs-context test
+
+Not every recurring noun cluster deserves a bounded context. **The test:** a bounded context must
+own a domain model with **real business invariants**. Before minting a context, ask *what
+invariants its model would own*. If the honest answer is "none — it only decorates or serves other
+contexts," it is a **capability of existing contexts, not a context of its own**. Minting one
+anyway forces a single universal model (§2.2) — the exact thing bounded contexts exist to remove.
+
+Two clusters that repeatedly fail the test:
+
+- **Ownership / permissions.** `owner` is **polysemic** across contexts and both readings are
+  correct: in a business context it is a domain term with its own rules (a record's responsible
+  party, a salesperson on a deal); to an authorization capability it is just a relation edge
+  `(user, owner, resource)` — meaningless alone, only an input to policy. An "Ownership" context
+  would force one global `owner`, a compromise model serving no context well. Model ownership as a
+  **per-context projection** each context publishes toward an authorization capability. Namespaced
+  relations keep the meanings apart — `document:owner` and `folder:owner` are two separate
+  relations, not one global `Owner` (Zanzibar) — and that namespacing is exactly what avoids a
+  Shared Kernel on the word "owner."
+- **Audit / activity-history.** Its would-be invariants — retention, legal hold, integrity, who
+  may read — are thin. In an ordinary domain, audit is a **cross-cutting capability plus a store**
+  (an append-only table, one writer, a few queries), not a context: decline the aggregate and
+  repository. **Escalation condition (record it when declining):** in a regulated domain (finance,
+  healthcare) — or when the audit trail *itself is the product* — retention, legal hold, and
+  chain-of-evidence become genuine business invariants, and audit **does** become a bounded
+  context. State that trigger so a later reviewer knows what would flip the decision.
+
+**General rule:** before minting a context, name the business invariants its model would own. None
+→ it is a capability of existing contexts; record it as a **declined candidate** with the reason
+(and the escalation condition, if one exists), rather than carving a boundary around it.
+
+### 2.7 Monolith → Microservices mapping
 
 A bounded context is a candidate **service boundary**; the progression is `sub-domains → bounded
 contexts → autonomous teams → services` (ddd-crew). Validate a split with Domain Message Flow
@@ -166,4 +227,7 @@ waterfall:
 - Bogard, *Strengthening your domain: a primer* — https://lostechies.com/jimmybogard/2010/02/04/strengthening-your-domain-a-primer/
 - Open Practice Library, *Event Storming* — https://openpracticelibrary.com/practice/event-storming/
 - Open Practice Library, *Domain Storytelling* — https://openpracticelibrary.com/practice/domain-storytelling/
+- Evans, *Domain-Driven Design* (Blue Book) — origin of Bounded Context, Shared Kernel, Published Language, Conformist.
+- Vernon, *Implementing Domain-Driven Design* — Open Host Service / Published Language / ACL in practice; Shared Kernel as highest-coupling, last-resort integration.
+- Google, *Zanzibar* — namespaced relations (`document:owner` vs `folder:owner`) as the alternative to a shared global `Owner` model — https://research.google/pubs/zanzibar-googles-consistent-global-authorization-system/
 - `[unavailable]` cosmicpython / *Architecture Patterns with Python* — TLS cert expired at fetch; substituted Fowler's Domain Event article for the domain-event section.

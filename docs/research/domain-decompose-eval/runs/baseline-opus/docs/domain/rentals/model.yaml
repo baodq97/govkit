@@ -1,0 +1,34 @@
+context: Rentals
+subdomain_type: core
+tactical_pattern: full-domain-model
+ubiquitous_language:
+  - term: RentalOrder
+    definition: Ties a customer to one or more committed units at an agreed (quoted) price.
+  - term: Customer
+    definition: The renting account billed for the order (renter / prospect / partner-account).
+  - term: Agreed price
+    definition: The last PriceQuoted amount consumed from Pricing when the order is placed.
+  - term: Active rental
+    definition: An in-force rental order (definition currently in SharedDomainRules; belongs here).
+aggregates:
+  - name: RentalOrder
+    root: RentalOrder
+    entities:
+      - { name: RentalOrder, attributes: [orderId, customerId, assetTag, amount, status] }
+    value_objects:
+      - { name: Money, attributes: [amount, currency] }
+    domain_events:
+      - { name: RentalOrderPlaced, payload: [orderId, customerId, assetTag, amount] }
+    invariants: []
+notes: >
+  Core as the commercial order spine, but lighter than Allocation/Pricing — the differentiating rules
+  live there (see QUESTIONS.md Q1). Consumes the PriceQuoted published language (holds only the
+  contract shape, never Pricing internals) and drives the Invoicing API (Customer-Supplier). No hard
+  invariant beyond "an order ties a customer to a committed unit at the quoted price" is stated — not
+  inventing one. Duplicate private Equipment class is tech debt (Q6), not a modelled entity.
+relationships:
+  - { to: Pricing, type: downstream }
+  - { to: Invoicing, type: customer-supplier }
+  - { to: Allocation, type: downstream }
+  - { to: Catalog, type: downstream }
+  - { to: Accounts, type: downstream }

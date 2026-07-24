@@ -1,0 +1,11 @@
+context: Identity
+subdomain_type: generic
+tactical_pattern: bought-adapter
+ubiquitous_language: []
+aggregates: []
+notes: >
+  Login / user identity via Auth0 - commodity behind a thin adapter (Auth0IdentityClient).
+  Cross-cutting; no domain model. This is the authentication side of the authorization capability
+  that the declined Ownership/Permissions context (see context-map) projects toward via namespaced
+  per-context ownership relations - not a domain model here.
+relationships: []

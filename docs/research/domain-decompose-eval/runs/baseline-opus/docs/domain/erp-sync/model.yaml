@@ -1,0 +1,17 @@
+context: ErpSync
+subdomain_type: generic
+tactical_pattern: bought-adapter
+ubiquitous_language:
+  - term: AssetRecord
+    definition: Our own clean unit record (tag + category), translated from the ERP's shifting shapes.
+  - term: Anti-Corruption Layer
+    definition: The translation boundary that quarantines the ERP's mess so nothing downstream sees a raw ERP field.
+aggregates: []
+notes: >
+  Generic integration. Nightly read-only pull from a legacy ERP over SOAP that we do not own and
+  cannot change. Classic Anti-Corruption Layer: defensively maps the ERP's inconsistent/renamed
+  fields (ASSET_NO vs assetNo, reordered columns, stray nulls) into clean AssetRecords; if the ERP
+  breaks its format the damage stops here. No domain model — the value is isolation, not modelling.
+relationships:
+  - { to: ExternalERP, type: acl }
+  - { to: Catalog, type: upstream }

@@ -73,7 +73,7 @@ ddd-methodology.md §3. Don't formalize yet.
 
 ### 3. First-pass strategic decomposition
 - Group events/nouns into **bounded contexts** by the boundary heuristics — a boundary is where
-  the *language changes meaning*, cohesion high and coupling low (ddd-methodology.md §2.2, §2.4).
+  the *language changes meaning*, cohesion high and coupling low (ddd-methodology.md §2.2, §2.5).
 - Classify each **core / supporting / generic** — core = competitive differentiator; generic =
   commodity you could buy (§2.1).
 - Sketch **relationships** between contexts (upstream/downstream, ACL, shared kernel, etc.).
@@ -82,14 +82,37 @@ ddd-methodology.md §3. Don't formalize yet.
   document) crossing contexts. State it explicitly and consider elevating it to its own context;
   it's usually the first service to extract on the monolith→microservices path — don't leave it
   buried inside a large context.
+- Before finalizing the context list, run the **capability-vs-context test** on every candidate
+  (ddd-methodology.md §2.6): a context must own a domain model with real business invariants. A
+  noun cluster with none — ownership/permissions, audit/activity-history — is a **capability of
+  existing contexts, not a context**; drop it and record it as a declined candidate with the
+  reason, including the **escalation condition** that would promote it (e.g., a regulated domain
+  making audit retention/legal-hold real invariants).
 
-### 4. First-pass tactical model (per context)
-For each context, identify **aggregates** (consistency boundaries) — each with its root entity,
-member **entities** (identity), **value objects** (no identity, equal by value), and the **domain
-events** it emits. Apply the aggregate rules in aggregate-design-canvas.md; name from the
+### 4. First-pass tactical model (per context) — sized to the subdomain type
+**Match tactical depth to each context's subdomain type from step 3 — do not model every context
+the same way.** Uniform aggregate/entity/event machinery on every context is a cargo-cult smell,
+not thoroughness: it buries the one or two areas that deserve a rich model under ceremony the
+supporting, generic, and reference areas never needed.
+
+| Subdomain type | Tactical pattern | Aggregates? |
+|---|---|---|
+| **Core** | Full domain model — aggregates as real consistency boundaries, entities/VOs/events, invariants named from the stated rules. | **Yes** — this is where the modelling effort goes. |
+| **Supporting** | A deliberately lighter shape — transaction script / active record / CRUD-plus-a-calculation. Say it is lighter *on purpose*. | **Usually not** — don't impose aggregate ceremony on record-keeping. |
+| **Generic** | Buy or integrate behind a thin adapter. No domain model. | **No.** |
+| **Master-data / reference** | Plain CRUD over lookup records (e.g. countries, currencies, status codes). | **No** — explicitly decline aggregates, repositories, and domain events; note why. |
+
+For **core** contexts, identify **aggregates** (consistency boundaries) — each with its root
+entity, member **entities** (identity), **value objects** (no identity, equal by value), and the
+**domain events** it emits. Apply the aggregate rules in aggregate-design-canvas.md; name from the
 ubiquitous language (see Naming below). A concept with an id, its own lifecycle/status, or
 (brownfield) its own table/repository is an **entity** even if it looks data-like — don't demote
 an identified concept to a value object.
+
+For **supporting / generic / master-data** contexts, record the lighter pattern and the reason
+*instead of* forcing aggregates. A `model.yaml` with `aggregates: []` plus a one-line rationale
+(a transaction script, a bought adapter, or plain lookup CRUD) is the correct, complete output for
+them — an empty aggregate list here is a deliberate right-sizing decision, not a gap.
 
 Then run an **event-flow continuity check**: every emitted domain event should have at least one
 consumer (a handler/policy in some context), and every cross-context arrow on the map should
@@ -121,6 +144,11 @@ frontmatter, `INDEX.md` rows, per-context `model.yaml`):
   longer in the model — flag it instead, and record real disagreements in the Conflicts table.
   Close with a short **changelog** (added / updated / preserved / flagged). The exact merge rules
   are in output-template.md §"Delta merge".
+
+In `context-map.md` (either mode), **label every cross-context shared artifact with its sharing
+level** — Building Blocks / Published Language / Shared Kernel (ddd-methodology.md §2.4) — and
+**flag any shared entity or domain class as Shared Kernel coupling with a stated cost** (mutual-
+consent change, drift risk), rather than leaving it on the map unlabeled.
 
 ## Naming conventions
 

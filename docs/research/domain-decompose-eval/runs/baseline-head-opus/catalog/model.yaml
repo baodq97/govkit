@@ -1,0 +1,33 @@
+context: Catalog
+subdomain_type: supporting
+ubiquitous_language:
+  - term: Category
+    definition: A node in the equipment category tree (code + optional parent).
+  - term: Depot
+    definition: A location reference record (id + city). Distinct from Allocation's owning-depot sense.
+  - term: Tag
+    definition: A free-form label applied across the platform.
+  - term: Equipment
+    definition: Reference shape (tag + category); Catalog is the source of truth.
+aggregates:
+  - name: Category
+    root: Category
+    entities:
+      - { name: Category, attributes: [code, parentCode] }
+    value_objects: []
+    domain_events: []
+  - name: Depot
+    root: Depot
+    entities:
+      - { name: Depot, attributes: [id, city] }
+    value_objects: []
+    domain_events: []
+  - name: Tag
+    root: Tag
+    entities:
+      - { name: Tag, attributes: [name] }
+    value_objects: []
+    domain_events: []
+relationships:
+  - { to: Allocation, type: upstream }
+  - { to: Rentals, type: upstream }

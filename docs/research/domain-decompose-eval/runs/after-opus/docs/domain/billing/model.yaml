@@ -1,0 +1,17 @@
+context: Billing
+subdomain_type: supporting
+tactical_pattern: transaction-script
+ubiquitous_language:
+  - term: Invoice
+    definition: A billable record raised for a placed order.
+  - term: RaiseInvoice
+    definition: The command Rentals sends over IInvoicingPort.
+aggregates: []
+notes: >
+  Internal invoicing service owned by ANOTHER team (Billing). We hold only the IInvoicingPort
+  contract; the invoice model lives in the billing service, not here, so no domain model is emitted
+  - it is not ours to model. Customer-Supplier: Rentals is the customer and drives the API (billing
+  adds the fields Rentals asks for). Consumes RentalOrderPlaced / RaiseInvoice; charges cards via
+  Payments (implied by the narrative, not wired in the reviewed code).
+relationships:
+  - { to: Rentals, type: customer-supplier }

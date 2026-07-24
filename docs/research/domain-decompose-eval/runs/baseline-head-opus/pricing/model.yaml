@@ -1,0 +1,24 @@
+context: Pricing
+subdomain_type: core
+ubiquitous_language:
+  - term: Quote
+    definition: A price for a category and window after discount and floor are applied.
+  - term: Utilization
+    definition: Share of the fleet already committed (0-1); drives the floor.
+  - term: Floor
+    definition: Minimum permitted price = listRate x (0.60 + 0.40 x utilization).
+  - term: PriceQuoted
+    definition: The stable, versioned published contract emitted for consumers (currently v2).
+aggregates:
+  - name: Quote
+    root: Quote
+    entities:
+      - { name: Quote, attributes: [category, listRate, utilization, requestedDiscount, finalAmount] }
+    value_objects:
+      - { name: Money, attributes: [amount, currency] }
+    domain_events:
+      - { name: PriceQuoted, payload: [category, amount, utilization, contractVersion] }
+    invariants:
+      - A quote can never fall below the utilization-derived floor; at 100% utilization the floor equals the full list rate.
+relationships:
+  - { to: Rentals, type: open-host }
