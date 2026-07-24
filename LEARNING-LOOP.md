@@ -1269,3 +1269,24 @@ good as no gate. Rule: the push is *conditional on* the gate — `bun run check 
 never `check; …; push` — and any tool that writes a tracked file runs the formatter before the
 gate. Where it now lives: this entry; round-2 backlog (verifier contract already carries the
 generalized form: a green claim needs the full gate, and *acting on* the claim needs the green).
+
+## Round 18 — 2026-07-24: gate-loop dogfood round 2
+
+**F10 — real callers pass stringified args.** The FIRST production invocation of the shipped
+`gate-loop.js` failed at arg-parse: the caller passed `args` as a JSON-encoded string, the
+required-arg guard threw exactly as designed (fail-loud named `verifyCmd`), and the tolerance
+(`typeof args === "string" ? JSON.parse(args) : …`) landed the same session. A guard that
+names the missing thing converts a mystery into a one-commit fix.
+
+**The fallback earned its keep on day one.** `swe-flow:red-teamer` could not resolve on the
+installed plugin 0.7.0; the discriminating catch classified it as a resolution failure and the
+file-read fallback returned a schema-valid verdict. The review's P1 about pattern brittleness
+was adjudicated no-change — validated by the live firing, not by speculative broadening.
+
+**RED-first recursion.** Check D's new regression suite was proven by Check D itself: with the
+test file on disk but unwired, `check-sync` exited 1 naming its own test as an orphan. A
+detector that catches its own deliverable is the cheapest possible calibration fixture.
+
+**Formatter-before-gate, second offense class.** A hand-`json.dump`ed file and an unsorted
+import both reached the gate red this round; both were caught BEFORE commit by the F9 rule
+(`check && commit`). The rule paid for itself within one session of being written.

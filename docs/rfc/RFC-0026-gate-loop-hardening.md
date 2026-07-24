@@ -1,7 +1,7 @@
 ---
 id: RFC-0026
 title: Gate-loop hardening — round 2 of the dogfood loop
-status: accepted
+status: implemented
 owner: TBD
 date: 2026-07-23
 governs:
@@ -178,3 +178,30 @@ into a silent default.
   deliberate — the failures were execution-ordering and edit-discipline, which no keyless gate can
   see — but it means their enforcement rests on the contract being read. Revisit if Round 18 logs
   a repeat.
+
+## As-built
+
+Shipped on `rfc-0026-gate-loop-hardening` (merged at `a0f2c86`), all gates green, every claim
+below backed by a recorded exit code:
+
+- **C1/C3** — green-claim + reconcile-as-you-go contract lines in `verifier.md` (iron rule 3),
+  `implementer.md` (`verifierShouldRun` full-gate naming + `governedDocsTouched` governs-grep
+  duty), and two `AGENTS.md` Coding-rules bullets.
+- **C2** — Check D orphan-artifact detector in `check-sync.mjs`; core extracted as pure
+  `findOrphans()` with a 10-case `node:test` suite wired into `check` (RED-first: the check
+  flagged its own unwired test file, exit 1, before the wiring landed).
+- **C4** — `dispatchRole` in `gate-loop.js` + template copy: plugin `agentType` first,
+  file-read fallback only on resolution errors (discriminating catch). Proven live on this
+  RFC's own close: `swe-flow:red-teamer` failed to resolve on plugin 0.7.0 and the fallback
+  returned a schema-valid verdict.
+- **C5/F10** — JSON-string args tolerance, added after the first production invocation failed
+  at arg-parse (run `wf_3ce99e82`); malformed strings still throw.
+
+## Deviations from design
+
+- C5 was not in the draft's scope — it was discovered *during this RFC's own gate-loop close*
+  and folded in; the Summary lede records this as evidence the loop works.
+- The C1 implementer clause shipped role-appropriate (report-contract fields), not verbatim as
+  first drafted.
+- Review P1 on the fallback catch pattern was adjudicated no-change: validated by the live
+  fallback firing on this close rather than by broadening the pattern speculatively.

@@ -139,6 +139,13 @@
       "spec": "RFC-0025",
       "passes": true,
       "check": "sim wf_7554b4fa: bun run check exit 0; live release preset \u2014 npm pack\u2192install tarball\u2192init/verify exit 0\u2192induced verify exit 1 + check --hook exit 2\u2192restore exit 0; tarball engine-only (tar -tzf grep plugins/ exit 1); 9/10 claims proven by ranCommands"
+    },
+    {
+      "id": "F-R8-GATELOOP-R2",
+      "title": "gate-loop hardening round 2: green-claim contract, tested orphan detector, live-proven dispatch fallback, string-args tolerance",
+      "spec": "RFC-0026",
+      "passes": true,
+      "check": "run wf_970c53c4: gate SAFE-TO-COMMIT provenFallible=true; red-teamer dispatch errored on 0.7.0 -> file-read fallback returned schema-valid flip-after-reconcile; check-sync orphan probes exit 1/0/1/0; check-sync.test 10/10; bun run check exit 0 at merge"
     }
   ]
 }
