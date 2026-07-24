@@ -1,0 +1,35 @@
+context: Pricing
+subdomain_type: core
+tactical_pattern: full-domain-model
+ubiquitous_language:
+  - term: RentalQuote
+    definition: A computed price for a rental window at a point-in-time fleet utilization.
+  - term: Floor
+    definition: Lowest permitted price, = listRate * (0.60 + 0.40 * utilization); full list rate at 100% utilization.
+  - term: Utilization
+    definition: How heavily the fleet is already used (0..1); drives the floor.
+  - term: Discount ceiling
+    definition: Maximum discount a rep may apply (MaxDiscountRate = 0.35).
+  - term: List rate
+    definition: The base per-window rate for a category before discount.
+aggregates:
+  - name: RentalQuote
+    root: RentalQuote
+    entities:
+      - { name: RentalQuote, attributes: [category, listRate, utilization, finalPrice] }
+    value_objects:
+      - { name: Money, attributes: [amount, currency] }
+    domain_events:
+      - { name: PriceQuoted, payload: [category, amount, utilization, contractVersion] }
+    invariants:
+      - A quote can never fall below the utilization-derived floor (floor = listRate * (0.60 + 0.40 * utilization)); no discount at 100% utilization.
+      - A rep may not apply more than the discount ceiling (MaxDiscountRate = 0.35).
+      - Money is rounded to 2 dp away from zero (rule currently in SharedDomainRules; belongs here).
+notes: >
+  Core because the utilization-derived floor is the differentiating rule. The quote is computed and
+  published rather than persisted long-term; PriceQuoted is the Open-Host / Published-Language
+  message crossing to Rentals (versioned v1 -> v2, kept until every consumer migrates). The floor
+  (utilization) and the 0.35 discount ceiling are distinct mechanisms and both apply — this
+  contradicts the stale draft "no minimum" note (see Conflicts / QUESTIONS.md Q3).
+relationships:
+  - { to: Rentals, type: open-host }

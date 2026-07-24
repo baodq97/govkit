@@ -1,0 +1,30 @@
+context: Allocation
+subdomain_type: core
+ubiquitous_language:
+  - term: Reservation
+    definition: One physical unit committed to one depot for one date window (held -> released).
+  - term: Asset
+    definition: A physical rental unit identified by its AssetTag.
+  - term: Depot
+    definition: The location that owns a unit while it is committed and must release it.
+  - term: Availability
+    definition: Derived from overlapping reservations; not a separate module.
+aggregates:
+  - name: Reservation
+    root: Reservation
+    entities:
+      - { name: Reservation, attributes: [id, assetTag, depotId, start, end, status] }
+    value_objects:
+      - { name: DateRange, attributes: [start, end] }
+    domain_events:
+      - { name: EquipmentAllocated, payload: [reservationId, assetTag, depotId, start] }
+      - { name: DepotTransferRequested, payload: [assetTag, fromDepot, toDepot, when] }
+    invariants:
+      - The same physical unit can never be committed twice for overlapping windows, not even from a different depot.
+      - A unit that is out of service (pulled for maintenance) cannot be committed.
+      - A rental window must be at least one day (end > start).
+relationships:
+  - { to: Logistics, type: shared-kernel }
+  - { to: Maintenance, type: downstream }
+  - { to: Fleet, type: downstream }
+  - { to: Catalog, type: downstream }

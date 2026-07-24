@@ -1,0 +1,16 @@
+context: Documents
+subdomain_type: generic
+tactical_pattern: crud
+ubiquitous_language:
+  - term: Document
+    definition: An uploaded file - id, file name, uploader (owner), linked entity id.
+  - term: Owner
+    definition: The user who uploaded the document; the only one (besides an admin) who may delete it.
+aggregates: []
+notes: >
+  CRUD over Document records; the only rule (owner/admin may delete) is an authorization check on
+  a per-context "owner" projection (ddd-methodology.md §2.6), not a cross-aggregate consistency
+  invariant needing an aggregate boundary. subdomain_type=generic is an assumption
+  (QUESTIONS.md Q3) - serves Rentals and Accounts by a generic LinkedEntityId, but no call site
+  from either is shown in the given source.
+relationships: []

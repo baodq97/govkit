@@ -1,0 +1,18 @@
+ERP sync — operational notes
+============================
+
+The ERP is the box in the corner that finance still runs on. We only ever READ
+from it, once a night, over its SOAP interface.
+
+Hard truths about it:
+  - We do not own it and cannot get changes made to it. The team that built the
+    integration is long gone; the vendor quotes six figures to touch anything.
+  - Its export format is inconsistent. Field names have changed between releases
+    (ASSET_NO vs assetNo), nulls show up where they shouldn't, and occasionally a
+    batch arrives with columns in a different order.
+  - When it misbehaves, it must not be allowed to corrupt our own asset records.
+
+Because of all that, the sync job keeps the ERP's mess quarantined: it reads the
+raw dump, translates it into our own clean shapes, and only then hands it on.
+Nothing past the sync job ever sees a raw ERP field. If the ERP changes again,
+only the sync job should need touching.

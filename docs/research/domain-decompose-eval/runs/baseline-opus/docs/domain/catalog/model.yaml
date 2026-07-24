@@ -1,0 +1,20 @@
+context: Catalog
+subdomain_type: generic
+tactical_pattern: crud
+ubiquitous_language:
+  - term: Category
+    definition: A node in the equipment category tree (code + optional parent).
+  - term: Depot
+    definition: A location record (id + city).
+  - term: Tag
+    definition: A free-form label applied to units.
+  - term: Equipment / Asset
+    definition: The canonical unit reference record (tag + category); fed by the ERP ACL.
+aggregates: []
+notes: >
+  Master-data / reference: pure lookups (add, rename, retire) with no rules to enforce. Explicitly no
+  aggregates, repositories, or domain events — an empty model is the correct, complete output here.
+  Candidate system-of-record for the Equipment/Asset registry that ERP sync writes into and that
+  Rentals should consume instead of keeping its own duplicate Equipment class (QUESTIONS.md Q6).
+relationships:
+  - { to: ErpSync, type: downstream }

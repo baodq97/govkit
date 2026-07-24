@@ -1,0 +1,25 @@
+context: ErpSync
+subdomain_type: generic
+ubiquitous_language:
+  - term: Asset record
+    definition: The platform's own clean shape for an ERP-sourced asset (tag + category).
+aggregates:
+  - name: AssetRecord
+    root: AssetRecord
+    entities:
+      - { name: AssetRecord, attributes: [tag, category] }
+    value_objects: []
+    domain_events: []
+    invariants:
+      - "Nothing outside the sync job may ever see a raw ERP field — all translation from the ERP's shifting export shapes happens here before anything else touches the data."
+relationships:
+  - to: "ERP (external)"
+    type: acl
+    external: true
+    note: >
+      Nightly SOAP pull from a legacy, unstable ERP we don't own; translates its shifting field
+      names (e.g. ASSET_NO vs assetNo) into our clean shape.
+  - to: Catalog
+    type: downstream
+    confidence: inferred
+    note: "INFERRED — see Catalog's relationships entry; not confirmed in code. See QUESTIONS.md Q4."

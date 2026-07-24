@@ -1,0 +1,28 @@
+context: Pricing
+subdomain_type: core
+tactical_pattern: full-domain-model
+ubiquitous_language:
+  - term: Quote
+    definition: A dynamically computed price for a category/listRate/utilization/requestedDiscount.
+  - term: Utilization
+    definition: How busy the fleet is (0-1); the discount floor rises as utilization rises.
+  - term: Floor
+    definition: The minimum price a quote may settle at; enforced against any requested discount.
+aggregates:
+  - name: PriceQuote
+    root: PriceQuote
+    entities: []
+    value_objects:
+      - { name: PriceQuote, attributes: [category, amount, utilization, contractVersion] }
+    domain_events:
+      - { name: PriceQuoted, payload: [category, amount, utilization, contractVersion] }
+    invariants:
+      - "A quote can never fall below a floor of listRate x (0.60 + 0.40 x utilization); at 100% utilization the floor equals the full list rate."
+notes: >
+  Not a persisted aggregate — Pricing is a stateless domain service (nothing here has identity or
+  a lifecycle). This entry exists only to give the PriceQuote value object and the PriceQuoted
+  event a schema home, per the note in the README. subdomain_type=core is an assumption
+  (QUESTIONS.md Q1): the invariant is real and actively enforced, but README.md never uses
+  differentiator language for Pricing the way it does for Allocation.
+relationships:
+  - { to: Rentals, type: open-host }

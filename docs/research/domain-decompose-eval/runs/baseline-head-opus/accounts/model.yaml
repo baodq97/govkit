@@ -1,0 +1,21 @@
+context: Accounts
+subdomain_type: supporting
+ubiquitous_language:
+  - term: Sales account
+    definition: A customer record (id, name, segment) owned by a sales rep.
+  - term: Sales rep
+    definition: The party who owns the commercial relationship on an account.
+  - term: Segment
+    definition: The CRM's segment code, mirrored verbatim.
+aggregates:
+  - name: SalesAccount
+    root: SalesAccount
+    entities:
+      - { name: SalesAccount, attributes: [accountId, salesRepId, name, segment] }
+    value_objects: []
+    domain_events: []
+    invariants:
+      - Only the owning sales rep may change terms on an account.
+      - Account records mirror the CRM's field names, segment codes, and id format verbatim (conformist).
+relationships:
+  - { to: ThirdPartyCRM (external), type: conformist }

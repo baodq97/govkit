@@ -1,0 +1,16 @@
+context: Maintenance
+subdomain_type: supporting
+tactical_pattern: transaction-script
+ubiquitous_language:
+  - term: MaintenanceRecord
+    definition: One unit's service history — last serviced date, interval, out-of-service flag.
+  - term: Next due
+    definition: lastServiced + intervalDays; the one calculation this context performs.
+aggregates: []
+notes: >
+  Record-keeping only, per the code's own comment ("nothing to keep atomically consistent beyond
+  a single record"). MaintenanceRecord (id, assetTag, lastServiced, intervalDays, outOfService) is
+  tracked as a plain active-record entity, not an aggregate. Declining aggregate ceremony
+  deliberately, per SKILL.md step 4's supporting-context guidance.
+relationships:
+  - { to: Allocation, type: upstream }

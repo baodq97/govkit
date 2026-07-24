@@ -1,0 +1,22 @@
+context: Accounts
+subdomain_type: supporting
+tactical_pattern: crud
+ubiquitous_language:
+  - term: Sales account
+    definition: A customer account owned by one sales rep, mirrored from the CRM verbatim.
+  - term: Owns (rep -> account)
+    definition: The sales rep is the only party allowed to change terms on the account.
+aggregates:
+  - name: SalesAccount
+    root: SalesAccount
+    entities:
+      - { name: SalesAccount, attributes: [accountId, salesRepId, name, segment] }
+    value_objects: []
+    domain_events: []
+    invariants:
+      - "The sales rep recorded as SalesRepId is the only party allowed to change terms on the account."
+notes: >
+  Named Accounts per the code (src/Accounts), not "crm-import" as config/teams.yaml calls it --
+  see context-map.md Conflicts table and QUESTIONS.md Q3. Conformist to the external CRM: fields
+  are mirrored exactly, no translation, per the code's own comment.
+relationships: []

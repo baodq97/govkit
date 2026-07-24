@@ -1,0 +1,15 @@
+context: Invoicing
+subdomain_type: supporting
+tactical_pattern: transaction-script
+ubiquitous_language:
+  - term: Raise invoice
+    definition: Ask the billing team's invoicing service to bill a customer for an order.
+aggregates: []
+notes: >
+  This module is RentField's client/port to an internally-run invoicing service owned by the
+  billing team (config/teams.yaml: billing owns invoicing). The Invoice aggregate itself belongs
+  to that service and is out of scope here -- only the port/adapter is modelled. Flag: RaiseInvoice
+  appears reachable via two independent paths for one order (direct call + event handler); see
+  context-map.md event-flow continuity check.
+relationships:
+  - { to: Rentals, type: customer-supplier }

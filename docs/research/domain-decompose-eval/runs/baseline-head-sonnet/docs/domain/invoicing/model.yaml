@@ -1,0 +1,23 @@
+context: Invoicing
+subdomain_type: supporting
+ubiquitous_language:
+  - term: Invoice
+    definition: A billing record raised for one order, one customer, one amount.
+aggregates:
+  - name: Invoice
+    root: Invoice
+    entities:
+      - name: Invoice
+        attributes: [orderId, customerId, amount]
+        note: >
+          Inferred only from the RaiseInvoice call contract; the Invoicing team's own internal
+          aggregate design isn't visible in this codebase (only the Rentals-side port/client is).
+    value_objects: []
+    domain_events: []
+    invariants: []
+relationships:
+  - to: Rentals
+    type: upstream
+    note: >
+      Rentals is upstream in influence (Customer/Supplier pattern): Invoicing's API evolves around
+      Rentals' requests, even though Rentals is the runtime caller.

@@ -1,0 +1,21 @@
+context: Rentals
+subdomain_type: supporting
+ubiquitous_language:
+  - term: Rental order
+    definition: A customer tied to one or more committed units at an agreed price.
+  - term: Agreed price
+    definition: The last PriceQuoted amount received from Pricing.
+aggregates:
+  - name: RentalOrder
+    root: RentalOrder
+    entities:
+      - { name: RentalOrder, attributes: [orderId, customerId, assetTag, amount] }
+    value_objects:
+      - { name: Money, attributes: [amount, currency] }
+    domain_events:
+      - { name: RentalOrderPlaced, payload: [orderId, customerId, assetTag, amount] }
+relationships:
+  - { to: Pricing, type: conformist }
+  - { to: Catalog, type: conformist }
+  - { to: Fleet, type: downstream }
+  - { to: Invoicing, type: downstream }

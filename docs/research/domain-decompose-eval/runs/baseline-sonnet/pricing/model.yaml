@@ -1,0 +1,24 @@
+context: Pricing
+subdomain_type: core
+tactical_pattern: full-domain-model
+ubiquitous_language:
+  - term: Quote
+    definition: A priced, category-scoped rental rate for one window; no identity, never persisted.
+  - term: Utilization
+    definition: How busy the fleet is (0-1); drives both price and floor.
+  - term: Discount floor
+    definition: The lowest a quote may fall regardless of requested discount.
+  - term: Contract version
+    definition: The version tag on the published PriceQuoted shape (v1, v2, ...).
+aggregates: []
+notes: >
+  Deliberately no aggregate: Quote/PriceQuoted carries no identity and is never persisted or
+  referenced by id in the given source (it is produced and immediately published) -- it is a value
+  object, not an aggregate root, so forcing a fabricated identity here would be invention, not
+  modelling. The core invariant (the utilization-driven discount floor) is enforced by the
+  PricingEngine calculation itself and is recorded as a business rule in README.md rather than
+  nested under a non-existent aggregate. This context is still core: the invariant and the
+  investment in a versioned Published Language contract (PriceQuoted v1->v2) are genuine
+  differentiators, not aggregate machinery. See context-map.md "Load-bearing extraction seam".
+relationships:
+  - { to: Rentals, type: open-host }

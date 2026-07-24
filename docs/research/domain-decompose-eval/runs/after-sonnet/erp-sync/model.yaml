@@ -1,0 +1,15 @@
+context: ErpSync
+subdomain_type: generic
+tactical_pattern: transaction-script
+ubiquitous_language:
+  - term: AssetRecord
+    definition: RentField's own clean shape for an asset - tag, category.
+  - term: ErpRow
+    definition: The ERP's raw, unstable export row (field names shift between releases).
+aggregates: []
+notes: >
+  Nightly translation job / Anti-Corruption Layer over the legacy ERP's SOAP export - no domain
+  model, no aggregates. The isolation rule ("nothing outside this job sees a raw ERP field") is a
+  technical/architectural invariant, not a business one, per docs/erp-integration-notes.txt.
+relationships:
+  - { to: Catalog, type: acl }

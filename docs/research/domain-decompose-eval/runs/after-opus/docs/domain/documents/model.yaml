@@ -1,0 +1,18 @@
+context: Documents
+subdomain_type: supporting
+tactical_pattern: transaction-script
+ubiquitous_language:
+  - term: Document
+    definition: An uploaded file linked to a rental or account.
+  - term: Owner (uploader)
+    definition: The user who uploaded a document and may delete it (OwnerUserId); an ownership projection, not audit metadata.
+  - term: LinkedEntityId
+    definition: The rental or account the document is attached to.
+aggregates: []
+notes: >
+  Files attached to rentals and accounts. Deliberately light - CRUD plus one authorization rule.
+  STATED RULE (captured, not invented): only the document owner (the uploader) or an admin may
+  delete it - recorded under business rules rather than forced into aggregate machinery. OwnerUserId
+  is the uploader-owner projection (a real domain relationship), not audit metadata. No cross-context
+  event, so no aggregate.
+relationships: []

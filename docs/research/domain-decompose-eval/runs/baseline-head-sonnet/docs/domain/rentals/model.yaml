@@ -1,0 +1,45 @@
+context: Rentals
+subdomain_type: supporting
+ubiquitous_language:
+  - term: Rental order
+    definition: Ties a customer to one committed unit at an agreed price.
+  - term: Place
+    definition: The command that creates an order, raises the invoice, and publishes RentalOrderPlaced.
+aggregates:
+  - name: RentalOrder
+    root: RentalOrder
+    entities:
+      - { name: RentalOrder, attributes: [orderId, customerId, assetTag, amount] }
+    value_objects: []
+    domain_events:
+      - { name: RentalOrderPlaced, payload: [orderId, customerId, assetTag, amount] }
+    invariants: []
+relationships:
+  - to: Pricing
+    type: downstream
+    note: "Consumes PriceQuoted (contract v2) via Pricing.Contracts only; never Pricing internals."
+  - to: Invoicing
+    type: downstream
+    note: >
+      Customer/Supplier: Rentals is the customer whose requests shape Invoicing's API, even though
+      Rentals is the runtime caller (RaiseInvoice).
+  - to: Allocation
+    type: downstream
+    confidence: gap
+    note: >
+      GAP, not asserted — README implies Rentals turns "a reservation" into an order, but Place()
+      takes a bare assetTag string with no call to Allocation and no EquipmentAllocated handler.
+      See QUESTIONS.md Q3.
+  - to: Documents
+    type: downstream
+    confidence: inferred
+    note: >
+      INFERRED from the Document.LinkedEntityId convention (signed agreements, delivery photos);
+      no direct code reference either direction.
+  - to: Accounts
+    type: downstream
+    confidence: inferred
+    note: >
+      INFERRED — RentalOrder.customerId plausibly references Accounts.AccountId by id, per DDD
+      "reference other aggregates by id only"; no direct code call observed (Rentals never
+      references the Accounts namespace).

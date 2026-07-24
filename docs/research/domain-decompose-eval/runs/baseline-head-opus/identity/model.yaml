@@ -1,0 +1,8 @@
+context: Identity
+subdomain_type: generic
+ubiquitous_language:
+  - term: Principal
+    definition: The verified user identity (subject) resolved from a bearer token.
+aggregates: []
+relationships:
+  - { to: Auth0 (external), type: conformist }

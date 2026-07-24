@@ -1,0 +1,27 @@
+context: Rentals
+subdomain_type: core
+tactical_pattern: full-domain-model
+ubiquitous_language:
+  - term: Rental order
+    definition: The booked transaction tying one customer to one committed unit at an agreed price.
+  - term: Place
+    definition: The command that creates a rental order, raises its invoice, and announces it.
+aggregates:
+  - name: RentalOrder
+    root: RentalOrder
+    entities:
+      - { name: RentalOrder, attributes: [orderId, customerId, assetTag, amount] }
+    value_objects: []
+    domain_events:
+      - { name: RentalOrderPlaced, payload: [orderId, customerId, assetTag, amount] }
+notes: >
+  value_objects is empty here deliberately: RentalOrder uses the shared BuildingBlocks.Money value
+  object (see context-map.md shared-kernel table) rather than a Rentals-owned copy -- not re-listed
+  here to avoid implying Rentals owns Money. No invariants key: no business rule was stated for
+  Rentals beyond the orchestration itself, so none is asserted (see aggregate-design-canvas.md:
+  "ONLY rules the user stated"). Rentals also has an unwired duplication debt with Catalog's
+  Equipment class (see README.md) -- not modelled as a relationship because it isn't actually
+  wired in the given source.
+relationships:
+  - { to: Pricing, type: downstream }
+  - { to: Invoicing, type: customer-supplier }

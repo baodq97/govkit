@@ -1,0 +1,23 @@
+context: Fleet
+subdomain_type: supporting
+ubiquitous_language:
+  - term: Asset
+    definition: A physical rental unit identified by AssetTag.
+  - term: Asset record
+    definition: The clean canonical shape (Tag, Category) other contexts reference.
+  - term: Nightly ERP sync
+    definition: The ACL job that translates raw ERP payloads into clean asset records.
+aggregates:
+  - name: Asset
+    root: Asset
+    entities:
+      - { name: Asset, attributes: [tag, category] }
+    value_objects: []
+    domain_events: []
+    invariants:
+      - Nothing past the sync job may see a raw ERP field; the ACL translates all shifting fields into the clean shape first.
+relationships:
+  - { to: LegacyERP (external), type: acl }
+  - { to: Allocation, type: upstream }
+  - { to: Maintenance, type: upstream }
+  - { to: Rentals, type: upstream }

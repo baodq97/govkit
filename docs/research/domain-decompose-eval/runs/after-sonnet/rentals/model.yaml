@@ -1,0 +1,26 @@
+context: Rentals
+subdomain_type: supporting
+tactical_pattern: transaction-script
+ubiquitous_language:
+  - term: RentalOrder
+    definition: Ties a customer to a committed unit (AssetTag) at the last-quoted price.
+  - term: Place
+    definition: Raises an invoice for the order and publishes that it was placed.
+aggregates:
+  - name: RentalOrder
+    root: RentalOrder
+    entities:
+      - { name: RentalOrder, attributes: [orderId, customerId, assetTag, amount] }
+    value_objects: []
+    domain_events:
+      - { name: RentalOrderPlaced, payload: [orderId, customerId, assetTag, amount] }
+notes: >
+  Deliberately lightweight (supporting, no stated invariant): Place() is a transaction script
+  tying a quote and an asset tag to invoicing. Modeled with one light aggregate entry only so
+  RentalOrderPlaced has a schema home, per output-template.md's per-aggregate event requirement -
+  not a claim that RentalOrder protects a real consistency rule. Does not currently call
+  Allocation despite README describing "a quote and a reservation" (see context-map.md Conflicts,
+  QUESTIONS.md Q4).
+relationships:
+  - { to: Pricing, type: downstream }
+  - { to: Invoicing, type: customer-supplier }

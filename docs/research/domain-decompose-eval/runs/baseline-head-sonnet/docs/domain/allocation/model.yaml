@@ -1,0 +1,49 @@
+context: Allocation
+subdomain_type: core
+ubiquitous_language:
+  - term: Reservation
+    definition: A commitment of one physical unit, held at one depot, to one rental window.
+  - term: Rental window
+    definition: The (start, end) date range a reservation covers.
+  - term: Home depot
+    definition: The depot a unit belongs to absent an active commitment elsewhere.
+aggregates:
+  - name: Reservation
+    root: Reservation
+    entities:
+      - { name: Reservation, attributes: [id, assetTag, depotId, start, end, status] }
+    value_objects:
+      - name: RentalWindow
+        attributes: [start, end]
+        note: >
+          Candidate VO for the (start, end) pair and its Overlaps() rule; currently inlined as
+          fields + a method directly on Reservation in code, not yet extracted as its own type.
+    domain_events:
+      - { name: EquipmentAllocated, payload: [reservationId, assetTag, depotId, start] }
+      - name: DepotTransferRequested
+        payload: [assetTag, fromDepot, toDepot, when]
+        note: >
+          ORPHAN — no consumer wired anywhere in the read code. Code comment: "Nothing listens for
+          this yet — the transfer still gets planned by hand in the depot office." Flagged, not
+          fabricated: the event already exists in code, only the consumer is missing.
+    invariants:
+      - "Rental window must be at least one day (end must be after start)."
+      - "A unit currently pulled for service (out-of-service in Maintenance) may not be committed."
+      - "The same physical unit (assetTag) can never be committed twice for overlapping windows, even across different depots — one unit, one place, one renter at a time."
+relationships:
+  - to: Logistics
+    type: shared-kernel
+    note: >
+      Same squad (Fulfilment per teams.yaml); Logistics references Allocation's EquipmentAllocated
+      type directly, and both ship in the same release.
+  - to: Maintenance
+    type: downstream
+    note: >
+      Allocation defines its own port, IMaintenanceState.IsOutOfService(assetTag); it sees only a
+      boolean, never Maintenance's own model.
+  - to: Rentals
+    type: downstream
+    confidence: gap
+    note: >
+      GAP, not asserted — README implies Rentals consumes a reservation from Allocation, but no
+      such call/subscription exists in the read code. See QUESTIONS.md Q3.

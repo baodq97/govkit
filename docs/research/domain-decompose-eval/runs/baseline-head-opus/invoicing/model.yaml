@@ -1,0 +1,15 @@
+context: Invoicing
+subdomain_type: generic
+ubiquitous_language:
+  - term: Invoice
+    definition: A billing request raised for a rental order (orderId, customerId, amount).
+aggregates:
+  - name: Invoice
+    root: Invoice
+    entities:
+      - { name: Invoice, attributes: [orderId, customerId, amount] }
+    value_objects:
+      - { name: Money, attributes: [amount, currency] }
+    domain_events: []
+relationships:
+  - { to: Rentals, type: upstream }

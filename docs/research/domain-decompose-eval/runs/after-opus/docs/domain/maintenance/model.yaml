@@ -1,0 +1,20 @@
+context: Maintenance
+subdomain_type: supporting
+tactical_pattern: transaction-script
+ubiquitous_language:
+  - term: MaintenanceRecord
+    definition: A service record for a unit - last serviced, interval, out-of-service flag.
+  - term: NextDue
+    definition: LastServiced + IntervalDays; the one calculation in this context.
+  - term: Out of service
+    definition: A unit pulled for service; Allocation reads this before committing.
+aggregates: []
+notes: >
+  Routine record-keeping: CRUD over service records plus one calculation (NextDue). Nothing to keep
+  atomically consistent beyond a single record, so no aggregate - the correct right-sizing for a
+  supporting record-keeping context. Publishes out-of-service state that Allocation queries.
+  Reconciled against the stale draft, which wrongly folded Maintenance into Allocation
+  (see context-map Conflicts).
+relationships:
+  - { to: Allocation, type: upstream }
+  - { to: AssetSync, type: downstream }

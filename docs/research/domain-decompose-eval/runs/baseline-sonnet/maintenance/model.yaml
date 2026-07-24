@@ -1,0 +1,25 @@
+context: Maintenance
+subdomain_type: supporting
+tactical_pattern: transaction-script
+ubiquitous_language:
+  - term: Maintenance record
+    definition: One unit's service history -- last serviced date, interval, out-of-service flag.
+  - term: Next due
+    definition: lastServiced + intervalDays.
+aggregates:
+  - name: MaintenanceRecord
+    root: MaintenanceRecord
+    entities:
+      - { name: MaintenanceRecord, attributes: [id, assetTag, lastServiced, intervalDays, outOfService] }
+    value_objects: []
+    domain_events: []
+    invariants:
+      - "Asset tag is required (non-empty)."
+      - "Service interval must be a positive number of days."
+notes: >
+  Kept as a light transaction-script/active-record per the supporting subdomain type -- one
+  entity, no cross-record consistency need, no domain events published in the given source.
+  Included as a minimal aggregate entry (rather than aggregates: []) only because MaintenanceRecord
+  has a clear identity queried by Allocation; this is not full aggregate-design ceremony.
+relationships:
+  - { to: Allocation, type: upstream }

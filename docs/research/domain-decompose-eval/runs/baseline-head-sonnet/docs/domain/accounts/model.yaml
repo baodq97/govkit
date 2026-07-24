@@ -1,0 +1,23 @@
+context: Accounts
+subdomain_type: generic
+ubiquitous_language:
+  - term: Sales account
+    definition: A customer/prospect/partner account, owned by exactly one sales rep.
+  - term: Sales rep (owner)
+    definition: The rep who owns the commercial relationship and is the only one allowed to change its terms.
+aggregates:
+  - name: SalesAccount
+    root: SalesAccount
+    entities:
+      - { name: SalesAccount, attributes: [accountId, salesRepId, name, segment] }
+    value_objects: []
+    domain_events: []
+    invariants:
+      - "SalesRepId is the rep who owns the commercial relationship on that account and is the only person allowed to change its terms."
+relationships:
+  - to: "CRM (external)"
+    type: conformist
+    external: true
+    note: >
+      Mirrors the CRM's record shape verbatim (field names, segment codes, id format); no
+      translation layer — a Conformist relationship, not an ACL.

@@ -1,0 +1,23 @@
+context: Maintenance
+subdomain_type: supporting
+ubiquitous_language:
+  - term: Maintenance record
+    definition: One unit's service history — last serviced date, interval, out-of-service flag.
+  - term: Next due
+    definition: Computed as lastServiced + intervalDays.
+  - term: Out of service
+    definition: A unit pulled for service is off the books entirely; Allocation checks this before committing.
+aggregates:
+  - name: MaintenanceRecord
+    root: MaintenanceRecord
+    entities:
+      - { name: MaintenanceRecord, attributes: [id, assetTag, lastServiced, intervalDays, outOfService] }
+    value_objects: []
+    domain_events: []
+    invariants: []
+relationships:
+  - to: Allocation
+    type: upstream
+    note: >
+      Allocation queries Maintenance's out-of-service status through Allocation's own port
+      (IMaintenanceState); Maintenance has no direct dependency back on Allocation.

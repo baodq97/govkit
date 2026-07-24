@@ -1,0 +1,22 @@
+context: Documents
+subdomain_type: supporting
+tactical_pattern: transaction-script
+ubiquitous_language:
+  - term: Document
+    definition: An uploaded file, linked to some other entity by a generic LinkedEntityId.
+  - term: Owner
+    definition: The user who uploaded the document.
+aggregates:
+  - name: Document
+    root: Document
+    entities:
+      - { name: Document, attributes: [id, fileName, ownerUserId, linkedEntityId] }
+    value_objects: []
+    domain_events: []
+    invariants:
+      - "Only the document's owner (or an admin) may delete it."
+notes: >
+  README describes files "attached to rentals and accounts," but no code path in Rentals or
+  Accounts references Documents -- kept relationships empty rather than asserting an unwired
+  association (see QUESTIONS.md Q6); shown as a dashed, conceptual-only edge in context-map.md.
+relationships: []

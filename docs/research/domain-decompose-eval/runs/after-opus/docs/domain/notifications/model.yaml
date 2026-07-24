@@ -1,0 +1,10 @@
+context: Notifications
+subdomain_type: generic
+tactical_pattern: bought-adapter
+ubiquitous_language: []
+aggregates: []
+notes: >
+  Transactional email (receipts) via SendGrid - commodity behind a thin adapter
+  (SendGridNotificationClient). No domain model. Trigger (receipt after order/invoice) is implied by
+  the narrative but not wired in the reviewed code, so not asserted as a flow.
+relationships: []

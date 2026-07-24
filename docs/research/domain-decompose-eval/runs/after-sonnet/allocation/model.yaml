@@ -1,0 +1,33 @@
+context: Allocation
+subdomain_type: core
+tactical_pattern: full-domain-model
+ubiquitous_language:
+  - term: Reservation
+    definition: A commitment of one physical unit (AssetTag) at one depot for one rental window.
+  - term: Commit
+    definition: The operation that creates a Reservation while enforcing no-double-booking.
+  - term: DepotId
+    definition: The depot that owns the unit while it is committed; responsible for releasing it.
+  - term: Out of service
+    definition: A unit pulled for maintenance; off the books, cannot be committed.
+aggregates:
+  - name: Reservation
+    root: Reservation
+    entities:
+      - { name: Reservation, attributes: [id, assetTag, depotId, start, end, status] }
+    value_objects: []
+    domain_events:
+      - { name: EquipmentAllocated, payload: [reservationId, assetTag, depotId, start] }
+      - { name: DepotTransferRequested, payload: [assetTag, fromDepot, toDepot, when] }
+    invariants:
+      - "The same physical unit (AssetTag) can never be committed twice for overlapping rental windows, even from a different depot."
+      - "A unit reported out-of-service by Maintenance cannot be committed."
+      - "A rental window must be at least one day (end > start)."
+notes: >
+  DepotTransferRequested is emitted but has no consumer in the given source (flagged as an orphan
+  emit in context-map.md, not fabricated a handler). No separate Availability aggregate/context
+  exists by design — see context-map.md Conflicts for why folding it into Reservation.Commit is
+  correct, not a shortfall.
+relationships:
+  - { to: Logistics, type: shared-kernel }
+  - { to: Maintenance, type: downstream }

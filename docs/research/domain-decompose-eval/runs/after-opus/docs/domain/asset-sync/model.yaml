@@ -1,0 +1,22 @@
+context: AssetSync
+subdomain_type: supporting
+tactical_pattern: bought-adapter
+ubiquitous_language:
+  - term: AssetRecord
+    definition: Our clean asset shape (tag, category) after translation.
+  - term: ErpRow
+    definition: A raw, shifting ERP row; quarantined so nothing past this context sees it.
+  - term: Nightly sync
+    definition: The read-only SOAP pull that runs once a night.
+aggregates: []
+notes: >
+  ANTI-CORRUPTION LAYER over the legacy ERP (SOAP, nightly, read-only). Reads the ERP's shifting raw
+  dump (ASSET_NO vs assetNo, nulls, reordered columns) and translates it into our clean AssetRecord
+  shapes; nothing past this context sees a raw ERP field. If the ERP changes, only this context
+  changes. Contrast Customer Accounts, which is Conformist (no translation). The ERP is the system
+  of record for assets; we hold a clean read-model, so no Asset aggregate is invented. tactical_pattern
+  is an ACL adapter (closest schema value: bought-adapter).
+relationships:
+  - { to: Allocation, type: upstream }
+  - { to: Maintenance, type: upstream }
+  - { to: Catalog, type: upstream }

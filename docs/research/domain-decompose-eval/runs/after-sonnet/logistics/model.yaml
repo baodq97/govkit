@@ -1,0 +1,13 @@
+context: Logistics
+subdomain_type: supporting
+tactical_pattern: transaction-script
+ubiquitous_language:
+  - term: DeliveryRun
+    definition: A planned hand-off - asset tag, from-depot, date.
+aggregates: []
+notes: >
+  Record-keeping over planned delivery runs; no invariant stated. Shares Allocation's raw model
+  types directly (EquipmentAllocated) rather than through a translated contract - see the
+  Shared Kernel flag in context-map.md and README.md.
+relationships:
+  - { to: Allocation, type: shared-kernel }

@@ -1,0 +1,15 @@
+context: Accounts
+subdomain_type: supporting
+tactical_pattern: transaction-script
+ubiquitous_language:
+  - term: SalesAccount
+    definition: A customer account - id, name, segment, and the sales rep who owns it.
+  - term: SalesRepId
+    definition: The rep who owns the commercial relationship; the only one allowed to change terms.
+aggregates: []
+notes: >
+  Mirrors the third-party CRM's row shape verbatim (Conformist relationship, no translation layer)
+  - see README.md. The ownership rule (SalesRepId is the only one who may change terms) is stated
+  in the source but no mutating method enforcing it is shown; recorded as-stated, enforcement gap
+  flagged rather than assumed.
+relationships: []

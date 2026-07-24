@@ -1,0 +1,20 @@
+context: Accounts
+subdomain_type: supporting
+tactical_pattern: crud
+ubiquitous_language:
+  - term: SalesAccount
+    definition: A customer account imported from the CRM — id, name, segment, owning rep.
+  - term: SalesRep
+    definition: The rep who owns the commercial relationship on an account; the only one allowed to change its terms.
+  - term: Customer
+    definition: An account counted as a customer — renter / prospect / partner-account (definition currently in SharedDomainRules; belongs here).
+aggregates: []
+notes: >
+  Customer master sourced from a third-party CRM we have no leverage over — we mirror its record shape
+  (field names, segment codes, id format) verbatim -> Conformist. CRUD, no domain model we own. Two
+  real domain facts kept: (1) an account is owned by a SalesRep and only that rep may change its terms
+  — modelled ownership, not audit metadata; (2) the "what counts as a customer" definition belongs
+  here, not in the SharedDomainRules god class.
+relationships:
+  - { to: ExternalCRM, type: conformist }
+  - { to: Rentals, type: upstream }
