@@ -1,7 +1,7 @@
 ---
 id: RFC-0027
 title: Risk-tiered ratification — fewer asks, same provenance
-status: draft
+status: accepted
 owner: TBD
 date: 2026-07-24
 governs:
