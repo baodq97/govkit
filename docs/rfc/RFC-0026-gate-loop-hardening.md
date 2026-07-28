@@ -2,7 +2,7 @@
 id: RFC-0026
 title: Gate-loop hardening — round 2 of the dogfood loop
 status: implemented
-owner: TBD
+owner: baodq97
 date: 2026-07-23
 governs:
   - scripts/check-sync.mjs

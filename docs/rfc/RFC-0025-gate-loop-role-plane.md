@@ -2,7 +2,7 @@
 id: RFC-0025
 title: Gate loop and the swe-flow role plane
 status: implemented
-owner: TBD
+owner: baodq97
 date: 2026-07-23
 governs:
   - plugins/swe-flow/agents
