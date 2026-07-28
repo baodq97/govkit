@@ -1,0 +1,5 @@
+{
+  "file_reads": 10,
+  "bash_calls": 10,
+  "notes": "One ddd_context pack up front, then 10 targeted Reads for message names the pack does not carry (7 model.yaml + context-map + timeline + business-model); rest of the time went to drafting 3 flows + index and clearing a false flow-overflow from ddd_check."
+}

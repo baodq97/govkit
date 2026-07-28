@@ -62,3 +62,49 @@ first, so it cannot move afterwards:
 
 Parity on cost is not enough on its own to justify the concept — but it would show the mechanism
 works, and the fan-out to per-context sub-agents is what the pack was really a precondition for.
+
+---
+
+# Re-run on the patched version — and the verdict
+
+Bar registered above: **keep if mean tokens ≤ 72,598 and quality ≥ 17/20.**
+
+| Eval | baseline | buggy (i2) | patched (i3) |
+|---|---|---|---|
+| define / interface-critique | 57,763 | 93,839 · +62% | **53,175 · −8%** |
+| connect / check-then-act-race | 63,330 | 82,151 · +30% | 71,960 · +14% |
+| connect / overflow-and-pass-through | 64,677 | 71,096 · +10% | 82,757 · +28% |
+| define / right-size | 104,624 | 154,220 · +47% | 122,111 · +17% |
+| **mean tokens** | **72,598** | 100,326 · +38% | **82,501 · +14%** |
+| **mean seconds** | **410** | 633 · +55% | **484 · +18%** |
+| **quality** | **17/20** | 17/20 | **18/20** |
+
+**Quality PASS (18/20). Cost FAIL (+14%). The rule says revert, so it is reverted.**
+
+Parity was the bar and it was missed by 14%. Restating the reason it was set there: a pack that
+costs more than the reading it replaces is not paying for itself, and "it found slightly more" is
+the argument every unjustified addition makes.
+
+## What survived, and it is narrow
+
+One configuration beat baseline on every axis: **`7-define` scoped to a single named context** —
+−8% tokens, −10% seconds, 14 tool calls against 19, quality level. Its own note: *"5 repo reads, 4
+bash calls — one context-pack call did the upstream join."*
+
+Every configuration that lost was one asked to cover a **whole repo**: right-size across seven
+contexts (99 tool calls), and both connect runs, which must read all flows regardless. The join is
+worth paying for when it is a join across one boundary; it is not when the step needs the whole
+model anyway.
+
+That is a result about **scope**, not about the concept, and it points at the fan-out: one sub-agent
+per context, each with a scoped pack, is exactly the shape that won. The next experiment is that,
+measured the same way — not a third attempt to make a repo-wide pack pay.
+
+## Reverted
+
+`ddd_context.py`, the `inputs:` block in `steps.yml`, and the rewritten Inputs sections in
+`7-define` and `4-connect`. Recoverable at `a08b18e`..`d557d4e` if the fan-out needs the resolvers.
+
+Kept, because they were measured separately and are unrelated: the per-step view hints in
+`design/SKILL.md`, the as-is/to-be/could-be axis, the process-fidelity fixes, and
+`grade_deterministic.py`.

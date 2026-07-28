@@ -1,0 +1,5 @@
+{
+  "file_reads": 10,
+  "bash_calls": 19,
+  "notes": "One ddd_context.py pack (root + 7 per-context) carried the classification/count join; the 10 reads were for facts the pack does not carry (context-map relationships, model.yaml term/event names, discovery attributions); most bash calls were wc -l line-budget checks while trimming canvases to the core/supporting/generic budgets."
+}
