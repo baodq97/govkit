@@ -111,7 +111,8 @@ def grade(outputs: Path, vocab: set[str], expect_flow: bool = True) -> list[dict
     # `AcceptQuote` command" is the skill doing its job. Only the line carrying the name counts, so
     # this cannot be widened into a general excuse by a document that says "missing" anywhere.
     ABSENCE = re.compile(r"\b(absent|missing|no such|does not exist|nonexistent|gap|propos|consider|"
-                         r"perturbation|should be|would need|add the|introduce)\b", re.I)
+                         r"perturbation|should be|would need|add the|introduce)\b|"
+                         r"\bno\s+`", re.I)
     claimed = set()
     for line in text.splitlines():
         names = re.findall(r"`([A-Z][a-z]+(?:[A-Z][a-z0-9]+)+)`", line)

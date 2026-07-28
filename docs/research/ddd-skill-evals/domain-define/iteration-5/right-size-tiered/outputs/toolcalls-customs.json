@@ -1,0 +1,1 @@
+{"context":"Customs","tier":"light","file_reads":4,"bash_calls":8,"notes":"Header+slice as sole input; opened only customs/model.yaml and discovery/timeline.md to quote the two events, the invariant and the buy-vs-build note; four trim passes to land under the 90-line light budget."}

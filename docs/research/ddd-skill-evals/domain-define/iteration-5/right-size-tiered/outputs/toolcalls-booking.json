@@ -1,0 +1,1 @@
+{"context":"Booking","tier":"light","file_reads":3,"bash_calls":5,"notes":"Header+slice were sufficient; opened only booking/model.yaml to quote events, invariant and relationships."}

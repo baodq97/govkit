@@ -225,7 +225,56 @@ def r_discovery(docs: Path, ctx: dict, scope: str | None) -> tuple[str, list]:
                                   for h in hotspots[:12]])
 
 
+def _tiers(docs: Path, ctx: dict) -> tuple[dict[str, str], str]:
+    """How much canvas each context earns — decided once, across the whole set.
+
+    This exists because a fan-out could not decide it. Seven agents each holding one context all
+    deferred to their own `subdomain_type`, and the run wrote 69% more prose than one agent had:
+    that agent could see four contexts labelled `core` against one capability the business model
+    says differentiates, concluded the labels were inflated, and stubbed the commodity one.
+
+    That judgement is a count, so it is computable. When more contexts claim `core` than there are
+    differentiating capabilities, the labels are not carrying evidence and differentiation decides
+    instead. When they agree, the label decides — it is the cheaper signal and there is nothing to
+    adjudicate.
+
+    Returned with the reason, because a tier handed down without its argument is just another label.
+    """
+    caps = C.load_business_model(docs)
+    labelled_core = [n for n, c in ctx.items() if str(c.get("subdomain_type", "")).strip() == "core"]
+    differentiating = [k for k, v in caps.items() if v["differentiation"] == "yes"]
+    inflated = caps and len(labelled_core) > len(differentiating)
+
+    tiers = {}
+    for name, c in ctx.items():
+        label = str(c.get("subdomain_type", "")).strip() or "unknown"
+        cap = C._match_capability(name, caps)
+        diff = cap["differentiation"] if cap else "unsourced"
+        stage = (cap["evolution_stage"] if cap else "").lower()
+        if not inflated:
+            tiers[name] = {"core": "full", "supporting": "light"}.get(label, "stub")
+        elif diff == "yes":
+            tiers[name] = "full"
+        elif label == "generic" or "commodity" in stage:
+            # A stub is the correct output for something BOUGHT — that is what the right-size table
+            # reserves it for. Non-differentiating is not the same claim: a compliance context can
+            # carry a real invariant and still differentiate on nothing, and stubbing it would drop
+            # the invariant. Evolution stage is the axis that says "bought", so it decides this.
+            tiers[name] = "stub"
+        else:
+            tiers[name] = "light"
+    why = (f"{len(labelled_core)} contexts are labelled `core` but only {len(differentiating)} "
+           f"capability differentiates, so the labels are inflated and the business model decides "
+           f"instead: **differentiates → full · commodity or generic → stub · everything else → "
+           f"light**. A context with no capability row gets `light`; unsourced is not evidence of "
+           f"importance, and stubbing it would hide the gap."
+           if inflated else
+           "the labels agree with the business model, so `subdomain_type` decides the tier.")
+    return tiers, why
+
+
 def r_contexts(docs: Path, ctx: dict, scope: str | None) -> tuple[str, list]:
+    tiers, why = _tiers(docs, ctx) if not scope else ({}, "")
     rows = []
     for name, c in sorted(ctx.items()):
         if scope and C._norm(name) != C._norm(scope):
@@ -246,7 +295,17 @@ def r_contexts(docs: Path, ctx: dict, scope: str | None) -> tuple[str, list]:
                      # places contexts on this axis, and a silently-derived number would place them
                      # on evidence nobody wrote down.
                      "declared mass": mass or "—",
-                     "canvas": f"{len(marks)}/3 falsifiable" if readme.exists() else "no README"})
+                     "canvas": f"{len(marks)}/3 falsifiable" if readme.exists() else "no README",
+                     **({"TIER": tiers.get(name, "?")} if tiers else {})})
+    if tiers:
+        return "Contexts — with the tier each earns", rows + [
+            f"Tier decides how much canvas to write: **full** = every section plus the interface "
+            f"critique · **light** = purpose, language, inbound/outbound, business decisions · "
+            f"**stub** = purpose, what it is bought from, the adapter's interface.",
+            f"How the tier was decided: {why}",
+            f"Use the tier as given. It is a decision across the whole set — one context cannot see "
+            f"whether the labels around it are trustworthy, which is exactly the judgement being "
+            f"made here."]
     return "Contexts", rows
 
 

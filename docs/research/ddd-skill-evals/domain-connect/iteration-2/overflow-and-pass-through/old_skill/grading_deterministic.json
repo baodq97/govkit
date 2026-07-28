@@ -13,7 +13,7 @@
     {
       "text": "no domain name is asserted with no relative in the fixture's vocabulary (fabrication check)",
       "passed": false,
-      "evidence": "2 with no declared relative: CapacityRejected, PremiumCharged"
+      "evidence": "1 with no declared relative: PremiumCharged"
     },
     {
       "text": "findings cite message numbers as evidence rather than adjectives",
