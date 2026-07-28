@@ -1,7 +1,7 @@
 ---
 id: RFC-0024
 title: Name the firm/thin/honor-system line and make rules evolve from friction
-status: accepted
+status: implemented
 owner: baodq97
 date: 2026-06-10
 governs:

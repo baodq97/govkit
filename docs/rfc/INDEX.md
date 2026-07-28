@@ -25,7 +25,7 @@
 | [RFC-0021](./RFC-0021-report-pr-body.md) | report --pr-body — render governance state as an idempotent fenced markdown block for PR bodies | implemented | baodq97 | 2026-07-08 |
 | [RFC-0022](./RFC-0022-spec-red-team.md) | spec-red-team — an adversarial review skill for governed docs (swe-flow) | implemented | baodq97 | 2026-07-08 |
 | [RFC-0023](./RFC-0023-config-generality-hardening.md) | Config generality hardening — let a divergent consumer retire its parallel bash gate | implemented | baodq97 | 2026-06-09 |
-| [RFC-0024](./RFC-0024-firm-thin-and-rule-evolution.md) | Name the firm/thin/honor-system line and make rules evolve from friction | accepted | baodq97 | 2026-06-10 |
+| [RFC-0024](./RFC-0024-firm-thin-and-rule-evolution.md) | Name the firm/thin/honor-system line and make rules evolve from friction | implemented | baodq97 | 2026-06-10 |
 | [RFC-0025](./RFC-0025-gate-loop-role-plane.md) | Gate loop and the swe-flow role plane | implemented | baodq97 | 2026-07-23 |
 | [RFC-0026](./RFC-0026-gate-loop-hardening.md) | Gate-loop hardening — round 2 of the dogfood loop | implemented | baodq97 | 2026-07-23 |
 | [RFC-0027](./RFC-0027-ratification-policy.md) | Risk-tiered ratification — fewer asks, same provenance | implemented | baodq97 | 2026-07-24 |
