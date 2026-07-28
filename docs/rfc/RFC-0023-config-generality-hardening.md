@@ -4,7 +4,7 @@ title: Config generality hardening — let a divergent consumer retire its paral
 status: implemented
 owner: baodq97
 date: 2026-06-09
-reconciled: sha256:24a05ee2ca494fcc
+reconciled: sha256:1679905ad67cfb29
 governs:
   - packages/govkit/src/config.ts
   - packages/govkit/src/commands/verify.ts
@@ -66,7 +66,7 @@ identical behavior for govkit-self and alert-triage; only customs opts in.
 1. **`excludeBase: string[]`** — keys subtracted from `base.required` for this type. Effective
    required = `(base.required − excludeBase) ∪ type.required`. A lifecycle-less type sets
    `excludeBase: [status]`. Status-enum validation already no-ops when a type has no `statuses`
-   (`verify.ts:91`), and INDEX status-sync already skips an empty status value — so dropping the
+   (`verify.ts:146`), and INDEX status-sync already skips an empty status value — so dropping the
    *required* constraint is the only change needed for a status-less type to pass.
 
 2. **`index: false | { sync: string[] }`** — `false` skips all INDEX checks for the type (a type

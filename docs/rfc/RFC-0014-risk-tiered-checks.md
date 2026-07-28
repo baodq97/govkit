@@ -4,7 +4,7 @@ title: Risk-tiered verify checks — advisory vs blocking, per kind, in config
 status: implemented
 owner: baodq97
 date: 2026-07-07
-reconciled: sha256:24a05ee2ca494fcc
+reconciled: sha256:1679905ad67cfb29
 governs:
   - packages/govkit/src/commands/verify.ts
   - packages/govkit/src/config.ts
@@ -121,6 +121,23 @@ rendering at the cli edge. Validation at merge: full `bun run check` green, the 
 extended to cover default-blocking equivalence, advisory-only exit 0, the unknown-kind
 operational error, and tier presence in `--json` and journal records; engine version bumped
 0.4.0 → 0.5.0.
+
+**Addendum (2026-07-28, drift reconcile):** two of this doc's statements have been outgrown
+by later accepted work in `776bb18` (waiver seam + citation check), and are corrected here
+rather than rewritten in the historical text above:
+
+1. **The kind vocabulary is now eleven, not nine.** `citation` and `waiver` joined
+   `VIOLATION_KINDS` — by exactly the growth mechanism § Design specified ("growing it is a
+   code change that extends the validator in the same commit"). The set stays closed and the
+   unknown-kind load error now enumerates all eleven; `tiers:` legally accepts the two new
+   keys (e.g. `tiers: { waiver: advisory }`).
+2. **`ok` is computed from blocking-tier violations *not covered by an active waiver*.** The
+   waiver seam composes with tiers rather than replacing them: `tier` remains how a *rule* is
+   priced everywhere, `waivedBy` marks that *one finding* was signed for with an expiry, and
+   both leave the violation in the single reported list — marking, never filtering. A run
+   whose only violations are blocking-but-waived exits 0, with the waiver marked in the
+   report, `--json`, and the journal (`waived: true`), so a signed exception never reads as a
+   broken gate.
 
 ## Deviations from design
 

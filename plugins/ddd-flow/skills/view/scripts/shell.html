@@ -350,7 +350,7 @@
 <main>
   <nav id="docs" hidden></nav>
   <div id="canvas-wrap">
-    <svg id="canvas"></svg>
+    <svg id="canvas" role="img" aria-label="Domain model diagram"></svg>
     <div id="diagram-note"></div>
     <div id="bmc" hidden></div>
     <div id="bmc-after" hidden></div>
@@ -1494,8 +1494,10 @@ function participantShape(g, name, cx, cy, { label = true, kind } = {}) {
     }));
     if (label) {
       const y0 = cy + 4 - (lines.length - 1) * 6;
-      lines.forEach((l, i) => g.appendChild(el("text",
-        { x: cx, y: y0 + i * 12.5, class: "fl-name", "text-anchor": "middle" }, l)));
+      lines.forEach((l, i) => {
+        g.appendChild(el("text",
+          { x: cx, y: y0 + i * 12.5, class: "fl-name", "text-anchor": "middle" }, l));
+      });
     }
     return;
   }
@@ -1721,7 +1723,9 @@ function renderFlowDiagram(host) {
   const unresolved = new Set();
   segs.forEach((seg, i) => {
     const { svg, parts, unresolved: u } = drawFlowSegment(seg);
-    u.forEach((x) => unresolved.add(x));
+    u.forEach((x) => {
+      unresolved.add(x);
+    });
     const cap = document.createElement("p");
     cap.className = "flow-seg";
     const range = seg.length > 1 ? `${seg[0].n}–${seg[seg.length - 1].n}` : seg[0].n;

@@ -55,7 +55,8 @@ const SESSION_DIR = path.resolve(
   args.dir || process.env.DDD_FLOW_PREVIEW_DIR || path.join(process.cwd(), ".ddd-flow", "preview"),
 );
 const HOST = args.host || process.env.DDD_FLOW_PREVIEW_HOST || "127.0.0.1";
-const URL_HOST = args["url-host"] || (HOST === "127.0.0.1" || HOST === "0.0.0.0" ? "localhost" : HOST);
+const URL_HOST =
+  args["url-host"] || (HOST === "127.0.0.1" || HOST === "0.0.0.0" ? "localhost" : HOST);
 const PORT = Number(args.port || process.env.DDD_FLOW_PREVIEW_PORT || 0); // 0 => OS picks a free port
 const IDLE_MINUTES = Number(args["idle-timeout-minutes"] || 240);
 
@@ -66,7 +67,13 @@ const SHELL_PATH = path.join(__dirname, "shell.html");
 
 // One shape for "nothing has been written yet", used by both the seed file and the read-failure
 // fallback. They must stay identical or the shell behaves differently depending on which it got.
-const EMPTY_MODEL = { schemaVersion: 2, kind: "workspace", source: { mode: "draft" }, documents: [], gaps: [] };
+const EMPTY_MODEL = {
+  schemaVersion: 2,
+  kind: "workspace",
+  source: { mode: "draft" },
+  documents: [],
+  gaps: [],
+};
 
 let shellHtml = null;
 const KEY = crypto.randomBytes(8).toString("hex");
@@ -77,10 +84,7 @@ fs.mkdirSync(SESSION_DIR, { recursive: true });
 // A first render should show something rather than an error, so seed an empty model when the
 // agent has not written one yet.
 if (!fs.existsSync(MODEL_PATH)) {
-  fs.writeFileSync(
-    MODEL_PATH,
-    `${JSON.stringify(EMPTY_MODEL, null, 2)}\n`,
-  );
+  fs.writeFileSync(MODEL_PATH, `${JSON.stringify(EMPTY_MODEL, null, 2)}\n`);
 }
 
 // ---------------------------------------------------------------------------- auth
@@ -137,7 +141,9 @@ try {
     scheduleReload();
   });
 } catch (err) {
-  process.stderr.write(`preview-server: fs.watch unavailable (${err.message}); falling back to polling\n`);
+  process.stderr.write(
+    `preview-server: fs.watch unavailable (${err.message}); falling back to polling\n`,
+  );
   let lastSeen = 0;
   setInterval(() => {
     let mtime = 0;
@@ -218,7 +224,11 @@ const server = http.createServer(async (req, res) => {
         return;
       }
     }
-    res.writeHead(200, { "content-type": "text/html; charset=utf-8", "cache-control": "no-store", ...setCookie });
+    res.writeHead(200, {
+      "content-type": "text/html; charset=utf-8",
+      "cache-control": "no-store",
+      ...setCookie,
+    });
     res.end(shellHtml);
     return;
   }
@@ -238,7 +248,11 @@ const server = http.createServer(async (req, res) => {
     } catch {
       body = JSON.stringify(EMPTY_MODEL);
     }
-    res.writeHead(200, { "content-type": "application/json; charset=utf-8", "cache-control": "no-store", ...setCookie });
+    res.writeHead(200, {
+      "content-type": "application/json; charset=utf-8",
+      "cache-control": "no-store",
+      ...setCookie,
+    });
     res.end(body);
     return;
   }

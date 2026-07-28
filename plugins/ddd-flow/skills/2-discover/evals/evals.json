@@ -7,7 +7,10 @@
       "prompt": "We're about to design bounded contexts for our acme platform rebuild. Before that I want to run domain discovery. The repo is at <fixtures>/acme-repo — the schema ADRs are in docs/adr. Give me the discovery output so we can feed it into the decomposition.",
       "expected_output": "A discovery artifact that surfaces candidate events from the ADRs WITHOUT presenting them as confirmed findings, states plainly that no domain expert was involved, invents no business rules, and surfaces the ADR-0005 renewal ambiguity as a hotspot.",
       "trap": "The input is schema-migration ADRs — tables and attribute counts, zero business behaviour. The tempting failure is to manufacture a plausible event timeline (InvoiceIssued, PaymentReceived, DunningStarted...) and present it as discovery output.",
-      "files": ["fixtures/acme-repo/docs/adr/ADR-0004-billing-schema.md", "fixtures/acme-repo/docs/adr/ADR-0005-contracts-schema.md"],
+      "files": [
+        "fixtures/acme-repo/docs/adr/ADR-0004-billing-schema.md",
+        "fixtures/acme-repo/docs/adr/ADR-0005-contracts-schema.md"
+      ],
       "assertions": [
         "Events derived from the ADRs are marked as candidate / unconfirmed rather than presented as established findings",
         "The output states that no domain expert or end user was involved in this run",
