@@ -17,14 +17,17 @@ ubiquitous_language:
 aggregates:
   - name: Terminal
     root: Terminal
+    exposed_to_api: false                      # a machine's own state is nobody else's contract
     entities:
       - name: Terminal
         attributes: [terminalId, siteId, role, connectivityState, barrierState]
     value_objects:
       - name: CardStripeRecord
         attributes: [assignedSpot, paidFlag]   # payment time unknown — H10
+        exposed_to_api: true                   # Published Language, ParkingVisit's — we read and rewrite it
       - name: TerminalRole
         attributes: [code]                     # role set deliberately open — H11
+        exposed_to_api: false
     domain_events:
       - { name: SpotWrittenToStripe, payload: [terminalId, assignedSpot] }
       - { name: PaidStatusWrittenToStripe, payload: [terminalId, paidFlag] }
@@ -42,6 +45,7 @@ aggregates:
       - A tariff change is live at that site's machines the same evening.
   - name: OfflineExitLog
     root: OfflineExitLog
+    exposed_to_api: true                       # Published Language, ours — context-map.md §shared artifacts
     entities:
       - name: OfflineExitLog
         attributes: [terminalId, uploadedAt]
@@ -59,7 +63,33 @@ notes: >-
   system when the link is down. Card fleet management lives here but has no stated rule — no stock
   level, no threshold — so no CardStock entity was invented. Open: H10, H18, H5, H11, H9.
 relationships:
-  - { to: ParkingVisit, type: partnership }
-  - { to: Tariff, type: downstream }
-  - { to: SiteConfiguration, type: downstream }
-  - { to: RevenueReconciliation, type: upstream }
+  - to: ParkingVisit
+    direction: peer
+    our_roles: [partnership, published-language]
+    their_roles: [partnership, published-language]
+    note: >-
+      Symmetric and both directions publish: we own `OfflineExitLog`, they own `CardStripeRecord`.
+      Offline the stripe is allowed to beat the system, which is why neither side is downstream.
+  - to: Tariff
+    direction: downstream
+    our_roles: [customer]
+    their_roles: [supplier]
+    note: >-
+      `TariffChanged` must be live at this site's machines the same evening. The liveness SLO is the
+      whole dependency — no model crosses this edge.
+  - to: SiteConfiguration
+    direction: downstream
+    our_roles: [conformist]
+    their_roles: [published-language]
+    note: >-
+      Which entrances and exits exist here, taken as they publish them. Three named terminal types
+      against four described behaviours (H11), so the role set is read as open — an open role set is
+      a gap in their vocabulary, not a translation we perform.
+  - to: RevenueReconciliation
+    direction: upstream
+    our_roles: [published-language]
+    their_roles: [conformist]
+    note: >-
+      `OfflineExitLogUploaded` and machine takings — the input the next morning's reconciliation
+      runs on. They conform: `revenue-reconciliation/README.md` types this row "published language,
+      downstream", and `OfflineExitLog` is our schema, read on their side unchanged.

@@ -14,5 +14,20 @@ notes: >-
   H8 (France and beyond; disposal when a site or operator leaves), H13 (nothing identifies the visit
   the record belongs to). Escalation: legal hold or chain-of-evidence would earn this an aggregate.
 relationships:
-  - { to: ParkingVisit, type: downstream }
-  - { to: PaymentCapture, type: downstream }
+  - to: ParkingVisit
+    direction: downstream
+    our_roles: [conformist]
+    their_roles: [published-language]
+    note: >-
+      ParkingVisit publishes the fiscal facts — entry time, exit time, amount, VAT. No named message
+      exists for this edge, but the stance is readable: `README.md` types this row "published
+      language, downstream" and the PaymentCapture row below it "ACL, downstream", so the same table
+      chose a translation once and not here. We take the facts in their terms and store them.
+  - to: PaymentCapture
+    direction: downstream
+    our_roles: [acl]
+    their_roles: [other]
+    note: >-
+      Payment method and the machine paid at, translated at our edge. PaymentCapture is bought and
+      excluded by INPUT.md §7.3, so nothing names its upstream stance (H9) — `other` here is that
+      absence, not a gap in this file. Naming it would decide H9 by writing YAML.

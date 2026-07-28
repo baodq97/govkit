@@ -22,8 +22,17 @@ export interface JournalRecord {
    *  journal consumer can tell a full-corpus verdict from a changed-set one. */
   changed?: string;
   /** `tier` joined the violation entries with RFC-0014 risk tiers — additive, so lines
-   *  written before it simply lack the field (a consumer treats absent as blocking). */
-  verify?: { docs: number; violations: Array<{ path: string; kind: string; tier: string }> };
+   *  written before it simply lack the field (a consumer treats absent as blocking).
+   *  `waived: true` (omitted, never false — the same shape as `ack` below) marks a finding an
+   *  ACTIVE waiver covered: it is still reported, and still carries its own `tier`, but it did
+   *  NOT fail the gate. Without the marker a human-signed exception is indistinguishable from a
+   *  broken gate — a `blocking` entry on an `ok: true` line — and every consumer reading
+   *  "blocking ⇒ the gate broke" (RFC-0017's distiller among them) learns from an incident that
+   *  never happened. */
+  verify?: {
+    docs: number;
+    violations: Array<{ path: string; kind: string; tier: string; waived?: true }>;
+  };
   eval?: {
     artifacts: number;
     floorPassRate: number;

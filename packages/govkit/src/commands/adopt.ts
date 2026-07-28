@@ -137,7 +137,11 @@ export function runAdopt(opts: AdoptOptions): AdoptResult {
   for (const [typeName, def] of Object.entries(types)) {
     const required = [...new Set([...base.required, ...def.required])];
 
-    for (const file of listMarkdown(typeDir(opts.root, docsRoot, def.dir), ignore)) {
+    // Same per-type `recursive` flag every other reader passes (verify, eval, report, the shared
+    // id collector). The migrator is the one reader where a narrower walk is unrecoverable: a
+    // nested doc the gate already flags for missing front-matter is never even offered a block
+    // here, so it can never be adopted and stays red forever.
+    for (const file of listMarkdown(typeDir(opts.root, docsRoot, def.dir), ignore, def.recursive)) {
       const content = readFileSync(file, "utf8");
       const fm = parseFrontMatter(content);
 

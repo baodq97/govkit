@@ -21,22 +21,29 @@ ubiquitous_language:
 aggregates:
   - name: ParkingVisit
     root: ParkingVisit
+    exposed_to_api: false                       # the visit itself is never published; its facts are
     entities:
       - name: ParkingVisit
         attributes: [visitId, siteId, declaredClass, chargedClass, assignedSpot, entryTime, exitTime, amountDue, paidAt, status]
     value_objects:
       - name: AssignedSpot
         attributes: [siteType, bayId, areaId]   # bayId in a garage, areaId in a lot — never both
+        exposed_to_api: false
       - name: VehicleClass
         attributes: [code]
+        exposed_to_api: false                   # the vocabulary is SiteConfiguration's to publish
       - name: Money
         attributes: [amount, currency]
+        exposed_to_api: false                   # Building Block, not Published Language
       - name: ParkingPeriod
         attributes: [entryTime, exitTime]
+        exposed_to_api: false                   # Building Block
       - name: PaymentWindow
         attributes: [paidAt, expiresAt]         # expiresAt = paidAt + 15 minutes
+        exposed_to_api: false
       - name: CardStripeRecord
         attributes: [assignedSpot, paidFlag]    # payment time on the stripe is unknown — H10
+        exposed_to_api: true                    # Published Language, ours — context-map.md §shared artifacts
     domain_events:
       - { name: VehicleClassDeclared, payload: [visitId, siteId, declaredClass] }
       - { name: EntryRefused, payload: [siteId, declaredClass, reason] }
@@ -64,12 +71,75 @@ notes: >-
   full), H16 (substitution pairs), H15 (rate change mid-stay), H18 (offline entry), H1 (who assigns
   the bay).
 relationships:
-  - { to: Tariff, type: customer-supplier }
-  - { to: SiteConfiguration, type: downstream }
-  - { to: GuidanceIntegration, type: acl }
-  - { to: VehicleIdentification, type: downstream }
-  - { to: TerminalOperations, type: partnership }
-  - { to: PaymentCapture, type: acl }
-  - { to: RevenueReconciliation, type: upstream }
-  - { to: OccupancyInsight, type: upstream }
-  - { to: FiscalRecord, type: upstream }
+  - to: Tariff
+    direction: downstream
+    our_roles: [customer]
+    their_roles: [supplier]
+    note: >-
+      `PriceOfStay?` — Tariff supplies, we consume, and our needs enter their backlog by agreement.
+      H15 (rate change mid-stay) is the open question on their side of the contract.
+  - to: SiteConfiguration
+    direction: downstream
+    our_roles: [conformist]
+    their_roles: [published-language]
+    note: >-
+      Site topology and the `VehicleClass` vocabulary read as a versioned contract, not a shared
+      model — see the shared-kernel risk flagged in `context-map.md`. We conform: the `VehicleClass`
+      value object above is marked "the vocabulary is SiteConfiguration's to publish", so we adopt
+      their list rather than translate it.
+  - to: GuidanceIntegration
+    direction: downstream
+    our_roles: [acl]
+    their_roles: [open-host]
+    note: >-
+      Three credible suppliers behind one translation of ours, over the one internal contract they
+      host (`guidance-integration/README.md`). The ACL is ours to hold, and holding it says nothing
+      about their side. H1 leaves who assigns the bay unresolved, which is what this edge waits on.
+  - to: VehicleIdentification
+    direction: downstream
+    our_roles: [conformist]
+    their_roles: [published-language]
+    note: >-
+      The canvas states it: "downstream — we conform to a supplier's class". We take the registered
+      class as given and charge the higher of the two rates rather than translating it.
+  - to: TerminalOperations
+    direction: peer
+    our_roles: [partnership, published-language]
+    their_roles: [partnership, published-language]
+    note: >-
+      Symmetric and both directions publish: we own `CardStripeRecord`, they own `OfflineExitLog`.
+      The load-bearing extraction seam — offline, the stripe is allowed to beat the system.
+  - to: PaymentCapture
+    direction: downstream
+    our_roles: [acl]
+    their_roles: [other]
+    note: >-
+      No named message exists for a captured payment, and H9 records that no refund, reversal or
+      chargeback concept exists anywhere in the language. Their side stays `other` deliberately:
+      `payment-capture/README.md` types this interface ACL throughout, which is OUR stance, and
+      nothing anywhere states theirs. INPUT.md §7.3 excludes the mechanics that would settle it.
+  - to: RevenueReconciliation
+    direction: upstream
+    our_roles: [published-language]
+    their_roles: [conformist]
+    note: >-
+      `TicketPaid`, `LostTicketCharged`, `AdditionalPaymentCollected`, `VehicleExited` — published
+      as a versioned contract, since the morning reconciliation is scored against them. They
+      conform: `revenue-reconciliation/README.md` types this edge "published language, downstream"
+      and reserves ACL for its PaymentCapture edge.
+  - to: OccupancyInsight
+    direction: upstream
+    our_roles: [published-language]
+    their_roles: [conformist]
+    note: >-
+      `EntryRecorded` and `VehicleExited` — in a lot, the only occupancy source that exists at all
+      (H3). They conform; owning no state transitions, they take no defensive stance.
+  - to: FiscalRecord
+    direction: upstream
+    our_roles: [published-language]
+    their_roles: [conformist]
+    note: >-
+      Entry time, exit time, amount, VAT. No named message exists anywhere in the model, and H13
+      leaves nothing durable to key a ten-year record by. They conform:
+      `fiscal-record/README.md` types this row "published language, downstream" and the row below
+      it "ACL, downstream", so the absence of an ACL here is a choice the same table made twice.

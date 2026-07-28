@@ -1,0 +1,49 @@
+context: Calibration
+subdomain_type: supporting
+tactical_pattern: transaction-script
+ubiquitous_language:
+  - term: Corpus
+    definition: A labelled directory holding good/ (must pass the required floor) and weak/ (must fail it) (calibrate.ts:110).
+  - term: Positive class
+    definition: "\"blocked by the required floor\" — so TP is a weak doc blocked and FP is a good doc blocked (calibrate.ts:53-58)."
+  - term: False positive
+    definition: A legitimate doc the floor blocked. The hard invariant is zero, because a blocked good doc is what drives --no-verify (calibrate.ts:198, PRD-0001:38-39).
+  - term: Baseline
+    definition: A committed JSON snapshot of floor + counts + advisory averages, compared against on every run (calibrate.ts:14 CalibrationBaseline).
+  - term: Corpus shrinkage
+    definition: Fewer graded weak or good docs than the committed counts pin — the evidence base relaxed without the ratios moving (calibrate.ts:184).
+aggregates: []
+invariants:
+  - The corpus must contain BOTH a good/ and a weak/ tree; a missing label tree is an operational error naming which one. — packages/govkit/src/commands/calibrate.ts:110-116 (runCalibrate)
+  - Grading uses the SAME engine and rubric the gate runs, so calibrate measures the shipped floor and not a test-only approximation. — packages/govkit/src/commands/calibrate.ts:118-124 (runCalibrate)
+  - The corpus layout is its own convention, so grading forces docs.root back to "." — a repo governed under a non-default root must still calibrate the standard corpus. — packages/govkit/src/commands/calibrate.ts:123 (runCalibrate)
+  - A corpus that grades zero artifacts throws — never green-on-nothing, because a run that proves nothing about the floor must not read as a pass. — packages/govkit/src/commands/calibrate.ts:126-158 (runCalibrate)
+  - A corpus doc that exists but was not graded is a fixture-authoring error, never a silent skip — an invisible weak stub would leave the matrix claiming coverage the run never measured. — packages/govkit/src/commands/calibrate.ts:134-151 (runCalibrate), :96 (listMarkdownDeep)
+  - Degenerate denominators default to the perfect value 1; the false-positive count separately guards the invariant that actually matters. — packages/govkit/src/commands/calibrate.ts:168-173 (runCalibrate)
+  - The verdict is ok only when there is no false positive AND no recall regression AND no f1 regression AND no corpus shrinkage. — packages/govkit/src/commands/calibrate.ts:198-202 (runCalibrate)
+  - Corpus shrinkage is a regression the ratio comparison alone cannot see, so the committed counts pin coverage as well as ratios. — packages/govkit/src/commands/calibrate.ts:184-186 (runCalibrate)
+  - A baseline that is unparseable or missing its floor/counts blocks is an operational error — comparing against garbage would let a regression pass on an undefined comparison. — packages/govkit/src/commands/calibrate.ts:25-51 (parseBaseline)
+  - A named baseline file that does not exist is a hard error unless --update-baseline declares the bootstrap; failing open would let CI compare against nothing forever. — packages/govkit/src/cli.ts:728-736
+  - "--update-baseline is REFUSED, with nothing written, when the current run has a false positive or a floor regression: the bar may not be lowered in the same breath as the regression. A shrunken corpus MAY be re-pinned, because that rewrite lands in a reviewable diff. — packages/govkit/src/cli.ts:744-751"
+notes: >-
+  A pure measurement over a labelled corpus — no identity, no lifecycle, no state, so
+  `aggregates: []` is the complete model. **Labelled `supporting`, and that label is contested.**
+  It is a regression harness for QualityEval rather than a capability a consumer ever runs, which
+  is what `supporting` means here — but its OUTPUT is the product's stated north star, so
+  `core-domain-chart.md` places it high on differentiation and proposes promoting it. The evidence
+  either way:
+  PRD-0001:37-42 makes the gate's own confusion matrix the north star, and PRD-0001:75-76 calls
+  calibrate "the immune system that makes self-improvement safe: a learning loop that can weaken
+  its own gates would otherwise learn to pass itself." `invariants:` sits at context level (no
+  aggregate to hang them on) — the same template extension flagged in context-map.md.
+relationships:
+  - to: QualityEval
+    direction: downstream
+    our_roles: [conformist]
+    their_roles: [supplier]
+    note: Deliberate conformity — grading with a test-only approximation would measure a floor nobody ships (calibrate.ts:118-124).
+  - to: GovernanceSchema
+    direction: downstream
+    our_roles: [acl]
+    their_roles: [published-language]
+    note: The one context that TRANSLATES the config at its edge rather than conforming — it forces docs.root back to "." because the corpus layout is its own convention (calibrate.ts:123).

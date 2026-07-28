@@ -1,0 +1,195 @@
+# Copyable OpenAPI 3.1 skeleton — the skill COPIES this and fills in the domain-specific names
+# (Resource, resourceId, fields). It does not regenerate the shape from a prompt: form variance
+# drops to zero exactly because the shape isn't reinvented per run.
+#
+# Covers, by path, the four operation-responsibility kinds (see references/rest-patterns.md):
+#   POST /resources                    -> State Creation
+#   GET  /resources, GET /resources/{} -> Retrieval (collection paginated, item not)
+#   PUT  /resources/{id}/publication   -> State Transition (sub-resource, never a verb)
+#   webhooks.resourcePublished         -> the same transition's outbound domain event
+#
+# Lint with the pinned ruleset:
+#   npx @redocly/cli lint --config plugins/swe-flow/skills/api-designer/redocly.yaml \
+#     plugins/swe-flow/skills/api-designer/assets/openapi-skeleton.yaml
+
+openapi: 3.1.0
+info:
+  title: Resource API
+  version: 1.0.0
+  description: Skeleton — replace with the bounded context's Published Language.
+  license:
+    name: MIT
+    url: https://opensource.org/licenses/MIT
+
+servers:
+  - url: https://api.yourcompany.tld/v1
+    description: Replace with the real base URL.
+
+security:
+  - bearerAuth: []
+
+paths:
+  /resources:
+    get:
+      operationId: listResources
+      summary: List resources
+      description: Retrieve a paginated list of resources.
+      tags: [Resources]
+      parameters:
+        - name: limit
+          in: query
+          description: Max items to return.
+          schema: { type: integer, minimum: 1, maximum: 100, default: 20 }
+        - name: cursor
+          in: query
+          description: Opaque cursor from a previous page's `next_cursor`.
+          schema: { type: string }
+      responses:
+        '200':
+          description: A page of resources.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ResourceList' }
+        '400':
+          description: Invalid query parameters.
+          content:
+            application/problem+json:
+              schema: { $ref: 'problem-details.yaml#/ProblemDetails' }
+
+    post:
+      operationId: createResource
+      summary: Create a resource
+      description: State Creation — a new aggregate instance comes into existence.
+      tags: [Resources]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/CreateResourceRequest' }
+      responses:
+        '201':
+          description: Resource created.
+          headers:
+            Location:
+              schema: { type: string, format: uri }
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Resource' }
+        '400':
+          description: Validation failed.
+          content:
+            application/problem+json:
+              schema: { $ref: 'problem-details.yaml#/ProblemDetails' }
+        '409':
+          description: Conflicts with an existing resource.
+          content:
+            application/problem+json:
+              schema: { $ref: 'problem-details.yaml#/ProblemDetails' }
+
+  /resources/{resourceId}:
+    parameters:
+      - name: resourceId
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+
+    get:
+      operationId: getResource
+      summary: Get a resource
+      description: Retrieval — a single item, no side effects.
+      tags: [Resources]
+      responses:
+        '200':
+          description: The resource.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Resource' }
+        '404':
+          description: No resource with this id.
+          content:
+            application/problem+json:
+              schema: { $ref: 'problem-details.yaml#/ProblemDetails' }
+
+  /resources/{resourceId}/publication:
+    parameters:
+      - name: resourceId
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+
+    put:
+      operationId: publishResource
+      summary: Publish a resource
+      description: >-
+        State Transition — modeled as an idempotent PUT on a singleton sub-resource, never as an
+        RPC verb (`POST /publishResource` is never acceptable). Emits the `resourcePublished`
+        webhook for downstream consumers.
+      tags: [Resources]
+      responses:
+        '200':
+          description: Resource is now published.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Resource' }
+        '404':
+          description: No resource with this id.
+          content:
+            application/problem+json:
+              schema: { $ref: 'problem-details.yaml#/ProblemDetails' }
+
+webhooks:
+  resourcePublished:
+    post:
+      operationId: resourcePublishedWebhook
+      summary: Sent when a resource is published
+      description: Outbound domain event — the async twin of `publishResource` for subscribers.
+      requestBody:
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/ResourcePublishedEvent' }
+      responses:
+        '200':
+          description: Subscriber acknowledged receipt.
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+  schemas:
+    Resource:
+      type: object
+      required: [id, status]
+      properties:
+        id: { type: string, format: uuid, readOnly: true }
+        status: { type: string, enum: [draft, published] }
+        created_at: { type: string, format: date-time, readOnly: true }
+
+    CreateResourceRequest:
+      type: object
+      required: []
+      properties: {}
+
+    ResourceList:
+      type: object
+      required: [data, pagination]
+      properties:
+        data:
+          type: array
+          items: { $ref: '#/components/schemas/Resource' }
+        pagination:
+          type: object
+          required: [limit, has_more]
+          properties:
+            limit: { type: integer }
+            next_cursor: { type: string }
+            has_more: { type: boolean }
+
+    ResourcePublishedEvent:
+      type: object
+      required: [resource_id, published_at]
+      properties:
+        resource_id: { type: string, format: uuid }
+        published_at: { type: string, format: date-time }

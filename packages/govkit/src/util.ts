@@ -23,16 +23,26 @@ export function typeDir(root: string, docsRoot: string, dir: string): string {
   return join(root, docsRoot, dir);
 }
 
-/** Markdown docs in a directory, minus the ignore list. Non-recursive by design —
- *  governed docs live flat in their type dir. Shared by `verify` and `eval`. */
-export function listMarkdown(dir: string, ignore: string[]): string[] {
+/** Markdown docs in a directory, minus the ignore list. Shared by `verify` and `eval` (and the
+ *  governs-scanners below), so all of them see one corpus. Flat by DEFAULT — a numbered corpus
+ *  lives flat in its type dir — but `recursive` (per type, `docs.types.<t>.recursive`) walks
+ *  subdirectories for a type whose layout is a named tree instead. The default is the exact
+ *  pre-existing walk, so a config without the flag governs the same files it always did.
+ *  `ignore` also matches subdirectory NAMES, which is how a subtree opts out. A symlinked
+ *  directory reports `isDirectory() === false` here, so the walk cannot loop through one. */
+export function listMarkdown(dir: string, ignore: string[], recursive = false): string[] {
   if (!existsSync(dir)) return [];
   const files: string[] = [];
+  const subdirs: string[] = [];
   for (const entry of readdirSync(dir, { withFileTypes: true })) {
     if (entry.isFile() && entry.name.endsWith(".md") && !ignore.includes(entry.name)) {
       files.push(join(dir, entry.name));
+    } else if (recursive && entry.isDirectory() && !ignore.includes(entry.name)) {
+      subdirs.push(join(dir, entry.name));
     }
   }
+  // Depth-second: this dir's own files keep their pre-existing order, nested ones follow.
+  for (const sub of subdirs) files.push(...listMarkdown(sub, ignore, true));
   return files;
 }
 
@@ -117,7 +127,10 @@ function scanParsedDocs(root: string, config: GovkitConfig): Omit<GovernedDoc, "
   const { ignore, types, root: docsRoot = "." } = config.docs;
   const docs: Omit<GovernedDoc, "governs">[] = [];
   for (const [typeName, def] of Object.entries(types)) {
-    for (const file of listMarkdown(typeDir(root, docsRoot, def.dir), ignore)) {
+    // Honors the type's `recursive` flag for the same reason verify does: the id universe
+    // collected here is what verify's reference check resolves INTO, so a scan narrower than
+    // verify's would report a live ref to a nested doc as dangling.
+    for (const file of listMarkdown(typeDir(root, docsRoot, def.dir), ignore, def.recursive)) {
       const content = readFileSync(file, "utf8");
       const fm = parseFrontMatter(content);
       if (!fm || isParseError(fm)) continue;

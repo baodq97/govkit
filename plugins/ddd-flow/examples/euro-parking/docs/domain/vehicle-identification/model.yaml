@@ -16,6 +16,27 @@ notes: >-
   unresolved collision between that deletion and pursuing a claim against the captured plate; H6
   depends on this context for the only identity it could ever supply.
 relationships:
-  - { to: GuidanceIntegration, type: acl }
-  - { to: ParkingVisit, type: upstream }
-  - { to: RevenueReconciliation, type: upstream }
+  - to: GuidanceIntegration
+    direction: downstream
+    our_roles: [acl]
+    their_roles: [open-host]
+    note: >-
+      The plate feed from the garage camera, over the one internal contract they host, translated
+      at our edge. Garage only. Our ACL is our choice — the conformist edge is one hop further out,
+      at the supplier's registration lookup.
+  - to: ParkingVisit
+    direction: upstream
+    our_roles: [published-language]
+    their_roles: [conformist]
+    note: >-
+      `VehicleClassMismatchDetected` — charge the higher of the two rates. ParkingVisit's canvas
+      says it plainly: "we conform to a supplier's class", so it adopts our answer rather than
+      translating it. The supplier's own registration lookup is the conformist edge one hop further out.
+  - to: RevenueReconciliation
+    direction: upstream
+    our_roles: [published-language]
+    their_roles: [conformist]
+    note: >-
+      The same mismatch, for the daily exceptions list; they conform —
+      `revenue-reconciliation/README.md` types this row "downstream" with no translation, next to a
+      PaymentCapture row it does type ACL. H7 puts it against the seven-day deletion.

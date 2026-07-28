@@ -67,7 +67,13 @@ ddd-methodology.md §3. Don't formalize yet.
   the *language changes meaning*, cohesion high and coupling low (ddd-methodology.md §2.2, §2.5).
 - Classify each **core / supporting / generic** — core = competitive differentiator; generic =
   commodity you could buy (§2.1).
-- Sketch **relationships** between contexts (upstream/downstream, ACL, shared kernel, etc.).
+- Sketch **relationships** between contexts, on **two axes, never one**: `direction` (who depends
+  on whom — upstream / downstream / peer) and a **role per side** (how each end governs it — Open
+  Host, Published Language, Conformist, ACL, Customer, Supplier, Partnership, Shared Kernel). They
+  are independent: the same downstream may conform *or* build an ACL, and a side can hold several
+  roles at once. Roles are an **open** list — when the relationship is real but DDD has no name for
+  it, write `other` and put what is known in `note:` rather than forcing a pattern that misfits.
+  Schema and the sources behind it: output-template.md §4.
 - Name the **load-bearing extraction seam** — the boundary that decouples the system most if
   split first, often a *Published Language* artifact (an exported pack, a contract, a shared
   document) crossing contexts. State it explicitly and consider elevating it to its own context;
@@ -215,8 +221,16 @@ aggregates:
       - { name: EnrolmentRequested, payload: [studentId, courseId] }
       - { name: EnrolmentConfirmed, payload: [enrolmentId] }
 relationships:
-  - { to: Payments, type: downstream }
-  - { to: Catalog, type: downstream }
+  - to: Payments
+    direction: downstream
+    our_roles: [acl]
+    their_roles: [other]
+    note: A bought provider; we translate at our edge and it publishes no contract of its own.
+  - to: Catalog
+    direction: downstream
+    our_roles: [other]
+    their_roles: [published-language]
+    note: Course identity and price read as a versioned contract, not a shared model.
 ```
 
 Note what the example does **not** do: it doesn't assert a rule like "a student may enrol in at

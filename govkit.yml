@@ -125,6 +125,40 @@ eval:
       - { id: substance, weight: 30, kind: minWords, min: 30, required: true, desc: "not an empty stub (≥30 words of prose)" }
       - { id: nofiller, weight: 10, kind: forbid, pattern: 'lorem ipsum|to be filled (in|out)|to be written|todo:?\s*write|placeholder text|fill (this )?in later|insert [a-z ]+ here', required: true, desc: "no template filler left in" }
 
+# ── Waivers: the recorded, EXPIRING exception ────────────────────────────────
+# The escape hatch a gate needs in order to stay trusted. Without one, a rule
+# that is wrong for ONE case leaves two moves: distort the artifact to please
+# the checker, or start ignoring the output — and both are worse than an
+# exception someone signed. Fields follow Snyk's `.snyk` policy (`reason` +
+# `expires` per ignore) and ESLint's `-- <description>` disable comments, with
+# ONE deliberate tightening: Snyk allows a permanent ignore by omitting
+# `expires`; here `expires` is MANDATORY. Every waiver dies, its finding comes
+# back on its own, and accepted debt cannot accumulate silently.
+#
+# Semantics, all four enforced by the engine:
+#   • a waived violation is still REPORTED — it just does not fail the gate;
+#   • an EXPIRED waiver suppresses NOTHING, and the output says it expired;
+#   • a MALFORMED waiver (missing reason / authorized_by / expires, or naming a
+#     rule the gate never emits) is itself a `waiver`-kind violation;
+#   • `rule` × `scope` must BOTH match — never a blanket over a file or a rule.
+#
+# `rule` is a verify kind (coherence, duplicate, frontmatter, id, index,
+# placeholder, reference, section, status, waiver) or an eval rubric rule id
+# (substance, nofiller, …). `scope` is a repo-relative path or glob (`*`/`?`
+# stay inside one segment, `**` crosses them). `authorized_by` is a HUMAN — an
+# agent may propose a waiver, never sign one for itself (AGENTS.md).
+#
+# NOTHING is waived in this repo. The block below is a commented EXAMPLE:
+#
+# waivers:
+#   - rule: index
+#     scope: docs/adr/**
+#     reason: >-
+#       ADR INDEX rows are backfilled by RFC-0031; blocking on them would stall
+#       the migration behind a mechanical edit.
+#     authorized_by: "@baodq97"
+#     expires: 2026-09-30
+
 # ── Ratification policy (RFC-0027) — honor-system tier, engine never reads ───
 # It is the RFC-0012 honor-system tier, now WITH a committed text: THE ENGINE
 # NEVER READS THIS BLOCK — `verify`/`eval`/`check` behaviour stays byte-for-byte

@@ -16,7 +16,36 @@ notes: >-
   all — a stated absence from both INPUT.md §12 and the expert, not a gap. Open: H1 (who assigns the
   bay), H4 (are the sensors trustworthy).
 relationships:
-  - { to: SiteConfiguration, type: downstream }
-  - { to: ParkingVisit, type: upstream }
-  - { to: OccupancyInsight, type: upstream }
-  - { to: VehicleIdentification, type: upstream }
+  - to: SiteConfiguration
+    direction: downstream
+    our_roles: [conformist]
+    their_roles: [published-language]
+    note: >-
+      We read the bay list as they publish it and map it onto the supplier's sensors. The mapping is
+      the ACL on our other edge — it faces the supplier hardware (`README.md`, inbound row), not
+      SiteConfiguration, so toward them we conform and ask for no change to the list.
+  - to: ParkingVisit
+    direction: upstream
+    our_roles: [open-host]
+    their_roles: [acl]
+    note: >-
+      One internal contract in front of three suppliers — `README.md`: "lets the rest of the system
+      ask which bays are free without knowing whose hardware is installed", and ParkingVisit's
+      `FreeBaysOfClass?` is a query into it. Their ACL is a downstream act and does not deny us the
+      host role. Not `published-language`: each consumer still translates, so the shape is this
+      adapter's normalisation and not a shared language. H1 leaves who assigns the bay open.
+  - to: OccupancyInsight
+    direction: upstream
+    our_roles: [open-host]
+    their_roles: [acl]
+    note: >-
+      `BayOccupied` / `BayVacated` and free bays per level and type, offered through the same one
+      internal contract; OccupancyInsight still translates them itself. Garage only — a lot observes
+      nothing (H3), and H4 asks if the sensors are honest.
+  - to: VehicleIdentification
+    direction: upstream
+    our_roles: [open-host]
+    their_roles: [acl]
+    note: >-
+      The plate feed from the garage camera, through the same one internal contract; the consumer
+      wraps it. Garage only.

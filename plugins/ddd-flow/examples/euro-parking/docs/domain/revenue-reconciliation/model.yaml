@@ -15,6 +15,7 @@ ubiquitous_language:
 aggregates:
   - name: DailyReconciliation
     root: DailyReconciliation
+    exposed_to_api: false                     # consumed by a site manager's read model, not by a context
     entities:
       - name: DailyReconciliation
         attributes: [siteId, businessDate, machineTotal, bankTotal, coinBoxTotal, status]
@@ -23,8 +24,10 @@ aggregates:
     value_objects:
       - name: Money
         attributes: [amount, currency]
+        exposed_to_api: false                 # Building Block, not Published Language
       - name: ThreeWayMatch
         attributes: [machineTotal, bankTotal, coinBoxTotal]
+        exposed_to_api: false
     domain_events:
       - { name: TakingsReconciled, payload: [siteId, businessDate, machineTotal, bankTotal, coinBoxTotal] }
       - { name: UnmatchedExitFlagged, payload: [siteId, exitReference] }
@@ -41,7 +44,46 @@ notes: >-
   reversal concept), H5 (no detector for a stuck barrier), H6 (entitlement-bay users cannot be
   identified).
 relationships:
-  - { to: ParkingVisit, type: downstream }
-  - { to: TerminalOperations, type: downstream }
-  - { to: PaymentCapture, type: acl }
-  - { to: VehicleIdentification, type: downstream }
+  - to: ParkingVisit
+    direction: downstream
+    our_roles: [conformist]
+    their_roles: [published-language]
+    note: >-
+      Payment and exit facts arrive as a published contract; an exit with no payment against it
+      becomes an unmatched exit here. We conform — `README.md` types this row "published language,
+      downstream" and reserves ACL for the PaymentCapture row, so the difference is a decision.
+  - to: TerminalOperations
+    direction: downstream
+    our_roles: [conformist]
+    their_roles: [published-language]
+    note: >-
+      `OfflineExitLogUploaded` carrying `OfflineExitLog` — late-arriving facts — plus machine
+      takings, read in their schema, unchanged. The coin-box leg has no emitter anywhere in the
+      model.
+  - to: PaymentCapture
+    direction: downstream
+    our_roles: [acl]
+    their_roles: [other]
+    note: >-
+      No named message exists for what the acquirer or the bank says arrived (H9), so their side
+      stays unnamed; our ACL is a private translation and gives us no contract of our own.
+  - to: VehicleIdentification
+    direction: downstream
+    our_roles: [conformist]
+    their_roles: [published-language]
+    note: >-
+      `VehicleClassMismatchDetected` feeds the daily exceptions list, taken as they publish it; H7
+      collides it with the seven-day plate deletion.
+  - to: Site manager
+    direction: upstream
+    our_roles: [open-host]
+    their_roles: [other]
+    note: >-
+      The one edge on which this context is called, and the one `context-map.md` never drew: the
+      site manager sends `ReconcileTakings`, `WriteOffException` and `PursuePlateHolder` and reads
+      the reconciliation view and the daily exceptions list (`README.md` inbound + outbound tables,
+      `context-map.md` event-flow row, flow 0004 #6–#9, event-model EM-24/25/26/30). An actor, not a
+      bounded context, so it is an external node — and it holds no context-mapping role, which is
+      why their side is `other`; the canvas types the edge "direct interaction". This closes the
+      question `scripts/derive_cel.py`'s README asks out loud: a context receiving commands while
+      declaring no provider role toward anyone was missing an `open-host`, not a caller.

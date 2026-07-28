@@ -1,0 +1,58 @@
+# Copyable RFC 9457 Problem Details shape — do not regenerate this from a prompt, copy it and
+# fill in the values. RFC 9457 (July 2023) obsoletes the original 2016 Problem Details RFC; the
+# media type (application/problem+json) and the five base fields are unchanged. RFC 9457 adds: type URIs
+# SHOULD resolve to human-readable docs (an IANA registry exists for common ones), and problem
+# types MAY carry extension members beyond the five base fields — put per-error context there,
+# not in `detail`.
+#
+# Paste this under components/schemas in your spec, then $ref it from every 4xx/5xx response.
+
+ProblemDetails:
+  type: object
+  description: RFC 9457 Problem Details for HTTP APIs.
+  required:
+    - type
+    - title
+    - status
+  properties:
+    type:
+      type: string
+      format: uri-reference
+      description: >-
+        A URI identifying the problem type. "about:blank" means the problem has no more specific
+        semantics than the HTTP status code itself. Otherwise, resolve it to a human-readable
+        explanation (do not require callers to parse it).
+      example: https://api.example.tld/problems/insufficient-funds
+    title:
+      type: string
+      description: Short, human-readable summary of the problem TYPE — stays constant across occurrences.
+      example: Insufficient Funds
+    status:
+      type: integer
+      description: The HTTP status code, repeated here so the body is self-contained when logged.
+      example: 403
+    detail:
+      type: string
+      description: Human-readable explanation specific to THIS occurrence of the problem.
+      example: Your current balance is 30, but that costs 50.
+    instance:
+      type: string
+      format: uri-reference
+      description: A URI identifying this specific occurrence (e.g. the request path).
+      example: /account/12345/transactions/abc
+  additionalProperties: true # RFC 9457 extension members — per-error context fields go here,
+                              # named for the problem `type`, not invented ad hoc per endpoint.
+
+# Example instance:
+#   HTTP/1.1 403 Forbidden
+#   Content-Type: application/problem+json
+#
+#   {
+#     "type": "https://api.example.tld/problems/insufficient-funds",
+#     "title": "Insufficient Funds",
+#     "status": 403,
+#     "detail": "Your current balance is 30, but that costs 50.",
+#     "instance": "/account/12345/transactions/abc",
+#     "balance": 30,
+#     "cost": 50
+#   }

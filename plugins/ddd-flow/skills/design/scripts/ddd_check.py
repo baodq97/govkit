@@ -101,6 +101,20 @@ def _norm(s: str) -> str:
     return re.sub(r"[^a-z0-9]", "", str(s).lower())
 
 
+def _roles(node) -> list[str]:
+    """One side's roles from a relationship. A side can carry several — Open Host Service and
+    Published Language co-occur constantly — so the field is a list, and a repo writing a single
+    role unbracketed is read the same way rather than treated as a schema error."""
+    if isinstance(node, str):
+        return [node.strip().lower()] if node.strip() else []
+    return [str(x).strip().lower() for x in (node or []) if str(x).strip()]
+
+
+def _cap(lines: list[str], keep: int = 8) -> list[str]:
+    """Evidence trimmed to a readable head. A finding that prints forty lines is not read."""
+    return lines[:keep] + ([f"…and {len(lines) - keep} more"] if len(lines) > keep else [])
+
+
 def _cells(line: str) -> list[str]:
     return [c.strip() for c in line.strip().strip("|").split("|")]
 
@@ -629,6 +643,61 @@ def run_checks(root: Path, docs: Path) -> list[Finding]:
                      "expected on greenfield; on a migration it is a boundary nothing running can "
                      "falsify"],
                     "3-decompose"))
+
+    # 14 — direction and pattern are two axes, and one field cannot carry both. Which way the
+    # dependency runs is independent of how the relationship is governed: the same downstream is
+    # free to conform or to build an ACL, and an upstream may be an Open Host, publish a language,
+    # both, or neither. A corpus of `type: downstream` therefore says who depends on whom and
+    # nothing about the contract — and an API generator reading it cannot tell a context that
+    # publishes from one that does not. Second instance of this class in this repo: `status`
+    # (confirmed/candidate — evidence strength) was split from `state` (as-is/to-be/could-be — time)
+    # for exactly the same reason, and the split is what made either axis checkable.
+    #
+    # Presence, not shape. Roles are an OPEN enum: `other` plus a `note` is a correct answer for a
+    # relationship DDD has no name for, and an unknown value must degrade rather than explode. So
+    # this asks only that both axes were considered. A presence check costs ~nothing in
+    # flexibility; a closed-enum check would reject correct models to catch nothing.
+    #
+    # Severity `info` on purpose, for this round. A rule graduates to medium/high only once there is
+    # evidence it catches a real defect rather than a file nobody has migrated yet.
+    unsplit, unnamed, counted = [], [], 0
+    for name in sorted(ctx):
+        for r in (ctx[name].get("relationships") or []):
+            # A relationship that did not parse as a mapping cannot be judged — the no-PyYAML
+            # fallback parser reads an entry as a string. Say nothing rather than say it wrongly.
+            if not isinstance(r, dict) or not r.get("to"):
+                continue
+            counted += 1
+            gaps = [axis for axis, v in (("direction", r.get("direction")),
+                                         ("our_roles", r.get("our_roles")),
+                                         ("their_roles", r.get("their_roles"))) if not v]
+            if gaps:
+                unsplit.append(f"{name} → {r['to']}: missing {', '.join(gaps)}")
+                continue
+            sides = [s for s, k in (("ours", "our_roles"), ("theirs", "their_roles"))
+                     if set(_roles(r.get(k))) <= {"other"}]
+            if sides:
+                unnamed.append(f"{name} → {r['to']}: {' and '.join(sides)} named only `other`")
+    if unsplit:
+        out.append(Finding(
+            "relationship-axis-unsplit", "info",
+            f"{len(unsplit)} of {counted} relationships declare no direction or no role on a side",
+            _cap(unsplit) + [
+                "`direction: upstream|downstream|peer` says who depends on whom; `our_roles` and "
+                "`their_roles` say how each side governs it. Roles are open — `other` plus a `note` "
+                "is a valid answer for a relationship DDD has no name for."],
+            "3-decompose"))
+    if unnamed:
+        out.append(Finding(
+            "relationship-role-unnamed", "info",
+            f"{len(unnamed)} of {counted} relationships name a side `other` — the axes are split, "
+            "the pattern is still unstated",
+            _cap(unnamed) + [
+                "not a defect: `other` is a legitimate value and the `note` carries what is known. "
+                "It is the residue of the split — an unstated side is a side no contract can be "
+                "generated from, and an upstream that names nothing is why its consumers each "
+                "build their own ACL."],
+            "3-decompose"))
 
     order = {"high": 0, "medium": 1, "info": 2}
     return sorted(out, key=lambda f: (order[f.severity], f.id))

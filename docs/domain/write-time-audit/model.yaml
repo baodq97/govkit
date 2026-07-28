@@ -1,0 +1,51 @@
+context: WriteTimeAudit
+subdomain_type: supporting
+tactical_pattern: transaction-script
+ubiquitous_language:
+  - term: Hook payload
+    definition: The PreToolUse JSON a harness sends on stdin — tool_name, tool_input.file_path, tool_input.content, cwd (audit-write.ts:9 HookInput).
+  - term: Block
+    definition: A deny decision on a clearly-bad write, emitted as exit 0 plus permissionDecision deny — never exit 2 (cli.ts:198-213).
+  - term: Defer
+    definition: The default. Any uncertainty — non-Write, non-doc, no config, unparseable payload — proceeds to the normal permission flow (audit-write.ts:37-49).
+  - term: Remind
+    definition: A non-blocking nudge injected as additionalContext; the write proceeds (audit-write.ts:20-28, cli.ts:214-225).
+  - term: Start status
+    definition: The status a freshly authored doc of a type is born at (config.ts:62, govkit.yml:19,25,45,55,66).
+aggregates: []
+invariants:
+  - "Only a full-content `Write` is governed; every other tool defers, because an Edit carries partial content that cannot be parsed. — packages/govkit/src/commands/audit-write.ts:37; packages/govkit/src/cli.ts:84-88 (HELP)"
+  - A non-markdown path, or a payload without both a string file_path and a string content, defers. — packages/govkit/src/commands/audit-write.ts:38-41
+  - A repo with no readable govkit.yml is treated as not governed and defers — the gate never crash-blocks a user's write. — packages/govkit/src/commands/audit-write.ts:43-49
+  - A file whose basename is in the ignore list, or that lies outside every governed type dir, defers. — packages/govkit/src/commands/audit-write.ts:52, :139
+  - Type-dir resolution routes through the SAME typeDir helper every reader uses, so a non-default docs.root cannot be honoured by CI and silently bypassed at write time. — packages/govkit/src/commands/audit-write.ts:57; packages/govkit/src/util.ts:22 (typeDir)
+  - A governed doc written with no front-matter block BLOCKS, naming the required keys, the type's start status, and `owner: TBD`. — packages/govkit/src/commands/audit-write.ts:60-66
+  - A present-but-unparseable block BLOCKS with the parser's own message — the same violation shape the CI gate emits, never a stack trace. — packages/govkit/src/commands/audit-write.ts:69-76
+  - A governed doc missing any required key BLOCKS, naming exactly which keys are missing. — packages/govkit/src/commands/audit-write.ts:77-87
+  - A write that flips a doc INTO a terminal status while it carries a parent ref emits a reconciliation REMINDER and never blocks — the hook holds only this file, so it structurally cannot judge chain coherence. — packages/govkit/src/commands/audit-write.ts:20-28, :88-118
+  - When that same terminal status also keys required as-built sections, the reminder folds them in — the flip is the moment to write down what diverged. — packages/govkit/src/commands/audit-write.ts:100-108; govkit.yml:39-40
+  - Creating a governed doc at a status other than its type's start status emits a provenance nudge and never blocks; an overwrite of an existing file is left alone, because a stateless hook cannot judge a transition. — packages/govkit/src/commands/audit-write.ts:119-136
+  - A block is emitted as exit 0 plus a deny permissionDecision — exit 2 is the emergency-stop path and is never used here. — packages/govkit/src/cli.ts:197-213 (emitDecision)
+  - Any failure on the hook path — unreadable stdin, unparseable JSON, a thrown check — degrades to defer with no output and exit 0. — packages/govkit/src/cli.ts:851-863
+notes: >-
+  A stateless decision function over one payload — no identity, no lifecycle, nothing stored, so
+  `aggregates: []` is complete. Defer-by-default is the whole design: it blocks a clearly-bad
+  write and never auto-approves (audit-write.ts:31-35). The context has TWO domain roles, and the
+  second one is the finding — it is a gate (block) and a policy megaphone (remind) at once, and the
+  megaphone half is the only code in the repo that reflects Ratification's rules.
+relationships:
+  - to: GovernanceSchema
+    direction: downstream
+    our_roles: [conformist]
+    their_roles: [published-language]
+    note: Required keys, startStatus, terminalStatuses, refs and requiredSectionsByStatus all come from config; nothing is hardcoded here.
+  - to: StructuralGate
+    direction: peer
+    our_roles: [partnership]
+    their_roles: [partnership]
+    note: "The per-write twin (verify.ts:523-528). It duplicates required-key checking (audit-write.ts:77) rather than calling runVerify — a partnership that has to be kept in step by hand."
+  - to: Ratification
+    direction: downstream
+    our_roles: [conformist]
+    their_roles: [published-language]
+    note: Both reminders (audit-write.ts:88-136) restate the policy without enforcing it; RFC-0012's honesty is quoted in the code comment itself.

@@ -1,0 +1,70 @@
+context: Ratification
+subdomain_type: supporting
+tactical_pattern: crud
+ubiquitous_language:
+  - term: Ratification
+    definition: The act of advancing a governed doc's status. Tiered by the reversibility of the transition (govkit.yml:135-140).
+  - term: R0 / owner
+    definition: One-way doors — always in-session human ratification, no exceptions (govkit.yml:142-144).
+  - term: R1 / packet
+    definition: Recording-of-reality — the lead may flip WITHOUT a fresh ask iff every condition holds and the commit cites the evidence (govkit.yml:145-151).
+  - term: R2 / lead
+    definition: No ceremony (govkit.yml:152-153).
+  - term: One-way door
+    definition: A commitment costly to reverse — accepting an RFC, approving a PRD, superseding, releasing (RFC-0027:79-82).
+  - term: Recording of reality
+    definition: Writing down a state already true and already proven; nothing is being decided (RFC-0027:83-89).
+  - term: Packet
+    definition: A gate-loop artifact carrying an independent verify plus an independent red team, identified by a runId (govkit.yml:149, RFC-0027:100-102).
+  - term: Accept commit
+    definition: The separate commit that performs the flip and carries the authorization citation (AGENTS.md:107-108, :116).
+  - term: Honor-system
+    definition: The third govkit trust tier — a rule that binds because you follow it, not because the engine stops you (README.md:60-67, AGENTS.md:106-110).
+aggregates: []
+invariants:
+  - THE ENGINE NEVER READS THIS BLOCK. verify, eval and check behave byte-for-byte identically with or without it, so the stateless no-key invariant is untouched. — govkit.yml:128-134; RFC-0027:134-143
+  - "R0 transitions require in-session human ratification every time, with no exceptions: prd->approved, rfc->accepted, adr->accepted, any ->superseded, rel->released. — govkit.yml:142-143"
+  - The acts merge, publish and `edit:ratification` are R0 — editing this policy block is itself a one-way door. — govkit.yml:144; AGENTS.md:117-118
+  - An R1 flip is legal only when ALL FOUR conditions hold together — full gate green, a packet exists for THIS slice, the red-team verdict is flip-as-is or flip-after-reconcile with reconcile applied first, and the commit cites both the packet runId and `govkit.yml@<sha>`. — govkit.yml:145-151; AGENTS.md:113-116
+  - "The R1 gate condition is the FULL gate (`bun run check`), never a narrower command. — govkit.yml:148"
+  - "R1 covers exactly three transitions: rfc accepted->implemented, us in-progress->done, and `drift --ack`. — govkit.yml:146"
+  - "R2 transitions (us open->in-progress, us ->blocked) need no ceremony. — govkit.yml:152-153"
+  - An agent never self-assigns an owner; `owner: TBD` stands until a human takes it. — AGENTS.md:112
+  - An agent never self-flips a status outside an R1 transition with every condition met. — AGENTS.md:113-122
+  - No tier touches code approval — never self-approve, self-merge, or act as code owner. — AGENTS.md:123; RFC-0027:158-160
+  - An agent halts at a Lifecycle threshold when the required artifact is missing, rather than inventing it. — AGENTS.md:124; AGENTS.md:48-60
+  - The as-built forcing function is untouched by R1 — an `implemented` doc missing its As-built / Deviations sections still fails the deterministic gate. — RFC-0027:147-152; govkit.yml:39-40
+  - The canonical R0/R1/R2 transition lists live in govkit.yml only; AGENTS.md deliberately does not restate them, so the two cannot drift. — AGENTS.md:120-122
+notes: >-
+  A policy, not a model — no state, no identity, no lifecycle of its own, so `aggregates: []` is
+  the complete and correct output. **Labelled `supporting`, demoted from the prior pass's `core`.**
+  Its value is measured as removed human-interrupt load — RFC-0027:52-73 counts 5 ratification
+  events across 2 rounds, 3 of them pure bookkeeping — which is an internal cost saving, not a
+  capability any consumer competes on; no source in this repo claims differentiation for it.
+  R1's four conditions are still the safety of the whole scheme. It is also the model's sharpest finding — THIRTEEN
+  invariants with a committed text and ZERO runtime enforcement. RFC-0027:169-176 explains why that
+  is honest rather than lazy: a stateless no-git gate cannot see a transition at all, and teaching
+  it to would break the no-key CI invariant (README.md:68-77). The compensating control is the
+  distiller's after-the-fact audit of R1 flip commits against their cited packets
+  (RFC-0027:152-156), and its latency is a recorded open question (RFC-0027:209-215).
+relationships:
+  - to: StructuralGate
+    direction: downstream
+    our_roles: [conformist]
+    their_roles: [supplier]
+    note: Honor-system. R1 depends on this gate's verdict; the gate does not know this context exists (govkit.yml:128-134).
+  - to: QualityEval
+    direction: downstream
+    our_roles: [conformist]
+    their_roles: [supplier]
+    note: Honor-system, same shape — `bun run check` covers the eval floor.
+  - to: Reconciliation
+    direction: downstream
+    our_roles: [conformist]
+    their_roles: [supplier]
+    note: "`drift --ack` is an R1 transition (govkit.yml:146); nothing in drift.ts checks a citation."
+  - to: WriteTimeAudit
+    direction: upstream
+    our_roles: [published-language]
+    their_roles: [conformist]
+    note: The hook's two reminders (audit-write.ts:88-136) are the ONLY code anywhere that reflects this policy — and both are explicitly non-blocking.

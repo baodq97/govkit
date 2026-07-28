@@ -1,335 +1,79 @@
-# REST Design Patterns
-
-## Resource-Oriented Architecture
-
-REST APIs are built around resources, not actions. Resources are the nouns of your API.
-
-### Resource Identification
-
-**Good Resource URIs:**
-```
-GET    /users                  # Collection
-GET    /users/{id}             # Individual resource
-GET    /users/{id}/orders      # Nested collection
-POST   /users                  # Create resource
-PUT    /users/{id}             # Replace resource
-PATCH  /users/{id}             # Update resource
-DELETE /users/{id}             # Delete resource
-```
-
-**Bad Resource URIs:**
-```
-POST   /getUser                # Verb in URI
-POST   /createUser             # Verb in URI
-GET    /user?action=delete     # Action as query param
-```
-
-### Resource Naming Conventions
-
-- Use plural nouns for collections: `/users`, `/orders`, `/products`
-- Use lowercase and hyphens for readability: `/shipping-addresses`
-- Avoid deep nesting (max 2-3 levels): `/users/{id}/orders/{orderId}`
-- Use query parameters for filtering: `/users?status=active&role=admin`
-
-## HTTP Method Semantics
-
-### Safe and Idempotent Methods
-
-| Method | Safe | Idempotent | Use Case |
-|--------|------|------------|----------|
-| GET | Yes | Yes | Retrieve resource(s) |
-| POST | No | No | Create resource, non-idempotent operations |
-| PUT | No | Yes | Replace entire resource |
-| PATCH | No | No | Partial update |
-| DELETE | No | Yes | Remove resource |
-| HEAD | Yes | Yes | Get metadata only |
-| OPTIONS | Yes | Yes | Get allowed methods |
-
-### Method Usage
-
-**GET - Retrieve Resources**
-```http
-GET /users/123
-Accept: application/json
-
-Response: 200 OK
-{
-  "id": 123,
-  "name": "John Doe",
-  "email": "john@example.com",
-  "created_at": "2024-01-15T10:30:00Z"
-}
-```
-
-**POST - Create Resources**
-```http
-POST /users
-Content-Type: application/json
-
-{
-  "name": "Jane Smith",
-  "email": "jane@example.com"
-}
-
-Response: 201 Created
-Location: /users/124
-{
-  "id": 124,
-  "name": "Jane Smith",
-  "email": "jane@example.com",
-  "created_at": "2024-01-16T14:20:00Z"
-}
-```
-
-**PUT - Replace Resource**
-```http
-PUT /users/123
-Content-Type: application/json
-
-{
-  "name": "John Doe Updated",
-  "email": "john.new@example.com"
-}
-
-Response: 200 OK
-{
-  "id": 123,
-  "name": "John Doe Updated",
-  "email": "john.new@example.com",
-  "updated_at": "2024-01-17T09:15:00Z"
-}
-```
-
-**PATCH - Partial Update**
-```http
-PATCH /users/123
-Content-Type: application/json
-
-{
-  "email": "john.updated@example.com"
-}
-
-Response: 200 OK
-{
-  "id": 123,
-  "name": "John Doe",
-  "email": "john.updated@example.com",
-  "updated_at": "2024-01-17T10:00:00Z"
-}
-```
-
-**DELETE - Remove Resource**
-```http
-DELETE /users/123
-
-Response: 204 No Content
-```
-
-## HTTP Status Codes
-
-### Success Codes (2xx)
-
-- **200 OK** - Request succeeded (GET, PUT, PATCH)
-- **201 Created** - Resource created (POST), include Location header
-- **202 Accepted** - Request accepted for async processing
-- **204 No Content** - Success with no response body (DELETE)
-
-### Redirection (3xx)
-
-- **301 Moved Permanently** - Resource permanently moved
-- **302 Found** - Temporary redirect
-- **304 Not Modified** - Cached version is still valid
-
-### Client Errors (4xx)
-
-- **400 Bad Request** - Invalid request syntax or validation error
-- **401 Unauthorized** - Authentication required or failed
-- **403 Forbidden** - Authenticated but not authorized
-- **404 Not Found** - Resource doesn't exist
-- **405 Method Not Allowed** - HTTP method not supported for resource
-- **409 Conflict** - Request conflicts with current state (e.g., duplicate)
-- **422 Unprocessable Entity** - Valid syntax but semantic errors
-- **429 Too Many Requests** - Rate limit exceeded
-
-### Server Errors (5xx)
-
-- **500 Internal Server Error** - Unexpected server error
-- **502 Bad Gateway** - Invalid response from upstream server
-- **503 Service Unavailable** - Server temporarily unavailable
-- **504 Gateway Timeout** - Upstream server timeout
-
-## HATEOAS (Hypermedia)
-
-### Hypermedia-Driven APIs
-
-Include links to related resources and available actions:
-
-```json
-{
-  "id": 123,
-  "name": "John Doe",
-  "email": "john@example.com",
-  "_links": {
-    "self": { "href": "/users/123" },
-    "orders": { "href": "/users/123/orders" },
-    "update": { "href": "/users/123", "method": "PATCH" },
-    "delete": { "href": "/users/123", "method": "DELETE" }
-  }
-}
-```
-
-### HAL (Hypertext Application Language)
-
-```json
-{
-  "id": 123,
-  "name": "John Doe",
-  "_links": {
-    "self": { "href": "/users/123" }
-  },
-  "_embedded": {
-    "orders": [
-      {
-        "id": 456,
-        "total": 99.99,
-        "_links": {
-          "self": { "href": "/orders/456" }
-        }
-      }
-    ]
-  }
-}
-```
-
-## Content Negotiation
-
-### Accept Headers
-
-```http
-GET /users/123
-Accept: application/json
-
-GET /users/123
-Accept: application/xml
-
-GET /users/123
-Accept: application/hal+json
-```
-
-### Response Content-Type
-
-```http
-Content-Type: application/json; charset=utf-8
-Content-Type: application/problem+json
-Content-Type: application/hal+json
-```
-
-## Idempotency
-
-### Idempotent Operations
-
-**PUT - Always idempotent:**
-Multiple identical PUT requests produce the same result as a single request.
-
-**DELETE - Idempotent:**
-First DELETE returns 204, subsequent DELETEs return 404 (same end state).
-
-**POST - Not idempotent by default:**
-Use `Idempotency-Key` header for idempotent POST:
-
-```http
-POST /payments
-Idempotency-Key: 550e8400-e29b-41d4-a716-446655440000
-Content-Type: application/json
-
-{
-  "amount": 100.00,
-  "currency": "USD"
-}
-```
-
-Server stores idempotency key and returns same response for duplicate requests.
-
-## Cache Control
-
-### Cache Headers
-
-```http
-Cache-Control: public, max-age=3600
-Cache-Control: private, no-cache
-Cache-Control: no-store
-ETag: "33a64df551425fcc55e4d42a148795d9f25f89d4"
-Last-Modified: Wed, 15 Jan 2024 10:30:00 GMT
-```
-
-### Conditional Requests
-
-```http
-GET /users/123
-If-None-Match: "33a64df551425fcc55e4d42a148795d9f25f89d4"
-
-Response: 304 Not Modified
-```
-
-```http
-PUT /users/123
-If-Match: "33a64df551425fcc55e4d42a148795d9f25f89d4"
-Content-Type: application/json
-
-{
-  "name": "Updated Name"
-}
-
-Response: 412 Precondition Failed (if ETag doesn't match)
-```
-
-## URI Patterns
-
-### Consistent URI Structure
-
-```
-/{version}/{resource}
-/{version}/{resource}/{id}
-/{version}/{resource}/{id}/{sub-resource}
-/{version}/{resource}/{id}/{sub-resource}/{sub-id}
-```
-
-### Query Parameters
-
-**Filtering:**
-```
-GET /users?status=active&role=admin
-GET /products?category=electronics&price_min=100&price_max=500
-```
-
-**Sorting:**
-```
-GET /users?sort=created_at
-GET /users?sort=-created_at          # Descending
-GET /users?sort=name,created_at      # Multiple fields
-```
-
-**Field Selection:**
-```
-GET /users?fields=id,name,email
-GET /users?exclude=password,social_security_number
-```
-
-**Search:**
-```
-GET /users?q=john
-GET /products?search=laptop
-```
-
-## Best Practices
-
-1. **Use nouns, not verbs** - Resources are nouns, methods are verbs
-2. **Plural collections** - Use `/users` not `/user`
-3. **Consistent naming** - Choose snake_case or camelCase and stick to it
-4. **Proper status codes** - Use appropriate HTTP status codes
-5. **Include metadata** - Pagination, filtering, sorting info in responses
-6. **Version your API** - Plan for evolution from day one
-7. **Document everything** - OpenAPI specs, examples, error codes
-8. **Security by default** - HTTPS, authentication, rate limiting
-9. **Support filtering** - Enable clients to get exactly what they need
-10. **Implement HATEOAS** - Make APIs self-documenting and discoverable
+# Resource & Operation Judgement
+
+Mechanics — HTTP verb semantics, status codes, HATEOAS, caching, idempotency headers — are the
+[HTTP semantics RFC (9110)](https://www.rfc-editor.org/rfc/rfc9110) and are enforced, not
+explained, by `../redocly.yaml` (`no-http-verbs-in-paths`, `operation-4xx-response`,
+`operation-operationId`). This file is what the linter cannot check: which resource a concept
+becomes, whether a related context gets a contract at all, and which of four responsibilities an
+operation actually has.
+
+## Relationship role → does this context get a contract at all
+
+`docs/domain/*/model.yaml` splits a relationship across **two axes**, and only one of them decides
+a contract. `direction: upstream | downstream | peer` says who depends on whom; `our_roles` and
+`their_roles` say how each side *governs* that dependency. A direction is not a role: the same
+downstream is free to conform *or* to build an ACL, and an upstream may be an Open Host Service,
+publish a language, both, or neither. (EuroPLoP'21 Fig. 5 marks `U`/`PL` on the upstream end and
+`D`/`CF` on the downstream one; ddd-crew's context-mapping repo groups the nine patterns the same
+way.) So read the **role**, never the direction — and read it on **`our_roles`**, because a role
+held at the other end belongs to the other end's contract.
+
+**The provider of a contract is the upstream side, so only an upstream role makes a provider.**
+Open Host Service, Published Language and Supplier are what a context *offers* its callers;
+Conformist, ACL and Customer are what a context *does about* someone else's offer. This section is
+the single statement of that rule — `scripts/derive_cel.py` implements it and cites this section
+instead of restating it. Don't default to "every context gets an `openapi.yaml`":
+
+| Role (`our_roles`) | Contract decision |
+|---|---|
+| **open-host** | Gets a contract, published deliberately for many, partly unknown consumers — this is the one to put versioning/deprecation rigor into first. |
+| **published-language** | Gets a contract: the published schema *is* the contract, so a context that publishes one is by definition called. |
+| **supplier** | Gets a contract. The customer end has negotiating power over it, so expect requested changes as issues against this spec — never a fork. |
+| **partnership** | Gets a contract, and so does the other end; treat as two co-evolving providers, not one. |
+| **customer** | No new contract. It negotiates the supplier's; record its needs against the supplier's spec. |
+| **conformist** | No new contract, no negotiation either — it accepts the upstream's model as-is. |
+| **acl** | **No new contract.** Holding an ACL is a downstream act — see the paragraph below. |
+| **shared-kernel** | No separate contract. Both sides import the same schema components (`$ref` a shared file); a contract fork here re-introduces the coupling Shared Kernel was meant to avoid. |
+| **separate-ways** | No integration at all, so no API at all. |
+| **other** | Nothing to decide: the model has not said how this side is governed. Park the traffic and ask the modeller — never promote an `other` to a contract to fill a table. |
+
+**Why holding an ACL publishes nothing.** ddd-crew groups the anticorruption layer with the
+*downstream* patterns, and a downstream is by definition wrapping an upstream it does not control;
+EuroPLoP'21 Fig. 5 puts `D`/`CF` on that end and `U`/`PL` on the other. It is true that an ACL's
+schema *differs* from the model it protects — but that schema faces **inward**. It is what this
+context reads, not what it offers, so it gives this context nothing to publish. An ACL owner may of
+course publish an Open Host Service to *its* own downstreams, and then it does get a contract: that
+is the `open-host` row doing the work, not the `acl` row. Two roles, two rows, and one side is free
+to hold both — `our_roles: [acl, open-host]` is a context that wraps a supplier and re-offers it.
+
+## Published Language vs internal model
+
+Whether the API schema mirrors the aggregate 1:1 or translates it depends on which side of a
+boundary you're on, not on maintainability taste:
+
+- **Own aggregate, no boundary crossed** — the API schema may mirror the aggregate directly; once
+  versioned, that mirror *is* the Published Language.
+- **Behind an ACL you hold** — the translation is internal. The schema you code against is the
+  upstream's; the shape your ACL produces is your own model, and fields differing from the
+  upstream's entity is the ACL working, not drift. It becomes a contract only when you publish it
+  onward as an Open Host Service — the `acl` row above, then the `open-host` one.
+- **Never expose invariant-only fields** — fields that exist purely to enforce a domain rule
+  (a lock version, an internal state-machine guard) have no caller-facing question they answer.
+  This is [OWASP API3:2023 — Broken Object Property Level Authorization](https://owasp.org/API-Security/editions/2023/en/0xa3-broken-object-property-level-authorization/)
+  (the 2023 merge of the old API3:2019 "Excessive Data Exposure" and API6:2019 "Mass Assignment" —
+  the root cause of both was the same missing authorization at the property level). Treat the cut
+  as an authorization control, not a schema-hygiene preference.
+
+## Operation-responsibility taxonomy
+
+Name the responsibility before reaching for a verb — the taxonomy, not the URI, drives the design:
+
+| Responsibility | What it means | Shape |
+|---|---|---|
+| **State Creation** | A new aggregate/entity instance comes into existence. | `POST` on the collection. |
+| **Retrieval** | Read, no side effects. | `GET` on collection (paginated) or item. |
+| **State Transition** | An aggregate moves between states a domain event names (`CoursePublished`). | A **sub-resource**, never a verb: `PUT /courses/{id}/publication`, not `POST /publishCourse`. See `references/openapi.md` § domain events for the webhook pairing. |
+| **Computation** | A derived read that costs more than plain retrieval (a report, a search, a projection) and isn't itself a domain resource. | Still `GET`, on a purpose-named resource: `GET /parking-visits/{id}/fee-estimate`, not an RPC endpoint. |
+
+An RPC-verb path (`POST /publishCourse`, `GET /computeFee`) is never acceptable regardless of
+which bucket the operation falls in — enforced by `no-http-verbs-in-paths` in `../redocly.yaml`.

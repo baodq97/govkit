@@ -1,0 +1,61 @@
+context: Adoption
+subdomain_type: supporting
+tactical_pattern: transaction-script
+ubiquitous_language:
+  - term: Scaffold
+    definition: "`govkit init` writing a fresh govkit.yml, doc dirs and the audit-write hook into a greenfield repo (init.ts:1-40)."
+  - term: Adopt
+    definition: "`govkit init --adopt` migrating an EXISTING corpus — the two modes never mix (cli.ts:655-670)."
+  - term: Lane 1
+    definition: A doc that LACKS front-matter — adopt proposes a block for it (adopt.ts:158-181).
+  - term: Lane 2
+    definition: A doc that HAS front-matter with a status outside the enum — reported as a suggested config patch, never written (adopt.ts:148-157, :184-188).
+  - term: Sentinel
+    definition: "`<MISSING — fill in>` — the angle-bracket value written where extraction failed, chosen so the gate's placeholder check flags it (adopt.ts:8-12)."
+  - term: Extracted
+    definition: "A value pulled from a DECLARED metadata shape — bold `**Key**` then a colon and the value, a line-leading `Key` then a colon, the first ATX heading, a labelled ISO date, or an id-prefixed filename (adopt.ts:59-96)."
+  - term: Config drift
+    definition: A status value real docs use that the configured enum does not list. NOT the same word as Reconciliation's spec-to-code drift (adopt.ts:31 AdoptConfigDrift).
+  - term: Changed set
+    definition: New-or-modified governed docs vs a base ref — the flag that lets an existing repo adopt without retrofitting its whole backlog (util.ts:328-344 gitChangedDocs).
+aggregates: []
+invariants:
+  - "The load-bearing asymmetry: a MISSED extraction costs a human one diff line, a WRONG extraction asserts metadata nobody approved. So when in doubt the extractor returns null and the caller writes the sentinel — running text is never scanned. — packages/govkit/src/commands/adopt.ts:54-72 (lineValue)"
+  - The sentinel is an ANGLE-BRACKET value on purpose, so the gate's own placeholder check flags it on EVERY required key — including owner, title and date, which have no enum or convention of their own to fail against. — packages/govkit/src/commands/adopt.ts:8-12; packages/govkit/src/commands/verify.ts:117 (checkPlaceholder)
+  - A title is taken from the first ATX heading only; the "first non-empty line" fallback is deliberately NOT used, because it would guess a title from arbitrary prose. — packages/govkit/src/commands/adopt.ts:74-80 (extractTitle)
+  - A date is accepted only from a LABELLED line whose value is a strict ISO date; a bare date floating in prose is too ambiguous to trust. — packages/govkit/src/commands/adopt.ts:82-87 (extractDate)
+  - An id is derived from the filename only when the type declares an idPrefix and the name carries it — an id is never invented. — packages/govkit/src/commands/adopt.ts:89-96 (extractId)
+  - Extraction runs on prose with fenced code and HTML comments stripped, so a doc that SHOWS a front-matter example in a fence never has that example lifted as its real metadata. — packages/govkit/src/commands/adopt.ts:159-164 (runAdopt); packages/govkit/src/util.ts:60 (stripNonProse)
+  - Every extracted value is double-quoted, so a real heading like `# Connector: Secrets` cannot be written back as malformed YAML by the tool that migrated it. — packages/govkit/src/commands/adopt.ts:108-112 (quote)
+  - Every emitted line carries a provenance comment — `# extracted from prose` or `# NEEDS REVIEW — not found` — because a wrongly-extracted value is only catchable if the diff says where it came from. — packages/govkit/src/commands/adopt.ts:114-123 (serialize)
+  - A doc that already HAS a front-matter block is never rewritten; adopt only ever scaffolds a missing one, which is also what makes it idempotent. — packages/govkit/src/commands/adopt.ts:148-157 (runAdopt)
+  - A doc whose block is present but MALFORMED is skipped and left for the gate to report — adopt must never prepend a second block. — packages/govkit/src/commands/adopt.ts:144-146 (runAdopt)
+  - Status-vocabulary drift is REPORTED as a suggested enum, never written — the schema is the human's contract. — packages/govkit/src/commands/adopt.ts:126-130, :184-188 (runAdopt)
+  - Adopt is a dry run unless `--apply`, and its exit code reflects whether any migrated doc would STILL fail the gate, so CI cannot mistake a preview for a clean migration. — packages/govkit/src/cli.ts:655-666
+  - The adopt trigger predicate is exactly the gate's "missing YAML front-matter" condition, so adopt targets precisely the docs the gate flags — conformity by construction, not by coincidence. — packages/govkit/src/commands/adopt.ts:158-160 (runAdopt); packages/govkit/src/commands/verify.ts:557-566 (runVerify)
+  - An explicit `--changed` base ref that does not resolve is a hard error, never a silent full-scan fallback — that fallback would re-introduce the avalanche the flag exists to prevent. — packages/govkit/src/util.ts:299-322 (resolveChangedBase)
+  - An IMPLICIT fallback from origin/main to HEAD is reported, because on a shallow CI clone an unwarned HEAD fallback scopes to nothing and the gate passes green having checked nothing — failing open, which is worse than the avalanche. — packages/govkit/src/util.ts:296-298, :323-325 (resolveChangedBase)
+notes: >-
+  Two thin lanes and a regex extractor — no identity, no lifecycle, nothing stored between runs, so
+  `aggregates: []` is the complete model and `invariants:` sits at context level (the template
+  extension flagged in context-map.md). The whole context is one refusal, stated in the code as a
+  cost asymmetry: it would rather leave a hole a human must fill than assert a value nobody
+  approved. `--changed` is modelled here rather than as a context of its own because it is the same
+  refusal at corpus scale — adopt an existing repo without retrofitting its backlog, and never let
+  the scoping mask a real new violation (verify.ts:472 scopeToChanged).
+relationships:
+  - to: GovernanceSchema
+    direction: peer
+    our_roles: [partnership]
+    their_roles: [partnership]
+    note: "Genuinely two-way: `init` WRITES the schema from the shipped template while `init --adopt` READS it to learn the required keys (adopt.ts:131-138). Neither side is purely upstream."
+  - to: StructuralGate
+    direction: downstream
+    our_roles: [conformist]
+    their_roles: [supplier, published-language]
+    note: The sentinel and the trigger predicate are both chosen to match the gate's behaviour exactly (adopt.ts:8-12, :158-160). Adopt contributes no rule of its own; it only produces docs the gate then judges.
+  - to: QualityEval
+    direction: peer
+    our_roles: [separate-ways]
+    their_roles: [separate-ways]
+    note: No call in either direction. They share only `stripNonProse` (util.ts:60), for the same reason in both — a signal inside a code fence is not the document's own.

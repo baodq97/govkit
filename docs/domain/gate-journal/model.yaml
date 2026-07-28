@@ -1,0 +1,57 @@
+context: GateJournal
+subdomain_type: supporting
+tactical_pattern: transaction-script
+ubiquitous_language:
+  - term: Journal
+    definition: An append-only JSONL file, one run record per line, at .govkit/journal.jsonl or journal.path (journal.ts:48-53).
+  - term: Record
+    definition: One gate run — at, cmd, root, optional gitSha/changed, per-command counts, ok, optional error, durationMs (journal.ts:14 JournalRecord).
+  - term: Sensor
+    definition: "The stance: it observes the gate, it is never part of it (journal.ts:6-9)."
+  - term: Ack marker
+    definition: "`ack: true`, present only on a `drift --ack` run, so `drifted > 0 with ok: true` is legal there and only there (journal.ts:33-38)."
+aggregates: []
+invariants:
+  - The journal observes the gate and is never part of it — a journal write failure warns on stderr and NEVER changes the command's exit code. — packages/govkit/src/journal.ts:6-9; packages/govkit/src/cli.ts:584 (runGate), the journal catch at :636-639
+  - The journal destination is confined under the repo root; a path escaping it errors loudly rather than writing outside the repo the user pointed govkit at. — packages/govkit/src/journal.ts:52 (resolveJournalPath); packages/govkit/src/util.ts:11 (isInside)
+  - One JSON object per line, appended, with the parent directory created on first write — so a consumer can tail and parse incrementally. — packages/govkit/src/journal.ts:64 (appendJournal)
+  - Optional fields are OMITTED, never null, so every line stays minimal and lines written before a field existed remain readable. — packages/govkit/src/journal.ts:11-13, :26
+  - Exactly one record is written per run, INCLUDING a run that threw — an error path with no journal line would blind the sensor precisely when the gate fails hardest. — packages/govkit/src/cli.ts:584 (runGate), the try/catch at :641-651
+  - A run whose config failed to load records to the DEFAULT journal location, because a broken config cannot name an override. — packages/govkit/src/cli.ts:629-635
+  - "An ack run is marked `ack: true`; without the marker an ack record is indistinguishable from a check run and corrupts a consumer's drifted-implies-not-ok reading. — packages/govkit/src/journal.ts:33-38; packages/govkit/src/cli.ts:809-812"
+  - The record is written AFTER the command has printed its report, so the sensor can never delay or suppress the human output. — packages/govkit/src/cli.ts:568-573, :644-645
+  - A --changed run records its base ref, so a scoped verdict is never mistaken for a full-corpus one. — packages/govkit/src/journal.ts:20-23; packages/govkit/src/cli.ts:599
+  - Only five commands may journal — verify, eval, check, drift, ledger — and --journal on any other command is rejected loudly rather than silently ignored. — packages/govkit/src/journal.ts:17; packages/govkit/src/cli.ts:487-508 (scopedFlags)
+notes: >-
+  An append-only log with one record shape and no reads — no identity, no consistency boundary
+  beyond the line, so `aggregates: []` is complete. This is the ONE context that produces a real
+  past-tense fact (`GateRunRecorded`), and it has NO in-process consumer: RFC-0017's distiller
+  reads `.govkit/journal.jsonl` out of band, and nothing in packages/govkit/src reads a line back.
+  The record's own name is deliberately absent from the code — the type is `JournalRecord`, not an
+  event class; the event name here is this model's, and is flagged as such.
+relationships:
+  - to: GovernanceSchema
+    direction: downstream
+    our_roles: [conformist]
+    their_roles: [published-language]
+    note: "`journal.path` is a tolerant config passthrough validated at USE time (config.ts:509-512, journal.ts:52) — an unused bad key must not break gates that never touch it."
+  - to: StructuralGate
+    direction: downstream
+    our_roles: [customer, published-language]
+    their_roles: [supplier]
+    note: This context owns the line shape; the gate supplies docs + violations{path,kind,tier} (cli.ts:600-611).
+  - to: QualityEval
+    direction: downstream
+    our_roles: [customer, published-language]
+    their_roles: [supplier]
+    note: Supplies artifacts / floorPassRate / advisoryPassRate / averageScore (cli.ts:612-621).
+  - to: Reconciliation
+    direction: downstream
+    our_roles: [customer, published-language]
+    their_roles: [supplier]
+    note: Supplies pre-summarised counts only — the full DriftResult carries absolute paths the sensor does not need (cli.ts:576-582).
+  - to: FeatureLedger
+    direction: downstream
+    our_roles: [customer, published-language]
+    their_roles: [supplier]
+    note: Supplies entries / passing / violations counts (cli.ts:840-847).

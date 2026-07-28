@@ -18,6 +18,30 @@ notes: >-
   ParkingVisit and TerminalOperations. Open: H9 — no refund, reversal or chargeback concept exists
   anywhere in the language.
 relationships:
-  - { to: ParkingVisit, type: upstream }
-  - { to: RevenueReconciliation, type: upstream }
-  - { to: FiscalRecord, type: upstream }
+  - to: ParkingVisit
+    direction: upstream
+    our_roles: [other]
+    their_roles: [acl]
+    note: >-
+      Bought, and its mechanics are excluded by INPUT.md §7.3 — so nothing states what this side
+      offers, and `other` is that absence rather than an unfilled field. Contrast
+      GuidanceIntegration, which is equally bought yet is stated to host one internal contract:
+      here no source says so, no flow ever calls this context, and the one fact it emits has no
+      name at all (flow 0002 #4, H9). Naming a role would be deciding H9 in YAML.
+  - to: RevenueReconciliation
+    direction: upstream
+    our_roles: [other]
+    their_roles: [acl]
+    note: >-
+      Machine takings and what the bank says arrived. The acquirer link itself was declared outside
+      the expert's knowledge (H9), so nothing here can be typed as a published contract; flow 4.3
+      records that two of the three reconciliation legs have no emitter anywhere in the model, and
+      PC-4 is the change gated on that answer.
+  - to: FiscalRecord
+    direction: upstream
+    our_roles: [other]
+    their_roles: [acl]
+    note: >-
+      Payment method and the machine paid at — the only two fields FiscalRecord takes from here, and
+      no source says how this side governs handing them over. Same absence as the two edges above,
+      same H9.

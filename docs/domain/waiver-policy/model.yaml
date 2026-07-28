@@ -1,0 +1,102 @@
+context: WaiverPolicy
+subdomain_type: supporting
+tactical_pattern: full-domain-model
+ubiquitous_language:
+  - term: Waiver
+    definition: A recorded, EXPIRING exception — rule, scope, reason, authorized_by, expires, every field mandatory (config.ts:224 Waiver).
+  - term: Rule
+    definition: What is waived — a verify violation kind or an eval rubric rule id. One open vocabulary across both trust layers (config.ts:296 knownRuleKeys).
+  - term: Scope
+    definition: A repo-relative path or glob. Segment-aware and anchored at BOTH ends, so a waiver can never widen itself (config.ts:366 globToRegExp).
+  - term: Authorized by
+    definition: The human who signed it. An agent may PROPOSE a waiver; it may never author this field (config.ts:231-234).
+  - term: Active / expired / malformed
+    definition: The three states, of which only `active` suppresses anything (config.ts:242 WaiverState).
+  - term: Applied
+    definition: Findings an active waiver actually excused in THIS run — counted on what was reported, never on what was scanned (config.ts:267, verify.ts:634-643).
+  - term: Marking, never filtering
+    definition: A waived finding stays in the result and gains a line naming who signed it and when it dies; only the verdict changes its mind (verify.ts:415-421 applyWaivers).
+aggregates:
+  - name: Waiver
+    root: Waiver
+    exposed_to_api: true      # the `waivers:` block in govkit.yml is a hand-written, reviewed contract
+    entities:
+      - name: Waiver
+        attributes: [rule, scope, reason, authorized_by, expires]
+    value_objects:
+      - { name: WaiverScopeGlob, attributes: [pattern], exposed_to_api: false }
+      - { name: ExpiryInstant, attributes: [epochMs], exposed_to_api: false }
+      - { name: WaiverState, attributes: [state, index, waiver, daysLeft], exposed_to_api: true }
+      - { name: WaiverSummary, attributes: [configured, active, expired, malformed, expiringSoon, horizonDays, applied], exposed_to_api: true }
+    domain_events: []
+    invariants:
+      - "Every entry must carry a non-empty rule, scope, reason, authorized_by AND expires — an exception without one of them is an ignore, not a waiver. — packages/govkit/src/config.ts:211-217 (WAIVER_REQUIRED_FIELDS), :320-326 (classifyOne)"
+      - "`expires` is MANDATORY, deliberately stricter than the Snyk policy this borrows from, which permits a permanent ignore by omitting it. Every waiver dies, its finding comes back on its own, and accepted debt cannot accumulate silently. — packages/govkit/src/config.ts:197-207, :235-236"
+      - A date-only `expires` is valid THROUGH that day (23:59:59.999 UTC) — reading `2026-12-31` as dead at midnight on the 30th is the off-by-one that gets a mechanism distrusted. — packages/govkit/src/config.ts:281-289 (expiryInstant)
+      - "`expires` must be an ISO date or ISO datetime, deliberately narrower than Date.parse, which accepts implementation-defined junk. — packages/govkit/src/config.ts:277-288 (expiryInstant)"
+      - A `rule` outside the known vocabulary (every verify kind union every configured rubric rule id) is MALFORMED — a typo'd waiver waives nothing while reading as though it did. — packages/govkit/src/config.ts:291-302 (knownRuleKeys), :327-333 (classifyOne)
+      - Only an `active` waiver suppresses anything; `malformed` and `expired` entries suppress NOTHING, so the failure mode of this whole feature is a noisy gate, never a quiet one. — packages/govkit/src/config.ts:239-251 (WaiverState); packages/govkit/src/commands/verify.ts:386-396 (checkWaivers); packages/govkit/src/commands/eval.ts:196-200 (runEval)
+      - Waivers are classified ONCE against ONE instant, so two findings judged in the same run can never disagree about whether a waiver is still in force. — packages/govkit/src/config.ts:353-360 (classifyWaivers); packages/govkit/src/commands/verify.ts:613-618 (runVerify); packages/govkit/src/commands/eval.ts:196-199 (runEval)
+      - A waiver is a rule-times-scope pair and BOTH halves must match — never a blanket over a file, never a blanket over a rule. — packages/govkit/src/config.ts:391-395 (waiverCovers)
+      - The scope glob is segment-aware and anchored at both ends, so a scope can never widen itself by accidental substring match. — packages/govkit/src/config.ts:362-389 (globToRegExp)
+      - Matching runs on the repo-relative forward-slash path, so a scope means the same thing on every OS and in every clone. — packages/govkit/src/commands/verify.ts:418-427 (applyWaivers); packages/govkit/src/commands/eval.ts:228-232 (runEval)
+      - A waived violation is MARKED, never filtered — it stays in `violations`, in `--json` and in the journal, and gains a line naming who signed it and when it dies. Visibility is the whole price of the escape hatch. — packages/govkit/src/commands/verify.ts:415-440 (applyWaivers)
+      - A `waiver`-kind violation can never itself be waived — a waiver may not waive the report of a broken waiver, which would make the mechanism self-concealing. — packages/govkit/src/commands/verify.ts:419-426 (applyWaivers), :41-47 (Violation.waivedBy)
+      - "The eval floor clears only when EVERY failed required rule is individually signed for: a waiver is a rule-times-scope exception, never a blanket \"this file is exempt from the floor\". — packages/govkit/src/commands/eval.ts:180-183 (scoreArtifact)"
+      - "`requiredOk` and `floorPassRate` deliberately keep reporting the LITERAL structural truth, unmoved by waivers — a waiver that could move a calibration number would let accepted debt re-tune the rubric that judges it. — packages/govkit/src/commands/eval.ts:34-40, :242-247 (runEval)"
+      - Waiving composes with risk tiers rather than competing — `tier` says how the RULE is treated everywhere, `waivedBy` says this ONE finding was signed for, and both leave the violation in the list. — packages/govkit/src/commands/verify.ts:625-633 (runVerify)
+      - "`applied` is counted on what was REPORTED, not on what was scanned: under `--changed`, a waiver covering an out-of-scope doc excused nothing this run, and saying \"2 waived\" over a report showing neither would be the summary lying about its own body. — packages/govkit/src/commands/verify.ts:634-643 (runVerify)"
+      - Only the LIST shape is validated at load; every entry stays raw so a malformed waiver REACHES the gate and is reported — throwing at load would take the whole gate down for one bad exception, and dropping it silently would be the suppression this mechanism exists to make impossible. — packages/govkit/src/config.ts:187-194 (GovkitConfig.waivers), :489-499 (loadConfig)
+      - An agent may propose a waiver but may never author `authorized_by` — the same rule that forbids self-assigning an owner or self-flipping a status. — packages/govkit/src/config.ts:231-234 (Waiver.authorized_by); AGENTS.md:112-113
+notes: >-
+  Landed across config.ts, verify.ts and eval.ts DURING this modelling run (see context-map.md
+  Conflicts) — the prior pass of this tree predates it and does not mention waivers at all. It earns
+  an aggregate despite being `supporting` because a waiver has real identity in the config list, a
+  real lifecycle (active -> expiring-soon -> expired) and a consistency boundary of its own: the
+  rule-times-scope pair must be judged as one unit or the exception widens. `domain_events: []` —
+  expiry is computed from a clock at read time, not published; `WaiverExpired` would be a fact
+  nothing in the engine emits, so it is deliberately not modelled.
+relationships:
+  - to: GovernanceSchema
+    direction: downstream
+    our_roles: [conformist]
+    their_roles: [published-language]
+    note: "The `waivers:` block lives in govkit.yml, but this is the one config key deliberately validated at GATE time rather than load time (config.ts:187-194) — the schema owns the list shape and nothing else."
+  - to: StructuralGate
+    direction: peer
+    our_roles: [shared-kernel]
+    their_roles: [shared-kernel]
+    note: The gate owns the violation kinds this context's `rule` vocabulary is drawn from (config.ts:296 knownRuleKeys), and this context decides which of the gate's findings still count. Mutual-consent change — adding a violation kind widens what a waiver may name.
+  - to: QualityEval
+    direction: peer
+    our_roles: [shared-kernel]
+    their_roles: [shared-kernel]
+    note: Same vocabulary, second consumer — a rubric rule id is as waivable as a verify kind, and the same `classifyWaivers` clock discipline applies in both (eval.ts:196-199).
+  - to: GateJournal
+    direction: upstream
+    our_roles: [supplier]
+    their_roles: [customer, published-language]
+    note: >-
+      THIS EDGE WAS MISSING, and the omission cost a defect. The `marked, never filtered`
+      invariant above already said a waived finding must reach the journal, but with no
+      relationship declared, no one owned the field: the record carried the finding as
+      `tier: blocking` on an `ok: true` line and said nothing about the signature, so every
+      consumer reading "a blocking violation means the gate broke" — swe-flow:distill-learnings
+      among them — read a HUMAN-SIGNED EXCEPTION as a BROKEN GATE and learned from an incident
+      that never happened. That is what a missing edge costs: not a merge conflict, which
+      file-level review catches, but two contexts quietly disagreeing about what a record means.
+      Closed by `waived: true` on each violation entry, omitted and never false like `ack`
+      (packages/govkit/src/journal.ts:24-35 JournalRecord.verify;
+      packages/govkit/src/cli.ts:606-614). This context supplies the marker; GateJournal still
+      owns the line shape. GateJournal's own file lists five suppliers and not this one — its
+      mirror of this edge is still owed.
+  - to: Calibration
+    direction: peer
+    our_roles: [separate-ways]
+    their_roles: [separate-ways]
+    note: "Deliberately no edge. `requiredOk` and `floorPassRate` stay waiver-blind (eval.ts:34-40) precisely so a signed exception can never move the confusion matrix that judges the rubric."
+  - to: Ratification
+    direction: downstream
+    our_roles: [conformist]
+    their_roles: [published-language]
+    note: "`authorized_by` is a human authorization, the same act Ratification governs for status flips (config.ts:231-234, AGENTS.md:112-113). Honor-system: nothing checks who wrote the name."
