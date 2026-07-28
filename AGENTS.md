@@ -95,8 +95,15 @@ ship as **plugin agents** (`swe-flow:implementer`, …) to be usable from the `s
   symbol/call-site inventory (grep/codegraph) and state the count. The rename lands as ONE
   coherent change set — intermediate states are expected not to compile — and verifies with the
   FULL test suite, never scoped.
-- **Act-on-green is conditional:** `bun run check && <push/flip/publish>` in one chain — a
-  captured-but-unchecked exit code is as good as no gate (Round 17 F9).
+- **Act-on-green is conditional:** `bun run check && <push/merge/flip/publish>` in one chain — a
+  captured-but-unchecked exit code is as good as no gate (Round 17 F9). A MERGE is an act like
+  any other: two merges landed on main with the full gate red (drift journaled `ok: false` at
+  09:18 before either landed), and six un-acked drifted docs plus a red lint corpus accumulated
+  behind them — the R0 `merge` act rides the same green (Round 22).
+- **Run evidence is exhibit, not source:** machine-generated run artifacts (eval corpora and run
+  outputs under `docs/research/**`, shipped example outputs like ddd-flow's `examples/`) are
+  frozen evidence — exclude them from source-code gates (formatter/linter config) when the
+  directory is born, and never reformat committed evidence to make a gate green (Round 22).
 - **Reconcile-as-you-go:** editing a file under any governed doc's `governs:` updates that
   doc's as-built/reconciled in the same change, or hands the ack to the owner explicitly —
   drift found at close-time is an accumulation failure (Round 17).

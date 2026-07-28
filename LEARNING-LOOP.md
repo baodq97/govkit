@@ -1377,3 +1377,53 @@ human/agent edges (a control reused, a citation re-checked), consistent with Rou
 compounding discipline: reuse the write-scope lock as blinding on every future corpus, and never trust
 a grader's citation from a summary — the verifier re-derives the quote from the artifact, right verdict
 or not.
+
+## Round 22 — 2026-07-28: two merges landed on a red full gate
+
+The escape: between Rounds 21 and 22 the repo's two campaign branches (ddd-flow, `03babf0`;
+govern-design-artifacts, `22f1271`) merged onto main while the FULL gate was red — and the record
+shows the red was *visible before the acts*. The journal holds `drift ok: false` (`drifted: 1`,
+RFC-0028's governs orphaned by the domain-decompose deletion) at **09:18**, again at 10:58, before
+`22f1271` landed; after it, `drifted: 6` (14:51, `4b14dc5`) — the design-tree work changed governed
+code under five more RFCs (`b931315`+`776bb18`) with no re-ack. In parallel, biome had been red
+since the eval-artifact commits (`a6e657e` onward): 112 format errors from machine-generated run
+evidence under `docs/research/**`, unseen because merge-time never ran `biome check` — the
+journal's green `check` lines over the same window are the narrower `govkit check` (verify+eval
+only), exactly the "narrower command" RFC-0026 warned about. Resolution in-session: six-RFC
+reconcile ratified through gate-loop packet `wf_b4fe0af2-01e` (reviewer SAFE-TO-COMMIT on an
+independent from-scratch re-run; six red-team verdicts, none rejecting), landing at `3f2b493`.
+
+**Lesson 1 — a merge is an act-on-green like any other; the rule named push/flip/publish and the
+escape walked through the act it didn't name.** Round 17 F9's act-on-green rule predates this and
+was *almost* in scope — `merge` is an R0 act in the committed ratification policy, but neither the
+AGENTS.md chain nor the policy's R0 comment said an act needs a green FULL gate first. Both
+merges were acts taken off-gate. Encoded at rule-line cost: `merge` joins the named act-on-green
+chain in AGENTS.md, and the `ratification:` R0 comment now states "authority to act is not
+exemption from the gate." No engine change — the gate could already see everything; it was never
+asked at the moment that mattered.
+
+**Lesson 2 — the narrower-gate rule was right, and this round is its measured cost, not a new
+rule.** RFC-0026 already pinned "a green must be the FULL `bun run check`, never a narrower
+command." The journal now carries the exhibit: green `cmd: "check"` lines coexisting with a red
+`bun run check` (biome) across four days. Existing rule covers it — no new encoding, recorded
+here as the evidence that wording is load-bearing.
+
+**Lesson 3 — run evidence is exhibit, not source.** The biome red was not a code-quality signal:
+every error was a machine-generated eval artifact (`docs/research/**`, ddd-flow's shipped
+`examples/`) being held to source formatting. Two wrong exits existed — reformat frozen evidence
+(mutates exhibits to please a linter) or let the gate stay red (normalizes red). The honest exit
+shipped at `3f2b493`: exclude evidence trees from the lint corpus at the tool-config layer
+(`biome.json` `files.includes` negations). Encoded as an AGENTS.md rule line so the NEXT evidence
+directory is excluded at birth instead of reformatted at merge.
+
+**Also this round, already encoded in-session (no proposal needed):** the ratification authority
+split — main agent carries the owner's delegated authority across tiers, sub-agents are
+propose-only (owner-ratified R0, `e66107e`, recorded in govkit.yml + AGENTS.md + RFC-0027
+Amendment).
+
+**Round-22 verdict.** For the first time since Round 17 the failure is NOT in the eval harness's
+edges — it is in the act layer above the gate: the deterministic core saw the red (journal
+`ok: false` at 09:18) and the acts simply didn't consult it. Rounds 17-21 hardened what the gate
+checks; Round 22's compounding discipline is *when it is consulted*: every act that changes what
+main is — push, merge, flip, publish — chains on the full gate in the same execution, with no
+authority tier exempt.
