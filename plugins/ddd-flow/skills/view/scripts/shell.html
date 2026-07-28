@@ -2006,6 +2006,9 @@ function renderTimeline() {
     wall.append(card);
   }
   host.append(wall);
+  // Rules somebody stated out loud. Every step downstream is forbidden to assert a business
+  // decision beyond these, so a reviewer needs them on the same screen as the events they govern.
+  listBlock(host, "Business rules stated", model.rules || []);
   listBlock(host, "Hotspots", (model.hotspots || []).map((h) =>
     typeof h === "string" ? h : `${h.id ? h.id + " — " : ""}${h.question || h.text || JSON.stringify(h)}`), "warn");
 }

@@ -1,0 +1,43 @@
+context: ColdChain
+subdomain_type: supporting
+tactical_pattern: full-domain-model
+tactical_pattern_rationale: >
+  A supporting context would normally get a transaction script, not an aggregate. It gets one here
+  because the contract states a real invariant with a lifecycle — the range must hold across a
+  custody span, and a breach changes the custody's state permanently. One small aggregate, not the
+  full machinery: no repository ceremony beyond it, and no events the brief did not describe.
+ubiquitous_language:
+  - term: Cold chain
+    definition: The unbroken span in which a reefer shipment must stay inside its agreed temperature range
+  - term: Reefer container
+    definition: A temperature-controlled container
+  - term: Temperature breach
+    definition: An observation outside the agreed range while the shipment is in cold-chain custody
+aggregates:
+  - name: ColdChainCustody
+    root: ColdChainCustody
+    entities:
+      - { name: ColdChainCustody, attributes: [custodyId, shipmentRef, containerId, originDepotId, destinationDepotId, requiredRange, status] }
+      - { name: TemperatureBreach, attributes: [breachId, custodyId, observedCelsius, observedAt] }
+    value_objects:
+      - { name: TemperatureRange, attributes: [minCelsius, maxCelsius] }
+      - { name: ShipmentRef, attributes: [prefix, sequence] }
+    domain_events:
+      - { name: TemperatureBreachRecorded, payload: [custodyId, shipmentRef, breachId, observedCelsius, observedAt] }
+invariants:
+  - The agreed temperature range must hold for the whole custody span, from origin depot to destination depot
+  - Every breach must be logged — a breach that leaves no record is the failure the contract is written against
+  - >
+    A logged breach must reach the customer. This is a cross-context policy (ColdChain →
+    Notifications), not a single-transaction invariant — it cannot be enforced inside the aggregate.
+relationships:
+  - { to: Consolidation, type: downstream, note: "custody starts at the origin depot; the start trigger is unconfirmed — candidate is ContainerSealed" }
+  - { to: Routing, type: downstream, note: "the container sits in partner-carrier custody between depots; breach liability is unassigned — see discovery hotspot 3" }
+  - { to: Notifications, type: upstream, note: "TemperatureBreachRecorded is what tells the customer" }
+notes: >
+  New context, first modelled 2026-07-28 from the cold-chain contract brief. The brief stated
+  three things and only three: the range must hold depot to depot, a breach is logged, the
+  customer is told. Everything it did not state — who measures and how often, where the required
+  range is agreed, whether a breach touches the invoice or the Guaranteed Consolidation premium —
+  is listed as an open question in context-map.md rather than guessed. No `mass:` block: nothing
+  is built yet to measure.

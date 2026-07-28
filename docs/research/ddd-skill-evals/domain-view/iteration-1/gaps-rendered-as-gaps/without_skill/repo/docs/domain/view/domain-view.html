@@ -1,0 +1,401 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Nordic Freight — domain model</title>
+<style>
+  :root{
+    --ink:#0e1418;
+    --ink-2:#151d23;
+    --ink-3:#1c262d;
+    --line:#2b3841;
+    --text:#e8eef1;
+    --text-dim:#93a4ad;
+    --text-faint:#6b7c86;
+    --known:#5eead4;
+    --unconfirmed:#f0b849;
+    --conflict:#f2637e;
+    --unknown:#8b9dc9;
+    --decided:#7a8a94;
+    --pad:clamp(20px,3vw,56px);
+  }
+  *{box-sizing:border-box}
+  html{scroll-behavior:smooth}
+  body{
+    margin:0; background:var(--ink); color:var(--text);
+    font:400 16px/1.55 ui-sans-serif,-apple-system,"Segoe UI",Inter,Roboto,Helvetica,Arial,sans-serif;
+    -webkit-font-smoothing:antialiased;
+  }
+  .mono{font-family:ui-monospace,"SF Mono",Menlo,Consolas,monospace}
+
+  /* ---------- hatch pattern = "we do not know" ---------- */
+  .hatch{
+    background-image:repeating-linear-gradient(45deg,
+      rgba(139,157,201,.16) 0 6px, transparent 6px 13px);
+  }
+
+  header{
+    padding:var(--pad) var(--pad) 0;
+    border-bottom:1px solid var(--line);
+  }
+  h1{
+    font-size:clamp(30px,4.4vw,56px); line-height:1.05; margin:0 0 6px;
+    letter-spacing:-.025em; font-weight:600;
+  }
+  .sub{color:var(--text-dim); font-size:clamp(15px,1.4vw,19px); margin:0 0 4px}
+  .src{color:var(--text-faint); font-size:13px; margin:14px 0 0}
+  .src code{color:var(--text-dim)}
+
+  /* legend */
+  .legend{
+    display:flex; flex-wrap:wrap; gap:6px 22px; align-items:center;
+    padding:16px 0 18px; margin-top:18px; border-top:1px solid var(--line);
+    font-size:13.5px; color:var(--text-dim);
+  }
+  .lg{display:flex; align-items:center; gap:8px}
+  .chip{width:15px;height:15px;border-radius:3px;flex:none;border:1.5px solid}
+  .chip.known{border-color:var(--known);background:color-mix(in srgb,var(--known) 18%,transparent)}
+  .chip.unconfirmed{border-color:var(--unconfirmed);border-style:dashed;background:color-mix(in srgb,var(--unconfirmed) 12%,transparent)}
+  .chip.conflict{border-color:var(--conflict);background:color-mix(in srgb,var(--conflict) 18%,transparent)}
+  .chip.unknown{border-color:var(--unknown);border-style:dotted}
+  .chip.by-decision{border-color:var(--decided);background:color-mix(in srgb,var(--decided) 22%,transparent)}
+
+  /* headline numbers */
+  .numbers{
+    display:grid; grid-template-columns:repeat(auto-fit,minmax(190px,1fr));
+    gap:1px; background:var(--line); border-bottom:1px solid var(--line);
+  }
+  .num{background:var(--ink-2); padding:22px var(--pad) 24px}
+  .num .v{font-size:clamp(28px,3.4vw,44px); font-weight:600; letter-spacing:-.03em; line-height:1}
+  .num .l{font-size:12.5px; text-transform:uppercase; letter-spacing:.09em; color:var(--text-faint); margin:10px 0 6px}
+  .num .n{font-size:13.5px; color:var(--text-dim); line-height:1.4}
+  .num:nth-child(2) .v,.num:nth-child(3) .v{color:var(--conflict)}
+  .num:nth-child(4) .v,.num:nth-child(5) .v{color:var(--unconfirmed)}
+
+  section{padding:calc(var(--pad)*.9) var(--pad); border-bottom:1px solid var(--line)}
+  h2{
+    font-size:12.5px; text-transform:uppercase; letter-spacing:.13em;
+    color:var(--text-faint); font-weight:600; margin:0 0 4px;
+  }
+  .h2note{color:var(--text-dim); font-size:15px; margin:0 0 22px; max-width:78ch}
+
+  /* ---------- context cards ---------- */
+  .grid{display:grid; grid-template-columns:repeat(auto-fill,minmax(330px,1fr)); gap:14px; align-items:start}
+  .ctx{
+    background:var(--ink-2); border:1px solid var(--line); border-radius:8px;
+    padding:18px 18px 16px; display:flex; flex-direction:column; gap:12px;
+  }
+  .ctx[data-state=conflict]{border-color:color-mix(in srgb,var(--conflict) 55%,var(--line))}
+  .ctx-head{display:flex; align-items:baseline; justify-content:space-between; gap:10px}
+  .ctx-name{font-size:22px; font-weight:600; letter-spacing:-.015em; margin:0}
+  .tag{
+    font-size:11px; letter-spacing:.08em; text-transform:uppercase; font-weight:600;
+    padding:3px 8px; border-radius:4px; border:1px solid; white-space:nowrap;
+  }
+  .tag.core{color:var(--conflict);border-color:color-mix(in srgb,var(--conflict) 45%,transparent);background:color-mix(in srgb,var(--conflict) 12%,transparent)}
+  .tag.supporting{color:var(--unconfirmed);border-color:color-mix(in srgb,var(--unconfirmed) 40%,transparent);background:color-mix(in srgb,var(--unconfirmed) 10%,transparent)}
+  .tag.generic{color:var(--text-faint);border-color:var(--line);background:var(--ink-3)}
+
+  .claim{
+    font-size:13.5px; border-left:2px solid var(--line); padding:2px 0 2px 11px;
+    color:var(--text-dim);
+  }
+  .claim.conflict{border-left-color:var(--conflict)}
+  .claim.unknown{border-left-color:var(--unknown); border-left-style:dotted}
+  .claim b{color:var(--text); font-weight:600}
+
+  /* mass bar */
+  .mass{font-size:12.5px; color:var(--text-faint)}
+  .bar{height:7px; border-radius:4px; background:var(--ink-3); overflow:hidden; margin:7px 0 5px; border:1px solid var(--line)}
+  .bar i{display:block; height:100%; background:var(--known)}
+  .bar.thin i{background:var(--conflict)}
+  .bar.none{border-style:dashed; border-color:color-mix(in srgb,var(--decided) 60%,transparent)}
+  .bar.none i{background:transparent}
+
+  .rows{display:flex; flex-direction:column; gap:6px}
+  .row{
+    font-size:13.5px; padding:7px 10px; border-radius:5px; border:1px solid var(--line);
+    background:var(--ink-3); color:var(--text); display:flex; gap:8px; align-items:flex-start;
+  }
+  .row .k{color:var(--text-faint); font-size:11px; text-transform:uppercase; letter-spacing:.07em; flex:none; padding-top:2px; width:64px}
+  .row[data-state=conflict]{border-color:color-mix(in srgb,var(--conflict) 50%,transparent)}
+  .row[data-state=unconfirmed]{border-style:dashed; border-color:color-mix(in srgb,var(--unconfirmed) 50%,transparent)}
+  .row[data-state=unknown]{border-style:dotted; border-color:color-mix(in srgb,var(--unknown) 50%,transparent); background:var(--ink-2)}
+  .row[data-state=by-decision]{color:var(--text-dim)}
+  .row small{display:block; color:var(--text-faint); font-size:12.5px; margin-top:3px}
+
+  .empty{
+    border:1px dotted color-mix(in srgb,var(--unknown) 60%,transparent); border-radius:5px;
+    padding:14px 12px; text-align:center; font-size:13px; color:var(--unknown);
+    text-transform:uppercase; letter-spacing:.1em;
+  }
+  .empty.by-decision{
+    border:1px solid var(--line); background:var(--ink-3); color:var(--decided);
+    background-image:none; text-transform:none; letter-spacing:0; text-align:left;
+  }
+  .empty.by-decision b{display:block; color:var(--text-dim); text-transform:uppercase; letter-spacing:.09em; font-size:11px; margin-bottom:5px}
+
+  /* ---------- event flow ---------- */
+  .flow{display:flex; gap:8px; overflow-x:auto; padding-bottom:10px}
+  .ev{
+    flex:none; min-width:150px; background:var(--ink-2); border:1px solid var(--line);
+    border-radius:6px; padding:11px 12px; position:relative;
+  }
+  .ev[data-state=unconfirmed]{border-style:dashed; border-color:color-mix(in srgb,var(--unconfirmed) 60%,transparent)}
+  .ev .n{font-size:11px; color:var(--text-faint)}
+  .ev .nm{font-size:14px; font-weight:600; margin:3px 0 5px; letter-spacing:-.01em}
+  .ev .c{font-size:11.5px; color:var(--text-dim)}
+  .ev .warn{font-size:11.5px; color:var(--unconfirmed); margin-top:5px}
+  .ev-missing{
+    flex:none; min-width:230px; border:1px dotted color-mix(in srgb,var(--unknown) 60%,transparent);
+    border-radius:6px; padding:11px 12px; color:var(--unknown); font-size:12.5px;
+  }
+  .ev-missing b{display:block; text-transform:uppercase; letter-spacing:.09em; font-size:11px; margin-bottom:6px}
+  .ev-missing li{margin:3px 0}
+  .ev-missing ul{margin:0; padding-left:16px}
+
+  /* ---------- conflicts ---------- */
+  .cf{
+    border:1px solid color-mix(in srgb,var(--conflict) 45%,var(--line)); border-radius:8px;
+    background:var(--ink-2); padding:18px 20px; margin-bottom:12px;
+  }
+  .cf[data-sev=medium]{border-color:color-mix(in srgb,var(--unconfirmed) 40%,var(--line))}
+  .cf-h{display:flex; gap:12px; align-items:baseline; flex-wrap:wrap}
+  .cf-id{font-size:12px; letter-spacing:.1em; color:var(--conflict); font-weight:700}
+  .cf[data-sev=medium] .cf-id{color:var(--unconfirmed)}
+  .cf-t{font-size:19px; font-weight:600; margin:0; letter-spacing:-.015em}
+  .cf-d{color:var(--text-dim); font-size:15px; margin:9px 0 10px; max-width:92ch}
+  .cf-s{font-size:12px; color:var(--text-faint)}
+
+  /* ---------- unknowns ---------- */
+  .unk{display:grid; grid-template-columns:repeat(auto-fill,minmax(300px,1fr)); gap:10px}
+  .unk div{
+    border:1px dotted color-mix(in srgb,var(--unknown) 55%,transparent); border-radius:6px;
+    padding:13px 14px; font-size:14px; color:var(--text);
+  }
+  .unk span{display:block; color:var(--text-faint); font-size:12px; margin-top:6px}
+
+  /* ---------- decisions ---------- */
+  .dec{display:flex; flex-direction:column; gap:1px; background:var(--line); border:1px solid var(--line); border-radius:8px; overflow:hidden}
+  .d{background:var(--ink-2); padding:15px 18px; display:grid; grid-template-columns:34px 1fr auto; gap:16px; align-items:baseline}
+  .d .i{font-size:15px; color:var(--text-faint); font-weight:600}
+  .d .a{font-size:16px}
+  .d .m{font-size:12px; color:var(--text-faint); text-align:right; white-space:nowrap}
+  .d .m b{display:block; color:var(--text-dim); font-weight:500}
+
+  footer{padding:26px var(--pad) 60px; color:var(--text-faint); font-size:13px}
+  @media (max-width:640px){ .d{grid-template-columns:26px 1fr} .d .m{grid-column:2; text-align:left} }
+</style>
+</head>
+<body>
+<script type="application/json" id="model">{"meta":{"title":"Nordic Freight — domain model","subtitle":"Rendered from docs/domain/. Gaps are drawn as gaps.","generatedAt":"2026-07-28","sources":["docs/domain/context-map.md (DOMAIN-0000, draft, owner TBD, 2026-06-02)","docs/domain/business-model.md (DOMAIN-BM-0001, draft, owner TBD, 2026-05-18)","docs/domain/discovery/timeline.md (DOMAIN-DISC-0001, draft, owner TBD, 2026-05-25)","docs/domain/<context>/model.yaml x7"],"legend":[{"key":"known","label":"Stated in the docs and confirmed by a named person"},{"key":"unconfirmed","label":"Written down, nobody confirmed it"},{"key":"conflict","label":"Two docs disagree"},{"key":"unknown","label":"Nobody in the room knew"},{"key":"by-decision","label":"Deliberately empty — a recorded modelling decision, not a hole"}]},"headline":[{"label":"Attributes in the real systems","value":"608","note":"sum of mass.attributes across 7 contexts"},{"label":"Attributes actually modelled","value":"29","note":"4.8% — the model names 29 of the 608 attributes that exist"},{"label":"Effort vs differentiation","value":"7.6x","note":"Invoicing (explicitly non-differentiating) carries 311 attributes; Consolidation (the one differentiating capability) carries 41"},{"label":"Docs with an owner","value":"0 of 10","note":"every doc is status: draft, owner: TBD"},{"label":"Failure-path events","value":"0 of 11","note":"every modelled event is happy path"}],"contexts":[{"id":"quoting","name":"Quoting","classifiedAs":"core","businessModelSays":"engagement-creator · product · differentiation: partial (\"competitors quote in seconds too; we are no faster\")","classificationState":"conflict","classificationNote":"Context map calls it core; the business-model canvas rates it product-stage with only partial differentiation.","tacticalPattern":"full-domain-model","mass":{"tables":11,"attributes":78,"densestEntityAttrs":26},"modelledAttributes":4,"coveragePct":5.1,"aggregates":[{"name":"Quote","root":"Quote","state":"known","entities":["Quote (quoteId, customerId, laneId, validUntil)"]}],"events":[{"name":"QuoteRequested","state":"known"},{"name":"QuoteIssued","state":"known"}],"invariants":[{"text":"A quote cannot be accepted after its validity window","state":"known"}],"language":[],"gaps":[{"state":"unknown","text":"No ubiquitous-language terms recorded for this context."},{"state":"unknown","text":"78 attributes exist; 4 are modelled. Nothing describes lanes, tariffs or pricing."},{"state":"unknown","text":"Context map shows Quoting -> Tariff Data; no Tariff Data context, model or owner exists."}]},{"id":"booking","name":"Booking","classifiedAs":"core","businessModelSays":"no row — Booking is absent from the capability table","classificationState":"unknown","classificationNote":"The business model never classified Booking, so \"core\" is unbacked. This is the context the map calls \"where the money is committed\".","tacticalPattern":"full-domain-model","mass":{"tables":9,"attributes":54,"densestEntityAttrs":22},"modelledAttributes":10,"coveragePct":18.5,"aggregates":[{"name":"Booking","root":"Booking","state":"known","entities":["Booking (bookingId, customerId, departureId, status)","ConsignmentLine (lineId, volumeM3, weightKg, hazardClass)"],"valueObjects":["ShipmentRef (prefix, sequence)"]}],"events":[{"name":"BookingRequested","state":"known"},{"name":"BookingConfirmed","state":"known"}],"invariants":[{"text":"A booking may only be confirmed once its capacity has been reserved","state":"known"},{"text":"…but the capacity rule itself lives in Consolidation, and Booking reads it synchronously before reserving","state":"conflict"}],"language":[{"term":"Booking","definition":"A customer's committed request to move a consignment on a given departure"},{"term":"Consignment","definition":"The goods a customer hands over as one unit","state":"conflict","note":"Invoicing defines the same word as \"a billable line on an invoice\""}],"gaps":[{"state":"conflict","text":"\"Consignment\" means physical goods here and a billable line in Invoicing — hotspot #2, unresolved."},{"state":"conflict","text":"Writes ConsignmentLine, which the context map declares a Shared Kernel with Consolidation — but the two sides already model different attributes."}]},{"id":"consolidation","name":"Consolidation","classifiedAs":"supporting","businessModelSays":"revenue-generator · custom-built · differentiation: YES — \"the premium customers pay for; a new entrant would need both the depot network and the planning know-how\"","classificationState":"conflict","classificationNote":"Classified supporting (\"back-office load planning\"), but it is the only capability the business model marks as differentiating and revenue-generating.","tacticalPattern":"full-domain-model","mass":{"tables":5,"attributes":41,"densestEntityAttrs":18},"modelledAttributes":7,"coveragePct":17.1,"aggregates":[{"name":"ContainerLoad","root":"ContainerLoad","state":"known","entities":["ContainerLoad (containerId, departureId, capacityM3, committedM3)","ConsignmentLine (lineId, volumeM3, stackable)"]}],"events":[{"name":"CapacityReserved","state":"known"},{"name":"ContainerSealed","state":"known"}],"invariants":[{"text":"A container's committed volume must never exceed its capacity","state":"conflict","note":"Owned here, checked from Booking, enforced nowhere agreed — hotspot #1"}],"language":[{"term":"Container load","definition":"The set of consignments committed to one physical container on one departure"},{"term":"Fill rate","definition":"Committed volume divided by container capacity"}],"gaps":[{"state":"unknown","text":"The differentiating know-how is not in the model: \"load planning still happens partly on a whiteboard in the Gothenburg depot\", four senior planners resolve infeasible stacks by hand."},{"state":"unknown","text":"The short-term goal is 71% -> 80% container fill. Nothing in the model represents the optimiser, the stacking rules, or the fill target."},{"state":"unknown","text":"Guaranteed Consolidation (+18% premium, promises a departure slot) is a revenue stream with no aggregate, no invariant and no event."}]},{"id":"routing","name":"Routing","classifiedAs":"supporting","businessModelSays":"cost-reduction · product · differentiation: no — \"the partner network is the asset, not the routing step\"","classificationState":"known","classificationNote":"Context map and business model agree.","tacticalPattern":"transaction-script","mass":{"tables":3,"attributes":17,"densestEntityAttrs":9},"modelledAttributes":0,"coveragePct":0,"aggregates":[],"aggregatesState":"by-decision","aggregatesRationale":"Routing receives BookingConfirmed and hands the shipment to the partner carrier selected by the standing contract for that lane. It owns no rule of its own.","events":[{"name":"ShipmentHandedToCarrier","state":"known"}],"invariants":[],"language":[],"gaps":[{"state":"unknown","text":"Hotspot #3: nobody knows who is responsible when a partner carrier refuses a sealed container. No event, no owner, no aggregate covers the refusal."}]},{"id":"customs","name":"Customs","classifiedAs":"core","businessModelSays":"compliance-enforcer · product · differentiation: no — \"required, and two vendors already do it well\"","classificationState":"conflict","classificationNote":"Classified core (\"regulated, and mistakes are expensive\"). The business model says no differentiation, and the model note says two commercial platforms already cover all nine ports — \"we integrate with neither\". Regulated is not the same as core.","tacticalPattern":"full-domain-model","mass":{"tables":12,"attributes":96,"densestEntityAttrs":34},"modelledAttributes":4,"coveragePct":4.2,"aggregates":[{"name":"Declaration","root":"Declaration","state":"known","entities":["Declaration (declarationId, shipmentRef, portCode, status)"]}],"events":[{"name":"DeclarationSubmitted","state":"known"},{"name":"DeclarationCleared","state":"known"}],"invariants":[{"text":"A shipment cannot be handed to a carrier before its declaration is submitted","state":"known"}],"language":[],"gaps":[{"state":"unknown","text":"No ubiquitous-language terms — for the context the map calls regulated and expensive to get wrong."},{"state":"unknown","text":"12 tables, 96 attributes, densest entity 34 attributes — modelled as one entity with 4."},{"state":"unknown","text":"No rejection path. DeclarationSubmitted and DeclarationCleared exist; nothing models a declaration being refused."},{"state":"unknown","text":"\"Two commercial customs platforms cover all nine ports; we integrate with neither\" — build-vs-buy is open and unowned."}]},{"id":"invoicing","name":"Invoicing","classifiedAs":"core","businessModelSays":"compliance-enforcer · commodity · differentiation: NO — \"nobody has ever chosen us because of our invoices\"","classificationState":"conflict","classificationNote":"Context map calls it core because it is \"the largest and most business-critical system we run\". Largest is not core. The business model rates it commodity with zero differentiation.","tacticalPattern":"full-domain-model","mass":{"tables":34,"attributes":311,"densestEntityAttrs":128},"modelledAttributes":8,"coveragePct":2.6,"aggregates":[{"name":"Invoice","root":"Invoice","state":"known","entities":["Invoice (invoiceId, customerId, currency, status)","InvoiceLine (lineId, description, amount, vatCode)"]},{"name":"SurchargeSchedule","root":"SurchargeSchedule","state":"unknown","entities":[]},{"name":"CreditNote","root":"CreditNote","state":"unknown","entities":[]},{"name":"DunningCase","root":"DunningCase","state":"unknown","entities":[]},{"name":"PaymentAllocation","root":"PaymentAllocation","state":"unknown","entities":[]}],"events":[{"name":"InvoiceIssued","state":"known"}],"invariants":[{"text":"An invoice line must reference a cleared declaration","state":"known"}],"language":[{"term":"Consignment","definition":"A billable line on an invoice","state":"conflict","note":"Booking defines the same word as physical goods"},{"term":"Surcharge","definition":"Any fee added to the forwarding rate"}],"gaps":[{"state":"unknown","text":"4 of 5 aggregates are a name and nothing else — no entities, no attributes, no events."},{"state":"unknown","text":"CreditNote, DunningCase and PaymentAllocation exist as aggregates but emit no events. Credit, dunning and payment are invisible in the flow."},{"state":"unknown","text":"Densest entity: 128 attributes. That is not an entity, that is a table."},{"state":"unknown","text":"51% of all modelled attributes in the company sit in the context the business explicitly calls a commodity."}]},{"id":"notifications","name":"Notifications","classifiedAs":"generic","businessModelSays":"engagement-creator · commodity · differentiation: no","classificationState":"known","classificationNote":"Context map and business model agree.","tacticalPattern":"bought-adapter","mass":{"tables":2,"attributes":11,"densestEntityAttrs":7},"modelledAttributes":0,"coveragePct":0,"aggregates":[],"aggregatesState":"by-decision","aggregatesRationale":"Thin adapter over a bought email/SMS provider; no domain model.","events":[{"name":"CustomerNotified","state":"unconfirmed","note":"candidate — inferred from the notification templates; nobody confirmed when it fires"}],"invariants":[],"language":[],"gaps":[{"state":"unconfirmed","text":"Its only event is unconfirmed. The context's entire behaviour rests on a guess."}]}],"relationships":[{"from":"Quoting","to":"TariffData","label":"downstream","targetState":"unknown","note":"Tariff Data appears on the context map only — no model, no owner, no classification"},{"from":"Booking","to":"Quoting","label":"downstream","targetState":"known"},{"from":"Booking","to":"Consolidation","label":"downstream · synchronous capacity read","targetState":"conflict","note":"read-then-act across an aggregate boundary — the March double-booking"},{"from":"Booking","to":"Routing","label":"publishes BookingConfirmed","targetState":"known"},{"from":"Routing","to":"PartnerNetwork","label":"forwards to (external)","targetState":"unknown","note":"no owner for a carrier refusal — hotspot #3"},{"from":"Consolidation","to":"Customs","label":"publishes ContainerSealed","targetState":"known"},{"from":"Customs","to":"Invoicing","label":"publishes DeclarationCleared","targetState":"known"},{"from":"Invoicing","to":"Notifications","label":"publishes InvoiceIssued","targetState":"unconfirmed","note":"the receiving event, CustomerNotified, is unconfirmed"}],"eventFlow":[{"n":1,"name":"QuoteRequested","context":"Quoting","state":"known","confirmedBy":"planner, 2026-05-25"},{"n":2,"name":"QuoteIssued","context":"Quoting","state":"known","confirmedBy":"planner"},{"n":3,"name":"BookingRequested","context":"Booking","state":"known","confirmedBy":"planner"},{"n":4,"name":"CapacityReserved","context":"Consolidation","state":"known","confirmedBy":"planner"},{"n":5,"name":"BookingConfirmed","context":"Booking","state":"known","confirmedBy":"planner"},{"n":6,"name":"ShipmentHandedToCarrier","context":"Routing","state":"known","confirmedBy":"planner"},{"n":7,"name":"ContainerSealed","context":"Consolidation","state":"known","confirmedBy":"planner"},{"n":8,"name":"DeclarationSubmitted","context":"Customs","state":"known","confirmedBy":"customs clerk"},{"n":9,"name":"DeclarationCleared","context":"Customs","state":"known","confirmedBy":"customs clerk"},{"n":10,"name":"InvoiceIssued","context":"Invoicing","state":"known","confirmedBy":"finance analyst"},{"n":11,"name":"CustomerNotified","context":"Notifications","state":"unconfirmed","confirmedBy":"nobody — inferred from templates"}],"missingEvents":["Booking cancelled or amended","Declaration rejected by a port","Carrier refuses a sealed container (hotspot #3)","Container departs partly filled while the Guaranteed Consolidation premium was charged","Credit note raised / payment allocated / dunning escalated (aggregates exist, events do not)"],"conflicts":[{"id":"C1","severity":"high","title":"The core/supporting map contradicts the business model","detail":"Consolidation is the only capability the business model marks as differentiating and revenue-generating, and the context map files it as supporting. Invoicing and Customs are both filed core while the business model rates them commodity and product with no differentiation. Sub-domain type drives where the good engineers go — right now it points them at the invoice system.","sources":["context-map.md §Sub-domain classification","business-model.md §Capability classification inputs"]},{"id":"C2","severity":"high","title":"Nobody owns the capacity invariant","detail":"\"A container's committed volume must never exceed its capacity\" belongs to Consolidation's ContainerLoad. Booking enforces its own rule by reading remaining capacity synchronously and then reserving. Read-then-act across an aggregate boundary has no serialisation — which is exactly the March incident: two shipments committed to the same slot, and nobody agrees where the check should have happened.","sources":["consolidation/model.yaml invariants","booking/model.yaml relationships note","discovery/timeline.md hotspot #1"]},{"id":"C3","severity":"high","title":"\"Consignment\" means two different things","detail":"Booking: the goods a customer hands over as one unit. Invoicing: a billable line on an invoice. Finance and operations have been using the word past each other (hotspot #2) and both definitions are written into the model as if settled.","sources":["booking/model.yaml","invoicing/model.yaml","discovery/timeline.md hotspot #2"]},{"id":"C4","severity":"medium","title":"The Shared Kernel has already diverged","detail":"ConsignmentLine is declared a Shared Kernel written by both Booking and Consolidation. Booking models lineId, volumeM3, weightKg, hazardClass. Consolidation models lineId, volumeM3, stackable. Two writers, two shapes, no agreed contract.","sources":["context-map.md §Shared artifacts","booking/model.yaml","consolidation/model.yaml"]},{"id":"C5","severity":"medium","title":"Modelling effort is inverted against differentiation","detail":"Invoicing: 34 tables, 311 attributes, densest entity 128 attributes, for a capability the commercial director describes as \"nobody has ever chosen us because of our invoices\". Consolidation: 5 tables, 41 attributes, and the actual planning still runs on a whiteboard in Gothenburg.","sources":["all model.yaml mass blocks","business-model.md"]}],"unknowns":[{"text":"No customer took part in either session. Every \"what customers value\" row is the commercial director speaking for them, marked proxy.","source":"business-model.md"},{"text":"Cost structure per shipment — nobody in the room owns the P&L.","source":"business-model.md"},{"text":"Long-horizon goal — blank.","source":"business-model.md"},{"text":"Whether customers would pay for guaranteed departure windows as a separate product — no customer has been asked.","source":"business-model.md"},{"text":"Who is responsible when a partner carrier refuses a sealed container.","source":"discovery/timeline.md hotspot #3"},{"text":"When CustomerNotified fires.","source":"discovery/timeline.md event 11"},{"text":"What Tariff Data is. It has an arrow on the context map and nothing else.","source":"context-map.md"},{"text":"Every one of the 10 docs is status: draft with owner: TBD. The classification table \"has not been revisited since the first modelling session in March\".","source":"all docs"}],"decisions":[{"n":1,"ask":"Re-classify Consolidation as core, and Invoicing + Customs as supporting/generic — or write down why the map is right and the business model is wrong.","closes":"C1","cost":"one meeting"},{"n":2,"ask":"Name the place the capacity invariant is enforced. One context, one transaction.","closes":"C2 + the March incident","cost":"one decision, then a change"},{"n":3,"ask":"Rename one of the two Consignments. Suggested: Invoicing's becomes BillableLine.","closes":"C3","cost":"cheap now, expensive later"},{"n":4,"ask":"Split ConsignmentLine per context, or pin the shared attribute set and give it one owner.","closes":"C4","cost":"one decision"},{"n":5,"ask":"Confirm CustomerNotified with someone who knows, or delete it from the timeline.","closes":"unconfirmed event","cost":"one conversation"},{"n":6,"ask":"Put a name against each of the 7 contexts. Owner TBD x10 is why none of the above got resolved since March.","closes":"ownership","cost":"five minutes of standup"},{"n":7,"ask":"Book a session with an actual customer before the next modelling round.","closes":"the proxy problem","cost":"one invite"}]}</script>
+
+<header>
+  <h1 id="title"></h1>
+  <p class="sub" id="subtitle"></p>
+  <p class="src" id="sources"></p>
+  <div class="legend" id="legend"></div>
+</header>
+
+<div class="numbers" id="numbers"></div>
+
+<section>
+  <h2>The seven contexts</h2>
+  <p class="h2note">Each card shows what the docs claim, and what the docs do not say. A dotted box is a hole in the model. A solid grey box is a hole we chose on purpose.</p>
+  <div class="grid" id="contexts"></div>
+</section>
+
+<section>
+  <h2>The flow, as confirmed by a named person</h2>
+  <p class="h2note" id="flownote"></p>
+  <div class="flow" id="flow"></div>
+</section>
+
+<section>
+  <h2>Where the docs disagree with each other</h2>
+  <p class="h2note">These are not nitpicks. Each one is already costing something.</p>
+  <div id="conflicts"></div>
+</section>
+
+<section>
+  <h2>What nobody in the room knew</h2>
+  <p class="h2note">Rendered, not omitted. An empty cell in a modelling doc is a finding.</p>
+  <div class="unk" id="unknowns"></div>
+</section>
+
+<section>
+  <h2>Seven things standup can close</h2>
+  <p class="h2note">Ordered by what unblocks the most. Numbers 1–3 are the ones that are actively costing money.</p>
+  <div class="dec" id="decisions"></div>
+</section>
+
+<footer id="footer"></footer>
+
+<script>
+(function(){
+  const M = JSON.parse(document.getElementById('model').textContent);
+  const $ = id => document.getElementById(id);
+  const esc = s => String(s).replace(/[&<>]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]));
+  const el = (tag, cls, html) => { const n=document.createElement(tag); if(cls)n.className=cls; if(html!=null)n.innerHTML=html; return n; };
+
+  document.title = M.meta.title;
+  $('title').textContent = M.meta.title;
+  $('subtitle').textContent = M.meta.subtitle;
+  $('sources').innerHTML = 'Rendered ' + esc(M.meta.generatedAt) + ' from: ' +
+    M.meta.sources.map(s => '<code>' + esc(s) + '</code>').join(' &middot; ');
+
+  M.meta.legend.forEach(l => {
+    const n = el('div','lg');
+    n.appendChild(el('span','chip ' + l.key));
+    n.appendChild(el('span',null,esc(l.label)));
+    $('legend').appendChild(n);
+  });
+
+  M.headline.forEach(h => {
+    const n = el('div','num');
+    n.appendChild(el('div','l',esc(h.label)));
+    n.appendChild(el('div','v',esc(h.value)));
+    n.appendChild(el('div','n',esc(h.note)));
+    $('numbers').appendChild(n);
+  });
+
+  M.contexts.forEach(c => {
+    const card = el('div','ctx'); card.dataset.state = c.classificationState;
+
+    const head = el('div','ctx-head');
+    head.appendChild(el('h3','ctx-name',esc(c.name)));
+    head.appendChild(el('span','tag ' + c.classifiedAs, esc(c.classifiedAs)));
+    card.appendChild(head);
+
+    card.appendChild(el('div','claim ' + c.classificationState,
+      '<b>' + (c.classificationState==='conflict' ? 'Conflict' :
+               c.classificationState==='unknown' ? 'Unbacked' : 'Agreed') + '.</b> ' +
+      esc(c.classificationNote) + '<br><span style="color:var(--text-faint)">Business model: ' +
+      esc(c.businessModelSays) + '</span>'));
+
+    const pct = c.coveragePct;
+    const mass = el('div','mass',
+      '<b style="color:var(--text-dim)">' + c.mass.tables + '</b> tables &middot; <b style="color:var(--text-dim)">' +
+      c.mass.attributes + '</b> attributes &middot; densest entity <b style="color:var(--text-dim)">' +
+      c.mass.densestEntityAttrs + '</b>');
+    const bar = el('div','bar' + (pct === 0 ? ' none' : pct < 10 ? ' thin' : ''));
+    bar.appendChild(el('i')).style.width = pct + '%';
+    mass.appendChild(bar);
+    mass.appendChild(el('div',null, c.modelledAttributes + ' of ' + c.mass.attributes +
+      ' attributes modelled (' + pct + '%) &middot; ' + esc(c.tacticalPattern)));
+    card.appendChild(mass);
+
+    // aggregates
+    const aggs = el('div','rows');
+    if (c.aggregates.length === 0) {
+      aggs.appendChild(el('div','empty by-decision',
+        '<b>No aggregates &mdash; by decision</b>' + esc(c.aggregatesRationale)));
+    } else {
+      c.aggregates.forEach(a => {
+        const r = el('div','row'); r.dataset.state = a.state;
+        r.appendChild(el('span','k','agg'));
+        const body = el('div',null,'<b>' + esc(a.name) + '</b>');
+        if (a.state === 'unknown') {
+          body.appendChild(el('small',null,'a name and nothing else &mdash; no entities, no attributes, no events'));
+        } else {
+          (a.entities||[]).forEach(e => body.appendChild(el('small',null,esc(e))));
+          (a.valueObjects||[]).forEach(v => body.appendChild(el('small',null,'VO ' + esc(v))));
+        }
+        r.appendChild(body);
+        aggs.appendChild(r);
+      });
+    }
+    card.appendChild(aggs);
+
+    // invariants + events + language
+    const more = el('div','rows');
+    c.invariants.forEach(i => {
+      const r = el('div','row'); r.dataset.state = i.state;
+      r.appendChild(el('span','k','rule'));
+      const b = el('div',null,esc(i.text));
+      if (i.note) b.appendChild(el('small',null,esc(i.note)));
+      r.appendChild(b); more.appendChild(r);
+    });
+    c.events.forEach(e => {
+      const r = el('div','row'); r.dataset.state = e.state;
+      r.appendChild(el('span','k','event'));
+      const b = el('div',null,'<span class="mono">' + esc(e.name) + '</span>');
+      if (e.note) b.appendChild(el('small',null,'&#9888; ' + esc(e.note)));
+      r.appendChild(b); more.appendChild(r);
+    });
+    c.language.forEach(t => {
+      const r = el('div','row'); r.dataset.state = t.state || 'known';
+      r.appendChild(el('span','k','term'));
+      const b = el('div',null,'<b>' + esc(t.term) + '</b> — ' + esc(t.definition));
+      if (t.note) b.appendChild(el('small',null,'&#9888; ' + esc(t.note)));
+      r.appendChild(b); more.appendChild(r);
+    });
+    if (c.language.length === 0) {
+      more.appendChild(el('div','empty hatch','no ubiquitous language recorded'));
+    }
+    card.appendChild(more);
+
+    // gaps
+    const gaps = el('div','rows');
+    c.gaps.forEach(g => {
+      const r = el('div','row'); r.dataset.state = g.state;
+      r.appendChild(el('span','k', g.state === 'conflict' ? 'clash' : 'gap'));
+      r.appendChild(el('div',null,esc(g.text)));
+      gaps.appendChild(r);
+    });
+    card.appendChild(gaps);
+
+    $('contexts').appendChild(card);
+  });
+
+  const unconf = M.eventFlow.filter(e => e.state !== 'known').length;
+  $('flownote').textContent = M.eventFlow.length + ' events on the happy path, ' + unconf +
+    ' of them unconfirmed. Zero events model anything going wrong — the list on the right is what is missing.';
+
+  M.eventFlow.forEach(e => {
+    const n = el('div','ev'); n.dataset.state = e.state;
+    n.appendChild(el('div','n',String(e.n).padStart(2,'0')));
+    n.appendChild(el('div','nm mono',esc(e.name)));
+    n.appendChild(el('div','c',esc(e.context)));
+    n.appendChild(el(e.state==='known'?'div':'div', e.state==='known'?'c':'warn',
+      (e.state==='known'?'':'&#9888; ') + esc(e.confirmedBy)));
+    $('flow').appendChild(n);
+  });
+  const miss = el('div','ev-missing hatch',
+    '<b>Events that do not exist</b><ul>' +
+    M.missingEvents.map(m => '<li>' + esc(m) + '</li>').join('') + '</ul>');
+  $('flow').appendChild(miss);
+
+  M.conflicts.forEach(c => {
+    const n = el('div','cf'); n.dataset.sev = c.severity;
+    const h = el('div','cf-h');
+    h.appendChild(el('span','cf-id', c.id + ' &middot; ' + c.severity.toUpperCase()));
+    h.appendChild(el('h3','cf-t',esc(c.title)));
+    n.appendChild(h);
+    n.appendChild(el('p','cf-d',esc(c.detail)));
+    n.appendChild(el('div','cf-s','Sources: ' + c.sources.map(esc).join(' &middot; ')));
+    $('conflicts').appendChild(n);
+  });
+
+  M.unknowns.forEach(u => {
+    const n = el('div','hatch',esc(u.text));
+    n.appendChild(el('span',null,esc(u.source)));
+    $('unknowns').appendChild(n);
+  });
+
+  M.decisions.forEach(d => {
+    const n = el('div','d');
+    n.appendChild(el('div','i',String(d.n)));
+    n.appendChild(el('div','a',esc(d.ask)));
+    n.appendChild(el('div','m','<b>closes ' + esc(d.closes) + '</b>' + esc(d.cost)));
+    $('decisions').appendChild(n);
+  });
+
+  $('footer').innerHTML = 'Every claim on this page traces to a file in <code>docs/domain/</code>. ' +
+    'Nothing was inferred to fill a blank — blanks are drawn as blanks. ' +
+    'Regenerate with <code>node docs/domain/view/build.mjs</code>.';
+})();
+</script>
+</body>
+</html>

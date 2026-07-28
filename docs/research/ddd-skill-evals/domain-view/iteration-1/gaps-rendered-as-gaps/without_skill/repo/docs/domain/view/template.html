@@ -1,0 +1,401 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Nordic Freight — domain model</title>
+<style>
+  :root{
+    --ink:#0e1418;
+    --ink-2:#151d23;
+    --ink-3:#1c262d;
+    --line:#2b3841;
+    --text:#e8eef1;
+    --text-dim:#93a4ad;
+    --text-faint:#6b7c86;
+    --known:#5eead4;
+    --unconfirmed:#f0b849;
+    --conflict:#f2637e;
+    --unknown:#8b9dc9;
+    --decided:#7a8a94;
+    --pad:clamp(20px,3vw,56px);
+  }
+  *{box-sizing:border-box}
+  html{scroll-behavior:smooth}
+  body{
+    margin:0; background:var(--ink); color:var(--text);
+    font:400 16px/1.55 ui-sans-serif,-apple-system,"Segoe UI",Inter,Roboto,Helvetica,Arial,sans-serif;
+    -webkit-font-smoothing:antialiased;
+  }
+  .mono{font-family:ui-monospace,"SF Mono",Menlo,Consolas,monospace}
+
+  /* ---------- hatch pattern = "we do not know" ---------- */
+  .hatch{
+    background-image:repeating-linear-gradient(45deg,
+      rgba(139,157,201,.16) 0 6px, transparent 6px 13px);
+  }
+
+  header{
+    padding:var(--pad) var(--pad) 0;
+    border-bottom:1px solid var(--line);
+  }
+  h1{
+    font-size:clamp(30px,4.4vw,56px); line-height:1.05; margin:0 0 6px;
+    letter-spacing:-.025em; font-weight:600;
+  }
+  .sub{color:var(--text-dim); font-size:clamp(15px,1.4vw,19px); margin:0 0 4px}
+  .src{color:var(--text-faint); font-size:13px; margin:14px 0 0}
+  .src code{color:var(--text-dim)}
+
+  /* legend */
+  .legend{
+    display:flex; flex-wrap:wrap; gap:6px 22px; align-items:center;
+    padding:16px 0 18px; margin-top:18px; border-top:1px solid var(--line);
+    font-size:13.5px; color:var(--text-dim);
+  }
+  .lg{display:flex; align-items:center; gap:8px}
+  .chip{width:15px;height:15px;border-radius:3px;flex:none;border:1.5px solid}
+  .chip.known{border-color:var(--known);background:color-mix(in srgb,var(--known) 18%,transparent)}
+  .chip.unconfirmed{border-color:var(--unconfirmed);border-style:dashed;background:color-mix(in srgb,var(--unconfirmed) 12%,transparent)}
+  .chip.conflict{border-color:var(--conflict);background:color-mix(in srgb,var(--conflict) 18%,transparent)}
+  .chip.unknown{border-color:var(--unknown);border-style:dotted}
+  .chip.by-decision{border-color:var(--decided);background:color-mix(in srgb,var(--decided) 22%,transparent)}
+
+  /* headline numbers */
+  .numbers{
+    display:grid; grid-template-columns:repeat(auto-fit,minmax(190px,1fr));
+    gap:1px; background:var(--line); border-bottom:1px solid var(--line);
+  }
+  .num{background:var(--ink-2); padding:22px var(--pad) 24px}
+  .num .v{font-size:clamp(28px,3.4vw,44px); font-weight:600; letter-spacing:-.03em; line-height:1}
+  .num .l{font-size:12.5px; text-transform:uppercase; letter-spacing:.09em; color:var(--text-faint); margin:10px 0 6px}
+  .num .n{font-size:13.5px; color:var(--text-dim); line-height:1.4}
+  .num:nth-child(2) .v,.num:nth-child(3) .v{color:var(--conflict)}
+  .num:nth-child(4) .v,.num:nth-child(5) .v{color:var(--unconfirmed)}
+
+  section{padding:calc(var(--pad)*.9) var(--pad); border-bottom:1px solid var(--line)}
+  h2{
+    font-size:12.5px; text-transform:uppercase; letter-spacing:.13em;
+    color:var(--text-faint); font-weight:600; margin:0 0 4px;
+  }
+  .h2note{color:var(--text-dim); font-size:15px; margin:0 0 22px; max-width:78ch}
+
+  /* ---------- context cards ---------- */
+  .grid{display:grid; grid-template-columns:repeat(auto-fill,minmax(330px,1fr)); gap:14px; align-items:start}
+  .ctx{
+    background:var(--ink-2); border:1px solid var(--line); border-radius:8px;
+    padding:18px 18px 16px; display:flex; flex-direction:column; gap:12px;
+  }
+  .ctx[data-state=conflict]{border-color:color-mix(in srgb,var(--conflict) 55%,var(--line))}
+  .ctx-head{display:flex; align-items:baseline; justify-content:space-between; gap:10px}
+  .ctx-name{font-size:22px; font-weight:600; letter-spacing:-.015em; margin:0}
+  .tag{
+    font-size:11px; letter-spacing:.08em; text-transform:uppercase; font-weight:600;
+    padding:3px 8px; border-radius:4px; border:1px solid; white-space:nowrap;
+  }
+  .tag.core{color:var(--conflict);border-color:color-mix(in srgb,var(--conflict) 45%,transparent);background:color-mix(in srgb,var(--conflict) 12%,transparent)}
+  .tag.supporting{color:var(--unconfirmed);border-color:color-mix(in srgb,var(--unconfirmed) 40%,transparent);background:color-mix(in srgb,var(--unconfirmed) 10%,transparent)}
+  .tag.generic{color:var(--text-faint);border-color:var(--line);background:var(--ink-3)}
+
+  .claim{
+    font-size:13.5px; border-left:2px solid var(--line); padding:2px 0 2px 11px;
+    color:var(--text-dim);
+  }
+  .claim.conflict{border-left-color:var(--conflict)}
+  .claim.unknown{border-left-color:var(--unknown); border-left-style:dotted}
+  .claim b{color:var(--text); font-weight:600}
+
+  /* mass bar */
+  .mass{font-size:12.5px; color:var(--text-faint)}
+  .bar{height:7px; border-radius:4px; background:var(--ink-3); overflow:hidden; margin:7px 0 5px; border:1px solid var(--line)}
+  .bar i{display:block; height:100%; background:var(--known)}
+  .bar.thin i{background:var(--conflict)}
+  .bar.none{border-style:dashed; border-color:color-mix(in srgb,var(--decided) 60%,transparent)}
+  .bar.none i{background:transparent}
+
+  .rows{display:flex; flex-direction:column; gap:6px}
+  .row{
+    font-size:13.5px; padding:7px 10px; border-radius:5px; border:1px solid var(--line);
+    background:var(--ink-3); color:var(--text); display:flex; gap:8px; align-items:flex-start;
+  }
+  .row .k{color:var(--text-faint); font-size:11px; text-transform:uppercase; letter-spacing:.07em; flex:none; padding-top:2px; width:64px}
+  .row[data-state=conflict]{border-color:color-mix(in srgb,var(--conflict) 50%,transparent)}
+  .row[data-state=unconfirmed]{border-style:dashed; border-color:color-mix(in srgb,var(--unconfirmed) 50%,transparent)}
+  .row[data-state=unknown]{border-style:dotted; border-color:color-mix(in srgb,var(--unknown) 50%,transparent); background:var(--ink-2)}
+  .row[data-state=by-decision]{color:var(--text-dim)}
+  .row small{display:block; color:var(--text-faint); font-size:12.5px; margin-top:3px}
+
+  .empty{
+    border:1px dotted color-mix(in srgb,var(--unknown) 60%,transparent); border-radius:5px;
+    padding:14px 12px; text-align:center; font-size:13px; color:var(--unknown);
+    text-transform:uppercase; letter-spacing:.1em;
+  }
+  .empty.by-decision{
+    border:1px solid var(--line); background:var(--ink-3); color:var(--decided);
+    background-image:none; text-transform:none; letter-spacing:0; text-align:left;
+  }
+  .empty.by-decision b{display:block; color:var(--text-dim); text-transform:uppercase; letter-spacing:.09em; font-size:11px; margin-bottom:5px}
+
+  /* ---------- event flow ---------- */
+  .flow{display:flex; gap:8px; overflow-x:auto; padding-bottom:10px}
+  .ev{
+    flex:none; min-width:150px; background:var(--ink-2); border:1px solid var(--line);
+    border-radius:6px; padding:11px 12px; position:relative;
+  }
+  .ev[data-state=unconfirmed]{border-style:dashed; border-color:color-mix(in srgb,var(--unconfirmed) 60%,transparent)}
+  .ev .n{font-size:11px; color:var(--text-faint)}
+  .ev .nm{font-size:14px; font-weight:600; margin:3px 0 5px; letter-spacing:-.01em}
+  .ev .c{font-size:11.5px; color:var(--text-dim)}
+  .ev .warn{font-size:11.5px; color:var(--unconfirmed); margin-top:5px}
+  .ev-missing{
+    flex:none; min-width:230px; border:1px dotted color-mix(in srgb,var(--unknown) 60%,transparent);
+    border-radius:6px; padding:11px 12px; color:var(--unknown); font-size:12.5px;
+  }
+  .ev-missing b{display:block; text-transform:uppercase; letter-spacing:.09em; font-size:11px; margin-bottom:6px}
+  .ev-missing li{margin:3px 0}
+  .ev-missing ul{margin:0; padding-left:16px}
+
+  /* ---------- conflicts ---------- */
+  .cf{
+    border:1px solid color-mix(in srgb,var(--conflict) 45%,var(--line)); border-radius:8px;
+    background:var(--ink-2); padding:18px 20px; margin-bottom:12px;
+  }
+  .cf[data-sev=medium]{border-color:color-mix(in srgb,var(--unconfirmed) 40%,var(--line))}
+  .cf-h{display:flex; gap:12px; align-items:baseline; flex-wrap:wrap}
+  .cf-id{font-size:12px; letter-spacing:.1em; color:var(--conflict); font-weight:700}
+  .cf[data-sev=medium] .cf-id{color:var(--unconfirmed)}
+  .cf-t{font-size:19px; font-weight:600; margin:0; letter-spacing:-.015em}
+  .cf-d{color:var(--text-dim); font-size:15px; margin:9px 0 10px; max-width:92ch}
+  .cf-s{font-size:12px; color:var(--text-faint)}
+
+  /* ---------- unknowns ---------- */
+  .unk{display:grid; grid-template-columns:repeat(auto-fill,minmax(300px,1fr)); gap:10px}
+  .unk div{
+    border:1px dotted color-mix(in srgb,var(--unknown) 55%,transparent); border-radius:6px;
+    padding:13px 14px; font-size:14px; color:var(--text);
+  }
+  .unk span{display:block; color:var(--text-faint); font-size:12px; margin-top:6px}
+
+  /* ---------- decisions ---------- */
+  .dec{display:flex; flex-direction:column; gap:1px; background:var(--line); border:1px solid var(--line); border-radius:8px; overflow:hidden}
+  .d{background:var(--ink-2); padding:15px 18px; display:grid; grid-template-columns:34px 1fr auto; gap:16px; align-items:baseline}
+  .d .i{font-size:15px; color:var(--text-faint); font-weight:600}
+  .d .a{font-size:16px}
+  .d .m{font-size:12px; color:var(--text-faint); text-align:right; white-space:nowrap}
+  .d .m b{display:block; color:var(--text-dim); font-weight:500}
+
+  footer{padding:26px var(--pad) 60px; color:var(--text-faint); font-size:13px}
+  @media (max-width:640px){ .d{grid-template-columns:26px 1fr} .d .m{grid-column:2; text-align:left} }
+</style>
+</head>
+<body>
+<script type="application/json" id="model">__MODEL_JSON__</script>
+
+<header>
+  <h1 id="title"></h1>
+  <p class="sub" id="subtitle"></p>
+  <p class="src" id="sources"></p>
+  <div class="legend" id="legend"></div>
+</header>
+
+<div class="numbers" id="numbers"></div>
+
+<section>
+  <h2>The seven contexts</h2>
+  <p class="h2note">Each card shows what the docs claim, and what the docs do not say. A dotted box is a hole in the model. A solid grey box is a hole we chose on purpose.</p>
+  <div class="grid" id="contexts"></div>
+</section>
+
+<section>
+  <h2>The flow, as confirmed by a named person</h2>
+  <p class="h2note" id="flownote"></p>
+  <div class="flow" id="flow"></div>
+</section>
+
+<section>
+  <h2>Where the docs disagree with each other</h2>
+  <p class="h2note">These are not nitpicks. Each one is already costing something.</p>
+  <div id="conflicts"></div>
+</section>
+
+<section>
+  <h2>What nobody in the room knew</h2>
+  <p class="h2note">Rendered, not omitted. An empty cell in a modelling doc is a finding.</p>
+  <div class="unk" id="unknowns"></div>
+</section>
+
+<section>
+  <h2>Seven things standup can close</h2>
+  <p class="h2note">Ordered by what unblocks the most. Numbers 1–3 are the ones that are actively costing money.</p>
+  <div class="dec" id="decisions"></div>
+</section>
+
+<footer id="footer"></footer>
+
+<script>
+(function(){
+  const M = JSON.parse(document.getElementById('model').textContent);
+  const $ = id => document.getElementById(id);
+  const esc = s => String(s).replace(/[&<>]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]));
+  const el = (tag, cls, html) => { const n=document.createElement(tag); if(cls)n.className=cls; if(html!=null)n.innerHTML=html; return n; };
+
+  document.title = M.meta.title;
+  $('title').textContent = M.meta.title;
+  $('subtitle').textContent = M.meta.subtitle;
+  $('sources').innerHTML = 'Rendered ' + esc(M.meta.generatedAt) + ' from: ' +
+    M.meta.sources.map(s => '<code>' + esc(s) + '</code>').join(' &middot; ');
+
+  M.meta.legend.forEach(l => {
+    const n = el('div','lg');
+    n.appendChild(el('span','chip ' + l.key));
+    n.appendChild(el('span',null,esc(l.label)));
+    $('legend').appendChild(n);
+  });
+
+  M.headline.forEach(h => {
+    const n = el('div','num');
+    n.appendChild(el('div','l',esc(h.label)));
+    n.appendChild(el('div','v',esc(h.value)));
+    n.appendChild(el('div','n',esc(h.note)));
+    $('numbers').appendChild(n);
+  });
+
+  M.contexts.forEach(c => {
+    const card = el('div','ctx'); card.dataset.state = c.classificationState;
+
+    const head = el('div','ctx-head');
+    head.appendChild(el('h3','ctx-name',esc(c.name)));
+    head.appendChild(el('span','tag ' + c.classifiedAs, esc(c.classifiedAs)));
+    card.appendChild(head);
+
+    card.appendChild(el('div','claim ' + c.classificationState,
+      '<b>' + (c.classificationState==='conflict' ? 'Conflict' :
+               c.classificationState==='unknown' ? 'Unbacked' : 'Agreed') + '.</b> ' +
+      esc(c.classificationNote) + '<br><span style="color:var(--text-faint)">Business model: ' +
+      esc(c.businessModelSays) + '</span>'));
+
+    const pct = c.coveragePct;
+    const mass = el('div','mass',
+      '<b style="color:var(--text-dim)">' + c.mass.tables + '</b> tables &middot; <b style="color:var(--text-dim)">' +
+      c.mass.attributes + '</b> attributes &middot; densest entity <b style="color:var(--text-dim)">' +
+      c.mass.densestEntityAttrs + '</b>');
+    const bar = el('div','bar' + (pct === 0 ? ' none' : pct < 10 ? ' thin' : ''));
+    bar.appendChild(el('i')).style.width = pct + '%';
+    mass.appendChild(bar);
+    mass.appendChild(el('div',null, c.modelledAttributes + ' of ' + c.mass.attributes +
+      ' attributes modelled (' + pct + '%) &middot; ' + esc(c.tacticalPattern)));
+    card.appendChild(mass);
+
+    // aggregates
+    const aggs = el('div','rows');
+    if (c.aggregates.length === 0) {
+      aggs.appendChild(el('div','empty by-decision',
+        '<b>No aggregates &mdash; by decision</b>' + esc(c.aggregatesRationale)));
+    } else {
+      c.aggregates.forEach(a => {
+        const r = el('div','row'); r.dataset.state = a.state;
+        r.appendChild(el('span','k','agg'));
+        const body = el('div',null,'<b>' + esc(a.name) + '</b>');
+        if (a.state === 'unknown') {
+          body.appendChild(el('small',null,'a name and nothing else &mdash; no entities, no attributes, no events'));
+        } else {
+          (a.entities||[]).forEach(e => body.appendChild(el('small',null,esc(e))));
+          (a.valueObjects||[]).forEach(v => body.appendChild(el('small',null,'VO ' + esc(v))));
+        }
+        r.appendChild(body);
+        aggs.appendChild(r);
+      });
+    }
+    card.appendChild(aggs);
+
+    // invariants + events + language
+    const more = el('div','rows');
+    c.invariants.forEach(i => {
+      const r = el('div','row'); r.dataset.state = i.state;
+      r.appendChild(el('span','k','rule'));
+      const b = el('div',null,esc(i.text));
+      if (i.note) b.appendChild(el('small',null,esc(i.note)));
+      r.appendChild(b); more.appendChild(r);
+    });
+    c.events.forEach(e => {
+      const r = el('div','row'); r.dataset.state = e.state;
+      r.appendChild(el('span','k','event'));
+      const b = el('div',null,'<span class="mono">' + esc(e.name) + '</span>');
+      if (e.note) b.appendChild(el('small',null,'&#9888; ' + esc(e.note)));
+      r.appendChild(b); more.appendChild(r);
+    });
+    c.language.forEach(t => {
+      const r = el('div','row'); r.dataset.state = t.state || 'known';
+      r.appendChild(el('span','k','term'));
+      const b = el('div',null,'<b>' + esc(t.term) + '</b> — ' + esc(t.definition));
+      if (t.note) b.appendChild(el('small',null,'&#9888; ' + esc(t.note)));
+      r.appendChild(b); more.appendChild(r);
+    });
+    if (c.language.length === 0) {
+      more.appendChild(el('div','empty hatch','no ubiquitous language recorded'));
+    }
+    card.appendChild(more);
+
+    // gaps
+    const gaps = el('div','rows');
+    c.gaps.forEach(g => {
+      const r = el('div','row'); r.dataset.state = g.state;
+      r.appendChild(el('span','k', g.state === 'conflict' ? 'clash' : 'gap'));
+      r.appendChild(el('div',null,esc(g.text)));
+      gaps.appendChild(r);
+    });
+    card.appendChild(gaps);
+
+    $('contexts').appendChild(card);
+  });
+
+  const unconf = M.eventFlow.filter(e => e.state !== 'known').length;
+  $('flownote').textContent = M.eventFlow.length + ' events on the happy path, ' + unconf +
+    ' of them unconfirmed. Zero events model anything going wrong — the list on the right is what is missing.';
+
+  M.eventFlow.forEach(e => {
+    const n = el('div','ev'); n.dataset.state = e.state;
+    n.appendChild(el('div','n',String(e.n).padStart(2,'0')));
+    n.appendChild(el('div','nm mono',esc(e.name)));
+    n.appendChild(el('div','c',esc(e.context)));
+    n.appendChild(el(e.state==='known'?'div':'div', e.state==='known'?'c':'warn',
+      (e.state==='known'?'':'&#9888; ') + esc(e.confirmedBy)));
+    $('flow').appendChild(n);
+  });
+  const miss = el('div','ev-missing hatch',
+    '<b>Events that do not exist</b><ul>' +
+    M.missingEvents.map(m => '<li>' + esc(m) + '</li>').join('') + '</ul>');
+  $('flow').appendChild(miss);
+
+  M.conflicts.forEach(c => {
+    const n = el('div','cf'); n.dataset.sev = c.severity;
+    const h = el('div','cf-h');
+    h.appendChild(el('span','cf-id', c.id + ' &middot; ' + c.severity.toUpperCase()));
+    h.appendChild(el('h3','cf-t',esc(c.title)));
+    n.appendChild(h);
+    n.appendChild(el('p','cf-d',esc(c.detail)));
+    n.appendChild(el('div','cf-s','Sources: ' + c.sources.map(esc).join(' &middot; ')));
+    $('conflicts').appendChild(n);
+  });
+
+  M.unknowns.forEach(u => {
+    const n = el('div','hatch',esc(u.text));
+    n.appendChild(el('span',null,esc(u.source)));
+    $('unknowns').appendChild(n);
+  });
+
+  M.decisions.forEach(d => {
+    const n = el('div','d');
+    n.appendChild(el('div','i',String(d.n)));
+    n.appendChild(el('div','a',esc(d.ask)));
+    n.appendChild(el('div','m','<b>closes ' + esc(d.closes) + '</b>' + esc(d.cost)));
+    $('decisions').appendChild(n);
+  });
+
+  $('footer').innerHTML = 'Every claim on this page traces to a file in <code>docs/domain/</code>. ' +
+    'Nothing was inferred to fill a blank — blanks are drawn as blanks. ' +
+    'Regenerate with <code>node docs/domain/view/build.mjs</code>.';
+})();
+</script>
+</body>
+</html>

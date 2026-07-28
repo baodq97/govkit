@@ -1,0 +1,28 @@
+context: Quoting
+subdomain_type: core
+tactical_pattern: full-domain-model
+mass: { tables: 11, attributes: 78, densest_entity_attrs: 26 }
+ubiquitous_language:
+  - term: Temperature regime
+    definition: >
+      Originates here. The range, setpoint and excursion tolerance are quoted terms — they are what
+      the customer is buying and what a breach is later judged against. Quoting owns them at
+      agreement time; Booking freezes them at commitment.
+aggregates:
+  - name: Quote
+    root: Quote
+    entities:
+      - { name: Quote, attributes: [quoteId, customerId, laneId, validUntil, temperatureRegime] }
+    value_objects:
+      - { name: TemperatureRegime, attributes: [mode, setpointCelsius, range, tolerance] }
+    domain_events:
+      - { name: QuoteRequested, payload: [customerId, laneId, volumeM3, temperatureRegime] }
+      - { name: QuoteIssued, payload: [quoteId, price, validUntil, temperatureRegime] }
+invariants:
+  - A quote cannot be accepted after its validity window
+  - >
+    A temperature-controlled quote must state an explicit range and excursion tolerance. "Chilled"
+    on its own is not quotable — it is not priceable and it is not enforceable later.
+relationships:
+  - { to: Booking, type: upstream }
+  - { to: ColdChain, type: upstream, note: "indirect — the quoted tolerance is what ColdChain adjudicates against" }

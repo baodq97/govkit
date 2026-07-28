@@ -526,12 +526,23 @@ def build_timeline(docs: Path) -> dict | None:
                                        "stated": sum(1 for e in tl if state(e))}}
         except Exception:
             pass
-    f = docs / "discovery" / "timeline.md"
-    if not f.exists():
+    # Markdown-only discovery — the ordinary case for a repo that has never run this view. Returning
+    # empty hotspots and an empty confidence block here made the wall render "? confirmed · 0
+    # hotspots" for a timeline naming three of each, and the blocker a reviewer needed was the thing
+    # that disappeared. The parser lives in ddd_check because the design skill owns the schema, and
+    # because the same defect was fixed once already in a sibling script and not audited across.
+    if not (docs / "discovery").is_dir():
         return None
-    rows = tables(f.read_text(errors="ignore"))
-    return {"elements": rows[0][:200] if rows else [], "hotspots": [], "language": [],
-            "confidence": {}}
+    counts, hotspots, _dupes, rules = _design().discovery_from_markdown(docs)
+    if not counts.get("elements"):
+        return None
+    f = docs / "discovery" / "timeline.md"
+    rows = tables(f.read_text(errors="ignore")) if f.exists() else []
+    return {"elements": rows[0][:200] if rows else [],
+            "hotspots": [h["question"] for h in hotspots][:60],
+            "language": [], "rules": rules[:20],
+            "confidence": {"confirmed": counts.get("confirmed", 0),
+                           "candidates": counts.get("candidate", 0)}}
 
 
 def build_sections_doc(f: Path, keep: int = 40, text: str | None = None) -> dict:

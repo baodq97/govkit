@@ -1,0 +1,41 @@
+context: Invoicing
+subdomain_type: core
+tactical_pattern: full-domain-model
+mass: { tables: 34, attributes: 311, densest_entity_attrs: 128 }
+ubiquitous_language:
+  - term: Consignment
+    definition: A billable line on an invoice
+  - term: Surcharge
+    definition: Any fee added to the forwarding rate
+aggregates:
+  - name: Invoice
+    root: Invoice
+    entities:
+      - { name: Invoice, attributes: [invoiceId, customerId, currency, status] }
+      - { name: InvoiceLine, attributes: [lineId, description, amount, vatCode] }
+  - name: SurchargeSchedule
+    root: SurchargeSchedule
+  - name: CreditNote
+    root: CreditNote
+  - name: DunningCase
+    root: DunningCase
+  - name: PaymentAllocation
+    root: PaymentAllocation
+domain_events:
+  - { name: InvoiceIssued, payload: [invoiceId, customerId, total] }
+invariants:
+  - An invoice line must reference a cleared declaration
+relationships:
+  - { to: Customs, type: downstream }
+  - { to: Notifications, type: upstream }
+  - { to: ColdChain, type: downstream, note: "reefer surcharge; breach outcome drives a credit note" }
+cold_chain_reuse: >
+  No new aggregate for cold chain. The reefer premium is a row in the existing SurchargeSchedule,
+  and breach remediation is the existing CreditNote aggregate with a breachId as its reason. At 34
+  tables and 311 attributes this context is already the heaviest thing we run — adding a sixth
+  aggregate here needs a reason stronger than "cold chain is new", and there isn't one.
+  Open: whether a breach credit is a credit note or a claim against the carrier. Different money,
+  different counterparty, and nobody who owns the P&L has been in the room yet.
+notes: >
+  Grown over eleven years. Three of the five aggregates exist to model VAT variations across the
+  nine ports; two were added when the Finnish tax rules changed in 2024.

@@ -1,0 +1,16 @@
+context: Quoting
+subdomain_type: core
+tactical_pattern: full-domain-model
+mass: { tables: 11, attributes: 78, densest_entity_attrs: 26 }
+aggregates:
+  - name: Quote
+    root: Quote
+    entities:
+      - { name: Quote, attributes: [quoteId, customerId, laneId, validUntil] }
+    domain_events:
+      - { name: QuoteRequested, payload: [customerId, laneId, volumeM3] }
+      - { name: QuoteIssued, payload: [quoteId, price, validUntil] }
+invariants:
+  - A quote cannot be accepted after its validity window
+relationships:
+  - { to: Booking, type: upstream }

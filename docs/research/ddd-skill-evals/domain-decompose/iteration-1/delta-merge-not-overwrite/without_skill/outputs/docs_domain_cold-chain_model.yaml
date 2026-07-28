@@ -1,0 +1,160 @@
+context: ColdChain
+subdomain_type: core
+subdomain_rationale: >
+  Core on the same grounds as Customs: regulated cargo, and mistakes are expensive — a breach on a
+  pharma or seafood load is a claim against the full cargo value, not a service credit. It is NOT
+  core because it differentiates us; the telemetry itself is a commodity we will buy. What we cannot
+  buy is the accountable custody record across our own depot network, which is where the liability
+  actually lands. Revisit if the cold chain contract stays a single account — see open_questions.
+tactical_pattern: full-domain-model
+mass_estimate: { tables: 6, attributes: 40, densest_entity_attrs: 14 }
+mass_note: >
+  Estimate derived from the model below, not a measurement — every other context in this tree
+  carries a measured mass, so do not rank this one against them. Raw readings are deliberately
+  excluded: they are a stream, not aggregate state (see reading_retention).
+
+ubiquitous_language:
+  - term: Reefer container
+    definition: >
+      A container with active temperature control. Not a new kind of container in the model — it is
+      a ContainerLoad in Consolidation that carries a reefer capability envelope.
+  - term: Temperature regime
+    definition: >
+      The temperature range, setpoint and excursion tolerance a consignment is contractually held
+      to for its whole journey. Agreed with the customer at quote time, committed at booking, and
+      immutable once the journey starts.
+  - term: Cold chain journey
+    definition: >
+      The monitored custody chain for one consignment, from the seal at the origin depot to the
+      unseal at the destination depot. This is the "depot to depot" span the contract commits to.
+  - term: Custody leg
+    definition: >
+      One segment of the journey with exactly one accountable party — a depot, a partner carrier,
+      or the customer. Legs must be contiguous; the boundary between two legs is a custody transfer.
+  - term: Excursion
+    definition: >
+      An observed interval outside the regime range. Physical fact, recorded always, no judgement
+      attached. Door-open during transshipment produces excursions on every reefer job.
+  - term: Breach
+    definition: >
+      An excursion (or accumulation of excursions) that exceeds the contractual tolerance. Judgement,
+      not observation. This is the thing that must be logged and told to the customer. Keeping
+      Excursion and Breach as separate words is deliberate — operations and the customer contract
+      disagree about which excursions matter, and collapsing the two words hides that disagreement.
+  - term: Monitoring gap
+    definition: >
+      An interval with no reading. Treated as non-compliant, not as compliant — an unmonitored
+      container cannot be shown to have held its regime.
+
+aggregates:
+  - name: ColdChainJourney
+    root: ColdChainJourney
+    entities:
+      - { name: ColdChainJourney, attributes: [journeyId, bookingId, shipmentRef, containerId, regime, status, startedAt, completedAt, cumulativeOutOfRangeMinutes] }
+      - { name: CustodyLeg, attributes: [legId, sequence, fromParty, toParty, accountablePartyId, startedAt, endedAt, handoverReading] }
+      - { name: TemperatureExcursion, attributes: [excursionId, legId, startedAt, endedAt, durationMinutes, peakDeviationCelsius, cause, adjudication] }
+    value_objects:
+      - { name: TemperatureRange, attributes: [minCelsius, maxCelsius] }
+      - { name: TemperatureRegime, attributes: [mode, setpointCelsius, range, tolerance] }
+      - { name: ExcursionTolerance, attributes: [cumulativeMinutesAllowed, maxSingleExcursionMinutes, maxDeviationCelsius] }
+      - { name: TemperatureReading, attributes: [observedCelsius, observedAt, sourceDeviceId] }
+      - { name: CustodyParty, attributes: [partyId, partyType] }
+      - { name: ShipmentRef, attributes: [prefix, sequence] }
+    domain_events:
+      - { name: ColdChainJourneyStarted, payload: [journeyId, bookingId, shipmentRef, containerId, regime, startedAt] }
+      - { name: CustodyTransferred, payload: [journeyId, legId, fromPartyId, toPartyId, handoverTemperatureCelsius, transferredAt] }
+      - { name: TemperatureExcursionDetected, payload: [journeyId, excursionId, legId, observedCelsius, startedAt, accountablePartyId] }
+      - { name: MonitoringGapDetected, payload: [journeyId, legId, lastReadingAt, gapMinutes, accountablePartyId] }
+      - { name: ColdChainJourneyCompleted, payload: [journeyId, completedAt, breachCount, inSpec] }
+
+  - name: TemperatureBreach
+    root: TemperatureBreach
+    entities:
+      - { name: TemperatureBreach, attributes: [breachId, journeyId, excursionIds, severity, accountablePartyId, recordedAt, notifiedAt, acknowledgedAt, outcome] }
+    domain_events:
+      - { name: TemperatureBreachRecorded, payload: [breachId, journeyId, bookingId, customerId, excursionIds, cumulativeOutOfRangeMinutes, peakDeviationCelsius, accountablePartyId, recordedAt] }
+      - { name: BreachNotificationAcknowledged, payload: [breachId, channel, acknowledgedAt] }
+      - { name: BreachCaseClosed, payload: [breachId, outcome, closedAt] }
+    aggregate_split_rationale: >
+      Separate root from ColdChainJourney on purpose. The journey ends when the container is
+      unsealed; the breach case does not — it stays open through customer notification,
+      apportionment between us and the carrier, and any credit note. Two lifecycles with different
+      end dates should not share a transaction boundary.
+
+invariants:
+  - >
+    A journey's monitored coverage must be unbroken from origin seal to destination unseal. Any
+    interval longer than the regime's maxMonitoringGapMinutes is recorded as non-compliant, not
+    ignored — silence is not evidence of holding temperature.
+  - >
+    Every excursion is recorded, whether or not it becomes a breach. Adjudication changes the
+    excursion's verdict, never whether it exists.
+  - >
+    A regime is immutable once the journey has started. Widening the agreed range mid-transit is a
+    contract amendment handled in Booking, and produces a new journey revision — never an in-place
+    edit of the range a breach is judged against.
+  - >
+    Custody legs must be contiguous and non-overlapping, and every leg has exactly one accountable
+    party. A journey with an unattributed interval cannot be completed.
+  - >
+    A breach case cannot be closed without a recorded customer notification acknowledgement. The
+    contract obliges us to tell the customer; an unacknowledged send is not telling them.
+  - >
+    A booking may not be settled as delivered-in-spec while any of its breach cases is open.
+
+reading_retention: >
+  Raw readings are NOT held inside the ColdChainJourney aggregate. A ten-day reefer trip at one
+  reading per minute is ~14k readings; an aggregate you cannot load in one go is not an aggregate.
+  The gateway streams readings to a time-series store and only writes derived excursions and gaps
+  into the aggregate. The raw series is the evidence a claim is argued from and has its own
+  retention clock — assume it outlives the journey, exact term is an open question.
+
+anticorruption_layers:
+  - name: ReeferTelemetryGateway
+    against: external reefer telemetry provider(s)
+    why: >
+      Providers publish per-device readings on their own cadence, in their own units, keyed by
+      device rather than by shipment. The gateway maps device to journey, normalises to Celsius,
+      and converts a reading stream into the two domain facts we actually reason about — excursion
+      intervals and monitoring gaps. Bought component behind a written port; do not let provider
+      vocabulary reach the aggregates.
+
+relationships:
+  - { to: Booking, type: downstream, note: "receives the committed TemperatureRegime on BookingConfirmed" }
+  - { to: Consolidation, type: downstream, note: "ContainerSealed starts the journey and supplies the seal reading" }
+  - { to: Routing, type: downstream, note: "ShipmentHandedToCarrier closes one custody leg and opens the next" }
+  - { to: ReeferTelemetryProvider, type: downstream, note: "external — behind ReeferTelemetryGateway" }
+  - { to: Notifications, type: upstream, note: "TemperatureBreachRecorded must reach the customer" }
+  - { to: Invoicing, type: upstream, note: "breach outcome feeds the existing CreditNote aggregate; no new billing concept" }
+
+candidate_events:
+  - name: ReeferPrecoolConfirmed
+    emitted_by: Consolidation
+    status: candidate
+    why: >
+      Stuffing a warm container is a common breach cause in practice, so the pull-down to setpoint
+      before loading looks like a fact worth capturing. No planner has confirmed we do this or
+      record it — following the convention in discovery/timeline.md, it stays marked candidate
+      until a depot planner confirms it.
+
+open_questions:
+  - >
+    One context or two? Telemetry ingest and breach adjudication have very different volumes and
+    change rates. Modelled as one context with a gateway for now, on fewest-concepts grounds. Split
+    if ingest volume forces independent scaling, or if a second telemetry provider makes the
+    gateway a domain of its own.
+  - >
+    Core or supporting? Classified core above, but the cold chain contract is currently one
+    account. If it stays one account it is a supporting compliance obligation, not a core
+    capability. Decide after the second cold chain customer, not before.
+  - >
+    Who owns the excursion tolerance numbers? They are contract terms and will differ per customer.
+    Assumed to arrive with the quote and be frozen into the regime at booking — unverified, and
+    nobody in the modelling sessions so far has owned contract terms.
+  - >
+    Does a perishable or veterinary declaration in Customs need the regime or the breach record?
+    Plausible, unverified, and no customs clerk has been asked. Customs is deliberately left
+    unmodified rather than guessed at.
+  - >
+    Contractual notification window for a breach — assumed to exist, value unknown. The
+    notification invariant is written to depend on it.

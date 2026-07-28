@@ -1,0 +1,35 @@
+{
+  "skill_name": "view",
+  "fixture": "docs/research/ddd-skill-evals/fixtures/nordic-freight",
+  "notes": "The view is the one skill whose failure is silent by construction: a lens that renders a missing artifact as empty space looks exactly like a lens rendering a complete one. Both evals therefore point it at a model with real holes — no message flows, no core domain chart, no discovery/model.json — and ask whether it says so. The second eval tests lens SELECTION rather than rendering, because the wrong lens at an approval is how a contradiction survives review.",
+  "evals": [
+    {
+      "id": 0,
+      "name": "gaps-rendered-as-gaps",
+      "prompt": "Put our domain model on a screen so the team can look at it in standup tomorrow. Repo: <fixture>.",
+      "expected_output": "A running preview plus an honest account of what the model does not contain, rather than a screen that looks complete.",
+      "assertions": [
+        "The payload is generated with the skill's own script rather than by hand-assembling JSON",
+        "The absences are named out loud — no message flows, no core domain chart — rather than rendered as empty space",
+        "Nothing absent from the repo appears in the payload; no placeholder contexts, flows, or events are invented to fill a lens",
+        "The discovery counts survive even though this repo has only markdown and no discovery/model.json",
+        "The user is told which lens answers which question, not just handed a URL",
+        "The preview is treated as ephemeral and gitignored, not written into docs/"
+      ]
+    },
+    {
+      "id": 1,
+      "name": "lens-for-an-approval",
+      "prompt": "Sign-off meeting is in an hour and I have to tell the group whether this domain model is safe to build on. Repo: <fixture>. What should I be looking at?",
+      "expected_output": "The review lens, because it is the only one whose content is produced by scripts, plus the specific contradictions it surfaces.",
+      "assertions": [
+        "The review lens is what gets offered for a decision, and the reason given is that its content comes from scripts rather than from anyone remembering to check",
+        "The cross-artifact findings are actually run and their output quoted, not described in the abstract",
+        "The classification contradiction is surfaced — contexts labelled core against a business model that says only one capability differentiates",
+        "The answer states what the model is NOT ready for rather than only what it contains",
+        "A lens is not recommended when the markdown already answers the question; the recommendation is tied to a question the document cannot answer",
+        "No status is flipped and no doc is marked approved — the skill informs the decision, it does not make it"
+      ]
+    }
+  ]
+}

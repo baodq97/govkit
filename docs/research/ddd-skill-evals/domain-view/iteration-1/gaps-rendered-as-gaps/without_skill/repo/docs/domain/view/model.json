@@ -1,0 +1,355 @@
+{
+  "meta": {
+    "title": "Nordic Freight — domain model",
+    "subtitle": "Rendered from docs/domain/. Gaps are drawn as gaps.",
+    "generatedAt": "2026-07-28",
+    "sources": [
+      "docs/domain/context-map.md (DOMAIN-0000, draft, owner TBD, 2026-06-02)",
+      "docs/domain/business-model.md (DOMAIN-BM-0001, draft, owner TBD, 2026-05-18)",
+      "docs/domain/discovery/timeline.md (DOMAIN-DISC-0001, draft, owner TBD, 2026-05-25)",
+      "docs/domain/<context>/model.yaml x7"
+    ],
+    "legend": [
+      { "key": "known", "label": "Stated in the docs and confirmed by a named person" },
+      { "key": "unconfirmed", "label": "Written down, nobody confirmed it" },
+      { "key": "conflict", "label": "Two docs disagree" },
+      { "key": "unknown", "label": "Nobody in the room knew" },
+      { "key": "by-decision", "label": "Deliberately empty — a recorded modelling decision, not a hole" }
+    ]
+  },
+
+  "headline": [
+    {
+      "label": "Attributes in the real systems",
+      "value": "608",
+      "note": "sum of mass.attributes across 7 contexts"
+    },
+    {
+      "label": "Attributes actually modelled",
+      "value": "29",
+      "note": "4.8% — the model names 29 of the 608 attributes that exist"
+    },
+    {
+      "label": "Effort vs differentiation",
+      "value": "7.6x",
+      "note": "Invoicing (explicitly non-differentiating) carries 311 attributes; Consolidation (the one differentiating capability) carries 41"
+    },
+    {
+      "label": "Docs with an owner",
+      "value": "0 of 10",
+      "note": "every doc is status: draft, owner: TBD"
+    },
+    {
+      "label": "Failure-path events",
+      "value": "0 of 11",
+      "note": "every modelled event is happy path"
+    }
+  ],
+
+  "contexts": [
+    {
+      "id": "quoting",
+      "name": "Quoting",
+      "classifiedAs": "core",
+      "businessModelSays": "engagement-creator · product · differentiation: partial (\"competitors quote in seconds too; we are no faster\")",
+      "classificationState": "conflict",
+      "classificationNote": "Context map calls it core; the business-model canvas rates it product-stage with only partial differentiation.",
+      "tacticalPattern": "full-domain-model",
+      "mass": { "tables": 11, "attributes": 78, "densestEntityAttrs": 26 },
+      "modelledAttributes": 4,
+      "coveragePct": 5.1,
+      "aggregates": [
+        { "name": "Quote", "root": "Quote", "state": "known", "entities": ["Quote (quoteId, customerId, laneId, validUntil)"] }
+      ],
+      "events": [
+        { "name": "QuoteRequested", "state": "known" },
+        { "name": "QuoteIssued", "state": "known" }
+      ],
+      "invariants": [{ "text": "A quote cannot be accepted after its validity window", "state": "known" }],
+      "language": [],
+      "gaps": [
+        { "state": "unknown", "text": "No ubiquitous-language terms recorded for this context." },
+        { "state": "unknown", "text": "78 attributes exist; 4 are modelled. Nothing describes lanes, tariffs or pricing." },
+        { "state": "unknown", "text": "Context map shows Quoting -> Tariff Data; no Tariff Data context, model or owner exists." }
+      ]
+    },
+    {
+      "id": "booking",
+      "name": "Booking",
+      "classifiedAs": "core",
+      "businessModelSays": "no row — Booking is absent from the capability table",
+      "classificationState": "unknown",
+      "classificationNote": "The business model never classified Booking, so \"core\" is unbacked. This is the context the map calls \"where the money is committed\".",
+      "tacticalPattern": "full-domain-model",
+      "mass": { "tables": 9, "attributes": 54, "densestEntityAttrs": 22 },
+      "modelledAttributes": 10,
+      "coveragePct": 18.5,
+      "aggregates": [
+        {
+          "name": "Booking",
+          "root": "Booking",
+          "state": "known",
+          "entities": [
+            "Booking (bookingId, customerId, departureId, status)",
+            "ConsignmentLine (lineId, volumeM3, weightKg, hazardClass)"
+          ],
+          "valueObjects": ["ShipmentRef (prefix, sequence)"]
+        }
+      ],
+      "events": [
+        { "name": "BookingRequested", "state": "known" },
+        { "name": "BookingConfirmed", "state": "known" }
+      ],
+      "invariants": [
+        { "text": "A booking may only be confirmed once its capacity has been reserved", "state": "known" },
+        { "text": "…but the capacity rule itself lives in Consolidation, and Booking reads it synchronously before reserving", "state": "conflict" }
+      ],
+      "language": [
+        { "term": "Booking", "definition": "A customer's committed request to move a consignment on a given departure" },
+        { "term": "Consignment", "definition": "The goods a customer hands over as one unit", "state": "conflict", "note": "Invoicing defines the same word as \"a billable line on an invoice\"" }
+      ],
+      "gaps": [
+        { "state": "conflict", "text": "\"Consignment\" means physical goods here and a billable line in Invoicing — hotspot #2, unresolved." },
+        { "state": "conflict", "text": "Writes ConsignmentLine, which the context map declares a Shared Kernel with Consolidation — but the two sides already model different attributes." }
+      ]
+    },
+    {
+      "id": "consolidation",
+      "name": "Consolidation",
+      "classifiedAs": "supporting",
+      "businessModelSays": "revenue-generator · custom-built · differentiation: YES — \"the premium customers pay for; a new entrant would need both the depot network and the planning know-how\"",
+      "classificationState": "conflict",
+      "classificationNote": "Classified supporting (\"back-office load planning\"), but it is the only capability the business model marks as differentiating and revenue-generating.",
+      "tacticalPattern": "full-domain-model",
+      "mass": { "tables": 5, "attributes": 41, "densestEntityAttrs": 18 },
+      "modelledAttributes": 7,
+      "coveragePct": 17.1,
+      "aggregates": [
+        {
+          "name": "ContainerLoad",
+          "root": "ContainerLoad",
+          "state": "known",
+          "entities": [
+            "ContainerLoad (containerId, departureId, capacityM3, committedM3)",
+            "ConsignmentLine (lineId, volumeM3, stackable)"
+          ]
+        }
+      ],
+      "events": [
+        { "name": "CapacityReserved", "state": "known" },
+        { "name": "ContainerSealed", "state": "known" }
+      ],
+      "invariants": [
+        { "text": "A container's committed volume must never exceed its capacity", "state": "conflict", "note": "Owned here, checked from Booking, enforced nowhere agreed — hotspot #1" }
+      ],
+      "language": [
+        { "term": "Container load", "definition": "The set of consignments committed to one physical container on one departure" },
+        { "term": "Fill rate", "definition": "Committed volume divided by container capacity" }
+      ],
+      "gaps": [
+        { "state": "unknown", "text": "The differentiating know-how is not in the model: \"load planning still happens partly on a whiteboard in the Gothenburg depot\", four senior planners resolve infeasible stacks by hand." },
+        { "state": "unknown", "text": "The short-term goal is 71% -> 80% container fill. Nothing in the model represents the optimiser, the stacking rules, or the fill target." },
+        { "state": "unknown", "text": "Guaranteed Consolidation (+18% premium, promises a departure slot) is a revenue stream with no aggregate, no invariant and no event." }
+      ]
+    },
+    {
+      "id": "routing",
+      "name": "Routing",
+      "classifiedAs": "supporting",
+      "businessModelSays": "cost-reduction · product · differentiation: no — \"the partner network is the asset, not the routing step\"",
+      "classificationState": "known",
+      "classificationNote": "Context map and business model agree.",
+      "tacticalPattern": "transaction-script",
+      "mass": { "tables": 3, "attributes": 17, "densestEntityAttrs": 9 },
+      "modelledAttributes": 0,
+      "coveragePct": 0,
+      "aggregates": [],
+      "aggregatesState": "by-decision",
+      "aggregatesRationale": "Routing receives BookingConfirmed and hands the shipment to the partner carrier selected by the standing contract for that lane. It owns no rule of its own.",
+      "events": [{ "name": "ShipmentHandedToCarrier", "state": "known" }],
+      "invariants": [],
+      "language": [],
+      "gaps": [
+        { "state": "unknown", "text": "Hotspot #3: nobody knows who is responsible when a partner carrier refuses a sealed container. No event, no owner, no aggregate covers the refusal." }
+      ]
+    },
+    {
+      "id": "customs",
+      "name": "Customs",
+      "classifiedAs": "core",
+      "businessModelSays": "compliance-enforcer · product · differentiation: no — \"required, and two vendors already do it well\"",
+      "classificationState": "conflict",
+      "classificationNote": "Classified core (\"regulated, and mistakes are expensive\"). The business model says no differentiation, and the model note says two commercial platforms already cover all nine ports — \"we integrate with neither\". Regulated is not the same as core.",
+      "tacticalPattern": "full-domain-model",
+      "mass": { "tables": 12, "attributes": 96, "densestEntityAttrs": 34 },
+      "modelledAttributes": 4,
+      "coveragePct": 4.2,
+      "aggregates": [
+        { "name": "Declaration", "root": "Declaration", "state": "known", "entities": ["Declaration (declarationId, shipmentRef, portCode, status)"] }
+      ],
+      "events": [
+        { "name": "DeclarationSubmitted", "state": "known" },
+        { "name": "DeclarationCleared", "state": "known" }
+      ],
+      "invariants": [{ "text": "A shipment cannot be handed to a carrier before its declaration is submitted", "state": "known" }],
+      "language": [],
+      "gaps": [
+        { "state": "unknown", "text": "No ubiquitous-language terms — for the context the map calls regulated and expensive to get wrong." },
+        { "state": "unknown", "text": "12 tables, 96 attributes, densest entity 34 attributes — modelled as one entity with 4." },
+        { "state": "unknown", "text": "No rejection path. DeclarationSubmitted and DeclarationCleared exist; nothing models a declaration being refused." },
+        { "state": "unknown", "text": "\"Two commercial customs platforms cover all nine ports; we integrate with neither\" — build-vs-buy is open and unowned." }
+      ]
+    },
+    {
+      "id": "invoicing",
+      "name": "Invoicing",
+      "classifiedAs": "core",
+      "businessModelSays": "compliance-enforcer · commodity · differentiation: NO — \"nobody has ever chosen us because of our invoices\"",
+      "classificationState": "conflict",
+      "classificationNote": "Context map calls it core because it is \"the largest and most business-critical system we run\". Largest is not core. The business model rates it commodity with zero differentiation.",
+      "tacticalPattern": "full-domain-model",
+      "mass": { "tables": 34, "attributes": 311, "densestEntityAttrs": 128 },
+      "modelledAttributes": 8,
+      "coveragePct": 2.6,
+      "aggregates": [
+        {
+          "name": "Invoice",
+          "root": "Invoice",
+          "state": "known",
+          "entities": ["Invoice (invoiceId, customerId, currency, status)", "InvoiceLine (lineId, description, amount, vatCode)"]
+        },
+        { "name": "SurchargeSchedule", "root": "SurchargeSchedule", "state": "unknown", "entities": [] },
+        { "name": "CreditNote", "root": "CreditNote", "state": "unknown", "entities": [] },
+        { "name": "DunningCase", "root": "DunningCase", "state": "unknown", "entities": [] },
+        { "name": "PaymentAllocation", "root": "PaymentAllocation", "state": "unknown", "entities": [] }
+      ],
+      "events": [{ "name": "InvoiceIssued", "state": "known" }],
+      "invariants": [{ "text": "An invoice line must reference a cleared declaration", "state": "known" }],
+      "language": [
+        { "term": "Consignment", "definition": "A billable line on an invoice", "state": "conflict", "note": "Booking defines the same word as physical goods" },
+        { "term": "Surcharge", "definition": "Any fee added to the forwarding rate" }
+      ],
+      "gaps": [
+        { "state": "unknown", "text": "4 of 5 aggregates are a name and nothing else — no entities, no attributes, no events." },
+        { "state": "unknown", "text": "CreditNote, DunningCase and PaymentAllocation exist as aggregates but emit no events. Credit, dunning and payment are invisible in the flow." },
+        { "state": "unknown", "text": "Densest entity: 128 attributes. That is not an entity, that is a table." },
+        { "state": "unknown", "text": "51% of all modelled attributes in the company sit in the context the business explicitly calls a commodity." }
+      ]
+    },
+    {
+      "id": "notifications",
+      "name": "Notifications",
+      "classifiedAs": "generic",
+      "businessModelSays": "engagement-creator · commodity · differentiation: no",
+      "classificationState": "known",
+      "classificationNote": "Context map and business model agree.",
+      "tacticalPattern": "bought-adapter",
+      "mass": { "tables": 2, "attributes": 11, "densestEntityAttrs": 7 },
+      "modelledAttributes": 0,
+      "coveragePct": 0,
+      "aggregates": [],
+      "aggregatesState": "by-decision",
+      "aggregatesRationale": "Thin adapter over a bought email/SMS provider; no domain model.",
+      "events": [
+        { "name": "CustomerNotified", "state": "unconfirmed", "note": "candidate — inferred from the notification templates; nobody confirmed when it fires" }
+      ],
+      "invariants": [],
+      "language": [],
+      "gaps": [
+        { "state": "unconfirmed", "text": "Its only event is unconfirmed. The context's entire behaviour rests on a guess." }
+      ]
+    }
+  ],
+
+  "relationships": [
+    { "from": "Quoting", "to": "TariffData", "label": "downstream", "targetState": "unknown", "note": "Tariff Data appears on the context map only — no model, no owner, no classification" },
+    { "from": "Booking", "to": "Quoting", "label": "downstream", "targetState": "known" },
+    { "from": "Booking", "to": "Consolidation", "label": "downstream · synchronous capacity read", "targetState": "conflict", "note": "read-then-act across an aggregate boundary — the March double-booking" },
+    { "from": "Booking", "to": "Routing", "label": "publishes BookingConfirmed", "targetState": "known" },
+    { "from": "Routing", "to": "PartnerNetwork", "label": "forwards to (external)", "targetState": "unknown", "note": "no owner for a carrier refusal — hotspot #3" },
+    { "from": "Consolidation", "to": "Customs", "label": "publishes ContainerSealed", "targetState": "known" },
+    { "from": "Customs", "to": "Invoicing", "label": "publishes DeclarationCleared", "targetState": "known" },
+    { "from": "Invoicing", "to": "Notifications", "label": "publishes InvoiceIssued", "targetState": "unconfirmed", "note": "the receiving event, CustomerNotified, is unconfirmed" }
+  ],
+
+  "eventFlow": [
+    { "n": 1, "name": "QuoteRequested", "context": "Quoting", "state": "known", "confirmedBy": "planner, 2026-05-25" },
+    { "n": 2, "name": "QuoteIssued", "context": "Quoting", "state": "known", "confirmedBy": "planner" },
+    { "n": 3, "name": "BookingRequested", "context": "Booking", "state": "known", "confirmedBy": "planner" },
+    { "n": 4, "name": "CapacityReserved", "context": "Consolidation", "state": "known", "confirmedBy": "planner" },
+    { "n": 5, "name": "BookingConfirmed", "context": "Booking", "state": "known", "confirmedBy": "planner" },
+    { "n": 6, "name": "ShipmentHandedToCarrier", "context": "Routing", "state": "known", "confirmedBy": "planner" },
+    { "n": 7, "name": "ContainerSealed", "context": "Consolidation", "state": "known", "confirmedBy": "planner" },
+    { "n": 8, "name": "DeclarationSubmitted", "context": "Customs", "state": "known", "confirmedBy": "customs clerk" },
+    { "n": 9, "name": "DeclarationCleared", "context": "Customs", "state": "known", "confirmedBy": "customs clerk" },
+    { "n": 10, "name": "InvoiceIssued", "context": "Invoicing", "state": "known", "confirmedBy": "finance analyst" },
+    { "n": 11, "name": "CustomerNotified", "context": "Notifications", "state": "unconfirmed", "confirmedBy": "nobody — inferred from templates" }
+  ],
+
+  "missingEvents": [
+    "Booking cancelled or amended",
+    "Declaration rejected by a port",
+    "Carrier refuses a sealed container (hotspot #3)",
+    "Container departs partly filled while the Guaranteed Consolidation premium was charged",
+    "Credit note raised / payment allocated / dunning escalated (aggregates exist, events do not)"
+  ],
+
+  "conflicts": [
+    {
+      "id": "C1",
+      "severity": "high",
+      "title": "The core/supporting map contradicts the business model",
+      "detail": "Consolidation is the only capability the business model marks as differentiating and revenue-generating, and the context map files it as supporting. Invoicing and Customs are both filed core while the business model rates them commodity and product with no differentiation. Sub-domain type drives where the good engineers go — right now it points them at the invoice system.",
+      "sources": ["context-map.md §Sub-domain classification", "business-model.md §Capability classification inputs"]
+    },
+    {
+      "id": "C2",
+      "severity": "high",
+      "title": "Nobody owns the capacity invariant",
+      "detail": "\"A container's committed volume must never exceed its capacity\" belongs to Consolidation's ContainerLoad. Booking enforces its own rule by reading remaining capacity synchronously and then reserving. Read-then-act across an aggregate boundary has no serialisation — which is exactly the March incident: two shipments committed to the same slot, and nobody agrees where the check should have happened.",
+      "sources": ["consolidation/model.yaml invariants", "booking/model.yaml relationships note", "discovery/timeline.md hotspot #1"]
+    },
+    {
+      "id": "C3",
+      "severity": "high",
+      "title": "\"Consignment\" means two different things",
+      "detail": "Booking: the goods a customer hands over as one unit. Invoicing: a billable line on an invoice. Finance and operations have been using the word past each other (hotspot #2) and both definitions are written into the model as if settled.",
+      "sources": ["booking/model.yaml", "invoicing/model.yaml", "discovery/timeline.md hotspot #2"]
+    },
+    {
+      "id": "C4",
+      "severity": "medium",
+      "title": "The Shared Kernel has already diverged",
+      "detail": "ConsignmentLine is declared a Shared Kernel written by both Booking and Consolidation. Booking models lineId, volumeM3, weightKg, hazardClass. Consolidation models lineId, volumeM3, stackable. Two writers, two shapes, no agreed contract.",
+      "sources": ["context-map.md §Shared artifacts", "booking/model.yaml", "consolidation/model.yaml"]
+    },
+    {
+      "id": "C5",
+      "severity": "medium",
+      "title": "Modelling effort is inverted against differentiation",
+      "detail": "Invoicing: 34 tables, 311 attributes, densest entity 128 attributes, for a capability the commercial director describes as \"nobody has ever chosen us because of our invoices\". Consolidation: 5 tables, 41 attributes, and the actual planning still runs on a whiteboard in Gothenburg.",
+      "sources": ["all model.yaml mass blocks", "business-model.md"]
+    }
+  ],
+
+  "unknowns": [
+    { "text": "No customer took part in either session. Every \"what customers value\" row is the commercial director speaking for them, marked proxy.", "source": "business-model.md" },
+    { "text": "Cost structure per shipment — nobody in the room owns the P&L.", "source": "business-model.md" },
+    { "text": "Long-horizon goal — blank.", "source": "business-model.md" },
+    { "text": "Whether customers would pay for guaranteed departure windows as a separate product — no customer has been asked.", "source": "business-model.md" },
+    { "text": "Who is responsible when a partner carrier refuses a sealed container.", "source": "discovery/timeline.md hotspot #3" },
+    { "text": "When CustomerNotified fires.", "source": "discovery/timeline.md event 11" },
+    { "text": "What Tariff Data is. It has an arrow on the context map and nothing else.", "source": "context-map.md" },
+    { "text": "Every one of the 10 docs is status: draft with owner: TBD. The classification table \"has not been revisited since the first modelling session in March\".", "source": "all docs" }
+  ],
+
+  "decisions": [
+    { "n": 1, "ask": "Re-classify Consolidation as core, and Invoicing + Customs as supporting/generic — or write down why the map is right and the business model is wrong.", "closes": "C1", "cost": "one meeting" },
+    { "n": 2, "ask": "Name the place the capacity invariant is enforced. One context, one transaction.", "closes": "C2 + the March incident", "cost": "one decision, then a change" },
+    { "n": 3, "ask": "Rename one of the two Consignments. Suggested: Invoicing's becomes BillableLine.", "closes": "C3", "cost": "cheap now, expensive later" },
+    { "n": 4, "ask": "Split ConsignmentLine per context, or pin the shared attribute set and give it one owner.", "closes": "C4", "cost": "one decision" },
+    { "n": 5, "ask": "Confirm CustomerNotified with someone who knows, or delete it from the timeline.", "closes": "unconfirmed event", "cost": "one conversation" },
+    { "n": 6, "ask": "Put a name against each of the 7 contexts. Owner TBD x10 is why none of the above got resolved since March.", "closes": "ownership", "cost": "five minutes of standup" },
+    { "n": 7, "ask": "Book a session with an actual customer before the next modelling round.", "closes": "the proxy problem", "cost": "one invite" }
+  ]
+}

@@ -184,6 +184,74 @@ def _discovery_states(docs: Path) -> dict[str, str] | None:
     return out
 
 
+def discovery_from_markdown(docs: Path) -> tuple[dict, list[dict], list[str], list[str]]:
+    """Discovery as it exists in a repo that has never run the view: markdown only.
+
+    Reporting "nothing on disk" for such a repo is worse than reporting nothing at all — it is a
+    confident falsehood, and a step that believes it goes and reads the files by hand anyway, having
+    paid for the pack first. Found exactly that way: an eval run against a fixture holding only
+    `timeline.md` was slower than the same run with no pack at all.
+
+    Header names vary between repos (`Element` here, `Event` there), so the name column is found by
+    trying the plausible ones rather than by position.
+    """
+    d = docs / "discovery"
+    if not d.is_dir():
+        return {}, [], [], []
+    NAME_COLS = ("element", "event", "name", "term")
+    HOT_COLS = ("hotspot", "question")
+    rows, hotspots, terms, rules = 0, [], [], []
+    confirmed = candidate = 0
+    for f in sorted(d.glob("*.md")):
+        section = ""
+        idx: dict[str, int] | None = None
+        for line in f.read_text(errors="ignore").splitlines():
+            if line.startswith("#"):
+                section = line.lstrip("# ").lower()
+                idx = None
+                continue
+            if not line.lstrip().startswith("|"):
+                idx = None
+                continue
+            cells = _cells(line)
+            low = [c.lower() for c in cells]
+            if any(n in low for n in (*NAME_COLS, *HOT_COLS, "rule")):
+                idx = {k: low.index(k) for k in (*NAME_COLS, *HOT_COLS, "rule", "status", "state",
+                                                 "confirmed by", "held by", "who raised it",
+                                                 "who could answer", "blocks", "stated by")
+                       if k in low}
+                continue
+            if idx is None or set(cells) <= {"", "---"} or cells[0].startswith(":--"):
+                continue
+            get = lambda k: cells[idx[k]].strip("`* ") if k in idx and len(cells) > idx[k] else ""  # noqa: E731
+            hot = next((get(h) for h in HOT_COLS if get(h)), "")
+            if hot:
+                hotspots.append({"question": hot, "blocks": get("blocks"),
+                                 "who": get("who could answer") or get("who raised it")})
+                continue
+            if get("rule"):
+                rules.append(f"{get('rule')} — {get('stated by') or 'source not stated'}")
+                continue
+            name = next((get(n) for n in NAME_COLS if get(n)), "")
+            if not name:
+                continue
+            rows += 1
+            if "term" in idx:
+                terms.append(name)
+            st = get("status").lower()
+            joined = " ".join(cells).lower()
+            # Order matters and got this wrong once: a repo with no Status column marks a candidate
+            # by writing the word in the attribution cell, so `Confirmed by: *candidate* — nobody
+            # confirmed when it fires` was counted as confirmed. Look for the marking first.
+            if "candidate" in joined or st.startswith("cand"):
+                candidate += 1
+            elif st.startswith("confirm") or (not st and get("confirmed by")):
+                confirmed += 1
+    counts = {"elements": rows, "confirmed": confirmed, "candidate": candidate}
+    dupes = sorted({t for t in terms if terms.count(t) > 1})
+    return counts, hotspots, dupes, rules
+
+
 def load_contexts(docs: Path, root: Path | None = None) -> dict[str, dict]:
     ctx = {}
     if not docs.is_dir():

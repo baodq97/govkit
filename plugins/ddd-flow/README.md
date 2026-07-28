@@ -151,6 +151,36 @@ The parts worth studying are the refusals: nine relaxed rules with no corrective
 saying so, every throughput cell `unknown` with a named owner, two contexts left unplaced on
 differentiation. See `examples/euro-parking/README.md`.
 
+## What it measurably does, and what it does not
+
+This set is a **discipline harness**, not a finder. The distinction is measured rather than claimed,
+and the measurement is unflattering enough to be worth publishing.
+
+Four evals on a trap-laden fixture (`docs/research/ddd-skill-evals/`), each run twice — once with
+the skill, once with **no skill at all**:
+
+| | with the skill | with nothing |
+|---|---|---|
+| the traps the fixture was built to hide | 10 / 10 | **9 / 10** |
+| the doctrine below, present in the output | 22 / 24 | 19 / 24 |
+| deterministic quality checks | 15 / 20 | 15 / 20 |
+| tokens | +16% | — |
+
+**A capable model with no skill finds nine of the ten traps.** If the question is "will this surface
+a boundary problem I would otherwise miss", the honest answer on this evidence is: usually you would
+have found it anyway, and the skill costs 16% more to get there.
+
+Where the gap is real is process, and one row carries most of it: **propose-don't-apply, 4/4 against
+2/4.** Without the skill, an agent that finds a boundary problem edits the model. That is the
+difference between a modelling session and an unreviewed change, and in a governed repo it is the
+whole point. The rest of the gap is the same shape — open questions recorded, candidates not
+promoted to confirmed.
+
+Two things this measurement does not cover, stated so nobody reads more into it than is there. The
+fixture is seven contexts and its traps are ones careful reading can catch; a real domain is larger
+and its traps are quieter. And `3-decompose` and `view` have no eval corpus yet, so two of the ten
+skills are unmeasured.
+
 ## Doctrine the whole set shares
 
 - **Never invent.** No fabricated events, rules, invariants, business models, headcounts or volumes.
