@@ -80,6 +80,14 @@ Priors, not rules:
 | Half-finished docs | the cheapest step that could still invalidate the rest | finding the boundaries wrong beats deepening them |
 | A step is `STALE` | that step, update mode | its input changed underneath it |
 | User names one artifact | that step, directly | the process serves the artifact |
+| A system landscape already exists and boundaries are the question | connect, on the flows that already run | what today's systems say to each other constrains every boundary you could propose; modelling them as wished-for first produces a map nobody can act on |
+| The domain is contested and the argument is going in circles | code, on one slice | some boundaries only settle once someone builds one; a canvas cannot referee a disagreement about behaviour |
+
+The last two enter the loop away from step 1, which is deliberate — the process is a loop, and where
+you join it depends on what is already true. They are entry points, not shortcuts: both still owe
+discovery, and the second owes `connect` and `define` afterwards, because a boundary drawn to get one
+slice building is a hypothesis. Record the deviation with what it left unvalidated, so the debt
+resurfaces instead of setting.
 
 ## 3. Route — name the command, do not run it
 
@@ -151,6 +159,12 @@ Ask before advancing. When one fails, going back beats pushing through with a ca
 | organise | is real headcount known? | it is a template, not a proposal — ask |
 | define | were connect's findings triaged? | you would define a context that is about to move |
 | code | invariants traceable to stated rules, none spanning two contexts? | a distributed invariant belongs in connect |
+
+These gate *advancing through* the loop. They do not gate **deliberately coding early to settle a
+contested domain** — that is a recognised way to run the process, and refusing it turns a design
+disagreement into a scheduling one. What the heuristic buys there is honesty about the price: say
+which invariants are unverified and which boundaries the slice is assuming, record it as a
+deviation, and treat the resulting aggregate as evidence for `connect` rather than a decision.
 
 Two failed attempts to leave discovery usually means the people who know the domain were never in
 the room — a scheduling problem, not a modelling one. Say so.

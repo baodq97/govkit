@@ -50,6 +50,28 @@ loop 3  define    → code                                what each context is, 
 Three inner loops, one end-to-end pass, none of it a pipeline. DDD is continuous and iterative, so
 `design` reads state and decides rather than executing a sequence.
 
+### Numbering, against ddd-crew's
+
+The eight steps are ddd-crew's. **Two are numbered differently**, so a reader following both should
+map them:
+
+| ddd-crew | | here |
+|---|---|---|
+| 1 Understand · 2 Discover · 3 Decompose | = | `1-understand` · `2-discover` · `3-decompose` |
+| **4 Strategize** | → | **`5-strategize`** |
+| **5 Connect** | → | **`4-connect`** |
+| 6 Organise · 7 Define · 8 Code | = | `6-organise` · `7-define` · `8-code` |
+
+Connect runs first here because it is the cheapest step that can still invalidate decomposition — a
+flow that crosses four contexts to serve one use case moves a boundary, and moving it after the core
+domain chart is drawn means drawing it twice. The chart also reads better afterwards: `5-strategize`
+measures complexity from the model's own mass, and message flows are what expose mass that a static
+map hides. The plugin's own readiness heuristic already says so — *"is differentiation sourced from
+business evidence?"* — and the answer improves once the flows exist.
+
+The order is a prior, not a constraint: `references/steps.yml` declares staleness per step rather
+than deriving it from position, so running strategize before connect costs nothing but the caveat.
+
 ## Skills
 
 **Orchestrator**
@@ -157,3 +179,9 @@ Adapted from the [ddd-crew](https://github.com/ddd-crew) starter modelling proce
 (CC BY / CC BY-SA), Team Topologies and the Independent Service Heuristics (CC BY-SA), Michael
 Plöd's context-map and Quality Storming material, and Wardley Mapping. Each skill's `references/`
 cites its own sources.
+
+Five techniques ddd-crew lists are **chosen against, not missed**: BPMN and sequence diagrams (the
+message-flow notation has no time axis on purpose — `4-connect/references/message-flow-notation.md`
+argues it), C4 component diagrams (the aggregate canvas and the layering contract carry the same
+information closer to the decision), Dynamic Reteaming and Mob Programming (practices for a room,
+with no artifact for a skill to write or check).
