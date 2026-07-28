@@ -22,18 +22,32 @@ handed back to `3-decompose`. Proposed, not applied: a boundary redrawn by the s
 discovered the problem skips the reconciliation, seam, and delta-merge discipline that decomposition
 owns.
 
-## Inputs
+## Inputs — get them in one call
 
-- `docs/domain/` — contexts, relationships, and the domain events each context emits. This is the
-  design under test.
-- `docs/domain/discovery/` — the event timeline, if discovery ran. Flows built from a discovered
-  timeline are grounded; flows built from context names alone are speculation.
-- The **use cases** to trace. If nobody names them, propose candidates and get agreement before
-  drawing — see step 1.
+```bash
+python3 ${CLAUDE_SKILL_DIR}/../design/scripts/ddd_context.py --root . --step 4-connect
+```
 
-Nothing under `docs/domain/`? Say so plainly: there is no design to challenge yet, and
-`3-decompose` runs first. Modelling flows between contexts you are inventing as you go
-produces a diagram that validates itself.
+One pass over the repo returns the design under test as facts: every context with its type, event
+and invariant counts; every flow already traced with its message count, participant count and
+whether it breaches the 5-to-9 rule; every traced message with from, to and type; and the discovery
+counts that say whether the timeline behind all of it was confirmed by people or mined from
+documents.
+
+On a re-run that last part is what matters most. **Flows built from a discovered timeline are
+grounded; flows built from context names alone are speculation**, and the difference is a number in
+the pack rather than an impression you form while reading.
+
+The pack does not choose the use cases, and it should not: that is the one input here a repo cannot
+supply. If nobody names them, propose candidates and get agreement before drawing — see step 1.
+
+The pack reports what is traced, never what should be. A message absent from it is absent from the
+flows, which may mean the flow is incomplete or may mean the event is peripheral — deciding which is
+this step's work.
+
+Nothing under `docs/domain/`? The pack will say so, and that is the answer: there is no design to
+challenge yet, and `3-decompose` runs first. Modelling flows between contexts you are inventing as
+you go produces a diagram that validates itself.
 
 ## Reference files (read as needed)
 

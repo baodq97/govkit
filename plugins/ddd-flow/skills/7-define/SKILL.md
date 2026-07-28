@@ -22,14 +22,36 @@ knowledge, and unwritten assumptions become invisible constraints), *verificatio
 would find out the boundary was wrong), and *open questions* (whose count is a direct read on how
 confident the team actually is).
 
-## Inputs
+## Inputs — get them in one call
 
-| Input | Supplies | If missing |
-|---|---|---|
-| `docs/domain/<context>/` | the first-pass canvas `3-decompose` wrote, plus `model.yaml` | run `3-decompose` — there is no context to define |
-| `docs/domain/core-domain-chart.md` | strategic classification — do not re-derive it | classify from `1-understand`'s inputs, or mark it unknown; do not invent a new classification here |
-| `docs/domain/message-flows/` | the real inbound/outbound messages and their collaborators | the interface sections become a guess from the model rather than from observed use |
-| `docs/domain/discovery/` | ubiquitous language and stated business rules, with attribution | do not fill business decisions from inference |
+```bash
+python3 ${CLAUDE_SKILL_DIR}/../design/scripts/ddd_context.py --root . --step 7-define --context <Context>
+```
+
+This returns the upstream facts already joined: the capability row this context's classification is
+carried from, its aggregate/event/invariant counts, which of the three falsifiable sections its
+current canvas has, the open hotspots that name it, and — the expensive one — **every inbound and
+outbound message traced in any flow, with its type, its collaborator and the scenario it came from.**
+
+Do that join by hand and you are reading a model file, a canvas, a business model and every flow in
+the repo, then transposing four tables into one. It is clerical, it is where this step spends most
+of its time, and getting it slightly wrong is invisible: a missed outbound message just means the
+canvas quietly understates what the context publishes.
+
+The pack is **upstream fact, not a draft**. It tells you what is on disk; the canvas is still yours
+to argue. Where it prints an absence — no capability row, no traced message, a canvas at 1/3 — that
+absence is a finding to carry into Open Questions, not a blank to fill.
+
+Read the raw artifacts when the pack raises something you need the wording of: the exact phrasing of
+a business rule, an assumption's provenance, a hotspot's full text. The pack replaces the joining,
+not the reading.
+
+| Still missing after the pack | Then |
+|---|---|
+| no context directory | run `3-decompose` — there is no context to define |
+| no capability row for it | classify from `1-understand`'s inputs, or mark it unknown; do not invent a new classification here |
+| no traced messages | the interface sections would be a guess from the model rather than from observed use — say so, or run `4-connect` first |
+| no discovery | do not fill business decisions from inference |
 
 ## Reference files (read as needed)
 

@@ -109,6 +109,31 @@ them. Tell the user exactly what to type:
 One step per turn. Chaining three unattended produces three artifacts resting on assumptions nobody
 checked — and half these steps are conversations with people a skill cannot summon.
 
+### When the screen earns its place
+
+`view` is cross-cutting, which in practice means forgotten. Offer it at the moments below — each is
+a point where the artifact **hides** something a lens makes obvious, so this is not "show the pretty
+version", it is "the markdown cannot answer the question you are about to decide on".
+
+A document is `?doc=<id>`; the map document additionally carries three lenses as `&view=map|mass|matrix`.
+
+| Just finished | Offer | Because the document cannot show it |
+|---|---|---|
+| understand | `?doc=bmc` | nine blocks read as a list, and a list makes absence look like brevity — the empty ones are the finding |
+| discover | `?doc=timeline` | confirmed-vs-candidate and as-is-vs-to-be are counts across dozens of rows; nobody sums them by reading |
+| decompose | `?doc=map`, then `&view=mass` | the map draws a 3-table context the same size as a 30-table one, and mass is the correction |
+| decompose or connect | `?doc=map&view=matrix` | a mutual dependency is invisible among crossing lines, and cycles are what move a boundary |
+| connect | `?doc=flow:<id>` | a table of numbered steps is a flow nobody can picture; the diagram is what a room argues over |
+| strategize | `?doc=chart` | placement is two coordinates — a paragraph claiming "core" cannot be disagreed with the way a dot can |
+| organise | `?doc=map` | team colour over the boundaries is where Conway's law stops being a slogan |
+| define / code | `?doc=bc:<slug>` · `?doc=agg:<Name>` | one canvas at a time, so a missing section reads as a hole rather than as a shorter file |
+| **before any approval** | `?doc=review` | the only lens whose content comes from scripts, so it does not depend on anyone remembering to check |
+
+Two things this is not. It is **not** a step: nothing is written, so it never appears in the journal
+as progress. And it is **not** a default closing move — offering the screen when the artifact already
+answers the question trains people to close it unread, which costs you the one moment it mattered.
+Name the question first; if the markdown answers it, skip the screen.
+
 ## 4. When a change arrives mid-loop
 
 Do not restart, and do not bolt it on. Decide the **scope**, and let that decide the re-entry:

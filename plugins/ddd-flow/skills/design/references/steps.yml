@@ -17,6 +17,10 @@
 #                 steps write the same file at different depths
 #   min_markers   how many markers a file needs
 #   invalidated_by  steps whose artifacts, if newer, make this one STALE
+#   inputs        which upstream facts ddd_context.py joins for this step, in order. Resolvers:
+#                 business_model · discovery · contexts · messages · flows · aggregates.
+#                 A step gets what its own Inputs section declares and nothing more — handing
+#                 8-code the whole business model trades one kind of clerical work for another.
 #
 # Staleness is declared here rather than inferred from order, because the loop has no fixed
 # order: strategize is invalidated by a new business model, not by whatever ran before it.
@@ -55,6 +59,7 @@ steps:
     loop: 1
     skill: 1-understand
     question: What does the business sell, to whom, and what differentiates it?
+    inputs: [discovery]
     artifacts: ["business-model*.md"]
     invalidated_by: []
 
@@ -62,6 +67,7 @@ steps:
     loop: 1
     skill: 2-discover
     question: What actually happens in this domain, in the words of the people who do it?
+    inputs: [business_model, discovery]
     artifacts: ["discovery/*.md"]
     invalidated_by: []
 
@@ -69,6 +75,7 @@ steps:
     loop: 2
     skill: 3-decompose
     question: Where are the boundaries, and what does each context own?
+    inputs: [business_model, discovery, contexts, flows]
     artifacts: ["context-map.md", "*/model.yaml"]
     require_all: true
     # connect and code are the two steps that can REFUTE a cut with evidence — a flow needing more
@@ -80,6 +87,7 @@ steps:
     loop: 2
     skill: 4-connect
     question: Do real use cases flow across these boundaries without hidden coupling?
+    inputs: [contexts, flows, messages, discovery]
     artifacts: ["message-flows/*.md"]
     exclude: ["message-flows/README.md"]
     invalidated_by: [decompose]
@@ -88,6 +96,7 @@ steps:
     loop: 2
     skill: 5-strategize
     question: Which parts deserve the investment, and what do we buy instead of build?
+    inputs: [business_model, contexts, aggregates]
     artifacts: ["core-domain-chart.md"]
     invalidated_by: [understand, decompose]
 
@@ -95,6 +104,7 @@ steps:
     loop: 2
     skill: 6-organise
     question: Which team owns which context, and at what cognitive load?
+    inputs: [contexts, messages, aggregates]
     artifacts: ["team-topology.md"]
     invalidated_by: [decompose, strategize, connect]
 
@@ -102,6 +112,7 @@ steps:
     loop: 3
     skill: 7-define
     question: What is each context responsible for, and what is it assuming?
+    inputs: [business_model, contexts, messages, discovery]
     # domain-decompose writes a first-pass canvas to the same file; the markers are what
     # distinguish a defined context from a sketched one.
     artifacts: ["*/README.md"]
@@ -117,5 +128,6 @@ steps:
     loop: 3
     skill: 8-code
     question: What stays consistent in one transaction, and what gets repaired afterwards?
+    inputs: [contexts, aggregates, messages]
     artifacts: ["*/aggregates/*.md"]
     invalidated_by: [define, decompose]
