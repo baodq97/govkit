@@ -174,14 +174,21 @@ eval:
 # cannot see a status transition — RFC-0012, AGENTS.md § Agent constraints
 # already says so). It binds the LEAD + the swe-flow skills (`gate-close`)
 # that perform a transition, not the gate that structurally cannot see one.
+# WHO may act (owner-ratified 2026-07-28): the MAIN agent — the session lead
+# the owner talks to directly — carries the owner's delegated authority across
+# all three tiers, under each tier's conditions. SUB-AGENTS (dispatched agents,
+# workflow agents, skill subagents) are PROPOSE-ONLY: they never flip a status,
+# never assign an owner, never merge — their report proposes, the main agent
+# applies. One auditable actor per session.
 # Tiers status transitions by reversibility (RFC-0027):
-#   • R0_owner  — one-way doors, always in-session human ratification, no
-#     exceptions. Editing THIS block is itself an R0 act.
-#   • R1_packet — recording-of-reality: the lead may flip WITHOUT a fresh ask
-#     iff every condition below holds AND the flip commit cites the evidence.
+#   • R0_owner  — one-way doors: the main agent acts on the owner's explicit
+#     in-session direction, cited in the commit — no fresh per-act ask needed,
+#     but the direction is never invented. Editing THIS block is itself R0.
+#   • R1_packet — recording-of-reality: the main agent may flip WITHOUT a fresh
+#     ask iff every condition below holds AND the flip commit cites the evidence.
 #   • R2_lead   — no ceremony.
 ratification:
-  R0_owner:            # one-way doors — always in-session human ratification
+  R0_owner:            # one-way doors — owner's in-session direction, cited
     transitions: [prd->approved, rfc->accepted, adr->accepted, "*->superseded", rel->released]
     acts: [merge, publish, "edit:ratification"]   # editing this block is itself R0
   R1_packet:           # recording-of-reality — lead may flip WITHOUT a fresh ask iff ALL hold

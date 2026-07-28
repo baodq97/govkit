@@ -244,3 +244,22 @@ events across the two prior rounds.
 - THIS `implemented` flip is the policy's first R1 auto-flip: it cites packet run `wf_5773167d`
   (red-team verdict flip-after-reconcile, reconcile applied at `d9e80e7`) and the policy source
   `govkit.yml@5be5075` — no fresh in-session ask, per the committed policy.
+
+## Amendment — the main-agent / sub-agent authority split (2026-07-28, R0)
+
+Owner-ratified in session on 2026-07-28 ("main agent có quyền làm, chỉ có các sub-agent khi làm
+các docs không được tự ý flip"). The WHO axis changes; the tier conditions do not:
+
+- The **main agent** — the session lead the owner talks to directly — carries the owner's
+  delegated authority across all three tiers, under each tier's unchanged conditions. For R0
+  this means: act on the owner's explicit in-session direction, cite it in the commit, no fresh
+  per-act ask — the direction is never invented, and absent one the main agent still asks.
+- **Sub-agents** (Agent-tool agents, workflow agents, skill subagents) are **propose-only**:
+  never flip a status, never assign an owner, never merge. Their reports propose; the main
+  agent applies. Rationale: one auditable actor per session — a flip buried in a subagent
+  transcript is invisible provenance, and the gate-loop's red-teamers/reviewers must stay
+  actors with no power to enact the thing they are judging.
+- Owner assignment continues to name a HUMAN; the agent never assigns itself.
+
+`govkit.yml` `ratification:` comments and AGENTS.md § Agent constraints carry the same text;
+this amendment is the RFC-side record. The engine still never reads any of it.

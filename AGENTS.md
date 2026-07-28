@@ -109,18 +109,23 @@ discipline (draft commit first, then a separate owner-authorized accept commit) 
 the keyed reviewer. The per-write hook only *nudges* on a born-at-non-`startStatus` Write; it never
 blocks one. So these bind because you follow them, not because the engine stops you:
 
-- Never self-assign an owner (`owner: TBD`; propose in the PR body).
-- Never self-flip a `status:` field except a transition the committed policy marks **R1** — and
-  only when ALL hold: the full gate is green (`bun run check`), a gate-loop packet exists for this
-  slice, the packet's red-team verdict is `flip-as-is` or `flip-after-reconcile` (reconcile applied
-  first), and the flip commit cites **both** the packet run id and the policy (`govkit.yml @ <sha>`).
-  **R0** transitions and any edit to the `ratification:` block itself stay strictly in-session human
-  acts, no exceptions; **R2** transitions need no ceremony. No tier touches code approval — the
-  self-approve/self-merge bullet below is unchanged. This carve-out IS the RFC-0012 honor-system
-  tier, made auditable by a committed policy instead of prose alone; the engine still never reads
-  it. The canonical R0/R1/R2 transition lists live in `govkit.yml` `ratification:` — read them
-  there; this file deliberately does not restate them.
-- Never self-approve, self-merge, or act as code owner.
+- **The authority split is main-agent vs sub-agent, not human vs AI** (owner-ratified
+  2026-07-28, superseding the older never-self-flip rule). The MAIN agent — the session lead
+  the owner talks to directly — holds the owner's delegated authority: it may flip statuses,
+  assign owners, and merge, under the tier conditions below. SUB-AGENTS — anything dispatched
+  (Agent-tool agents, workflow agents, skill subagents) — **never** flip a `status:`, never
+  assign an owner, never merge: they PROPOSE in their report and the main agent (or the human)
+  applies. This keeps one auditable actor per session; a flip buried in a subagent transcript
+  is invisible provenance.
+- Main-agent tier conditions: **R2** needs no ceremony. **R1** requires ALL of: the full gate
+  green (`bun run check`), a gate-loop packet for this slice, the packet's red-team verdict in
+  `flip-as-is` / `flip-after-reconcile` (reconcile applied first), and the flip commit citing
+  **both** the packet run id and the policy (`govkit.yml @ <sha>`). **R0** (one-way doors,
+  including any edit to the `ratification:` block) requires the owner's explicit in-session
+  direction, cited in the commit — the main agent acts on that direction without a fresh
+  per-act ask, but never invents it. The canonical R0/R1/R2 transition lists live in
+  `govkit.yml` `ratification:` — read them there; this file deliberately does not restate them.
+- Owner assignment names a HUMAN (the accountable person), never the agent itself.
 - Halt at a Lifecycle threshold when the required artifact is missing — do not invent it.
 
 ## The minimalism ladder (before writing ANY code)
