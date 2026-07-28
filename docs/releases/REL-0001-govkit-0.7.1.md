@@ -1,7 +1,7 @@
 ---
 id: REL-0001
 title: govkit 0.7.1 — the engine on npm, backfilled as the first governed release record
-status: draft
+status: released
 owner: baodq97
 date: 2026-07-29
 parent: RFC-0016
