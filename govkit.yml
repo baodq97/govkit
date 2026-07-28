@@ -184,6 +184,9 @@ eval:
 #   • R0_owner  — one-way doors: the main agent acts on the owner's explicit
 #     in-session direction, cited in the commit — no fresh per-act ask needed,
 #     but the direction is never invented. Editing THIS block is itself R0.
+#     R0 ACTS RIDE THE FULL GATE TOO: merge/publish only chained on a green
+#     `bun run check` — authority to act is not exemption from the gate
+#     (Round 22: two merges landed on a red full gate).
 #   • R1_packet — recording-of-reality: the main agent may flip WITHOUT a fresh
 #     ask iff every condition below holds AND the flip commit cites the evidence.
 #   • R2_lead   — no ceremony.
