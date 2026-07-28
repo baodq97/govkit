@@ -1,6 +1,8 @@
 {
   "name": "govkit",
-  "owner": { "name": "baodq97" },
+  "owner": {
+    "name": "baodq97"
+  },
   "plugins": [
     {
       "name": "swe-flow",
@@ -10,8 +12,10 @@
         "path": "plugins/swe-flow"
       },
       "description": "LLM authoring companion to the govkit governance engine. Skills drive the SDLC chain — govkit-adopt (get govkit into a repo first: greenfield `govkit init` scaffold vs `init --adopt` migrating an existing prose corpus, decided from evidence on disk, never guessing unsourced metadata), work-breakdown (slice large work into shippable vertical cuts first), goal-define, api-designer, data-model, and spec-author (PRD/RFC/ADR/US) — plus workflow-author (scaffold reusable .claude/workflows/*.js orchestration), working-discipline (trigger-gated thinking checkpoints that cut agent error and escalation), distill-learnings (the R7 learning loop: distill the gate journal + escape log into proposal-only guardrail changes), substance-judge (the keyed Layer-3 substance evaluation: pinned anchors, cross-model agreement, deepeval-compatible records — RFC-0019; selftest-gated per RFC-0020 — the judge proves itself on calibrate + a ranking probe or refuses to judge), spec-red-team (the keyed adversarial doc red-team: steelman then attack, falsifiable failure modes, one kill criterion — RFC-0022), and gate-close (the Tier-2 orchestrator for the gate loop — PROPOSE → VERIFY → RECONCILE → RED-TEAM → RATIFY, one evidence-backed ratification packet per gate, with a Live verify-for-real station at slice/release close — RFC-0025). Eleven plugin-namespaced role agents author and score the chain and the loop: Author analyst/architect/drafter/implementer/test-author, Score reviewer/red-teamer/verifier/judge, Upkeep doc-keeper/distiller. Domain modelling moved to the sibling `ddd-flow` plugin in v0.11.0 — the two meet at the `docs/domain/` artifact, not an import. Authors artifacts and orchestration, calls `npx govkit verify`; never embeds the deterministic gate.",
-      "version": "0.11.0",
-      "author": { "name": "baodq97" },
+      "version": "0.11.1",
+      "author": {
+        "name": "baodq97"
+      },
       "license": "MIT",
       "keywords": [
         "sdlc",
@@ -33,8 +37,10 @@
         "path": "plugins/ddd-flow"
       },
       "description": "The DDD modelling loop as skills — the design-time companion to swe-flow. One orchestrator (/ddd-flow:design) reads repo state with a deterministic, config-driven script and DECIDES what to run against the goal rather than following a pipeline; it never models. Eight step skills own one step each and are HIDDEN from context (disable-model-invocation), so the plugin costs one description instead of ten: 1-understand (Business Model Canvas + User Story Map), 2-discover (EventStorming; confirmed vs candidate, hotspots, attendance), 3-decompose (bounded contexts, aggregates, right-sized tactical depth, delta-merge), 4-connect (Domain Message Flow Modelling; typed messages, coupling smells, boundary deltas fed back), 5-strategize (Core Domain Chart; measured complexity x sourced differentiation, build/buy/outsource, investment-mismatch report), 6-organise (Team Topologies; cognitive-load budget, interaction modes, Independent Service Heuristics), 7-define (Bounded Context Canvas v5 + Quality Storming; assumptions, verification metrics, open questions, interface critique), 8-code (Aggregate Design Canvas v1.1; invariants vs corrective policies, throughput, size, code-structure contract), plus /ddd-flow:view (live zero-dependency browser surface, four lenses over one model.json). Episodic by design — greenfield projects and DDD migrations, not everyday delivery. Hands off to swe-flow through docs/domain/; authors drafts, never flips a status.",
-      "version": "0.1.0",
-      "author": { "name": "baodq97" },
+      "version": "0.1.1",
+      "author": {
+        "name": "baodq97"
+      },
       "license": "MIT",
       "keywords": [
         "ddd",
