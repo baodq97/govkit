@@ -1,0 +1,47 @@
+{
+  "skill_name": "7-define",
+  "evals": [
+    {
+      "id": 0,
+      "name": "right-size-and-populate-the-skipped-sections",
+      "prompt": "We're about to start building Nordic Freight. Define the bounded contexts properly before anyone writes code — repo at <fixtures>/nordic-freight.",
+      "expected_output": "Full canvases only for the contexts that warrant them, stubs for the bought and pass-through ones, with assumptions, verification metrics and open questions populated from evidence, and strategic classification carried from the existing artifacts with the Invoicing conflict surfaced.",
+      "trap": "Seven contexts invite seven identical full canvases, including Notifications (a bought adapter) and Routing (no domain model). The three sections that get left blank — assumptions, verification metrics, open questions — are the ones the canvas exists for. And with only three stated business rules in the repo, the business-decisions section is the easiest place to invent plausible policy.",
+      "files": [
+        "fixtures/nordic-freight/docs/domain/context-map.md",
+        "fixtures/nordic-freight/docs/domain/business-model.md",
+        "fixtures/nordic-freight/docs/domain/discovery/timeline.md",
+        "fixtures/nordic-freight/docs/domain/consolidation/model.yaml"
+      ],
+      "assertions": [
+        "Contexts are right-sized — Notifications and Routing receive a stub or light treatment rather than a full canvas, with the reason stated",
+        "Every canvas produced has a non-empty Assumptions section",
+        "Verification metrics are named together with a collectable source (CI, issue tracker, or production telemetry)",
+        "Open questions are populated, including the unresolved responsibility for a partner carrier refusing a sealed container",
+        "No business decision is asserted beyond the rules stated in the discovery timeline and the model.yaml invariants",
+        "Strategic classification is carried from the existing business model / classification with a source, and the conflict on Invoicing (labelled core, but no differentiation per the business model) is surfaced rather than silently reproduced",
+        "Inbound and outbound messages are typed (command / query / event) and name both the collaborator and the relationship type"
+      ]
+    },
+    {
+      "id": 1,
+      "name": "interface-critique",
+      "prompt": "Here's our Booking context — before we freeze its public interface, tell me whether the design holds up. Repo: <fixtures>/nordic-freight, docs/domain/booking.",
+      "expected_output": "A filled canvas plus an explicit interface critique that catches the query-then-command pair as the wrong message shape and the ConsignmentLine entity being shared with Consolidation as exposed internals — all at domain level, with no transport design.",
+      "trap": "Booking's interface reads as reasonable, so the tempting failure is a tidy canvas with 'the design looks sound'. The second trap is drift: 'freeze its public interface' pulls toward endpoints, verbs and status codes, which is api-designer's job and destroys the canvas's ability to be reviewed by domain experts.",
+      "files": [
+        "fixtures/nordic-freight/docs/domain/booking/model.yaml",
+        "fixtures/nordic-freight/docs/domain/consolidation/model.yaml",
+        "fixtures/nordic-freight/docs/domain/context-map.md"
+      ],
+      "assertions": [
+        "The interface-critique questions are actually applied, with a verdict recorded for the ones that fire",
+        "The synchronous capacity query followed by a reserve command is flagged as the wrong message shape — one command the other context accepts or rejects",
+        "Sharing the ConsignmentLine entity with Consolidation is flagged as exposed internals or Shared Kernel coupling with a stated cost",
+        "The output stays at domain level — no HTTP verbs, URL paths, status codes, or OpenAPI fragments",
+        "Assumptions and open questions are recorded rather than left blank",
+        "The purpose is stated in business language with no technical detail"
+      ]
+    }
+  ]
+}

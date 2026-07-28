@@ -1,0 +1,2387 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Domain preview — ddd-flow</title>
+<!--
+  The FROZEN shell. It renders whatever `model.json` currently holds and nothing else.
+
+  Every view on this page is a projection of one payload, so two views cannot disagree — the
+  drift that hand-drawn diagram sets suffer from is impossible here by construction. Changing
+  what is shown means changing the model (phase 1) or the view spec (phase 2), never this file.
+-->
+<style>
+  :root {
+    --bg: #fbfbfa;
+    --panel: #ffffff;
+    --ink: #1c1b1a;
+    --muted: #6b6a67;
+    --line: #e3e1dd;
+    --core: #b8541c;
+    --core-bg: #fdf3ec;
+    --supporting: #1f6f9a;
+    --supporting-bg: #eef6fb;
+    --generic: #6b6a67;
+    --generic-bg: #f2f1ef;
+    --warn: #a8560f;
+    --warn-bg: #fdf6ee;
+    --warn-line: #f0dcc4;
+    --hover: #f2f1ef;
+    --accent: #b8541c;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    font: 14px/1.5 ui-sans-serif, -apple-system, "Segoe UI", Roboto, sans-serif;
+    color: var(--ink);
+    background: var(--bg);
+  }
+  header {
+    display: flex; align-items: baseline; gap: 16px; flex-wrap: wrap;
+    padding: 12px 20px; border-bottom: 1px solid var(--line); background: var(--panel);
+  }
+  h1 { font-size: 15px; margin: 0; font-weight: 650; letter-spacing: -0.01em; }
+  .draft-badge {
+    font-size: 11px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase;
+    color: #8a3d0b; background: #fdf0e3; border: 1px solid #f0c9a4;
+    padding: 2px 8px; border-radius: 999px;
+  }
+  .meta { color: var(--muted); font-size: 12px; margin-left: auto; display: flex; gap: 14px; align-items: center; }
+  .dot { width: 7px; height: 7px; border-radius: 50%; background: #4a9c5f; display: inline-block; margin-right: 5px; }
+  .dot.off { background: #c05a4a; }
+  main { display: grid; grid-template-columns: 1fr 320px; height: calc(100vh - 49px); }
+  main.has-docs { grid-template-columns: 236px 1fr 320px; }
+  #canvas-wrap { overflow: auto; padding: 24px; }
+
+  /* The artifact list. A review meeting works one artifact at a time and needs to see, without
+     clicking, which ones exist and which step produced them — so the step is on the row. */
+  #docs { overflow: auto; border-right: 1px solid var(--line); padding: 10px 0 24px; font-size: 12.5px; }
+  #docs .grp { padding: 12px 14px 4px; color: var(--muted); font-size: 10.5px; letter-spacing: .07em;
+    text-transform: uppercase; }
+  #docs button { display: block; width: 100%; text-align: left; background: none; border: 0;
+    padding: 6px 14px; color: var(--ink); cursor: pointer; line-height: 1.35; border-left: 2px solid transparent; }
+  #docs button:hover { background: var(--hover); }
+  #docs button.on { background: var(--hover); border-left-color: var(--accent); font-weight: 600; }
+  #docs button .step { display: block; color: var(--muted); font-size: 10.5px; }
+  #docs .gaps { margin: 14px 14px 0; padding: 10px; border: 1px solid var(--warn-line);
+    background: var(--warn-bg); border-radius: 4px; color: var(--muted); font-size: 11.5px; line-height: 1.5; }
+  #docs .gaps b { color: var(--warn); display: block; margin-bottom: 4px; font-size: 10.5px;
+    text-transform: uppercase; letter-spacing: .06em; }
+  aside {
+    border-left: 1px solid var(--line); background: var(--panel);
+    overflow-y: auto; padding: 18px 18px 40px;
+  }
+  .band-label {
+    font-size: 10.5px; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase;
+    fill: var(--muted);
+  }
+  .node rect { rx: 7; stroke-width: 1.5; cursor: pointer; }
+  .node text { pointer-events: none; }
+  .node .name { font-size: 13px; font-weight: 620; }
+  .node .sub { font-size: 10.5px; fill: var(--muted); }
+  .node.selected rect { stroke-width: 3; }
+  .badge-circle { font-size: 10px; font-weight: 700; }
+  .edge { fill: none; }
+  .edge-label { font-size: 10px; fill: var(--muted); }
+  aside h2 { font-size: 13px; margin: 0 0 4px; letter-spacing: -0.01em; }
+  aside h3 {
+    font-size: 10.5px; font-weight: 700; letter-spacing: 0.09em; text-transform: uppercase;
+    color: var(--muted); margin: 18px 0 6px;
+  }
+  aside .purpose { color: var(--muted); margin: 0 0 4px; }
+  aside ul { margin: 0; padding-left: 16px; }
+  aside li { margin-bottom: 3px; }
+  .pill {
+    display: inline-block; font-size: 11px; padding: 1px 7px; border-radius: 999px;
+    border: 1px solid var(--line); margin-right: 4px;
+  }
+  .empty { color: var(--muted); font-style: italic; }
+  .fb { display: flex; flex-direction: column; gap: 6px; margin-top: 10px; }
+  .fb button {
+    font: inherit; font-size: 12.5px; text-align: left; padding: 7px 10px;
+    border: 1px solid var(--line); border-radius: 6px; background: var(--bg); cursor: pointer;
+  }
+  .fb button:hover { border-color: var(--muted); }
+  .fb button.sent { border-color: #4a9c5f; background: #f0f7f2; }
+  .controls { display: flex; gap: 14px; align-items: center; font-size: 12px; color: var(--muted); }
+  .views { display: inline-flex; border: 1px solid var(--line); border-radius: 6px; overflow: hidden; }
+  .views button {
+    font: inherit; font-size: 12px; padding: 3px 11px; border: 0; background: var(--panel);
+    color: var(--muted); cursor: pointer; border-right: 1px solid var(--line);
+  }
+  .views button:last-child { border-right: 0; }
+  .views button.on { background: var(--ink); color: #fff; }
+  .mass-bar-bg { fill: #00000010; }
+  .matrix text { font-size: 10.5px; }
+  .matrix .rowhead { font-size: 11px; font-weight: 600; }
+  .matrix .cell { stroke: #ffffff; stroke-width: 1; }
+  .matrix .diag { fill: #e8e6e2; }
+
+  /* Business Model Canvas — the Strategyzer grid, fixed. Only the content changes. */
+  /* `#bmc { display: grid }` outranks the user-agent rule for [hidden], so setting .hidden on it
+     does nothing and the previous artifact stays on screen under the next one's header. Only
+     visible when you click from a canvas to another lens — which is why no static render caught it. */
+  [hidden] { display: none !important; }
+  #bmc { display: grid; gap: 2px; background: var(--ink); border: 2px solid var(--ink); }
+  /* Anything that is not one of the canvas's own boxes has to live OUTSIDE this grid. Appended
+     inside, it becomes a grid child painted on the black grout that draws the cell dividers, and
+     ink-on-ink text renders at 1.00:1 — a table that is there and unreadable. */
+  #bmc-after { margin-top: 22px; max-width: 1240px; }
+  #review { font-size: 13px; max-width: 1240px; }
+  #review h2 { font-size: 13px; margin: 26px 0 10px; text-transform: uppercase; letter-spacing: .07em;
+    font-weight: 700; padding-bottom: 5px; border-bottom: 2px solid var(--ink); }
+  #review h2:first-child { margin-top: 0; }
+  #review table { border-collapse: collapse; width: 100%; font-size: 12.5px; margin-bottom: 26px; }
+  #review th, #review td { text-align: left; padding: 9px 12px 9px 0; border-bottom: 1px solid var(--line);
+    vertical-align: top; line-height: 1.55; }
+  #review tbody tr:hover td, #review tr:hover td { background: var(--hover); }
+  #review th { font-size: 10.5px; text-transform: uppercase; letter-spacing: 0.07em; color: var(--muted); }
+  /* A high finding should be findable from two metres away, which is how far the person who has to
+     act on it is sitting from the screen in a review. */
+  #review tr.f-high td { background: #fdf1f0; }
+  #review tr.f-high td:first-child { box-shadow: inset 4px 0 0 #b3261e; }
+  #review tr.f-medium td:first-child { box-shadow: inset 4px 0 0 #f2b705; }
+  .sev { font-size: 10px; font-weight: 700; letter-spacing: 0.06em; padding: 2px 7px; border-radius: 3px;
+    text-transform: uppercase; white-space: nowrap; }
+  .sev-high { background: #b3261e; color: #fff; }
+  .sev-medium { background: #f2b705; color: #201a00; }
+  .sev-info { background: var(--line); color: #4f4e4b; }
+  .st { font-size: 10.5px; letter-spacing: 0.06em; text-transform: uppercase; font-weight: 700; }
+  .st-done { color: #1f7a3d; } .st-partial { color: #9a7400; }
+  .st-missing { color: var(--muted); font-weight: 400; }
+  .st-stale { color: #fff; background: #b3261e; padding: 2px 7px; border-radius: 3px; }
+  #review .ev { color: var(--muted); font-size: 11px; }
+  #review .empty { color: var(--muted); font-style: italic; }
+  #bmc .top {
+    grid-column: 1 / -1; display: grid; gap: 2px; background: var(--ink);
+    grid-template-columns: repeat(5, 1fr); grid-template-rows: 1fr 1fr;
+  }
+  #bmc .bottom { grid-column: 1 / -1; display: grid; gap: 2px; background: var(--ink); grid-template-columns: 2fr 3fr; }
+  /* Bounded Context Canvas v5 and Aggregate Design Canvas v1.1 are the same kind of object as the
+     BMC — a fixed grid of named boxes — so they share the block styling and differ only in areas. */
+  #bmc.canvas-bcc {
+    grid-template-columns: 1fr 1fr 1fr;
+    grid-template-areas:
+      "purpose     classification roles"
+      "inbound     language       outbound"
+      "inbound     decisions      outbound"
+      "assumptions metrics        questions";
+  }
+  #bmc.canvas-adc {
+    grid-template-columns: 1fr 1fr 1fr;
+    grid-template-areas:
+      "name       transitions transitions"
+      "desc       transitions transitions"
+      "invariants commands    throughput"
+      "policies   events      size";
+  }
+  .numgrid { width: 100%; border-collapse: collapse; font-size: 11.5px; }
+  .numgrid th { font-size: 9.5px; text-transform: uppercase; letter-spacing: 0.06em; color: var(--muted); font-weight: 700; text-align: center; padding: 2px 4px; }
+  .numgrid td { padding: 3px 4px; border-bottom: 1px solid var(--line); }
+  .numgrid td.lbl { text-align: right; color: var(--muted); width: 52%; }
+  .numgrid td.val { text-align: center; border: 1px solid var(--line); font-variant-numeric: tabular-nums; }
+  /* An estimate nobody could supply must not look like a measurement. */
+  .numgrid td.val.unknown { color: var(--warn); font-style: italic; }
+  .block { background: var(--panel); padding: 15px 17px 17px; min-height: 150px; }
+  .block.tall { grid-row: span 2; }
+  /* The section name is the first thing you look for when someone says "go to assumptions".
+     At 10.5px muted uppercase it was the least visible text in the box. */
+  .block h4 {
+    margin: 0 0 11px; font-size: 15px; font-weight: 700; letter-spacing: -0.01em;
+    color: var(--ink); display: flex; gap: 8px; align-items: baseline;
+  }
+  /* A state-transition diagram is drawn with characters, so its meaning is in the alignment.
+     Set in the proportional body face and split across list items it reads as `| ^ (inside 15
+     min)` — the one block whose whole content is a picture, shown as stray sentences. */
+  .ascii {
+    margin: 0; font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+    font-size: 11.5px; line-height: 1.55; white-space: pre; overflow-x: auto;
+    padding-bottom: 4px;
+  }
+  .block ul { margin: 0; padding-left: 16px; font-size: 12.5px; line-height: 1.65; }
+  .block li { margin-bottom: 8px; }
+  .block li::marker { color: var(--muted); }
+  .block p { line-height: 1.65; }
+
+  /* Message type carries the meaning on this canvas — an outbound column of pure commands is the
+     Brain Context signature — so it is a colour you can count across the room, not a word in a
+     sentence. Palette follows the ddd-crew message-flow legend: command blue, event ORANGE,
+     query green. Event was yellow here, which is the colour that legend reserves for message
+     contents — so events were painted in the payload colour, on the one distinction the notation
+     exists to make visible. */
+  .mtype { display: inline-block; font-size: 9.5px; font-weight: 700; letter-spacing: .06em;
+    text-transform: uppercase; padding: 1px 6px; border-radius: 3px; margin-right: 7px;
+    border: 1px solid; vertical-align: 1px; }
+  .mtype.command { background: #dceaf7; color: #1c4b70; border-color: #a9cbe6; }
+  .mtype.event   { background: #fbe3c8; color: #7a3d05; border-color: #eec49a; }
+  .mtype.query   { background: #e4f0cd; color: #46600f; border-color: #c3da95; }
+  .mtype.decision{ background: #ebdff5; color: #4c2a6b; border-color: #d0b9e4; }
+
+  /* Strategic classification is three independent facets, not a paragraph. */
+  .facets { display: grid; gap: 9px; }
+  .facet { font-size: 12.5px; line-height: 1.5; }
+  .facet b { display: block; font-size: 9.5px; text-transform: uppercase; letter-spacing: .07em;
+    color: var(--muted); font-weight: 700; margin-bottom: 2px; }
+  .facet .v { font-weight: 650; }
+  .facet .v.unknown { color: var(--warn); font-style: italic; font-weight: 500; }
+  .facet .src { color: var(--muted); font-size: 11px; }
+  .block .src { margin-top: 10px; font-size: 11px; color: var(--muted); font-style: italic; }
+  /* An unsourced block has to LOOK unsourced. Rendering it as a tidy blank box is how a hole
+     gets mistaken for "nothing to say here" by everyone downstream. */
+  .block.empty { background: repeating-linear-gradient(45deg, #fdf8f2, #fdf8f2 9px, #f7ece0 9px, #f7ece0 18px);
+    box-shadow: inset 4px 0 0 var(--warn); }
+  .block.empty .q { font-size: 12.5px; color: var(--warn); font-weight: 600; line-height: 1.55; }
+  .block.empty .who { font-size: 11px; color: var(--muted); margin-top: 6px; }
+  .tag { font-size: 9.5px; font-weight: 700; letter-spacing: 0.06em; padding: 1px 5px; border-radius: 3px; }
+  .tag.proxy { background: #fdf0e3; color: #8a3d0b; border: 1px solid #f0c9a4; }
+  .tag.partial { background: #f2f1ef; color: var(--muted); border: 1px solid var(--line); }
+  .tag.open { background: #fdf0e3; color: #8a3d0b; border: 1px solid #f0c9a4; }
+  .bmc-head { display: flex; gap: 18px; align-items: baseline; margin-bottom: 10px; flex-wrap: wrap; }
+  .bmc-head h2 { font-size: 15px; margin: 0; }
+  .coverage { font-size: 12px; color: var(--muted); }
+  .bmc-extra { margin-top: 20px; display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+
+  /* document views */
+  #doc { max-width: 1180px; }
+  /* The measure exists so paragraphs stay readable. A message-flow diagram is not a paragraph,
+     and at 1180px its contents stickies were scrolled out of sight by default — present, and
+     invisible. Prose inside keeps its own max-width. */
+  #doc.wide { max-width: none; }
+  .doc-title { margin: 0 0 4px; font-size: 19px; }
+  .doc-sub { margin: 0 0 16px; color: var(--muted); font-size: 13px; max-width: 70ch; }
+  .doc-h3 { margin: 28px 0 10px; font-size: 12px; text-transform: uppercase; letter-spacing: .07em;
+    color: var(--ink); font-weight: 700; padding-bottom: 5px; border-bottom: 2px solid var(--ink); }
+  .doc-ok, .doc-warn { font-size: 13px; margin: 0 0 16px; padding: 11px 14px; border-radius: 4px;
+    line-height: 1.55; }
+  .doc-ok { background: var(--generic-bg); color: var(--muted); border-left: 4px solid var(--line); }
+  .doc-warn { background: var(--warn-bg); border: 1px solid var(--warn-line);
+    border-left: 4px solid var(--warn); color: #7a3d05; font-weight: 600; }
+  .doc-empty { color: var(--muted); font-style: italic; font-size: 12.5px; margin: 0 0 6px; }
+  .doc-list { margin: 0; padding-left: 20px; font-size: 13px; line-height: 1.7; max-width: 104ch; }
+  .doc-list li { margin-bottom: 7px; }
+  .doc-list li::marker { color: var(--muted); }
+  .doc-list.warn { padding-left: 16px; border-left: 3px solid var(--warn-line); }
+  .doc-list.warn li::marker { color: var(--warn); }
+  .doc-table { border-collapse: collapse; width: 100%; font-size: 12.5px; margin-bottom: 6px; }
+  .doc-table th { text-align: left; font-weight: 600; color: var(--muted); font-size: 10.5px;
+    text-transform: uppercase; letter-spacing: .06em; padding: 6px 10px 6px 0;
+    border-bottom: 1px solid var(--line); white-space: nowrap; }
+  .doc-table td { padding: 9px 14px 9px 0; border-bottom: 1px solid var(--line); vertical-align: top;
+    line-height: 1.6; }
+  .doc-table tr:hover td { background: var(--hover); }
+  .doc-table.flow td:first-child { color: var(--muted); width: 30px; }
+
+  /* Domain message flow, drawn. The table below it stays: ddd-crew prescribes both, and says why
+     — the table is what a reviewer can diff and quote, the diagram is what a room can look at. */
+  .flow-seg { margin: 22px 0 6px; font-size: 13px; font-weight: 650; }
+  .flow-seg span { font-weight: 400; color: var(--muted); }
+  .flow-svg { display: block; background: var(--panel); border: 1px solid var(--line);
+    border-radius: 4px; padding: 12px 10px; overflow-x: auto; margin-bottom: 4px; }
+  .flow-svg svg { display: block; }
+  .fl-name { font-size: 11.5px; font-weight: 650; }
+  .fl-row  { font-size: 10px; fill: var(--muted); }
+  .fl-fld  { font-size: 10px; fill: #5a5750; }
+  .fl-resp { font-size: 10px; fill: #46600f; font-weight: 650; }
+  .fl-clk  { font-size: 10px; fill: #7a3d05; font-weight: 700; }
+  .fl-msg  { font-size: 11.5px; font-weight: 600; }
+  .fl-legend { display: block; background: var(--panel); border: 1px solid var(--line);
+    border-radius: 4px; padding: 8px 10px; overflow-x: auto; margin: 0 0 16px; }
+  .doc-table .mono { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 12px; }
+  svg.chart .axis { font-size: 11px; fill: var(--muted); }
+  svg.chart .quadrant { font-size: 10.5px; fill: var(--muted); opacity: .8; }
+  svg.chart .name { font-size: 11.5px; fill: var(--ink); }
+  .wall { display: flex; flex-wrap: wrap; gap: 7px; margin-bottom: 6px; }
+  .sticky { width: 148px; padding: 7px 8px; background: var(--panel); border: 1px solid var(--line);
+    border-top: 3px solid var(--line); border-radius: 2px; font-size: 11.5px; line-height: 1.35; }
+  .sticky.candidate { border-style: dashed; opacity: .82; }
+  /* Domain names are single long words — `AdditionalPaymentCollected` has no break opportunity and
+     runs straight off the card. Break inside the word rather than lose the end of the name. */
+  .sticky b { display: block; margin-bottom: 3px; font-weight: 600; overflow-wrap: anywhere; }
+  .sticky span { display: block; color: var(--muted); font-size: 10.5px; }
+  /* Two axes, two channels: evidence (confirmed/candidate) is the border style, time
+     (as-is/to-be/could-be) is this chip. `as-is` renders no chip at all — the default has to be the
+     quiet one, or a wall of what the business already does every day reads as an alarm. */
+  .sticky .state { display: inline-block; margin-top: 4px; padding: 1px 5px; border-radius: 2px;
+    font-size: 9.5px; font-weight: 700; letter-spacing: .03em; text-transform: uppercase;
+    color: #3d2c04; background: #f3d283; }
+  .sticky .state.could-be { background: transparent; color: var(--muted);
+    border: 1px dashed var(--line); padding: 0 4px; }
+  .bmc-extra table { border-collapse: collapse; font-size: 12px; width: 100%; }
+  .bmc-extra th, .bmc-extra td { text-align: left; padding: 4px 8px; border-bottom: 1px solid var(--line); }
+  .bmc-extra th { font-size: 10.5px; text-transform: uppercase; letter-spacing: 0.07em; color: var(--muted); }
+  .unk { color: var(--warn); }
+  /* A finding the drawing produced, shown under the drawing. SVG text does not wrap and is
+     silently cut at the viewBox, which is how the cycle warning — the one line that refutes the
+     decomposition — ended up truncated mid-word. In HTML it wraps, and it can be selected. */
+  #diagram-note { max-width: 1180px; margin: 20px 0 0; }
+  #diagram-note:empty { display: none; }
+  /* Nineteen pairs set as one sentence is a paragraph nobody finishes. One chip per pair, so a
+     reviewer can find their own context in it. */
+  .pairs { display: flex; flex-wrap: wrap; gap: 6px; margin: 10px 0 0; padding: 0; list-style: none; }
+  .pairs li {
+    font-size: 11.5px; padding: 3px 9px; border-radius: 3px; white-space: nowrap;
+    background: var(--panel); border: 1px solid var(--warn-line); color: #7a3d05;
+  }
+  .legend {
+    display: flex; gap: 14px; flex-wrap: wrap; font-size: 11px; color: var(--muted);
+    margin-top: 20px; padding-top: 14px; border-top: 1px solid var(--line);
+  }
+  .legend span { display: inline-flex; align-items: center; gap: 5px; }
+  .swatch { width: 11px; height: 11px; border-radius: 3px; border: 1.5px solid; }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>Domain preview</h1>
+  <span class="draft-badge" id="mode-badge">draft — not governed</span>
+  <div class="controls">
+    <div class="views" id="views"></div>
+    <label><input type="checkbox" id="toggle-light"> Hide generic / master-data</label>
+  </div>
+  <div class="meta">
+    <span id="counts"></span>
+    <span id="stamp"></span>
+    <span id="conn"><span class="dot" id="conn-dot"></span><span id="conn-text">live</span></span>
+  </div>
+</header>
+
+<main>
+  <nav id="docs" hidden></nav>
+  <div id="canvas-wrap">
+    <svg id="canvas"></svg>
+    <div id="diagram-note"></div>
+    <div id="bmc" hidden></div>
+    <div id="bmc-after" hidden></div>
+    <div id="review" hidden></div>
+    <div id="doc" hidden></div>
+    <div class="legend" id="legend"></div>
+  </div>
+  <aside id="panel"></aside>
+</main>
+
+<script>
+"use strict";
+
+// ---------------------------------------------------------------- constants (frozen styling)
+
+const BANDS = [
+  { key: "external",    label: "External systems" },
+  { key: "core",        label: "Core — the differentiator" },
+  { key: "supporting",  label: "Supporting" },
+  { key: "generic",     label: "Generic — buy or integrate" },
+  { key: "master-data", label: "Master data / reference" },
+];
+
+const NODE_W = 178, NODE_H = 62, GAP_X = 26, GAP_Y = 74, PAD = 28, BAND_HEAD = 26;
+
+const TYPE_STYLE = {
+  core:          { stroke: "var(--core)",       fill: "var(--core-bg)" },
+  supporting:    { stroke: "var(--supporting)", fill: "var(--supporting-bg)" },
+  generic:       { stroke: "var(--generic)",    fill: "var(--generic-bg)" },
+  "master-data": { stroke: "var(--generic)",    fill: "transparent", dash: "4 3" },
+  external:      { stroke: "#9a9895",           fill: "transparent", dash: "5 4" },
+};
+
+// Relationship styling is deliberately loud where the cost is high: a shared kernel is the most
+// expensive coupling on the map, so it is the only red, thick edge.
+const REL_STYLE = {
+  "shared-kernel":     { stroke: "#b3403a", width: 3,   dash: null,    note: "mutual consent to change" },
+  acl:                 { stroke: "#7a5aa8", width: 1.6, dash: "6 4",   note: "translated at the boundary" },
+  "open-host":         { stroke: "#1f6f9a", width: 1.6, dash: "2 3",   note: "published contract" },
+  "published-language":{ stroke: "#1f6f9a", width: 1.6, dash: "2 3",   note: "published contract" },
+  conformist:          { stroke: "#8a8885", width: 1.4, dash: null,    note: "accepts upstream model" },
+  partnership:         { stroke: "#3f7d55", width: 2,   dash: null,    note: "changes coordinated" },
+  "customer-supplier": { stroke: "#3f7d55", width: 1.6, dash: null,    note: "upstream serves downstream" },
+  upstream:            { stroke: "#575653", width: 1.4, dash: null,    note: "" },
+  downstream:          { stroke: "#575653", width: 1.4, dash: null,    note: "" },
+};
+
+const DEFAULT_REL = { stroke: "#575653", width: 1.4, dash: null, note: "" };
+
+// ---------------------------------------------------------------- state
+
+let model = { contexts: [], relationships: [] };
+let selectedId = null;
+let hideLight = false;
+// `?view=mass` deep-links a lens, so a snapshot can be exported per view and a link points at
+// the one being discussed rather than "click the third tab".
+const QS = new URLSearchParams(location.search);
+let currentView = QS.get("view") || "map";
+const positions = new Map();
+
+// Three lenses on one payload. A strategic map flattens mass — every context is the same box
+// whether it carries 3 tables or 30 — and a map of 9 nodes and 15 edges hides cycles in the
+// crossings. Mass and Matrix exist to show exactly what the map cannot.
+const DOMAIN_VIEWS = [
+  { key: "map", label: "Map" },
+  { key: "mass", label: "Mass" },
+  { key: "matrix", label: "Matrix" },
+];
+
+// A business-model payload has one canonical view: the Strategyzer grid. Showing Map/Mass/Matrix
+// tabs for it would offer three lenses that have nothing to look at.
+const BMC_VIEWS = [{ key: "canvas", label: "Canvas" }];
+
+// A review payload is not a picture of the model — it is a picture of what is WRONG with it, and
+// of what has not been done yet. It is the only lens whose content is produced by scripts
+// (ddd_state + ddd_check) rather than by a modelling step, which is exactly why it can be trusted
+// to be complete: it does not depend on anyone remembering to look.
+const REVIEW_VIEWS = [{ key: "review", label: "Review" }];
+const CANVAS_VIEWS = [{ key: "canvas", label: "Canvas" }];
+
+// Three canvases, one renderer. BMC, Bounded Context Canvas v5 and Aggregate Design Canvas v1.1
+// are all a fixed grid of named boxes over one payload, so the layout is data and the renderer is
+// shared. A fourth canvas is a new entry here, not new code — which is the same reason the shell
+// stays frozen while the model moves.
+const CANVAS_LAYOUTS = {
+  "bounded-context": {
+    title: (m) => `${m.name || "Bounded context"} — Bounded Context Canvas v5`,
+    blocks: [
+      { key: "purpose",        area: "purpose",        label: "Purpose" },
+      { key: "classification", area: "classification", label: "Strategic Classification" },
+      { key: "roles",          area: "roles",          label: "Domain Roles" },
+      { key: "inbound",        area: "inbound",        label: "Inbound Communication" },
+      { key: "language",       area: "language",       label: "Ubiquitous Language" },
+      { key: "decisions",      area: "decisions",      label: "Business Decisions" },
+      { key: "outbound",       area: "outbound",       label: "Outbound Communication" },
+      { key: "assumptions",    area: "assumptions",    label: "Assumptions" },
+      { key: "metrics",        area: "metrics",        label: "Verification Metrics" },
+      { key: "questions",      area: "questions",      label: "Open Questions" },
+    ],
+  },
+  aggregate: {
+    title: (m) => `${m.name || "Aggregate"} — Aggregate Design Canvas v1.1`,
+    blocks: [
+      { key: "name",        area: "name",        label: "1. Name" },
+      { key: "description", area: "desc",        label: "2. Description" },
+      { key: "transitions", area: "transitions", label: "3. State Transitions" },
+      { key: "invariants",  area: "invariants",  label: "4. Enforced Invariants" },
+      { key: "policies",    area: "policies",    label: "5. Corrective Policies" },
+      { key: "commands",    area: "commands",    label: "6. Handled Commands" },
+      { key: "events",      area: "events",      label: "7. Created Events" },
+      { key: "throughput",  area: "throughput",  label: "8. Throughput",
+        grid: ["Command handling rate", "Total number of clients", "Concurrency conflict chance"] },
+      { key: "size",        area: "size",        label: "9. Size",
+        grid: ["Event growth rate", "Lifetime of a single instance", "Number of events persisted"] },
+    ],
+  },
+};
+
+const SINGLE_VIEW = {
+  flow: [{ key: "flow", label: "Flow" }],
+  chart: [{ key: "chart", label: "Chart" }],
+  timeline: [{ key: "timeline", label: "Timeline" }],
+  sections: [{ key: "sections", label: "Document" }],
+};
+
+function availableViews() {
+  if (model.kind === "review") return REVIEW_VIEWS;
+  // ddd-crew: "there are a variety of ways the Core Domain Chart can be used… below are multiple
+  // versions showing different types of information to choose from". Same artifact, extra tab.
+  if (model.kind === "chart") {
+    return model.teams
+      ? [{ key: "chart", label: "Portfolio" }, { key: "chart-teams", label: "+ Team Topologies" }]
+      : SINGLE_VIEW.chart;
+  }
+  if (SINGLE_VIEW[model.kind]) return SINGLE_VIEW[model.kind];
+  if (CANVAS_LAYOUTS[model.kind]) return CANVAS_VIEWS;
+  if (model.kind === "business-model") return BMC_VIEWS;
+  return DOMAIN_VIEWS.concat((model.relationships || []).length ? [{ key: "relations", label: "Relations" }] : []);
+}
+
+// The nine blocks in Strategyzer's layout: five columns across the top (two of them split into
+// upper/lower), then cost and revenue along the bottom.
+// Placement is explicit rather than auto-flowed: three blocks span both rows, and letting the
+// grid infer that puts Value Propositions in the wrong half of the canvas.
+const BMC_BLOCKS = [
+  { key: "keyPartners",           label: "Key Partnerships",       col: 1, row: "1 / span 2" },
+  { key: "keyActivities",         label: "Key Activities",         col: 2, row: "1" },
+  { key: "keyResources",          label: "Key Resources",          col: 2, row: "2" },
+  { key: "valuePropositions",     label: "Value Propositions",     col: 3, row: "1 / span 2" },
+  { key: "customerRelationships", label: "Customer Relationships", col: 4, row: "1" },
+  { key: "channels",              label: "Channels",               col: 4, row: "2" },
+  { key: "customerSegments",      label: "Customer Segments",      col: 5, row: "1 / span 2" },
+];
+
+const svg = document.getElementById("canvas");
+const NS = "http://www.w3.org/2000/svg";
+
+// SVG neither wraps text nor sizes columns to content, so any fixed column width is a bet on the
+// longest name in someone else's domain — and the bet is lost silently, by clipping. Measure the
+// strings and lay the columns out around them. One offscreen 2-D context, no DOM reflow.
+const textWidth = (() => {
+  const ctx = document.createElement("canvas").getContext("2d");
+  const FACE = 'ui-sans-serif, -apple-system, "Segoe UI", Roboto, sans-serif';
+  return (text, { size = 13, weight = 400 } = {}) => {
+    ctx.font = `${weight} ${size}px ${FACE}`;
+    return ctx.measureText(String(text ?? "")).width;
+  };
+})();
+
+const widestOf = (values, opts) => values.reduce((w, v) => Math.max(w, textWidth(v, opts)), 0);
+
+function el(name, attrs, text) {
+  const node = document.createElementNS(NS, name);
+  for (const [k, v] of Object.entries(attrs || {})) {
+    if (v !== null && v !== undefined) node.setAttribute(k, String(v));
+  }
+  if (text !== undefined) node.textContent = text;
+  return node;
+}
+
+// ---------------------------------------------------------------- data loading
+
+// A workspace payload is every artifact in one file. The shell keeps it whole and swaps `model`
+// to whichever document is selected, so every renderer below stays a single-artifact renderer and
+// none of them learns about the sidebar.
+let workspace = null;
+let docId = QS.get("doc") || null;
+
+async function load() {
+  const res = await fetch("model.json", { cache: "no-store" });
+  const payload = await res.json();
+  // Participant shapes are derived from the context map and the discovery timeline, so the cache
+  // is only valid for the payload it was built from.
+  participantKindCache = null;
+  if (payload && payload.kind === "workspace") {
+    workspace = payload;
+    if (!workspace.documents.some((d) => d.id === docId)) docId = (workspace.documents[0] || {}).id;
+    model = (workspace.documents.find((d) => d.id === docId) || {}).payload || {};
+  } else {
+    workspace = null;
+    model = payload;
+  }
+  render();
+}
+
+function selectDoc(id) {
+  docId = id;
+  const doc = workspace.documents.find((d) => d.id === id);
+  model = (doc || {}).payload || {};
+  selectedId = null;
+  currentView = availableViews()[0].key;
+  const url = new URL(location.href);
+  url.searchParams.set("doc", id);
+  history.replaceState(null, "", url);
+  render();
+}
+
+// Grouped by the loop the step belongs to, because that is the order a review walks them in:
+// what the business is, where the boundaries are, what each context is.
+const DOC_GROUPS = [
+  { label: "Review", steps: ["design"] },
+  { label: "Loop 1 — the problem", steps: ["1-understand", "2-discover"] },
+  { label: "Loop 2 — the boundaries", steps: ["3-decompose", "4-connect", "5-strategize", "6-organise"] },
+  { label: "Loop 3 — build", steps: ["7-define", "8-code"] },
+];
+
+function renderDocs() {
+  const host = document.getElementById("docs");
+  document.querySelector("main").classList.toggle("has-docs", !!workspace);
+  host.hidden = !workspace;
+  if (!workspace) return;
+  // The rail changes only when the payload or the selection does. render() runs on every click,
+  // so rebuilding 27 buttons and 27 listeners here is pure churn — retoggle instead.
+  if (host.dataset.built === String((workspace.documents || []).length)) {
+    for (const b of host.querySelectorAll("button")) b.classList.toggle("on", b.dataset.doc === docId);
+    return;
+  }
+  host.replaceChildren();
+  host.dataset.built = String((workspace.documents || []).length);
+
+  for (const group of DOC_GROUPS) {
+    const docs = workspace.documents.filter((d) => group.steps.includes(d.step));
+    if (!docs.length) continue;
+    const head = document.createElement("div");
+    head.className = "grp";
+    head.textContent = group.label;
+    host.append(head);
+    for (const d of docs) {
+      const button = document.createElement("button");
+      button.dataset.doc = d.id;
+      button.className = d.id === docId ? "on" : "";
+      // A flow's title is a sentence — useful on the artifact, four wrapped lines in a rail.
+      const short = d.title.split(/\s+[—–]\s+/)[0];
+      button.append(document.createTextNode(short.length > 44 ? short.slice(0, 43) + "…" : short));
+      button.title = d.title;
+      const step = document.createElement("span");
+      step.className = "step";
+      step.textContent = d.step;
+      button.append(step);
+      button.addEventListener("click", () => selectDoc(d.id));
+      host.append(button);
+    }
+  }
+
+  // What the extractor could not read is shown here rather than swallowed: an empty box and an
+  // unparsed section look identical on screen, and only one of them is a modelling gap.
+  if ((workspace.gaps || []).length) {
+    const box = document.createElement("div");
+    box.className = "gaps";
+    const title = document.createElement("b");
+    title.textContent = `${workspace.gaps.length} gap${workspace.gaps.length === 1 ? "" : "s"}`;
+    box.append(title, document.createTextNode(workspace.gaps.join(" · ")));
+    host.append(box);
+  }
+}
+
+function visibleContexts() {
+  const list = (model.contexts || []).slice();
+  const externals = (model.external || []).map((x) => ({
+    id: `EXT:${x.name}`,
+    name: x.name,
+    subdomainType: "external",
+    purpose: x.kind || "external system",
+    external: true,
+  }));
+  const all = externals.concat(list);
+  if (!hideLight) return all;
+  return all.filter((c) => c.subdomainType !== "generic" && c.subdomainType !== "master-data");
+}
+
+// ---------------------------------------------------------------- layout
+//
+// Deterministic on purpose: contexts are grouped into bands by subdomain type and sorted by name.
+// The same model always produces the same picture, so a screenshot means something and a
+// re-render is never gratuitous motion. No force simulation, no random seeds.
+
+function layout(contexts, width) {
+  positions.clear();
+  const perRow = Math.max(1, Math.floor((width - PAD * 2 + GAP_X) / (NODE_W + GAP_X)));
+  const bands = [];
+  let y = PAD;
+
+  for (const band of BANDS) {
+    const members = contexts
+      .filter((c) => (c.subdomainType || "supporting") === band.key)
+      .sort((a, b) => a.name.localeCompare(b.name));
+    if (members.length === 0) continue;
+
+    y += BAND_HEAD;
+    const bandTop = y;
+    members.forEach((ctx, i) => {
+      const row = Math.floor(i / perRow);
+      const col = i % perRow;
+      const rowCount = Math.min(perRow, members.length - row * perRow);
+      const rowWidth = rowCount * NODE_W + (rowCount - 1) * GAP_X;
+      const x0 = Math.max(PAD, (width - rowWidth) / 2);
+      positions.set(ctx.id, {
+        x: x0 + col * (NODE_W + GAP_X),
+        y: bandTop + row * GAP_Y,
+        ctx,
+      });
+    });
+    const rows = Math.ceil(members.length / perRow);
+    bands.push({ ...band, labelY: bandTop - 10, count: members.length });
+    y = bandTop + rows * GAP_Y;
+  }
+  return { bands, height: y + PAD };
+}
+
+// ---------------------------------------------------------------- render
+
+// Views that own the whole width because they are a document, not a diagram with a side panel.
+const DOC_RENDERERS = {
+  flow: renderFlow,
+  chart: renderChart,
+  "chart-teams": renderChartTeams,
+  relations: renderRelations,
+  timeline: renderTimeline,
+  sections: renderSections,
+};
+
+function render() {
+  renderDocs();
+  const views = availableViews();
+  if (!views.some((v) => v.key === currentView)) currentView = views[0].key;
+
+  const isCanvas = currentView === "canvas";
+  const isReview = currentView === "review";
+  const asDoc = !!DOC_RENDERERS[currentView];
+  const isFull = isCanvas || isReview || asDoc;
+  document.getElementById("bmc").hidden = !isCanvas;
+  document.getElementById("bmc-after").hidden = !isCanvas;
+  document.getElementById("review").hidden = !isReview;
+  // Owned by whichever diagram renderer runs next; cleared here so a note never outlives its view.
+  document.getElementById("diagram-note").replaceChildren();
+  document.getElementById("doc").hidden = !asDoc;
+  svg.style.display = isFull ? "none" : "";
+  document.getElementById("legend").style.display = isFull ? "none" : "";
+  document.getElementById("panel").style.display = isFull ? "none" : "";
+  const rail = workspace ? "236px " : "";
+  document.querySelector("main").style.gridTemplateColumns = rail + (isFull ? "1fr" : "1fr 320px");
+
+  const filterable = !isFull;
+  document.getElementById("toggle-light").parentElement.style.display = filterable ? "" : "none";
+
+  renderHeader();
+  renderViewSwitcher();
+  if (isReview) {
+    renderReview();
+    return;
+  }
+  if (asDoc) {
+    DOC_RENDERERS[currentView]();
+    return;
+  }
+  if (isCanvas) {
+    if (CANVAS_LAYOUTS[model.kind]) renderLayoutCanvas(CANVAS_LAYOUTS[model.kind]);
+    else renderBusinessModelCanvas();
+    return;
+  }
+  if (currentView === "mass") renderMass();
+  else if (currentView === "matrix") renderMatrix();
+  else renderMap();
+  renderPanel();
+}
+
+function renderHeader() {
+  if (model.kind === "review") {
+    const f = model.findings || [];
+    const high = f.filter((x) => x.severity === "high").length;
+    // A stale step keeps status "done" — staleness lives in stale_against. Counting only
+    // non-done steps reports "0 outstanding" over a table showing two red STALE rows.
+    const pending = (model.steps || []).filter(
+      (s) => s.status !== "done" || (s.stale_against || []).length,
+    ).length;
+    document.querySelector("header h1").textContent = "Domain review";
+    document.getElementById("counts").textContent =
+      `${f.length} finding${f.length === 1 ? "" : "s"} · ${high} high · ${pending} step${pending === 1 ? "" : "s"} outstanding`;
+    return;
+  }
+  const layout = CANVAS_LAYOUTS[model.kind];
+  if (layout) {
+    // Filled vs empty is the only count that matters on a canvas: it says how much of this design
+    // is actually answered, which is the question a reviewer is holding.
+    const specs = layout.blocks;
+    const blocks = model.blocks || {};
+    const filled = specs.filter((s) => {
+      const b = blocks[s.key] || {};
+      return (b.items && b.items.length) || b.text || (b.values && Object.keys(b.values).length);
+    }).length;
+    document.getElementById("counts").textContent =
+      `${filled}/${specs.length} blocks answered · ${specs.length - filled} open`;
+    document.querySelector("header h1").textContent = layout.title(model);
+    return;
+  }
+  const counts = document.getElementById("counts");
+  if (model.kind === "business-model") {
+    const blocks = Object.values(model.canvas || {});
+    const empty = blocks.filter((b) => b.status === "empty").length;
+    counts.textContent = `${blocks.length - empty}/${blocks.length} blocks sourced · ${empty} open`;
+    document.querySelector("header h1").textContent = "Business model";
+  } else if (model.kind === "flow") {
+    const n = (model.messages || []).length;
+    counts.textContent = `${n} message${n === 1 ? "" : "s"} · ${(model.findings || []).length} findings` +
+      (n > 9 ? " · over the 9-message limit" : "");
+    document.querySelector("header h1").textContent = "Message flow";
+  } else if (model.kind === "chart") {
+    const pts = model.points || [];
+    const unplaced = pts.filter((p) => Math.abs(p.y - 0.5) < 0.001).length;
+    const teams = model.teams
+      ? ` · ${new Set(Object.values(model.teams.byContext || {}).map((t) => t.team)).size} teams`
+      : "";
+    counts.textContent = `${pts.length} contexts plotted · ${unplaced} unplaced on differentiation${teams}`;
+    document.querySelector("header h1").textContent = "Core domain chart";
+  } else if (model.kind === "timeline") {
+    const c = model.confidence || {};
+    counts.textContent = `${(model.elements || []).length} elements · ${c.confirmed ?? 0} confirmed · ${(model.hotspots || []).length} hotspots`;
+    document.querySelector("header h1").textContent = "Discovery";
+  } else if (model.kind === "sections") {
+    const secs = model.sections || [];
+    counts.textContent = `${secs.length} sections · ${secs.filter((s) => !s.rows.length && !s.lines.length).length} empty`;
+    document.querySelector("header h1").textContent = model.title || "Document";
+  } else {
+    const mass = (model.contexts || []).reduce((sum, c) => sum + (c.mass || c.tableCount || 0), 0);
+    counts.textContent =
+      `${(model.contexts || []).length} contexts · ${(model.relationships || []).length} relationships` +
+      (mass ? ` · ${mass} modelled elements` : "");
+    document.querySelector("header h1").textContent = "Context map";
+  }
+  const src = model.source || {};
+  document.getElementById("stamp").textContent = src.generatedAt || "";
+  document.getElementById("mode-badge").textContent =
+    src.mode === "committed" ? "committed model" : "draft — not governed";
+}
+
+function renderViewSwitcher() {
+  const host = document.getElementById("views");
+  const views = availableViews();
+  // Compare the keys, not the count: two different single-view documents both have one tab, and
+  // counting alone leaves the previous artifact's label above the new one.
+  const same = host.childElementCount === views.length &&
+    [...host.children].every((b, i) => b.dataset.view === views[i].key);
+  if (same) {
+    for (const button of host.children) button.classList.toggle("on", button.dataset.view === currentView);
+    return;
+  }
+  host.replaceChildren();
+  for (const view of views) {
+    const button = document.createElement("button");
+    button.textContent = view.label;
+    button.dataset.view = view.key;
+    button.classList.toggle("on", view.key === currentView);
+    button.addEventListener("click", () => {
+      currentView = view.key;
+      render();
+    });
+    host.appendChild(button);
+  }
+}
+
+// Weight of a context at design time. `tableCount` is the schema-era measure and is kept as a
+// fallback so a data-model payload still draws; a DDD model has no schema yet, so its weight is
+// the count of things it declares — which is also the complexity axis 5-strategize measures.
+function massOf(ctx) {
+  return ctx.mass !== undefined ? ctx.mass : (ctx.tableCount || 0);
+}
+
+function maxMass() {
+  return Math.max(1, ...(model.contexts || []).map(massOf));
+}
+
+function renderMap() {
+  const width = Math.max(720, document.getElementById("canvas-wrap").clientWidth - 48);
+  const contexts = visibleContexts();
+  const { bands, height } = layout(contexts, width);
+
+  svg.setAttribute("width", width);
+  svg.setAttribute("height", height);
+  svg.setAttribute("viewBox", `0 0 ${width} ${height}`);
+  svg.replaceChildren();
+
+  const defs = el("defs");
+  for (const [name, style] of Object.entries(REL_STYLE)) {
+    const marker = el("marker", {
+      id: `arrow-${name}`, viewBox: "0 0 8 8", refX: 7, refY: 4,
+      markerWidth: 7, markerHeight: 7, orient: "auto-start-reverse",
+    });
+    marker.appendChild(el("path", { d: "M0,0 L8,4 L0,8 z", fill: style.stroke }));
+    defs.appendChild(marker);
+  }
+  svg.appendChild(defs);
+
+  for (const band of bands) {
+    svg.appendChild(el("text", { x: PAD, y: band.labelY, class: "band-label" }, `${band.label} · ${band.count}`));
+  }
+
+  // Edges first so nodes paint over their endpoints.
+  const focus = selectedId ? nameOf(selectedId) : null;
+  for (const rel of model.relationships || []) {
+    const from = findPos(rel.from);
+    const to = findPos(rel.to);
+    if (!from || !to) continue;
+    const style = REL_STYLE[rel.type] || DEFAULT_REL;
+    const a = edgeAnchor(from, to);
+    const b = edgeAnchor(to, from);
+    const mid = (a.y + b.y) / 2;
+    const touches = !focus || rel.from === focus || rel.to === focus;
+    svg.appendChild(el("path", {
+      class: "edge",
+      d: `M${a.x},${a.y} C${a.x},${mid} ${b.x},${mid} ${b.x},${b.y}`,
+      stroke: style.stroke,
+      "stroke-width": style.width,
+      "stroke-dasharray": style.dash,
+      "marker-end": `url(#arrow-${rel.type in REL_STYLE ? rel.type : "upstream"})`,
+      // Thirty-eight edges at full strength are a mesh, and the node layer is what a reader
+      // needs first. They recede until a context is picked, then only its own edges come up.
+      opacity: focus ? (touches ? 0.95 : 0.1) : 0.4,
+    }));
+  }
+
+  for (const { x, y, ctx } of positions.values()) {
+    const style = TYPE_STYLE[ctx.subdomainType || "supporting"] || TYPE_STYLE.supporting;
+    const group = el("g", { class: `node${ctx.id === selectedId ? " selected" : ""}` });
+    group.appendChild(el("rect", {
+      x, y, width: NODE_W, height: NODE_H,
+      fill: style.fill, stroke: style.stroke, "stroke-dasharray": style.dash,
+    }));
+    group.appendChild(el("text", { x: x + 12, y: y + 25, class: "name", fill: style.stroke }, ctx.name));
+    group.appendChild(el("text", { x: x + 12, y: y + 43, class: "sub" }, subtitleOf(ctx)));
+
+    // Mass bar: table count relative to the heaviest context. Without it every box reads as the
+    // same weight, and a 30-table context looks exactly like a 3-table one.
+    if (ctx.tableCount) {
+      const barWidth = NODE_W - 24;
+      group.appendChild(el("rect", {
+        x: x + 12, y: y + NODE_H - 11, width: barWidth, height: 4, rx: 2, class: "mass-bar-bg",
+      }));
+      group.appendChild(el("rect", {
+        x: x + 12, y: y + NODE_H - 11, width: Math.max(2, (barWidth * massOf(ctx)) / maxMass()),
+        height: 4, rx: 2, fill: style.stroke, opacity: 0.75,
+      }));
+    }
+
+    // Uncertainty badge — what the model does NOT know, made visible rather than buried.
+    const open = (ctx.openQuestions || []).length;
+    if (open > 0) {
+      group.appendChild(el("circle", { cx: x + NODE_W - 16, cy: y + 16, r: 9, fill: "#fdf0e3", stroke: "var(--warn)" }));
+      group.appendChild(el("text", {
+        x: x + NODE_W - 16, y: y + 20, class: "badge-circle", fill: "var(--warn)", "text-anchor": "middle",
+      }, String(open)));
+    }
+
+    group.addEventListener("click", () => select(ctx.id));
+    svg.appendChild(group);
+  }
+
+  renderLegend();
+}
+
+// Where an edge should meet a box: on the border facing the other box, not at its centre. A
+// centre-to-centre line spends its first 30px underneath the node it starts from, so the arrow
+// appears to emerge from nowhere and every crossing reads as a connection that is not there.
+function edgeAnchor(pos, towards) {
+  const cx = pos.x + NODE_W / 2;
+  const cy = pos.y + NODE_H / 2;
+  const dx = towards.x + NODE_W / 2 - cx;
+  const dy = towards.y + NODE_H / 2 - cy;
+  if (!dx && !dy) return { x: cx, y: cy };
+  const t = Math.min(
+    dx ? (NODE_W / 2 + 4) / Math.abs(dx) : Infinity,
+    dy ? (NODE_H / 2 + 4) / Math.abs(dy) : Infinity,
+  );
+  return { x: cx + dx * t, y: cy + dy * t };
+}
+
+function subtitleOf(ctx) {
+  if (ctx.external) return ctx.purpose || "external";
+  const parts = [];
+  if (ctx.tableCount) parts.push(`${ctx.tableCount} tables`);
+  if (ctx.attrCount) parts.push(`${ctx.attrCount} attrs`);
+  else if (ctx.densestAttrs) parts.push(`densest ${ctx.densestAttrs}`);
+  if (parts.length === 0) {
+    const aggregates = (ctx.aggregates || []).length;
+    parts.push(aggregates ? `${aggregates} aggregate${aggregates > 1 ? "s" : ""}` : ctx.tacticalPattern || "—");
+  }
+  return parts.join(" · ");
+}
+
+function nameOf(id) {
+  const found = (model.contexts || []).find((c) => c.id === id);
+  return found ? found.name : String(id).replace(/^EXT:/, "");
+}
+
+function findPos(name) {
+  for (const pos of positions.values()) {
+    if (pos.ctx.name === name || pos.ctx.id === name) return pos;
+  }
+  return null;
+}
+
+function renderLegend() {
+  const legend = document.getElementById("legend");
+  legend.replaceChildren();
+  for (const band of BANDS) {
+    const style = TYPE_STYLE[band.key];
+    const span = document.createElement("span");
+    const swatch = document.createElement("span");
+    swatch.className = "swatch";
+    swatch.style.background = style.fill === "transparent" ? "transparent" : style.fill;
+    swatch.style.borderColor = style.stroke;
+    span.append(swatch, document.createTextNode(band.label));
+    legend.appendChild(span);
+  }
+  for (const [name, style] of Object.entries(REL_STYLE)) {
+    if (name === "downstream" || name === "published-language") continue;
+    const span = document.createElement("span");
+    const line = document.createElement("span");
+    line.style.cssText = `width:18px;height:0;border-top:${style.width}px ${style.dash ? "dashed" : "solid"} ${style.stroke}`;
+    span.append(line, document.createTextNode(name));
+    legend.appendChild(span);
+  }
+}
+
+// ---------------------------------------------------------------- business model canvas
+//
+// The Strategyzer layout, held fixed. Its job here is to make coverage legible at a glance: a
+// stakeholder should be able to see how much of the business model is actually known before
+// reading a word, which a markdown table cannot do.
+
+function bmcBlock(spec) {
+  const data = (model.canvas || {})[spec.key] || { status: "empty", items: [] };
+  const node = document.createElement("div");
+  node.className = `block${data.status === "empty" ? " empty" : ""}`;
+  if (spec.col) node.style.gridColumn = String(spec.col);
+  if (spec.row) node.style.gridRow = spec.row;
+
+  const head = document.createElement("h4");
+  head.append(document.createTextNode(spec.label));
+  if (data.status === "proxy" || data.status === "partial" || data.status === "empty") {
+    const tag = document.createElement("span");
+    tag.className = `tag ${data.status === "empty" ? "open" : data.status}`;
+    tag.textContent = data.status === "empty" ? "open" : data.status;
+    head.append(tag);
+  }
+  node.append(head);
+
+  if (data.status === "empty") {
+    const q = document.createElement("div");
+    q.className = "q";
+    q.textContent = data.question || "Not sourced.";
+    node.append(q);
+    if (data.who) {
+      const who = document.createElement("div");
+      who.className = "who";
+      who.textContent = `→ ${data.who}`;
+      node.append(who);
+    }
+    return node;
+  }
+
+  const list = document.createElement("ul");
+  for (const item of data.items || []) {
+    const li = document.createElement("li");
+    li.textContent = item;
+    list.append(li);
+  }
+  node.append(list);
+
+  if (data.source) {
+    const src = document.createElement("div");
+    src.className = "src";
+    src.textContent = data.source;
+    node.append(src);
+  }
+  return node;
+}
+
+function simpleTable(caption, head, rows) {
+  const wrap = document.createElement("div");
+  const h = document.createElement("h4");
+  h.style.cssText = "font-size:10.5px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);margin:0 0 6px";
+  h.textContent = caption;
+  const cols = head.map((label, i) => [String(i), label]);
+  const table = docTable(cols, rows.map((r) => Object.fromEntries(r.map((c, i) => [String(i), c]))),
+    (td, key, row) => { if (isUnknown(row[key])) td.className = "unk"; }, "");
+  wrap.append(h, table);
+  return wrap;
+}
+
+// One rule for "nobody answered this". Three spellings meant a cell reading "not stated" was
+// flagged on one lens and rendered as a fact on the next two.
+function isUnknown(v) {
+  return v == null || /^(unknown|unplaced|not stated|tbd|—|-)\s*$/i.test(String(v).trim());
+}
+
+// Two questions on one page: what has been done, and what is wrong with it. Findings come from
+// ddd_check, step status from ddd_state — both deterministic, so this lens says the same thing
+// every time regardless of who is looking or how tired they are.
+function renderReview() {
+  const host = document.getElementById("review");
+  const steps = model.steps || [];
+  const findings = model.findings || [];
+  const counts = { high: 0, medium: 0, info: 0 };
+  for (const f of findings) counts[f.severity] = (counts[f.severity] || 0) + 1;
+
+  const esc = (s) => String(s == null ? "" : s).replace(/[&<>]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;" }[c]));
+  const statusClass = (s, stale) => stale && stale.length ? "st-stale" : "st-" + s;
+  const statusText = (s, stale) => stale && stale.length ? "stale" : s;
+
+  const stepRows = steps.map((s) => `
+    <tr>
+      <td>${esc(s.loop)}</td>
+      <td><strong>${esc(s.step)}</strong></td>
+      <td class="st ${statusClass(s.status, s.stale_against)}">${esc(statusText(s.status, s.stale_against))}</td>
+      <td class="ev">${esc((s.evidence || []).slice(0, 2).join(", ")) || "—"}${(s.evidence || []).length > 2 ? ` (+${s.evidence.length - 2})` : ""}</td>
+      <td class="ev">${esc(s.stale_against && s.stale_against.length ? "changed after it: " + s.stale_against.join(", ") : s.note || "")}</td>
+    </tr>`).join("");
+
+  const findingRows = findings.map((f) => `
+    <tr class="f-${esc(f.severity)}">
+      <td><span class="sev sev-${esc(f.severity)}">${esc(f.severity)}</span></td>
+      <td><strong>${esc(f.title)}</strong><div class="ev">${(f.evidence || []).map(esc).join("<br>")}</div></td>
+      <td class="ev">${esc(f.id)}</td>
+      <td class="ev">${esc(f.fix_owner)}</td>
+    </tr>`).join("");
+
+  host.innerHTML = `
+    <h2>Findings — ${findings.length} (${counts.high || 0} high · ${counts.medium || 0} medium · ${counts.info || 0} info)</h2>
+    ${findings.length ? `<table>
+      <thead><tr><th>Severity</th><th>Finding and evidence</th><th>Check</th><th>Fix in</th></tr></thead>
+      <tbody>${findingRows}</tbody></table>`
+      : `<p class="empty">No cross-artifact findings — the checks that run found nothing between these
+         files. That is a floor, not a verdict: it says the classification, the mass, the shared
+         entities, the traced flows and the canvases do not contradict each other, and says nothing
+         about whether the model is right.</p>`}
+
+    <h2>Steps</h2>
+    <table>
+      <thead><tr><th>Loop</th><th>Step</th><th>Status</th><th>Evidence</th><th>Note</th></tr></thead>
+      <tbody>${stepRows}</tbody>
+    </table>
+
+    ${(model.candidates || []).length ? `<h2>Candidate actions</h2>
+      <table><thead><tr><th>Kind</th><th>Step</th><th>Why</th></tr></thead><tbody>
+      ${model.candidates.map((c) => `<tr><td class="st">${esc(c.kind)}</td><td><strong>${esc(c.step)}</strong>${c.skill ? ` <span class="ev">${esc(c.skill)}</span>` : ""}</td><td class="ev">${esc(c.why)}</td></tr>`).join("")}
+      </tbody></table>` : ""}
+  `;
+}
+
+// One renderer for every grid-shaped canvas. It reuses the BMC block markup on purpose: the
+// empty-block hatching, the `proxy`/`partial` tags and the source line are the parts that keep a
+// canvas honest, and they should not have to be re-implemented per canvas.
+// A communication row arrives as one joined sentence — "TerminalOperations · bounded context ·
+// PayTicket · command · partnership". The type is the one word a reviewer scans the column for, so
+// it is lifted out as a chip and removed from the sentence rather than left buried in the middle.
+function withTypeChip(text, forced) {
+  const kind = forced || (text.match(/\b(command|event|query)\b/i) || [])[1];
+  if (!kind) return [document.createTextNode(text)];
+  const chip = document.createElement("span");
+  chip.className = `mtype ${kind.toLowerCase()}`;
+  chip.textContent = kind.toLowerCase();
+  const rest = forced ? text : text.replace(new RegExp(`\\s*·?\\s*\\b${kind}\\b\\s*·?`, "i"), " · ")
+    .replace(/^\s*·\s*|\s*·\s*$/g, "").replace(/\s*·\s*·\s*/g, " · ");
+  return [chip, document.createTextNode(rest)];
+}
+
+// Three independent facets — domain type, business-model role, evolution stage — not a paragraph.
+// `unknown` is called out because carrying it forward silently is how a guess becomes a fact.
+function facetList(items) {
+  const wrap = document.createElement("div");
+  wrap.className = "facets";
+  for (const item of items) {
+    const parts = String(item).split("·").map((s) => s.trim()).filter(Boolean);
+    const row = document.createElement("div");
+    row.className = "facet";
+    const name = document.createElement("b");
+    name.textContent = parts[0] || "";
+    const value = document.createElement("span");
+    const raw = parts[1] || "unknown";
+    // Only an unanswered facet is flagged. "core … unplaced in the chart" answers the facet and
+    // then qualifies it; painting the whole line as unknown loses the answer.
+    value.className = `v${isUnknown(raw.split(" ")[0]) ? " unknown" : ""}`;
+    value.textContent = raw;
+    row.append(name, value);
+    if (parts.length > 2) {
+      const src = document.createElement("span");
+      src.className = "src";
+      src.textContent = ` — ${parts.slice(2).join(" · ")}`;
+      row.append(src);
+    }
+    wrap.append(row);
+  }
+  return wrap;
+}
+
+function renderLayoutCanvas(layout) {
+  const host = document.getElementById("bmc");
+  host.replaceChildren();
+  host.className = model.kind === "aggregate" ? "canvas-adc" : "canvas-bcc";
+
+  for (const spec of layout.blocks) {
+    const data = (model.blocks || {})[spec.key] || {};
+    const el = document.createElement("section");
+    el.className = "block";
+    el.style.gridArea = spec.area;
+
+    // The evaluation grid is drawn only when the canvas actually declared bands. Drawing it
+    // unconditionally rendered six `unknown` cells over content the parser had already read, and
+    // counted the block as answered while showing none of it.
+    const values = data.values || {};
+    const useGrid = spec.grid && Object.keys(values).length > 0;
+    const items = data.items || [];
+    const isEmpty = !useGrid && items.length === 0 && !data.text;
+    if (isEmpty) el.classList.add("empty");
+
+    const h = document.createElement("h4");
+    h.textContent = spec.label;
+    if (data.status && data.status !== "sourced") {
+      const tag = document.createElement("span");
+      tag.className = "tag " + data.status;
+      tag.textContent = data.status;
+      h.append(tag);
+    }
+    el.append(h);
+
+    if (useGrid) {
+      el.append(numberGrid(spec.grid, values));
+    } else if (isEmpty) {
+      // An unanswered box carries its question and who could answer it, never a tidy blank.
+      const q = document.createElement("div");
+      q.className = "q";
+      q.textContent = data.question || "Nobody has filled this in.";
+      el.append(q);
+      if (data.who) {
+        const who = document.createElement("div");
+        who.className = "who";
+        who.textContent = `Needs: ${data.who}`;
+        el.append(who);
+      }
+    } else if (data.pre && items.length) {
+      // Drawn with characters — keep the columns the modeller aligned.
+      const pre = document.createElement("pre");
+      pre.className = "ascii";
+      pre.textContent = items.join("\n");
+      el.append(pre);
+    } else if (data.text) {
+      const pEl = document.createElement("p");
+      pEl.style.margin = "0";
+      pEl.style.fontSize = "12.5px";
+      pEl.textContent = data.text;
+      el.append(pEl);
+    } else if (spec.key === "classification" && items.length) {
+      el.append(facetList(items));
+    } else {
+      const ul = document.createElement("ul");
+      const typed = spec.key === "inbound" || spec.key === "outbound" || spec.key === "decisions";
+      for (const item of items) {
+        const li = document.createElement("li");
+        const text = typeof item === "string" ? item : `${item.label || item.name}: ${item.value || item.definition || ""}`;
+        if (typed) li.append(...withTypeChip(text, spec.key === "decisions" ? "decision" : null));
+        else li.textContent = text;
+        ul.append(li);
+      }
+      el.append(ul);
+    }
+
+    if (data.source) {
+      const src = document.createElement("div");
+      src.className = "src";
+      src.textContent = data.source;
+      el.append(src);
+    }
+    host.append(el);
+  }
+
+}
+
+// Average and maximum side by side, because the maximum is the number that moves a boundary and a
+// single averaged figure hides it.
+// The band table is written by a person, so "Command handling rate, per instance" has to find the
+// row labelled "Command handling rate". Match on letters and digits.
+const gridKey = (s) => String(s).replace(/[^a-z0-9]/gi, "").toLowerCase();
+
+function numberGrid(rows, values) {
+  const byKey = new Map(Object.entries(values).map(([k, v]) => [gridKey(k), v]));
+  const table = document.createElement("table");
+  table.className = "numgrid";
+  const head = document.createElement("tr");
+  head.innerHTML = "<th></th><th>Average</th><th>Maximum</th>";
+  table.append(head);
+  for (const label of rows) {
+    const v = byKey.get(gridKey(label)) || {};
+    const tr = document.createElement("tr");
+    const lbl = document.createElement("td");
+    lbl.className = "lbl";
+    lbl.textContent = label;
+    tr.append(lbl);
+    for (const k of ["average", "maximum"]) {
+      const td = document.createElement("td");
+      td.className = "val" + (isUnknown(v[k]) ? " unknown" : "");
+      td.textContent = v[k] == null ? "unknown" : String(v[k]);
+      tr.append(td);
+    }
+    table.append(tr);
+  }
+  return table;
+}
+
+function renderBusinessModelCanvas() {
+  const host = document.getElementById("bmc");
+  host.replaceChildren();
+  host.className = "";
+
+  const top = document.createElement("div");
+  top.className = "top";
+  for (const spec of BMC_BLOCKS) top.append(bmcBlock(spec));
+
+  const bottom = document.createElement("div");
+  bottom.className = "bottom";
+  bottom.append(bmcBlock({ key: "costStructure", label: "Cost Structure" }));
+  bottom.append(bmcBlock({ key: "revenueStreams", label: "Revenue Streams" }));
+
+  host.append(top, bottom);
+
+  // The attendance line sits with the canvas rather than in a footnote: a canvas nobody was
+  // interviewed for is a different artifact from one a room produced, and the reader should not
+  // have to go looking for that difference.
+  //
+  // Below the canvas, not inside it. These are working notes about how the canvas was filled, not
+  // Strategyzer blocks, and `#bmc` is a black grid whose children are cells.
+  const after = document.getElementById("bmc-after");
+  after.replaceChildren();
+  const a = model.attendance || {};
+  const extra = document.createElement("div");
+  extra.className = "bmc-extra";
+  extra.append(
+    simpleTable(
+      "Capability classification inputs",
+      ["Capability", "Business role", "Evolution", "Differentiates?"],
+      (model.classification || []).map((c) => [c.capability, c.businessRole, c.evolutionStage, c.differentiation]),
+    ),
+    simpleTable(
+      "Goals",
+      ["Horizon", "Goal"],
+      (model.goals || []).map((g) => [g.horizon, g.goal]),
+    ),
+  );
+
+  const note = document.createElement("p");
+  note.className = "coverage";
+  note.style.marginTop = "16px";
+  note.textContent = a.note
+    ? `Who was in the room — domain expert: ${a.domainExpert ? "yes" : "no"} · real end user: ${a.endUser ? "yes" : "no"}. ${a.note}`
+    : "";
+  after.append(extra, note);
+}
+
+// ---------------------------------------------------------------- document views
+//
+// Four artifacts had no lens and were being reviewed as raw markdown: the message flows, the core
+// domain chart, the discovery timeline, and everything else. Reading a 100-line flow table aloud
+// in a meeting is where boundary problems get missed, which is the failure these exist to stop.
+
+function docHost(title, subtitle) {
+  const host = document.getElementById("doc");
+  host.replaceChildren();
+  host.className = "";
+  const h = document.createElement("h2");
+  h.className = "doc-title";
+  h.textContent = title;
+  host.append(h);
+  if (subtitle) {
+    const p = document.createElement("p");
+    p.className = "doc-sub";
+    p.textContent = subtitle;
+    host.append(p);
+  }
+  return host;
+}
+
+function docHeading(title, count) {
+  const h = document.createElement("h3");
+  h.className = "doc-h3";
+  h.textContent = count === undefined ? title : `${title} — ${count}`;
+  return h;
+}
+
+// One table builder behind every document view. `cols` is [[key, label], …]; `decorate` gets the
+// cell, its key and the whole row, which is the only thing the five hand-rolled copies varied.
+function docTable(cols, rows, decorate, className = "doc-table") {
+  const table = document.createElement("table");
+  table.className = className;
+  const head = document.createElement("tr");
+  for (const [, label] of cols) {
+    const th = document.createElement("th");
+    th.textContent = label;
+    head.append(th);
+  }
+  table.append(head);
+  for (const row of rows) {
+    const tr = document.createElement("tr");
+    for (const [key] of cols) {
+      const td = document.createElement("td");
+      td.textContent = row[key] == null || row[key] === "" ? "—" : String(row[key]);
+      if (decorate) decorate(td, key, row);
+      tr.append(td);
+    }
+    table.append(tr);
+  }
+  return table;
+}
+
+function listBlock(host, title, items, cls) {
+  if (!items || !items.length) return;
+  const h = docHeading(title, items.length);
+  const ul = document.createElement("ul");
+  ul.className = `doc-list${cls ? " " + cls : ""}`;
+  for (const item of items) {
+    const li = document.createElement("li");
+    li.textContent = typeof item === "string" ? item : JSON.stringify(item);
+    ul.append(li);
+  }
+  host.append(h, ul);
+}
+
+// A domain message flow is not a sequence diagram: there are no lifelines and the order lives in
+// the numbers. So this renders the numbered ladder the notation actually prescribes, and colours
+// the message type, because command-vs-event is the distinction a reviewer is checking.
+
+// ddd-crew's message-flow legend, exactly: command blue, event orange, query green, contents cream.
+const MSG_COLOUR = {
+  command: { fill: "#4EC3E0", line: "#2196b8" },
+  event:   { fill: "#F5921E", line: "#c26f0d" },
+  query:   { fill: "#C3DE6D", line: "#93ab41" },
+};
+const FLOW_ROLE = /\s*\(.*?\)\s*/g;
+const bareName = (s) => String(s || "").replace(FLOW_ROLE, "").trim();
+
+// Which shape a participant gets. Derived by cross-referencing the OTHER documents in the
+// workspace — the context map names the bounded contexts, discovery records the actors and the
+// external systems — so nothing here is guessed from the spelling of a name. A participant that
+// matches nothing is not drawn; it is reported, because inventing a node for a cell that reads
+// "(nobody, until 5)" would turn a deliberate absence into a participant.
+let participantKindCache = null;
+function participantKinds() {
+  if (participantKindCache) return participantKindCache;
+  const kinds = new Map();
+  const put = (name, kind) => { const k = bareName(name).toLowerCase(); if (k && !kinds.has(k)) kinds.set(k, kind); };
+  for (const d of (workspace || {}).documents || []) {
+    const p = d.payload || {};
+    if (d.kind === "domain") for (const c of p.contexts || []) put(c.name, c.external ? "system" : "context");
+    if (d.kind === "timeline") for (const e of p.elements || []) {
+      if (e.actor) put(e.actor, "actor");
+      const t = String(e.type || "").toLowerCase();
+      if (t === "external-system") put(e.name, "system");
+      if (t === "read-model") put(e.name, "read-model");
+    }
+  }
+  participantKindCache = kinds;
+  return kinds;
+}
+const kindOf = (name) => participantKinds().get(bareName(name).toLowerCase()) || null;
+
+// DDD context names are PascalCase compounds. Set on one line, `RevenueReconciliation` forces a
+// ~190px lane, and seven of those push the contents column off the screen. Splitting at the case
+// change is what makes room for the stickies.
+function cloudLines(name) {
+  const parts = name.replace(/([a-z0-9])([A-Z])/g, "$1 $2").split(" ");
+  if (parts.length < 2 || textWidth(name, { size: 11.5, weight: 650 }) <= 76) return [name];
+  return [parts[0], parts.slice(1).join("")];
+}
+const cloudWidth = (name) => Math.max(96,
+  Math.ceil(Math.max(...cloudLines(name).map((l) => textWidth(l, { size: 11.5, weight: 650 })))) + 40);
+
+// ---- flow primitives. The legend is assembled from these same calls, so it cannot describe a
+// shape the diagram does not draw.
+function participantShape(g, name, cx, cy, { label = true, kind } = {}) {
+  const n = bareName(name);
+  const k = kind || kindOf(name) || "context";
+  if (k === "actor") {
+    g.appendChild(el("circle", { cx, cy: cy - 8, r: 5, fill: "var(--ink)" }));
+    g.appendChild(el("path", { d: `M${cx - 8},${cy + 6} a8,8 0 0 1 16,0 z`, fill: "var(--ink)" }));
+  } else if (k === "system") {
+    g.appendChild(el("circle", { cx, cy, r: 8.5, fill: "none", stroke: "#3d3b38", "stroke-width": 1.8 }));
+    g.appendChild(el("circle", { cx, cy, r: 3, fill: "none", stroke: "#3d3b38", "stroke-width": 1.6 }));
+    for (let i = 0; i < 8; i += 1) {
+      const a = (i * Math.PI) / 4;
+      g.appendChild(el("line", {
+        x1: cx + Math.cos(a) * 8.5, y1: cy + Math.sin(a) * 8.5,
+        x2: cx + Math.cos(a) * 12, y2: cy + Math.sin(a) * 12,
+        stroke: "#3d3b38", "stroke-width": 2.2, "stroke-linecap": "round",
+      }));
+    }
+  } else {
+    const lines = cloudLines(n);
+    const w = cloudWidth(n), h = lines.length > 1 ? 44 : 36, r = h / 2, x = cx - w / 2;
+    g.appendChild(el("path", {
+      d: `M${x + r},${cy + r} a${r},${r} 0 0 1 0,${-h * 0.55}`
+       + ` a${r * 0.9},${r * 0.9} 0 0 1 ${r * 1.1},${-r * 0.5}`
+       + ` a${r * 0.95},${r * 0.95} 0 0 1 ${w - r * 2.2},0`
+       + ` a${r * 0.9},${r * 0.9} 0 0 1 ${r * 1.1},${r * 0.5} a${r},${r} 0 0 1 0,${h * 0.55} z`,
+      fill: k === "read-model" ? "#e8e6e2" : "#dcd6f7",
+      stroke: k === "read-model" ? "#8a8781" : "#6b4ec9",
+      "stroke-width": 1.5, "stroke-dasharray": k === "read-model" ? "4 3" : null,
+    }));
+    if (label) {
+      const y0 = cy + 4 - (lines.length - 1) * 6;
+      lines.forEach((l, i) => g.appendChild(el("text",
+        { x: cx, y: y0 + i * 12.5, class: "fl-name", "text-anchor": "middle" }, l)));
+    }
+    return;
+  }
+  if (label) g.appendChild(el("text", { x: cx, y: cy + 22, class: "fl-name", "text-anchor": "middle" }, n));
+}
+
+function flowMessageBox(g, x, y, m) {
+  const label = `${m.n}. ${m.message}`;
+  const w = Math.max(74, Math.ceil(textWidth(label, { size: 11.5, weight: 600 })) + 18);
+  const c = MSG_COLOUR[m.type] || { fill: "var(--line)", line: "var(--muted)" };
+  g.appendChild(el("rect", { x: x - w / 2, y: y - 11.5, width: w, height: 23, rx: 2, fill: c.fill, stroke: c.line }));
+  g.appendChild(el("text", { x, y: y + 4, class: "fl-msg", "text-anchor": "middle", fill: "#12242b" }, label));
+}
+
+// The cream sticky ddd-crew puts beside every message: the significant fields, nothing else.
+// Sized so a seven-lane segment still fits a 1600px review screen without sideways scrolling.
+// The full text stays in the table below; this is the at-a-glance copy.
+const STICKY_W = 262;
+function contentsSticky(g, x, y, request, response, width = STICKY_W) {
+  const fields = String(request || "").split(",").map((s) => s.trim()).filter(Boolean);
+  const lines = fields.concat(response ? [`→ ${response}`] : []);
+  if (!lines.length) return;
+  const h = 8 + lines.length * 13;
+  g.appendChild(el("rect", { x, y: y - h / 2, width, height: h, rx: 1, fill: "#FDFBE7", stroke: "#e0d9a8" }));
+  const cap = Math.max(18, Math.floor((width - 20) / 5.1));
+  lines.forEach((t, i) => {
+    const isResp = response && i === lines.length - 1;
+    g.appendChild(el("text", { x: x + 8, y: y - h / 2 + 15 + i * 13, class: isResp ? "fl-resp" : "fl-fld" },
+      (isResp ? "" : "– ") + (t.length > cap ? `${t.slice(0, cap - 1)}…` : t)));
+  });
+}
+
+// within / after / every are three different rules and three different systems, so the word rides
+// on the message rather than being flattened to "timed".
+function clockBadge(g, x, y, text) {
+  const w = Math.max(96, Math.ceil(textWidth(text, { size: 10, weight: 700 })) + 34);
+  g.appendChild(el("rect", { x: x - w / 2, y: y - 9, width: w, height: 18, rx: 2, fill: "#FDF3D0", stroke: "#e0c877" }));
+  g.appendChild(el("circle", { cx: x - w / 2 + 12, cy: y, r: 5.5, fill: "none", stroke: "#7a3d05", "stroke-width": 1.3 }));
+  g.appendChild(el("path", { d: `M${x - w / 2 + 12},${y - 3.5} L${x - w / 2 + 12},${y} L${x - w / 2 + 15},${y + 2}`,
+    fill: "none", stroke: "#7a3d05", "stroke-width": 1.3 }));
+  g.appendChild(el("text", { x: x - w / 2 + 22, y: y + 3.5, class: "fl-clk" }, text));
+}
+
+function flowArrowDefs(svg) {
+  const defs = el("defs");
+  for (const [k, c] of Object.entries(MSG_COLOUR)) {
+    for (const id of [`fa-${k}`, `fa-${k}-back`]) {
+      const mk = el("marker", { id, viewBox: "0 0 8 8", refX: 7, refY: 4, markerWidth: 6, markerHeight: 6, orient: "auto" });
+      mk.appendChild(el("path", { d: "M0,0 L8,4 L0,8 z", fill: c.line }));
+      defs.appendChild(mk);
+    }
+  }
+  svg.appendChild(defs);
+}
+
+const FLOW_LEGEND = [
+  ["Participants", [
+    ["actor", "Actor · a person who starts the scenario"],
+    ["context", "Bounded context"],
+    ["system", "External system — outside your model"],
+    ["read-model", "Read model · a projection someone consults"],
+  ]],
+  ["Messages", [
+    ["command", "Command · asks another participant to act"],
+    ["event", "Event · announces something already happened"],
+    ["query", "Query · needs an answer before it can continue"],
+    ["sticky", "Message contents · the significant fields only"],
+  ]],
+  ["Reading it", [
+    ["arrow", "Direction, sender → receiver"],
+    ["sender", "Sender · hollow"],
+    ["recv", "Receiver · filled. A fan-out has several"],
+    ["qpair", "Query pair · solid out, dashed back — the sender is blocked in between"],
+    ["clock", "Temporal rule · within / after / every"],
+  ]],
+];
+
+function flowLegend() {
+  const wrap = document.createElement("div");
+  wrap.className = "fl-legend";
+  const colW = [286, 330, 570], W = colW.reduce((a, b) => a + b, 0);
+  const H = 30 + Math.max(...FLOW_LEGEND.map((r) => r[1].length)) * 26;
+  const svg = el("svg", { width: W, height: H, viewBox: `0 0 ${W} ${H}` });
+  flowArrowDefs(svg);
+  let x0 = 6;
+  FLOW_LEGEND.forEach(([title, items], ci) => {
+    svg.appendChild(el("text", { x: x0, y: 16, class: "fl-name", fill: "var(--muted)" }, title.toUpperCase()));
+    items.forEach(([kind, label], i) => {
+      const y = 40 + i * 26, gx = x0 + 18;
+      let tx = gx + 40;
+      if (["actor", "context", "system", "read-model"].includes(kind)) {
+        // Same primitive as the drawing, scaled — a hand-drawn "similar" shape here is exactly the
+        // drift a shared-primitive legend exists to prevent.
+        const g = el("g", { transform: `translate(${gx},${y - 2}) scale(0.6) translate(${-gx},${-(y - 2)})` });
+        participantShape(g, "Ctx", gx, y - 2, { label: false, kind });
+        svg.appendChild(g);
+        tx = gx + 44;
+      } else if (MSG_COLOUR[kind]) {
+        flowMessageBox(svg, gx + 26, y - 2, { n: "N", message: kind[0].toUpperCase() + kind.slice(1), type: kind });
+        tx = gx + 86;
+      } else if (kind === "sticky") {
+        svg.appendChild(el("rect", { x: gx - 14, y: y - 10, width: 40, height: 17, rx: 1, fill: "#FDFBE7", stroke: "#e0d9a8" }));
+        svg.appendChild(el("text", { x: gx - 10, y: y + 2, class: "fl-fld" }, "– id"));
+        tx = gx + 36;
+      } else if (kind === "arrow") {
+        svg.appendChild(el("line", { x1: gx - 16, y1: y - 2, x2: gx + 14, y2: y - 2, stroke: "var(--muted)",
+          "stroke-width": 1.4, "stroke-dasharray": "5 3", "marker-end": "url(#fa-event)" }));
+      } else if (kind === "sender") {
+        svg.appendChild(el("circle", { cx: gx, cy: y - 2, r: 4, fill: "var(--panel)", stroke: "var(--muted)", "stroke-width": 2 }));
+      } else if (kind === "recv") {
+        svg.appendChild(el("circle", { cx: gx, cy: y - 2, r: 3, fill: "var(--muted)" }));
+      } else if (kind === "qpair") {
+        svg.appendChild(el("line", { x1: gx - 16, y1: y - 7, x2: gx + 14, y2: y - 7,
+          stroke: MSG_COLOUR.query.line, "stroke-width": 1.5, "marker-end": "url(#fa-query)" }));
+        svg.appendChild(el("line", { x1: gx + 14, y1: y + 3, x2: gx - 16, y2: y + 3, stroke: MSG_COLOUR.query.line,
+          "stroke-width": 1.3, "stroke-dasharray": "4 3", "marker-end": "url(#fa-query-back)" }));
+      } else if (kind === "clock") {
+        clockBadge(svg, gx + 34, y - 2, "within 15 min");
+        tx = gx + 96;
+      }
+      svg.appendChild(el("text", { x: tx, y: y + 2, class: "fl-fld" }, label));
+    });
+    x0 += colW[ci];
+  });
+  wrap.appendChild(svg);
+  return wrap;
+}
+
+// A new chapter starts where an actor issues a command. Not a display trick: the notation reads a
+// flow over nine messages as two scenarios wearing one name, and on the example this rule splits
+// the 11-message flow into exactly the 6 and the 5 that the overflow finding is pointing at.
+function flowSegments(messages) {
+  const segs = [];
+  let cur = [];
+  for (const m of messages) {
+    if (kindOf(m.from) === "actor" && m.type === "command" && cur.length) { segs.push(cur); cur = []; }
+    cur.push(m);
+  }
+  if (cur.length) segs.push(cur);
+  return segs;
+}
+
+function drawFlowSegment(seg) {
+  const parts = [];
+  const seen = new Set();
+  const unresolved = new Set();
+  for (const m of seg) {
+    for (const raw of [m.from, ...String(m.to).split(",")]) {
+      const n = bareName(raw);
+      if (!n) continue;
+      if (!kindOf(n)) { unresolved.add(raw.trim()); continue; }
+      if (!seen.has(n)) { seen.add(n); parts.push(n); }
+    }
+  }
+  const lane = Math.max(140, Math.ceil(Math.max(...parts.map(cloudWidth), 0)) + 14);
+  const padL = 118, headY = 56, stickyX = padL + parts.length * lane + 30;
+  // The lanes are load-bearing; the sticky is the at-a-glance copy of text the table already
+  // holds in full. So when space runs short the sticky gives way, down to a floor below which
+  // it says nothing useful and the diagram scrolls instead.
+  const avail = Math.max(720, document.getElementById("canvas-wrap").clientWidth - 60);
+  // Below the floor a sticky is a stub that says nothing, so drop it entirely and let the
+  // lanes have the width — the table underneath still carries every field in full.
+  const room = avail - stickyX - 16;
+  const stickyW = room < 168 ? 0 : Math.min(STICKY_W, room);
+  const X = Object.fromEntries(parts.map((p, i) => [p, padL + i * lane]));
+
+  const rows = seg.map((m) => {
+    const n = String(m.request || m.contents || "").split(",").filter((s) => s.trim()).length
+            + (m.response ? 1 : 0);
+    return { m, h: Math.max(46, 12 + n * 13) + (m.when ? 16 : 0) };
+  });
+  const H = headY + rows.reduce((a, r) => a + r.h, 0) + 22;
+  const W = stickyW ? stickyX + stickyW + 16 : stickyX - 14;
+  const svg = el("svg", { width: W, height: H, viewBox: `0 0 ${W} ${H}` });
+  flowArrowDefs(svg);
+
+  for (const p of parts) {
+    svg.appendChild(el("line", { x1: X[p], y1: headY + 6, x2: X[p], y2: H - 12, stroke: "#eeece8" }));
+    participantShape(svg, p, X[p], headY - 18);
+  }
+
+  let y = headY + 14;
+  for (const { m, h } of rows) {
+    const cy = y + h / 2 - (m.when ? 8 : 0);
+    const c = MSG_COLOUR[m.type] || { line: "var(--muted)" };
+    svg.appendChild(el("text", { x: 14, y: cy + 4, class: "fl-row" }, `msg ${m.n}`));
+    const from = X[bareName(m.from)];
+    const tos = String(m.to).split(",").map((t) => X[bareName(t)]).filter((v) => v !== undefined);
+    if (from !== undefined && tos.length) {
+      for (const t of tos) {
+        if (m.type === "query") {
+          // Request out, answer back, one row: the sender is blocked in between, which a single
+          // one-way arrow cannot say.
+          svg.appendChild(el("line", { x1: from, y1: cy - 5, x2: t, y2: cy - 5, stroke: c.line,
+            "stroke-width": 1.5, "marker-end": "url(#fa-query)" }));
+          svg.appendChild(el("line", { x1: t, y1: cy + 7, x2: from, y2: cy + 7, stroke: c.line,
+            "stroke-width": 1.3, "stroke-dasharray": "4 3", "marker-end": "url(#fa-query-back)" }));
+        } else {
+          svg.appendChild(el("line", { x1: from, y1: cy, x2: t, y2: cy, stroke: c.line,
+            "stroke-width": 1.4, "stroke-dasharray": "5 3", "marker-end": `url(#fa-${m.type in MSG_COLOUR ? m.type : "event"})` }));
+          svg.appendChild(el("circle", { cx: t, cy, r: 3, fill: c.line }));
+        }
+      }
+      svg.appendChild(el("circle", { cx: from, cy, r: 4, fill: "var(--panel)", stroke: c.line, "stroke-width": 2 }));
+      const lo = Math.min(from, ...tos), hi = Math.max(from, ...tos);
+      // A short hop is narrower than its own label, so the box would cover the arrow it belongs to.
+      const boxY = hi - lo < 210 ? cy - 20 : cy;
+      flowMessageBox(svg, (lo + hi) / 2, boxY, m);
+      if (m.when) clockBadge(svg, (lo + hi) / 2 + 26, boxY + 20, m.when);
+      if (tos.length > 1) svg.appendChild(el("text", { x: hi + 12, y: cy + 4, class: "fl-row" }, `fan-out ×${tos.length}`));
+    }
+    if (stickyW) contentsSticky(svg, stickyX, cy, m.request || m.contents, m.response, stickyW);
+    y += h;
+  }
+  return { svg, parts, unresolved: [...unresolved] };
+}
+
+function renderFlowDiagram(host) {
+  const messages = model.messages || [];
+  if (!messages.length) return;
+  const segs = flowSegments(messages);
+  host.append(flowLegend());
+  const unresolved = new Set();
+  segs.forEach((seg, i) => {
+    const { svg, parts, unresolved: u } = drawFlowSegment(seg);
+    u.forEach((x) => unresolved.add(x));
+    const cap = document.createElement("p");
+    cap.className = "flow-seg";
+    const range = seg.length > 1 ? `${seg[0].n}–${seg[seg.length - 1].n}` : seg[0].n;
+    cap.append(document.createTextNode(segs.length > 1 ? `Segment ${i + 1} of ${segs.length} — messages ${range}` : "Flow"));
+    const sub = document.createElement("span");
+    sub.textContent = ` · opened by ${bareName(seg[0].from)}: ${seg[0].message} · ${seg.length} messages, ${parts.length} participants`;
+    cap.append(sub);
+    const box = document.createElement("div");
+    box.className = "flow-svg";
+    box.append(svg);
+    host.append(cap, box);
+  });
+  // Named in the table, not drawable as a participant. Saying so beats inventing a node — one of
+  // these cells reads "(nobody, until 5)", which is a stated absence, not a participant.
+  if (unresolved.size) {
+    const p = document.createElement("p");
+    p.className = "doc-warn";
+    p.textContent = `${unresolved.size} participant${unresolved.size > 1 ? "s" : ""} could not be `
+      + `typed against the context map or discovery, so ${unresolved.size > 1 ? "they are" : "it is"} `
+      + `not drawn: ${[...unresolved].join(", ")}.`;
+    host.append(p);
+  }
+}
+
+function renderFlow() {
+  const host = docHost(model.name || "Message flow", model.scenario);
+  const n = (model.messages || []).length;
+  const over = n > 9;
+
+  const note = document.createElement("p");
+  note.className = over ? "doc-warn" : "doc-ok";
+  note.textContent = over
+    ? `${n} messages — over the 5-to-9 range. The notation reads that as the cut being refuted, not as a long scenario.`
+    : `${n} messages, inside the 5-to-9 range.`;
+  host.append(note);
+
+  host.classList.add("wide");
+  renderFlowDiagram(host);
+
+  // The When column only appears when a scenario actually has a time-driven message. Showing an
+  // empty column on every flow would train people to ignore it.
+  const timed = (model.messages || []).some((m) => m.when);
+  const cols = [["n", "#"], ["from", "From"], ["message", "Message"], ["type", "Type"],
+                ["to", "To"], ["contents", "Contents"]].concat(timed ? [["when", "When"]] : []);
+  const table = docTable(cols, model.messages || [], (td, key, m) => {
+    if (key === "message") td.className = "mono";
+    if (key === "type" && m.type) td.className = `mtype ${m.type}`;
+    if (key === "when" && m.when) {
+      td.style.color = "var(--warn)";
+      td.style.whiteSpace = "nowrap";
+    }
+  }, "doc-table flow");
+  host.append(table);
+  listBlock(host, "Findings", model.findings, "warn");
+  listBlock(host, "Open questions", model.questions);
+}
+
+// Complexity across, differentiation up. ddd-crew names no quadrants and the axis labels change
+// between the portfolio and migration variants, so both come from the artifact rather than from
+// here — this draws whatever the chart declared.
+// One chart, drawn twice with different dot colours. The frame, the axes, the quadrant labels and
+// the label de-collision are the same work; keeping two copies had already produced two collision
+// thresholds, a missing axis label and a missing dashed style for unplaced dots.
+function chartFrame({ size = 480, padL = 88, padR = 210, pad = 54 } = {}) {
+  const s = document.createElementNS(NS, "svg");
+  s.setAttribute("width", padL + size + padR);
+  s.setAttribute("height", size + pad * 2);
+  s.setAttribute("class", "chart");
+  const X = (v) => padL + v * size;
+  const Y = (v) => pad + size - v * size;
+
+  s.appendChild(el("rect", { x: X(0), y: Y(1), width: size, height: size, fill: "none", stroke: "var(--line)" }));
+  s.appendChild(el("line", { x1: X(0), y1: Y(0.5), x2: X(1), y2: Y(0.5), stroke: "var(--line)", "stroke-dasharray": "3 4" }));
+  s.appendChild(el("line", { x1: X(0.5), y1: Y(1), x2: X(0.5), y2: Y(0), stroke: "var(--line)", "stroke-dasharray": "3 4" }));
+
+  // Axis labels and quadrant names come from the artifact: ddd-crew names no quadrants, and the
+  // migration variant of this chart relabels y.
+  const axes = model.axes || {};
+  const ax = axes.x || { low: "Low complexity", high: "High complexity" };
+  const ay = axes.y || { low: "Low differentiation", high: "High differentiation" };
+  s.appendChild(el("text", { x: X(0), y: Y(0) + 22, class: "axis" }, ax.low));
+  s.appendChild(el("text", { x: X(1), y: Y(0) + 22, class: "axis", "text-anchor": "end" }, ax.high));
+  for (const [label, at, anchor] of [[ay.low, 0, "start"], [ay.high, 1, "end"]]) {
+    // Written along the axis: horizontal y labels either collide with the plot or get clipped.
+    const node = el("text", { class: "axis", "text-anchor": anchor }, label);
+    node.setAttribute("transform", `translate(${X(0) - 14}, ${Y(at)}) rotate(-90)`);
+    s.appendChild(node);
+  }
+  for (const q of model.quadrants || []) {
+    const left = q.n === 2 || q.n === 3;
+    s.appendChild(el("text", {
+      x: left ? X(0.02) : X(0.98), y: q.n <= 2 ? Y(0.97) : Y(0.03),
+      class: "quadrant", "text-anchor": left ? "start" : "end",
+    }, q.label));
+  }
+  return { svg: s, X, Y };
+}
+
+// Contexts cluster — a bought adapter and a lookup table sit in the same corner by definition.
+// Labels are pushed down until they clear the one above, with a leader line back to the dot.
+function plotPoints(svg, X, Y, points, colourOf) {
+  const placed = [];
+  // Labels were pushed down without a floor, so a crowded corner walked them straight through the
+  // x-axis caption. Stop at the plot edge and search back upward instead.
+  const floor = Y(0) - 6;
+  const ceiling = Y(1) + 12;
+  for (const p of [...points].sort((a, b) => Y(a.y) - Y(b.y))) {
+    const cx = X(p.x);
+    const cy = Y(p.y);
+    const clear = (y) => !placed.some((q) => Math.abs(q.y - y) < 14 && Math.abs(q.x - cx) < 195);
+    let ly = cy + 4;
+    while (ly <= floor && !clear(ly)) ly += 14;
+    if (ly > floor) {
+      ly = cy - 10;
+      while (ly >= ceiling && !clear(ly)) ly -= 14;
+      if (ly < ceiling) ly = cy + 4;
+    }
+    placed.push({ x: cx, y: ly });
+
+    const colour = colourOf ? colourOf(p) : "var(--core)";
+    const g = el("g", { class: "node" });
+    g.appendChild(el("circle", {
+      cx, cy, r: 7,
+      fill: p.unplaced ? "none" : colour, stroke: colour,
+      "stroke-dasharray": p.unplaced ? "3 3" : null, opacity: p.unplaced ? 0.75 : 0.85,
+    }));
+    if (Math.abs(ly - cy) > 8) {
+      g.appendChild(el("line", { x1: cx + 7, y1: cy, x2: cx + 15, y2: ly - 4, stroke: "var(--line)", "stroke-width": 1 }));
+    }
+    g.appendChild(el("text", { x: cx + 17, y: ly, class: "name", fill: colour === "var(--core)" ? null : colour }, p.name));
+    g.appendChild(el("title", {}, p.note || ""));
+    svg.appendChild(g);
+  }
+}
+
+function renderChart() {
+  const host = docHost("Core domain chart", "Complexity across · differentiation up. A dot on the mid-line is not a placement — it is a conversation that has not happened.");
+  const { svg, X, Y } = chartFrame({ size: 520 });
+  plotPoints(svg, X, Y, model.points || []);
+  host.append(svg);
+  listBlock(host, "Decisions", model.decisions);
+  listBlock(host, "Investment mismatch", model.mismatch, "warn");
+  listBlock(host, "Open questions", model.questions);
+}
+
+// The same chart, with ownership on it. This is the version that settles two questions at once —
+// where the investment goes, and who is holding it — which is why ddd-crew lists it as one of the
+// three uses. A team whose dots are scattered across both axes is carrying unrelated bets.
+// Team colours double as label text, so every one has to clear 4.5:1 on the page background —
+// the first green and blue picked here read at 2.97:1 and were a team name nobody could see.
+const TEAM_COLOURS = ["#b8541c", "#1f6f9a", "#1f7a3d", "#7b3fa0", "#a8560f", "#2f6fb0"];
+const nameKey = (s) => String(s).replace(/[^a-z0-9]/gi, "").toLowerCase();
+
+function renderChartTeams() {
+  const teams = model.teams || {};
+  const byContext = teams.byContext || {};
+  const names = [...new Set(Object.values(byContext).map((t) => t.team).filter(Boolean))];
+  const colour = (team) => TEAM_COLOURS[names.indexOf(team) % TEAM_COLOURS.length] || "var(--muted)";
+  const owner = new Map(Object.entries(byContext).map(([k, v]) => [nameKey(k), v]));
+  const teamOf = (p) => owner.get(nameKey(p.name));
+
+  const host = docHost("Core domain chart — with Team Topologies",
+    teams.caveat || "Each dot coloured by the team proposed to own it.");
+  const { svg, X, Y } = chartFrame({ padR: 230 });
+  plotPoints(svg, X, Y, model.points || [], (p) => {
+    const t = teamOf(p);
+    return t && t.team ? colour(t.team) : "var(--muted)";
+  });
+  host.append(svg);
+
+  const key = document.createElement("p");
+  key.className = "doc-sub";
+  key.style.marginTop = "10px";
+  key.append(document.createTextNode("Teams: "));
+  for (const n of names) {
+    const chip = document.createElement("span");
+    chip.textContent = ` ● ${n} `;
+    chip.style.color = colour(n);
+    chip.style.fontWeight = "600";
+    key.append(chip);
+  }
+  host.append(key);
+
+  if ((teams.interactions || []).length) {
+    host.append(docHeading(`Interaction modes`, teams.interactions.length));
+    host.append(docTable(
+      [["a", "Team"], ["b", "Team"], ["mode", "Mode"], ["why", "Evidence"], ["endsWhen", "Ends when"]],
+      teams.interactions,
+      (td, key2, row) => { if (key2 === "a" || key2 === "b") td.style.color = colour(row[key2]); },
+    ));
+  }
+
+  const unowned = (model.points || []).filter((p) => !teamOf(p)).map((p) => p.name);
+  listBlock(host, "Plotted but unowned", unowned, "warn");
+}
+
+// The three team relationships ddd-crew defines, which the nine-pattern map cannot show: mutual
+// dependence, one-way dependence, and — invisible on any pattern map because it is drawn by an
+// absence — freedom.
+const RELATION_LABEL = {
+  "mutually-dependent": "Mutually dependent — they ship together or not at all",
+  "upstream-downstream": "Upstream → downstream — the upstream can succeed alone",
+  free: "Free — no organisational or technical link",
+  unclassified: "Unclassified — the pattern name maps to no team relationship",
+};
+
+function renderRelations() {
+  const rels = model.relationships || [];
+  const sourced = rels.filter((r) => r.sourced).length;
+  const host = docHost("Team relationships",
+    `${rels.length} edges. ${sourced} follow ddd-crew's own wording; the remaining ${rels.length - sourced} are this plugin's reading of the pattern, not a published mapping.`);
+
+  for (const kind of ["mutually-dependent", "upstream-downstream", "unclassified"]) {
+    let group = rels.filter((r) => r.teamRelation === kind);
+    if (kind === "mutually-dependent") {
+      // Both contexts declare the partnership, so the edge arrives twice. It is one relationship.
+      const seen = new Set();
+      group = group.filter((r) => {
+        const key = [r.from, r.to].sort().join("|");
+        return seen.has(key) ? false : seen.add(key);
+      });
+    }
+    if (!group.length) continue;
+    host.append(docHeading(RELATION_LABEL[kind], group.length));
+    host.append(docTable(
+      [["from", "From"], ["arrow", ""], ["to", "To"], ["type", "Pattern"], ["basis", "Basis"]],
+      group.map((r) => ({
+        from: r.from, arrow: kind === "mutually-dependent" ? "↔" : "→", to: r.to,
+        type: r.type, basis: r.sourced ? "ddd-crew" : "plugin reading",
+      })),
+      (td, key, row) => { if (key === "basis" && row.basis !== "ddd-crew") td.style.color = "var(--warn)"; },
+    ));
+  }
+
+  const free = model.free || [];
+  const h = document.createElement("h3");
+  h.className = "doc-h3";
+  h.textContent = `Free — ${free.length}`;
+  host.append(h);
+  const p = document.createElement("p");
+  p.className = free.length ? "doc-ok" : "doc-warn";
+  p.textContent = free.length
+    ? `${free.join(", ")} — nothing points at these and they point at nothing, so a team owning one can move without asking anybody.`
+    : "No context is free: every one of them is coupled to at least one other. That is not automatically wrong, but it means no team here can ship without a conversation.";
+  host.append(p);
+}
+
+// The wall, as a wall. Confirmed-vs-candidate is the column that matters: a timeline nobody
+// confirmed is a document review wearing an EventStorming costume.
+const EL_TYPE = { event: "#f5a623", command: "#4a90d9", policy: "#9b59b6", "read-model": "#2fa84f",
+                  actor: "#f7d774", "external-system": "#e8a0a0", hotspot: "#d0021b" };
+
+// Read off the element rather than the confidence block: the same renderer serves the model.json
+// payload and the markdown-table fallback, and only the first carries pre-counted totals.
+const STATE_OF = (e) => String(e.state ?? e.State ?? "").trim().toLowerCase();
+
+function renderTimeline() {
+  const c = model.confidence || {};
+  const els = model.elements || [];
+  const stated = els.filter(STATE_OF).length;
+  const tally = (s) => els.filter((e) => STATE_OF(e) === s).length;
+  const host = docHost("Discovery timeline",
+    `${els.length} elements · ${c.confirmed ?? "?"} confirmed · ${c.candidates ?? "?"} candidate · ${(model.hotspots || []).length} hotspots`
+    + (stated ? ` · ${tally("as-is")} as-is / ${tally("to-be")} to-be / ${tally("could-be")} could-be` : ""));
+
+  if ((c.confirmed ?? 0) === 0 && els.length) {
+    const w = document.createElement("p");
+    w.className = "doc-warn";
+    w.textContent = "Nothing here was confirmed by a person. Every element is mined from documents, and everything downstream inherits that.";
+    host.append(w);
+  }
+  if (!stated && els.length) {
+    const w = document.createElement("p");
+    w.className = "doc-warn";
+    w.textContent = "Nothing here says whether it happens today. What the business does, what it has decided to change, and what someone floated in the room are all on this wall in the same handwriting — and a boundary read off it cannot tell them apart.";
+    host.append(w);
+  }
+
+  const wall = document.createElement("div");
+  wall.className = "wall";
+  for (const e of els) {
+    const card = document.createElement("div");
+    const type = String(e.type || "event").toLowerCase();
+    card.className = `sticky${e.status === "candidate" ? " candidate" : ""}`;
+    card.style.borderTopColor = EL_TYPE[type] || "var(--line)";
+    const name = document.createElement("b");
+    name.textContent = e.name || e.Element || "—";
+    const meta = document.createElement("span");
+    meta.textContent = [type, e.actor, e.source].filter(Boolean).join(" · ");
+    card.append(name, meta);
+    const state = STATE_OF(e);
+    if (state && state !== "as-is") {
+      const tag = document.createElement("i");
+      tag.className = `state ${state}`;
+      tag.textContent = state;
+      card.append(tag);
+    }
+    wall.append(card);
+  }
+  host.append(wall);
+  listBlock(host, "Hotspots", (model.hotspots || []).map((h) =>
+    typeof h === "string" ? h : `${h.id ? h.id + " — " : ""}${h.question || h.text || JSON.stringify(h)}`), "warn");
+}
+
+// Everything without a dedicated lens, rendered as its own sections with its tables intact. This
+// is deliberately not a markdown viewer: it keeps the artifact's structure, so a reviewer can see
+// that a section exists and is empty.
+function renderSections() {
+  const host = docHost(model.title || "Document");
+  for (const sec of model.sections || []) {
+    host.append(docHeading(sec.heading));
+    if (sec.rows && sec.rows.length) {
+      const cols = Object.keys(sec.rows[0]).map((c) => [c, c]);
+      host.append(docTable(cols, sec.rows));
+    } else if (sec.lines && sec.lines.length) {
+      const ul = document.createElement("ul");
+      ul.className = "doc-list";
+      for (const line of sec.lines) {
+        const li = document.createElement("li");
+        li.textContent = line;
+        ul.append(li);
+      }
+      host.append(ul);
+    } else {
+      const p = document.createElement("p");
+      p.className = "doc-empty";
+      p.textContent = "empty";
+      host.append(p);
+    }
+  }
+}
+
+// ---------------------------------------------------------------- mass view
+//
+// The map deliberately draws every context the same size, which is right for reading boundaries
+// and wrong for reading effort. This view answers "where does the weight actually sit".
+
+function detailOf(ctx) {
+  const c = ctx.counts || {};
+  const detail = [`${massOf(ctx)} elements`];
+  if (c.aggregates !== undefined) detail.push(`${c.aggregates} agg`);
+  if (c.events) detail.push(`${c.events} events`);
+  if (c.invariants !== undefined) detail.push(`${c.invariants} inv`);
+  if (ctx.attrCount) detail.push(`${ctx.attrCount} attrs`);
+  if (ctx.densestAttrs) detail.push(`densest ${ctx.densestAttrs}`);
+  const open = (ctx.openQuestions || []).length;
+  if (open) detail.push(`${open} open`);
+  return detail.join(" · ");
+}
+
+function renderMass() {
+  const rows = (model.contexts || [])
+    .slice()
+    .sort((a, b) => massOf(b) - massOf(a));
+  const width = Math.max(720, document.getElementById("canvas-wrap").clientWidth - 48);
+  const rowH = 34;
+  const details = new Map(rows.map((c) => [c.id, detailOf(c)]));
+  // Both gutters sized from their own content: at 150px fixed, `RevenueReconciliation` ran 21px
+  // into the bar, and `… 22 attrs` fell off the right edge of the viewBox as `… 22 a`.
+  const labelW = Math.ceil(PAD + widestOf(rows.map((c) => c.name), { size: 13, weight: 620 })) + 18;
+  const detailW = Math.ceil(widestOf([...details.values()], { size: 10.5 })) + 24;
+  const barMax = Math.max(120, width - labelW - detailW - PAD);
+  const height = PAD * 2 + 30 + rows.length * rowH;
+
+  svg.setAttribute("width", width);
+  svg.setAttribute("height", height);
+  svg.setAttribute("viewBox", `0 0 ${width} ${height}`);
+  svg.replaceChildren();
+
+  svg.appendChild(el("text", { x: PAD, y: PAD + 4, class: "band-label" },
+    `Model mass per context — total ${rows.reduce((s, c) => s + massOf(c), 0)} elements (entities, value objects, events, invariants)`));
+
+  rows.forEach((ctx, i) => {
+    const y = PAD + 26 + i * rowH;
+    const style = TYPE_STYLE[ctx.subdomainType || "supporting"] || TYPE_STYLE.supporting;
+    const group = el("g", { class: "node" });
+
+    group.appendChild(el("text", { x: PAD, y: y + 15, class: "name", fill: style.stroke }, ctx.name));
+    group.appendChild(el("rect", {
+      x: labelW, y: y + 3, width: barMax, height: 16, rx: 3, class: "mass-bar-bg",
+    }));
+    const w = Math.max(3, (barMax * massOf(ctx)) / maxMass());
+    group.appendChild(el("rect", {
+      x: labelW, y: y + 3, width: w, height: 16, rx: 3, fill: style.stroke, opacity: 0.8,
+    }));
+
+    group.appendChild(el("text", { x: labelW + barMax + 12, y: y + 16, class: "sub" }, details.get(ctx.id)));
+
+    group.addEventListener("click", () => select(ctx.id));
+    svg.appendChild(group);
+  });
+
+  renderLegend();
+}
+
+// ---------------------------------------------------------------- matrix view
+//
+// A dependency structure matrix. On a map with 15 edges a two-way dependency is just two more
+// crossing lines; here it is a pair of cells straddling the diagonal, which is why the
+// Finance <-> Initiative cycle is the first thing the eye lands on.
+
+function renderMatrix() {
+  const contexts = (model.contexts || []).slice().sort((a, b) => a.name.localeCompare(b.name));
+  const n = contexts.length;
+  // The densest artifact in the set was drawn smallest: 30px cells in the corner of a 1250px
+  // column. Size the cell to the space actually available, bounded so two contexts do not produce
+  // two enormous squares and twenty do not produce invisible ones.
+  const avail = Math.max(720, document.getElementById("canvas-wrap").clientWidth - 48);
+  const nameW = Math.ceil(widestOf(contexts.map((c) => c.name), { size: 11, weight: 600 }));
+  const labelW = PAD + nameW + 10;
+  const cell = Math.max(28, Math.min(58, Math.floor((avail - labelW - PAD * 2) / Math.max(n, 1))));
+  // Column heads are rotated -55°, so a name runs name-width × sin(55°) up and × cos(55°) right.
+  // The last column's head needs that horizontal run as right margin or it leaves the viewBox.
+  const headH = Math.ceil(nameW * 0.83) + 14;
+  const width = labelW + n * cell + Math.ceil(nameW * 0.58) + PAD;
+  const height = PAD * 2 + headH + n * cell;
+
+  svg.setAttribute("width", width);
+  svg.setAttribute("height", height);
+  svg.setAttribute("viewBox", `0 0 ${width} ${height}`);
+  svg.replaceChildren();
+
+  const grid = el("g", { class: "matrix" });
+  const index = new Map(contexts.map((c, i) => [c.name, i]));
+  const edges = new Map();
+  for (const rel of model.relationships || []) {
+    if (index.has(rel.from) && index.has(rel.to)) edges.set(`${rel.from}>${rel.to}`, rel.type);
+  }
+
+  grid.appendChild(el("text", { x: PAD, y: PAD + 4, class: "band-label" }, "Row depends on column"));
+
+  contexts.forEach((ctx, col) => {
+    const x = labelW + col * cell + cell / 2;
+    const y = PAD + headH - 6;
+    const label = el("text", { x, y, "text-anchor": "start", fill: "var(--muted)" }, ctx.name);
+    label.setAttribute("transform", `rotate(-55 ${x} ${y})`);
+    grid.appendChild(label);
+  });
+
+  contexts.forEach((rowCtx, row) => {
+    const y = PAD + headH + row * cell;
+    grid.appendChild(el("text", {
+      x: labelW - 8, y: y + cell / 2 + 4, "text-anchor": "end", class: "rowhead",
+      fill: (TYPE_STYLE[rowCtx.subdomainType] || TYPE_STYLE.supporting).stroke,
+    }, rowCtx.name));
+
+    contexts.forEach((colCtx, col) => {
+      const x = labelW + col * cell;
+      if (row === col) {
+        grid.appendChild(el("rect", { x, y, width: cell, height: cell, class: "cell diag" }));
+        return;
+      }
+      const type = edges.get(`${rowCtx.name}>${colCtx.name}`);
+      const reverse = edges.get(`${colCtx.name}>${rowCtx.name}`);
+      const style = type ? REL_STYLE[type] || DEFAULT_REL : null;
+      grid.appendChild(el("rect", {
+        x, y, width: cell, height: cell, class: "cell",
+        fill: style ? style.stroke : "#f7f6f4",
+        opacity: style ? 0.85 : 1,
+      }));
+      if (type && reverse) {
+        // Both directions present: a cycle, and the only thing on this view drawn in outline.
+        grid.appendChild(el("rect", {
+          x: x + 3, y: y + 3, width: cell - 6, height: cell - 6,
+          fill: "none", stroke: "#ffffff", "stroke-width": 2,
+        }));
+      }
+    });
+  });
+
+  const cycles = [];
+  for (const key of edges.keys()) {
+    const [from, to] = key.split(">");
+    if (edges.has(`${to}>${from}`) && from < to) cycles.push(`${from} ⇄ ${to}`);
+  }
+  svg.appendChild(grid);
+
+  // A mutual dependency refutes the cut, so this line is the reason the view exists. It goes in
+  // HTML, where it wraps: as SVG text it was one 3,708px line inside a 720px viewBox, cut to
+  // "…GuidanceIntegration ⇄ Pa".
+  const note = document.createElement("div");
+  note.className = cycles.length ? "doc-warn" : "doc-ok";
+  note.textContent = cycles.length
+    ? `${cycles.length} mutual ${cycles.length === 1 ? "dependency" : "dependencies"} — the outlined cells above. Two contexts that depend on each other ship together or not at all.`
+    : "No mutual dependencies. Every relationship on this matrix runs one way.";
+  if (cycles.length) {
+    const list = document.createElement("ul");
+    list.className = "pairs";
+    for (const pair of cycles) {
+      const li = document.createElement("li");
+      li.textContent = pair;
+      list.append(li);
+    }
+    note.append(list);
+  }
+  document.getElementById("diagram-note").append(note);
+
+  renderLegend();
+}
+
+// ---------------------------------------------------------------- detail panel
+
+function select(id) {
+  selectedId = selectedId === id ? null : id;
+  render();
+  if (selectedId) send({ type: "select", context: nameOf(selectedId) });
+}
+
+function listOr(items, emptyText) {
+  if (!items || items.length === 0) {
+    const p = document.createElement("p");
+    p.className = "empty";
+    p.textContent = emptyText;
+    return p;
+  }
+  const ul = document.createElement("ul");
+  for (const item of items) {
+    const li = document.createElement("li");
+    li.textContent = typeof item === "string" ? item : `${item.term} — ${item.definition}`;
+    ul.appendChild(li);
+  }
+  return ul;
+}
+
+function heading(text) {
+  const h = document.createElement("h3");
+  h.textContent = text;
+  return h;
+}
+
+function renderPanel() {
+  const panel = document.getElementById("panel");
+  panel.replaceChildren();
+
+  if (!selectedId) {
+    const p = document.createElement("p");
+    p.className = "empty";
+    p.textContent = "Pick a context to see its detail, or send feedback on the boundary.";
+    panel.append(p);
+    return;
+  }
+
+  const ctx = (model.contexts || []).find((c) => c.id === selectedId);
+  if (!ctx) {
+    const p = document.createElement("p");
+    p.className = "empty";
+    p.textContent = `${nameOf(selectedId)} — an external system, outside the model.`;
+    panel.append(p);
+    return;
+  }
+
+  const h2 = document.createElement("h2");
+  h2.textContent = ctx.name;
+  const pill = document.createElement("span");
+  pill.className = "pill";
+  pill.textContent = ctx.subdomainType || "supporting";
+  const purpose = document.createElement("p");
+  purpose.className = "purpose";
+  purpose.textContent = ctx.purpose || "No purpose stated.";
+  panel.append(h2, pill, purpose);
+
+  if (ctx.tableCount) {
+    const stat = document.createElement("p");
+    stat.className = "purpose";
+    const bits = [`${ctx.tableCount} tables`];
+    if (ctx.attrCount !== null && ctx.attrCount !== undefined) bits.push(`~${ctx.attrCount} legacy attrs`);
+    if (ctx.densestAttrs) bits.push(`densest table ${ctx.densestAttrs} attrs`);
+    if (ctx.layer) bits.push(`layer ${ctx.layer}`);
+    stat.textContent = bits.join(" · ");
+    panel.append(stat);
+  }
+
+  if (ctx.tables && ctx.tables.length) {
+    panel.append(heading(`Tables (${ctx.tables.length})`), listOr(ctx.tables, ""));
+  }
+
+  panel.append(heading("Ubiquitous language"), listOr(ctx.ubiquitousLanguage, "Nothing recorded."));
+  panel.append(
+    heading("Aggregates"),
+    listOr((ctx.aggregates || []).map((a) => a.name), "None — right-sized deliberately; see notes."),
+  );
+  panel.append(heading("Assumptions"), listOr(ctx.assumptions, "Nothing recorded."));
+  panel.append(heading("Open questions"), listOr(ctx.openQuestions, "No open questions."));
+
+  panel.append(heading("Feedback"));
+  const box = document.createElement("div");
+  box.className = "fb";
+  const actions = [
+    ["boundary-wrong", "This boundary is wrong"],
+    ["should-merge", "Merge with another context"],
+    ["should-split", "Split this apart"],
+    ["wrong-classification", `Not "${ctx.subdomainType}"`],
+    ["not-a-context", "A capability, not a context"],
+  ];
+  for (const [kind, label] of actions) {
+    const button = document.createElement("button");
+    button.textContent = label;
+    button.addEventListener("click", async () => {
+      await send({ type: "feedback", kind, context: ctx.name, contextId: ctx.id });
+      button.classList.add("sent");
+      button.textContent = `${label} ✓ recorded`;
+    });
+    box.appendChild(button);
+  }
+  panel.append(box);
+
+  const hint = document.createElement("p");
+  hint.className = "empty";
+  hint.style.marginTop = "10px";
+  hint.textContent = "Recorded. The agent reads this on its next turn and updates the model.";
+  panel.append(hint);
+}
+
+// ---------------------------------------------------------------- feedback + live channel
+
+async function send(event) {
+  try {
+    await fetch("feedback", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify(event),
+    });
+  } catch {
+    /* the picture stays usable even if the server went away */
+  }
+}
+
+function setConnected(ok) {
+  document.getElementById("conn-dot").className = ok ? "dot" : "dot off";
+  document.getElementById("conn-text").textContent = ok ? "live" : "disconnected — retrying";
+}
+
+function connect() {
+  const stream = new EventSource("stream");
+  stream.addEventListener("hello", () => setConnected(true));
+  stream.addEventListener("model", () => load());
+  stream.onerror = () => {
+    setConnected(false);
+    stream.close();
+    setTimeout(connect, 2000);
+  };
+}
+
+// Only the map and the mass bars read the viewport; the other 25 documents are DOM flow. A window
+// drag fires this 30-60 times a second, and rebuilding a 27-button rail plus a 109-element SVG to
+// produce byte-identical output is the most expensive thing this page can do.
+let lastWidth = 0;
+let resizePending = false;
+window.addEventListener("resize", () => {
+  if (!["map", "mass"].includes(currentView) || resizePending) return;
+  resizePending = true;
+  requestAnimationFrame(() => {
+    resizePending = false;
+    const w = document.getElementById("canvas-wrap").clientWidth;
+    if (w === lastWidth) return;
+    lastWidth = w;
+    render();
+  });
+});
+document.getElementById("toggle-light").addEventListener("change", (e) => {
+  hideLight = e.target.checked;
+  render();
+});
+
+// `?static=1` renders once and skips the live channel. An open event-stream keeps the page
+// permanently "loading", which stalls headless screenshots and print-to-PDF — snapshot mode is
+// how a picture gets exported for a doc, a slide, or a CI artifact.
+const IS_STATIC = QS.get("static") === "1";
+
+load().then(() => {
+  if (IS_STATIC) {
+    document.getElementById("conn").style.display = "none";
+    return;
+  }
+  connect();
+});
+</script>
+</body>
+</html>
