@@ -1,0 +1,21 @@
+context: VehicleIdentification
+subdomain_type: supporting
+tactical_pattern: transaction-script
+ubiquitous_language:
+  - term: Plate
+    definition: Read by the garage camera; no equivalent in a lot; deleted after seven days.
+  - term: Registered class
+    definition: What the supplier's system says the vehicle is, from the registration.
+  - term: Mismatch
+    definition: The registered class disagrees with the class typed at the entrance.
+aggregates: []
+notes: >-
+  Deliberately light — a supplier lookup, a comparison and a deletion timer; garage only. The two
+  stated rules live here: charge the higher of the two rates and raise a daily exception on a
+  mismatch, and delete a plate record at seven days ("not negotiable", works council). H7 records the
+  unresolved collision between that deletion and pursuing a claim against the captured plate; H6
+  depends on this context for the only identity it could ever supply.
+relationships:
+  - { to: GuidanceIntegration, type: acl }
+  - { to: ParkingVisit, type: upstream }
+  - { to: RevenueReconciliation, type: upstream }

@@ -1,0 +1,21 @@
+context: Tariff
+subdomain_type: supporting
+tactical_pattern: transaction-script
+ubiquitous_language:
+  - term: Tariff
+    definition: Rates set by the operator per site and per vehicle class.
+  - term: Started fifteen minutes
+    definition: The billing increment; a stay of 16 minutes is billed as two.
+  - term: Free first fifteen
+    definition: A per-site setting; some airport sites charge from minute one.
+  - term: Daily cap
+    definition: The most a class can pay in a day at that site, and the flat charge for a lost ticket.
+aggregates: []
+notes: >-
+  Deliberately light — a rate card plus one calculation, no lifecycle. The deal-breaker is liveness
+  (operator self-service, live at the machines that evening), not the model. H15 is the question that
+  would force a real aggregate: which rate applies to a stay already in progress, and to one crossing
+  a night/weekend boundary. VAT is a field of the fiscal record; nobody said how it is derived.
+relationships:
+  - { to: ParkingVisit, type: customer-supplier }
+  - { to: TerminalOperations, type: upstream }

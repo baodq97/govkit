@@ -1,0 +1,47 @@
+context: RevenueReconciliation
+subdomain_type: core
+tactical_pattern: full-domain-model
+ubiquitous_language:
+  - term: Reconciliation
+    definition: Machines vs bank vs coin box, every morning, per site; 4 hours a week by hand today.
+  - term: Unmatched exit
+    definition: An uploaded exit with no payment against it.
+  - term: Exceptions list
+    definition: The daily list a site manager works — offline exits, plate mismatches, stuck barriers, entitlement-bay users.
+  - term: Write-off
+    definition: The site manager's usual decision on an unmatched exit.
+  - term: Claim
+    definition: The rarer decision — pursue the captured plate; collides with the 7-day deletion (H7).
+aggregates:
+  - name: DailyReconciliation
+    root: DailyReconciliation
+    entities:
+      - name: DailyReconciliation
+        attributes: [siteId, businessDate, machineTotal, bankTotal, coinBoxTotal, status]
+      - name: ExceptionItem
+        attributes: [kind, subjectRef, resolution]
+    value_objects:
+      - name: Money
+        attributes: [amount, currency]
+      - name: ThreeWayMatch
+        attributes: [machineTotal, bankTotal, coinBoxTotal]
+    domain_events:
+      - { name: TakingsReconciled, payload: [siteId, businessDate, machineTotal, bankTotal, coinBoxTotal] }
+      - { name: UnmatchedExitFlagged, payload: [siteId, exitReference] }
+      - { name: ExceptionWrittenOff, payload: [siteId, exceptionRef] }
+      - { name: ClaimSentToPlateHolder, payload: [siteId, exceptionRef, plate] }
+    invariants:
+      - Reconciliation is per site, every morning, and matches machine takings against the bank and against the coin box.
+      - An exit uploaded with no payment against it is flagged as an unmatched exit and raised on the daily exceptions list.
+      - A plate/declared-class mismatch is raised on the daily exceptions list.
+      - The site manager decides an unmatched exit — write-off or claim; no threshold or authority limit was stated.
+notes: >-
+  Thinnest aggregate in the model relative to its business value: the expert described
+  reconciliation as an outcome, never as a process. Open: H7 (claim vs 7-day plate deletion), H9 (no
+  reversal concept), H5 (no detector for a stuck barrier), H6 (entitlement-bay users cannot be
+  identified).
+relationships:
+  - { to: ParkingVisit, type: downstream }
+  - { to: TerminalOperations, type: downstream }
+  - { to: PaymentCapture, type: acl }
+  - { to: VehicleIdentification, type: downstream }

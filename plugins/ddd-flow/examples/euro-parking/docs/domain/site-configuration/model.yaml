@@ -1,0 +1,29 @@
+context: SiteConfiguration
+subdomain_type: supporting
+tactical_pattern: crud
+ubiquitous_language:
+  - term: Site
+    definition: One garage or one lot; the unit of setup, tariffs, reconciliation and occupancy.
+  - term: Garage
+    definition: A site with bay sensors, cameras and guidance signage — "a different product" from a lot.
+  - term: Lot
+    definition: Asphalt and painted lines; no sensors, no guidance, no plate reading.
+  - term: Bay
+    definition: A garage place, identified by number and floor.
+  - term: Area
+    definition: A lot's painted zone; places are identified by number and area.
+  - term: Operator
+    definition: The customer running the site; the party that sets tariffs, always.
+  - term: Managed bay
+    definition: The start-up's billing unit, per bay per month; possibly meaningless in a lot (H17).
+aggregates: []
+notes: >-
+  Deliberately light — standing configuration CRUD, edited whenever the lines are repainted. The one
+  stated rule (unique spot identifier within a site, INPUT.md §3) is a uniqueness constraint, not a
+  consistency boundary, so no aggregate. Publishes site topology and the vehicle-class vocabulary as
+  Published Language rather than sharing a model. Open: H11, H16, H17.
+relationships:
+  - { to: ParkingVisit, type: upstream }
+  - { to: TerminalOperations, type: upstream }
+  - { to: OccupancyInsight, type: upstream }
+  - { to: GuidanceIntegration, type: upstream }

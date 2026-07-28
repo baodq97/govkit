@@ -1,0 +1,22 @@
+context: GuidanceIntegration
+subdomain_type: generic
+tactical_pattern: bought-adapter
+ubiquitous_language:
+  - term: Guidance system
+    definition: The supplier's bought package — cameras, bay sensors, LED signs; one supplier per site, three credible in Europe.
+  - term: Bay sensor
+    definition: A ceiling sensor per bay; counts free bays per level and per type and drives the signage.
+  - term: Free bay count
+    definition: Per level and per type; garage only — a lot has no equivalent.
+aggregates: []
+notes: >-
+  Bought, never built — integrated behind an anti-corruption layer so three suppliers can sit behind
+  one internal contract. No domain model. Emits BayOccupied, BayVacated and (pending H1) BayAssigned
+  into the model; supplies the plate feed to VehicleIdentification. A lot has no guidance system at
+  all — a stated absence from both INPUT.md §12 and the expert, not a gap. Open: H1 (who assigns the
+  bay), H4 (are the sensors trustworthy).
+relationships:
+  - { to: SiteConfiguration, type: downstream }
+  - { to: ParkingVisit, type: upstream }
+  - { to: OccupancyInsight, type: upstream }
+  - { to: VehicleIdentification, type: upstream }

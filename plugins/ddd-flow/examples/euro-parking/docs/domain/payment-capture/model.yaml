@@ -1,0 +1,23 @@
+context: PaymentCapture
+subdomain_type: generic
+tactical_pattern: bought-adapter
+ubiquitous_language:
+  - term: Payment method
+    definition: A field of the fiscal record; the methods themselves were never enumerated.
+  - term: Machine takings
+    definition: What a machine says it took — one leg of the morning reconciliation.
+  - term: Coin box
+    definition: The physical cash in a machine, counted by hand; the third leg of the reconciliation.
+  - term: Acquirer
+    definition: Where a machine's takings go on their way to the bank; the link itself is unknown (H9).
+aggregates: []
+notes: >-
+  No domain model on purpose. INPUT.md §7.3 excludes the payment mechanics and the expert declared
+  the acquirer link outside his knowledge, so anything modelled here would be invention. The
+  surrounding domain decisions (amount owed, paid-is-the-truth, what the stripe says) belong to
+  ParkingVisit and TerminalOperations. Open: H9 — no refund, reversal or chargeback concept exists
+  anywhere in the language.
+relationships:
+  - { to: ParkingVisit, type: upstream }
+  - { to: RevenueReconciliation, type: upstream }
+  - { to: FiscalRecord, type: upstream }
