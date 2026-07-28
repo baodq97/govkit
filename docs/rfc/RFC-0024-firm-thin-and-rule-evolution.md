@@ -168,10 +168,13 @@ refinements of the honor-system tier this RFC named, with the engine still readi
 - **The shipped surfaces credited the wrong RFC.** The protocol header in LEARNING-LOOP.md,
   RFC-0001's deviation notes, the README/AGENTS.md tier attributions, the `audit-write.ts`
   comments, and even the remind string the hook EMITS all cited RFC-0012 (the journal RFC)
-  instead of this one. Found by the 2026-07-29 corpus audit and corrected everywhere in the
-  same change-set as this section — the content was this RFC's, verbatim; only the citation
-  was wrong. Recorded here because a misattributed rule is provenance debt of exactly the
-  kind this RFC exists to name.
+  instead of this one. Found by the 2026-07-29 corpus audit; the first sweep itself missed
+  three multi-line sites (RFC-0001's two deviation notes and the protocol's parenthetical) —
+  its commit message claimed "corrected everywhere" while the RFC-0001 diff was empty, a
+  miss the pre-flip red team caught and the flip change-set closed with line-scoped edits
+  verified by grep. The content was this RFC's, verbatim; only the citation was wrong.
+  Recorded here, twice over, because a misattributed rule — and an overclaimed fix — are
+  provenance debt of exactly the kind this RFC exists to name.
 - **Part 3's home stayed `LEARNING-LOOP.md`** (the open question resolved by use): 22 rounds
   plus an archive split later, no separate doc type was needed — the protocol is standing text
   at the top of the active file, and the archive move (2026-07-29) verified every tooling

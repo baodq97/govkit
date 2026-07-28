@@ -19,9 +19,12 @@ Engine `govkit@0.7.1` to the public npm registry (`npm view govkit dist-tags` �
 0.7.1`; versions on the registry: 0.3.0, 0.3.1, 0.6.0, 0.7.0, 0.7.1). The published artifact
 is the tsup single-bundle `dist/cli.js` plus `templates/` (the `files:` allowlist), Node ≥ 20,
 no runtime dependencies (`yaml` inlined via `noExternal`). Feature surface at that version:
-verify / eval / check with `--hook` and `--journal`, drift with content-derived `reconciled:`
-claims, ledger, calibrate, stale, report `--pr-body`, adopt, init, doctor, audit-write — the
-RFC-0001…0023 line as recorded in `docs/ledger.json`.
+verify / eval / check with `--hook` and `--journal`, drift with content-derived
+`reconciled:` claims, ledger, calibrate, stale, report `--pr-body`, `init` (with its
+`--adopt` migration lane), audit-write — the RFC-0001…0022 line as recorded in
+`docs/ledger.json` (RFC-0023's config-generality features were implemented at the tag;
+`doctor` and the standalone `adopt` command land AFTER this release and are not in the
+published 0.7.1 bundle).
 
 ## Migration
 
