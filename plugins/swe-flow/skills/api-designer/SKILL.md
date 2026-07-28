@@ -12,6 +12,21 @@ description: >
 
 # API Designer
 
+## Hard rules
+
+- No verbs in URIs — `/users/{id}`, never `/getUser/{id}` (enforced: `redocly.yaml`)
+- Every collection endpoint has pagination (enforced: `redocly.yaml`)
+- Every error is RFC 9457 (`application/problem+json`) (enforced: `redocly.yaml`)
+- No breaking changes without a versioned migration path
+- Never expose an aggregate's invariant-only fields via Published Language — that's
+  OWASP API3:2023 Broken Object Property Level Authorization (the 2023 merge of API3:2019
+  "Excessive Data Exposure" and API6:2019 "Mass Assignment"), an authorization control, not a
+  schema-hygiene preference
+- Integration technology (REST/gRPC/messaging) is decided at workflow step 6, recorded as an ADR —
+  never assumed before the candidate endpoint list and relationship review
+- When `docs/domain/` exists, never rename or invent domain concepts — map what's there
+- Every bounded context gets its OWN emitted `docs/api/<context>/openapi.yaml` — a README alone is not a deliverable. Before declaring done, verify each context folder actually contains its spec file (e.g. `ls docs/api/*/openapi.yaml`); a linked-but-missing spec is an incomplete result.
+
 Specification-first API design: domain → resources → OpenAPI 3.1 contract → validated mock.
 
 ## Where this fits
@@ -95,21 +110,6 @@ domain-to-API judgement a linter can't check is written out:
 | `references/pagination.md` | What counts as "a collection" that needs pagination |
 | `references/error-handling.md` | RFC 9457 error responses — what goes in `type` vs `detail` |
 | `references/openapi.md` | Domain event → webhook vs. state-transition resource |
-
-## Hard Rules
-
-- No verbs in URIs — `/users/{id}`, never `/getUser/{id}` (enforced: `redocly.yaml`)
-- Every collection endpoint has pagination (enforced: `redocly.yaml`)
-- Every error is RFC 9457 (`application/problem+json`) (enforced: `redocly.yaml`)
-- No breaking changes without a versioned migration path
-- Never expose an aggregate's invariant-only fields via Published Language — that's
-  OWASP API3:2023 Broken Object Property Level Authorization (the 2023 merge of API3:2019
-  "Excessive Data Exposure" and API6:2019 "Mass Assignment"), an authorization control, not a
-  schema-hygiene preference
-- Integration technology (REST/gRPC/messaging) is decided at workflow step 6, recorded as an ADR —
-  never assumed before the candidate endpoint list and relationship review
-- When `docs/domain/` exists, never rename or invent domain concepts — map what's there
-- Every bounded context gets its OWN emitted `docs/api/<context>/openapi.yaml` — a README alone is not a deliverable. Before declaring done, verify each context folder actually contains its spec file (e.g. `ls docs/api/*/openapi.yaml`); a linked-but-missing spec is an incomplete result.
 
 ## Output
 

@@ -18,40 +18,22 @@ export interface InitOptions {
   docsRoot?: string;
 }
 
-// The scaffolded govkit.yml is the SAME canonical default the engine ships, read at
-// runtime — not a second copy embedded as a string. That keeps the regex-bearing rubric
-// out of a JS template literal (no backslash-escaping hazard) and makes drift between
-// "what govkit ships" and "what init writes" structurally impossible. Resolved relative
-// to this module so it works both bundled (dist/cli.js → ../templates) and from source
-// in tests (src/commands/init.ts → ../../templates).
-function defaultSchema(): string {
-  for (const rel of ["../templates/govkit.default.yml", "../../templates/govkit.default.yml"]) {
+// Every scaffolded file with real content is the SAME canonical default the engine ships
+// (packages/govkit/templates/*), read at runtime — not a second copy embedded as a string.
+// That keeps regex-bearing / escape-heavy content out of JS template literals and makes
+// drift between "what govkit ships" and "what init writes" structurally impossible
+// (scripts/check-sync.mjs additionally pins these defaults byte-identical to template/).
+// Resolved relative to this module so it works both bundled (dist/cli.js → ../templates)
+// and from source in tests (src/commands/init.ts → ../../templates).
+function bundledDefault(name: string): string {
+  for (const rel of [`../templates/${name}`, `../../templates/${name}`]) {
     const path = fileURLToPath(new URL(rel, import.meta.url));
     if (existsSync(path)) return readFileSync(path, "utf8");
   }
-  throw new Error("govkit init: bundled default schema (templates/govkit.default.yml) not found");
+  throw new Error(`govkit init: bundled default (templates/${name}) not found`);
 }
 
-// Consumer hook: invoke govkit via npx so no local build/install is needed. exit-0
-// + deny is the verified block protocol; timeout is generous for a cold npx fetch.
-const SETTINGS_JSON = `{
-  "$schema": "https://json.schemastore.org/claude-code-settings.json",
-  "hooks": {
-    "PreToolUse": [
-      {
-        "matcher": "Write|Edit",
-        "hooks": [
-          {
-            "type": "command",
-            "command": "npx --yes govkit audit-write --root \\"\${CLAUDE_PROJECT_DIR}\\"",
-            "timeout": 30
-          }
-        ]
-      }
-    ]
-  }
-}
-`;
+const defaultSchema = (): string => bundledDefault("govkit.default.yml");
 
 const indexStub = (title: string): string =>
   `# ${title}\n\n| ID | Title | Status | Owner | Date |\n|---|---|---|---|---|\n`;
@@ -75,7 +57,15 @@ function scaffold(docsRoot: string): Array<{ path: string; content: string }> {
   const prefix = docsRoot === "." ? "" : `${docsRoot}/`;
   return [
     { path: "govkit.yml", content: withDocsRoot(defaultSchema(), docsRoot) },
-    { path: ".claude/settings.json", content: SETTINGS_JSON },
+    // The decided consumer experience (RFC-0013 addendum "working-by-default"): three hooks —
+    // SessionStart freshness advisory (needs the scaffolded hooks file below), PreToolUse
+    // audit-write, and a Stop check. The npx-based hooks need no local build/install; exit-0
+    // + deny is the verified block protocol, and timeouts are generous for a cold npx fetch.
+    { path: ".claude/settings.json", content: bundledDefault("settings.default.json") },
+    {
+      path: ".claude/hooks/session-freshness.mjs",
+      content: bundledDefault("session-freshness.default.mjs"),
+    },
     { path: `${prefix}docs/product/INDEX.md`, content: indexStub("PRD Index") },
     { path: `${prefix}docs/rfc/INDEX.md`, content: indexStub("RFC Index") },
     { path: `${prefix}docs/adr/INDEX.md`, content: indexStub("ADR Index") },

@@ -48,6 +48,38 @@
   - <Risk mitigations>
 ```
 
+## Compressed Output Skeleton
+
+The final printed goal uses this compressed shape (apply the Compression Guide below):
+
+```
+/goal <Type>: <Title>
+
+  Context:
+  - <path> (<why — 3-5 words>)
+
+  Method:
+  - <tool — when to use>
+
+  Constraints:
+  - <HARD rule — NO/ONLY/MUST>
+
+  Operating rules:
+  - <Process rule — one line>
+
+  Done when:
+  - <Measurable criterion + how to verify>
+
+  Pause if:
+  - <Testable condition>
+```
+
+Optional sections appear only when they add info not covered above:
+
+- **Resources** (Exploration) — external endpoints, credentials, resource names in compact table
+- **Output layout** (Implementation) — one-line pattern like `{env}/sessions/ + workspaces/ + summary.json`
+- **Before/after** (Refactoring) — what changes vs. what stays
+
 ## Section Reference
 
 ### Required Sections (Control Core)
@@ -84,6 +116,8 @@
 5. One-line output patterns instead of ASCII trees
 6. Drop section headers for empty optional sections
 7. Drop Safety if covered by Constraints
+8. Drop optional sections that add no information beyond what's already in Constraints or Done-when
+9. Merge "Validation: During" checks into the relevant "Done when" criterion — they must mirror each other anyway; don't duplicate
 
 ### Example: Full → Compressed
 

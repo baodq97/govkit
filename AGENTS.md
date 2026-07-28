@@ -110,7 +110,7 @@ ship as **plugin agents** (`swe-flow:implementer`, …) to be usable from the `s
 
 ## Agent constraints (cross-cutting)
 
-These are **honor-system** rules (RFC-0012), not gate-enforced. A stateless, no-git gate cannot see
+These are **honor-system** rules (RFC-0024), not gate-enforced. A stateless, no-git gate cannot see
 a status transition — a doc born at `accepted` passes `verify`+`eval` clean. The control is commit
 discipline (draft commit first, then a separate owner-authorized accept commit) + the human accept +
 the keyed reviewer. The per-write hook only *nudges* on a born-at-non-`startStatus` Write; it never

@@ -7,6 +7,36 @@ disable-model-invocation: true
 
 # Domain Connect
 
+## Hard rules
+
+- **Length budget: ≤ 90 lines per flow file.** A flow longer than that is usually two scenarios.
+  A budget caps prose, not findings: over it, cut rationale a reader can infer and anything
+  restated from an upstream artifact — never open questions, provenance, or a stated absence.
+- **Never invent a message.** A flow is only as real as the events, commands and queries that were
+  discovered or modelled. Inferring `PaymentRefunded` because a refund "must exist somewhere"
+  produces a diagram that validates a design against fiction. If the flow has a gap, the gap is an
+  open question with a name attached.
+- **Domain messages, not transport.** No HTTP verbs, no queue names, no retry policy, no
+  serialization format. The moment a flow becomes an integration design, it stops being able to
+  challenge the boundary — every coupling problem starts looking like a technology choice.
+- **Type every message.** An untyped arrow hides the difference between a broadcast fact and a
+  blocking read, which is the difference the whole step exists to surface.
+- **A temporal rule belongs in the `When` column, never only in the scenario paragraph.** If the
+  scenario says "within fifteen minutes", some message is the one that must happen within fifteen
+  minutes — name it and put the rule on that row. Stated only in prose, the rule cannot be drawn,
+  cannot be checked, and is invisible to everyone reading the diagram instead of the paragraph.
+  `ddd_check` reports this as `temporal-rule-in-prose`.
+- **A query states what comes back.** `Contents` for a query reads `sent fields → returned fields`.
+  Without the `→` half, the row records a question nobody answered.
+- **Propose boundary changes; never apply them.** `3-decompose` owns the model — it holds the
+  reconciliation rules, the stable ids, the human edits and the extraction seam. A boundary quietly
+  redrawn here is a change nobody reviewed.
+- **Findings carry evidence.** Message numbers, not adjectives. "Feels coupled" is not a finding;
+  "messages 2–5 are synchronous queries crossing three contexts before the planner gets an answer"
+  is.
+- A flow that turns out clean is a real result. Say so — a use case that crosses four contexts with
+  four events and no queries is evidence the split is working, and it is worth recording as such.
+
 > *"It is necessary to challenge the initial design by applying concrete use-cases to uncover
 > hidden complexity."* — ddd-crew, Connect
 
@@ -148,120 +178,8 @@ flows and collects every finding in one place. `status: draft`, `owner: TBD`.
 
 ## Output shape
 
-````markdown
----
-id: DOMAIN-FLOW-0001
-title: <Use case> — domain message flow
-status: draft
-owner: TBD
-date: <date>
-contexts: [Allocation, Logistics, Billing]
----
-
-## Scenario
-<!-- one paragraph, in business language: who wants what, and what "done" means -->
-
-## Flow
-
-```mermaid
-sequenceDiagram
-  actor Planner as Depot Planner
-  participant Logistics
-  participant Allocation
-  Planner->>Logistics: 1. ScheduleTransfer [cmd] {unitId, fromDepot, toDepot, window}
-  Logistics->>Allocation: 2. IsUnitAvailable? [qry] {unitId, window}
-```
-
-| # | From | Message | Type | Contents | To | When |
-|---|---|---|---|---|---|---|
-| 1 | Depot Planner | `ScheduleTransfer` | command | unitId, fromDepot, toDepot, window | Logistics | — |
-| 2 | Logistics | `IsUnitAvailable?` | query | unitId, window **→** available, freeFrom | Allocation | — |
-| 3 | Logistics | `TransferLapsed` | event | unitId | Allocation | **after** 30 min of no confirmation |
-
-**A query carries its response in the same row, after a `→`.** The notation draws a query and its
-answer as one unit precisely because the sender is *blocked* in between — splitting them into two
-rows doubles the diagram and hides the only interesting thing about a query. Everything left of the
-arrow is what the sender sends; everything right of it is what it waits for. A query with nothing
-after the `→` has not been thought through: someone has to say what comes back, because the shape of
-the answer is what the caller is coupled to.
-
-**The `When` column is for time-driven messages only**, and it exists because the semantics decide
-the design: **within** 5 minutes, **after** 5 minutes and **every** 5 minutes are three different
-systems. Leave it `—` for a message that follows immediately from the one above. Put the trigger
-here rather than in the scenario prose — a temporal rule buried in a paragraph is invisible on the
-diagram, and it is usually the rule that produces the failure path nobody drew.
-
-## Findings
-| # | Smell | Evidence (messages) | What it suggests | Proposed change |
-|---|---|---|---|---|
-
-## Open questions
-<!-- one line each: the question, and who could answer it -->
-````
-
-The `README.md` index carries the use-case list, why each was chosen, and the consolidated findings
-table with a status column (`proposed` / `accepted` / `declined`) so a later reader can tell which
-findings were acted on.
-
-## Hard rules
-
-- **Length budget: ≤ 90 lines per flow file.** A flow longer than that is usually two scenarios.
-  A budget caps prose, not findings: over it, cut rationale a reader can infer and anything
-  restated from an upstream artifact — never open questions, provenance, or a stated absence.
-- **Never invent a message.** A flow is only as real as the events, commands and queries that were
-  discovered or modelled. Inferring `PaymentRefunded` because a refund "must exist somewhere"
-  produces a diagram that validates a design against fiction. If the flow has a gap, the gap is an
-  open question with a name attached.
-- **Domain messages, not transport.** No HTTP verbs, no queue names, no retry policy, no
-  serialization format. The moment a flow becomes an integration design, it stops being able to
-  challenge the boundary — every coupling problem starts looking like a technology choice.
-- **Type every message.** An untyped arrow hides the difference between a broadcast fact and a
-  blocking read, which is the difference the whole step exists to surface.
-- **A temporal rule belongs in the `When` column, never only in the scenario paragraph.** If the
-  scenario says "within fifteen minutes", some message is the one that must happen within fifteen
-  minutes — name it and put the rule on that row. Stated only in prose, the rule cannot be drawn,
-  cannot be checked, and is invisible to everyone reading the diagram instead of the paragraph.
-  `ddd_check` reports this as `temporal-rule-in-prose`.
-- **A query states what comes back.** `Contents` for a query reads `sent fields → returned fields`.
-  Without the `→` half, the row records a question nobody answered.
-- **Propose boundary changes; never apply them.** `3-decompose` owns the model — it holds the
-  reconciliation rules, the stable ids, the human edits and the extraction seam. A boundary quietly
-  redrawn here is a change nobody reviewed.
-- **Findings carry evidence.** Message numbers, not adjectives. "Feels coupled" is not a finding;
-  "messages 2–5 are synchronous queries crossing three contexts before the planner gets an answer"
-  is.
-- A flow that turns out clean is a real result. Say so — a use case that crosses four contexts with
-  four events and no queries is evidence the split is working, and it is worth recording as such.
+The exact output contract is in `references/output-template.md` — read it before emitting.
 
 ## Worked example
 
-**Input:** the equipment-rental model — contexts `Allocation`, `Logistics`, `Billing`,
-`Notifications` — plus a discovery hotspot about units being double-booked across depots.
-
-**Use case chosen:** *"Priority depot transfer, booked and billed"* — the paid add-on, and the
-scenario touching the most contexts.
-
-| # | From | Message | Type | To |
-|---|---|---|---|---|
-| 1 | Depot Planner | `ScheduleTransfer` | command | Logistics |
-| 2 | Logistics | `IsUnitAvailable?` | query | Allocation |
-| 3 | Allocation | *(response)* | query | Logistics |
-| 4 | Logistics | `ReserveUnit` | command | Allocation |
-| 5 | Allocation | `EquipmentAllocated` | event | — |
-| 6 | Billing | `TransferFeeCharged` | event | — |
-
-**Findings the flow forced out:**
-
-| Smell | Evidence | What it suggests |
-|---|---|---|
-| Synchronous query chain | 2–4: Logistics asks, then commands, on the same data | check-then-act across a boundary — between 2 and 4 another planner can reserve the same unit |
-| Distributed invariant | the no-double-booking rule is enforced by Logistics' check but owned by Allocation's data | the rule belongs to **one** aggregate; Allocation should own `ReserveUnit` end-to-end and answer with success or rejection |
-
-**Proposed change handed back to `3-decompose`:** collapse the check-then-act pair into a
-single `ReserveUnit` command that Allocation either accepts or rejects, and record the invariant as
-Allocation's. This is the same double-booking hotspot discovery surfaced — the flow is what turned
-it from a worry into a located defect with two message numbers on it.
-
-Note what the example does **not** do: it does not move `Billing` into `Logistics` because the two
-appear adjacent, and it does not silently edit `docs/domain/allocation/model.yaml`. It writes the
-finding, names the change, and leaves the model to the skill that owns it.
+A full worked run is in `references/worked-example.md` — read it when the shape of the output is unclear.

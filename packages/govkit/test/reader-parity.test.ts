@@ -6,12 +6,12 @@
 //    from util.ts — is 10 modules plus util.ts itself, and they do NOT all owe the same duty:
 //
 //      module              vocabulary                        role              honours recursive?
-//      verify.ts           listMarkdown+typeDir               corpus walk       MUST — yes
+//      verify.ts           walkGovernedDocs+typeDir           corpus walk       MUST — via util
 //      citations.ts        typeDir                            corpus walk       MUST — yes
-//      eval.ts             listMarkdown+typeDir               corpus walk       MUST — yes
-//      report.ts           listMarkdown+typeDir               corpus walk       MUST — yes
-//      adopt.ts            listMarkdown+typeDir               corpus walk       MUST — yes
-//      doctor.ts           listMarkdown+typeDir               corpus walk       MUST — yes
+//      eval.ts             walkGovernedDocs                   corpus walk       MUST — via util
+//      report.ts           walkGovernedDocs                   corpus walk       MUST — via util
+//      adopt.ts            walkGovernedDocs                   corpus walk       MUST — via util
+//      doctor.ts           walkGovernedDocs+typeDir           corpus walk       MUST — via util
 //      audit-write.ts      governedTypeOf                     single path       MUST — yes (was NO)
 //      util.ts             (defines all of them)              the generator     MUST — yes
 //      drift.ts            scanGoverned                       inherits the walk MUST — via util
@@ -20,8 +20,11 @@
 //      journal.ts          isInside                           root confinement  MUST NOT — n/a
 //
 //    So the real denominator is EIGHT resolution sites, not five: seven that resolve a type dir
-//    themselves plus util.ts's own shared scan, which three more commands inherit. `citations.ts`
-//    is the seventh and the only one that does NOT walk with `listMarkdown` — the citation pass
+//    themselves plus util.ts's own shared scan, which three more commands inherit. The five
+//    file-by-file corpus walkers (verify, eval, report, adopt, doctor) now route through ONE
+//    generator, `walkGovernedDocs` — each keeps its own missing/malformed front-matter POLICY
+//    in its visitor, but none of them can walk a different corpus anymore. `citations.ts`
+//    is the seventh and the only one that does NOT walk with the shared walk — the citation pass
 //    reads the governed TREE (`.md` plus a design tree's `model.yaml`/`.yml` sidecars), so it
 //    mirrors the membership rule instead of importing the walk, and that mirroring is exactly the
 //    kind of divergence this census exists to keep honest: it is asserted below on `recursive`
@@ -267,27 +270,33 @@ describe("the census — surface N+1 cannot join the seam without joining this t
     "listMarkdown",
     "scanGoverned",
     "typeDir",
+    "walkGovernedDocs",
   ] as const;
 
   /** Every module importing the vocabulary, by src-relative path. `util.ts` is absent by
    *  construction — it DEFINES the vocabulary, so it imports none of it. */
   const CENSUS: Readonly<Record<string, { symbols: string[]; role: Role }>> = {
     "citations.ts": { symbols: ["typeDir"], role: "resolves-governed-paths" },
-    "commands/adopt.ts": { symbols: ["listMarkdown", "typeDir"], role: "resolves-governed-paths" },
+    "commands/adopt.ts": { symbols: ["walkGovernedDocs"], role: "resolves-governed-paths" },
     "commands/audit-write.ts": { symbols: ["governedTypeOf"], role: "resolves-governed-paths" },
-    "commands/doctor.ts": { symbols: ["listMarkdown", "typeDir"], role: "resolves-governed-paths" },
+    // doctor and verify keep `typeDir` beside the shared walk: doctor names each type's dir in
+    // its report (and scans for ungoverned siblings), verify locates each type's INDEX.md.
+    "commands/doctor.ts": {
+      symbols: ["typeDir", "walkGovernedDocs"],
+      role: "resolves-governed-paths",
+    },
     "commands/drift.ts": { symbols: ["scanGoverned"], role: "resolves-governed-paths" },
-    "commands/eval.ts": { symbols: ["listMarkdown", "typeDir"], role: "resolves-governed-paths" },
+    "commands/eval.ts": { symbols: ["walkGovernedDocs"], role: "resolves-governed-paths" },
     "commands/ledger.ts": {
       symbols: ["collectGovernedIds", "isInside"],
       role: "resolves-governed-paths",
     },
-    "commands/report.ts": { symbols: ["listMarkdown", "typeDir"], role: "resolves-governed-paths" },
+    "commands/report.ts": { symbols: ["walkGovernedDocs"], role: "resolves-governed-paths" },
     "commands/stale.ts": { symbols: ["scanGoverned"], role: "resolves-governed-paths" },
     // verify builds its id set from the docs its own walk already parsed — importing
     // `collectGovernedIds` again would mean paying a second full corpus walk for the same ids.
     "commands/verify.ts": {
-      symbols: ["listMarkdown", "typeDir"],
+      symbols: ["typeDir", "walkGovernedDocs"],
       role: "resolves-governed-paths",
     },
     "journal.ts": { symbols: ["isInside"], role: "confines-a-configured-path" },
@@ -345,8 +354,10 @@ describe("the census — surface N+1 cannot join the seam without joining this t
     ).length;
     expect(resolving).toBe(10);
     // Three of those ten (drift, stale, ledger) resolve nothing themselves — they consume
-    // util.ts's shared scan, so they cannot drift from it. Seven resolve a type dir directly, and
-    // util.ts's own scan is the eighth site.
+    // util.ts's shared scan, so they cannot drift from it. The other seven still declare a
+    // corpus surface of their own — five walk file-by-file through the shared walkGovernedDocs
+    // generator, citations mirrors the membership rule, audit-write asks the single-path dual —
+    // and util.ts's own scan is the eighth site.
     const inherits = ["commands/drift.ts", "commands/stale.ts", "commands/ledger.ts"];
     expect(resolving - inherits.length + 1).toBe(8);
     // And exactly one module confines a configured path without resolving a governed one — it

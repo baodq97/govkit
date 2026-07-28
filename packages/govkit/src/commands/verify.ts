@@ -14,16 +14,16 @@ import {
   type WaiverSummary,
   waiverCovers,
 } from "../config";
-import { isParseError, parseFrontMatter } from "../frontmatter";
+import { isParseError } from "../frontmatter";
 import {
   effectiveRequired,
   headingLines,
-  listMarkdown,
   matches,
   str,
   stripNonProse,
   toPathspec,
   typeDir,
+  walkGovernedDocs,
 } from "../util";
 
 // The canonical kind list (and these two types) live in config.ts so loadConfig can
@@ -610,7 +610,7 @@ function scopeToChanged(
 // graded quality layer that runs ON TOP of a passing gate.
 export function runVerify(opts: VerifyOptions): VerifyResult {
   const config = opts.config ?? loadConfig(opts.root);
-  const { ignore, base, types, root: docsRoot = "." } = config.docs;
+  const { base, types, root: docsRoot = "." } = config.docs;
   const violations: Finding[] = [];
   const allDocs: Doc[] = [];
   // Every file scanned, parseable or not, with its type. `allDocs` EXCLUDES docs that fail
@@ -619,68 +619,82 @@ export function runVerify(opts: VerifyOptions): VerifyResult {
   const scannedFiles: { file: string; type: string }[] = [];
   let checked = 0;
 
-  for (const [typeName, def] of Object.entries(types)) {
-    // RFC-0023 (G1): a type may drop base keys it has no lifecycle for (e.g. a status-less
-    // runbook). Effective required = (base.required − excludeBase) ∪ def.required.
-    const required = effectiveRequired(base, def);
-    const typeDocs: Doc[] = [];
-    const dir = typeDir(opts.root, docsRoot, def.dir);
+  // The per-doc findings are bucketed per TYPE during the shared walk, then flattened below in
+  // type order with each type's INDEX check after its own docs — the exact report order the
+  // hand-written per-type loop produced, kept stable so no consumer sees a reshuffled report.
+  interface TypeBucket {
+    /** RFC-0023 (G1): a type may drop base keys it has no lifecycle for (e.g. a status-less
+     *  runbook). Effective required = (base.required − excludeBase) ∪ def.required. */
+    required: string[];
+    docs: Doc[];
+    findings: Finding[];
+  }
+  const byType = new Map<string, TypeBucket>();
 
-    // `def.recursive` (default false) is the type's layout switch — a named design tree is
-    // governed to its leaves, a flat numbered corpus scans exactly as before. `eval` and the
-    // shared id collector read the same flag, so no reader governs a different corpus.
-    for (const file of listMarkdown(dir, ignore, def.recursive)) {
-      checked++;
-      scannedFiles.push({ file, type: typeName });
-      const fm = parseFrontMatter(readFileSync(file, "utf8"));
-      if (!fm) {
-        violations.push({
-          file,
-          type: typeName,
-          kind: "frontmatter",
-          problems: ["missing YAML front-matter (expected a leading `---` block)"],
-        });
-        continue;
-      }
-      // A block that is present but unparseable (US-0002): report the parser's message as
-      // one normal violation and keep scanning the remaining docs — never crash the run.
-      if (isParseError(fm)) {
-        violations.push({
-          file,
-          type: typeName,
-          kind: "frontmatter",
-          problems: [`invalid YAML front-matter: ${fm.error} (line/column within the block)`],
-        });
-        continue;
-      }
-      const doc: Doc = { file, type: typeName, data: fm.data, body: fm.body };
-      typeDocs.push(doc);
-      allDocs.push(doc);
-
-      const fmProblems = checkFrontMatter(fm.data, required);
-      if (fmProblems.length > 0) {
-        violations.push({ file, type: typeName, kind: "frontmatter", problems: fmProblems });
-      }
-      const statusProblems = checkStatus(fm.data, def);
-      if (statusProblems.length > 0) {
-        violations.push({ file, type: typeName, kind: "status", problems: statusProblems });
-      }
-      const idProblems = checkIdConvention(file, fm.data, def);
-      if (idProblems.length > 0) {
-        violations.push({ file, type: typeName, kind: "id", problems: idProblems });
-      }
-      const placeholderProblems = checkPlaceholder(fm.data, required);
-      if (placeholderProblems.length > 0) {
-        violations.push({
-          file,
-          type: typeName,
-          kind: "placeholder",
-          problems: placeholderProblems,
-        });
-      }
+  // The shared corpus walk (util.walkGovernedDocs) owns WHICH files this gate checks —
+  // `def.recursive` (default false) is the type's layout switch, and every other reader walks
+  // through the same generator, so no reader governs a different corpus.
+  walkGovernedDocs(opts.root, config, ({ file, typeName, def, fm }) => {
+    let bucket = byType.get(typeName);
+    if (!bucket) {
+      bucket = { required: effectiveRequired(base, def), docs: [], findings: [] };
+      byType.set(typeName, bucket);
     }
+    checked++;
+    scannedFiles.push({ file, type: typeName });
+    if (!fm) {
+      bucket.findings.push({
+        file,
+        type: typeName,
+        kind: "frontmatter",
+        problems: ["missing YAML front-matter (expected a leading `---` block)"],
+      });
+      return;
+    }
+    // A block that is present but unparseable (US-0002): report the parser's message as
+    // one normal violation and keep scanning the remaining docs — never crash the run.
+    if (isParseError(fm)) {
+      bucket.findings.push({
+        file,
+        type: typeName,
+        kind: "frontmatter",
+        problems: [`invalid YAML front-matter: ${fm.error} (line/column within the block)`],
+      });
+      return;
+    }
+    const doc: Doc = { file, type: typeName, data: fm.data, body: fm.body };
+    bucket.docs.push(doc);
+    allDocs.push(doc);
 
-    violations.push(...checkIndex(dir, typeName, typeDocs, def));
+    const fmProblems = checkFrontMatter(fm.data, bucket.required);
+    if (fmProblems.length > 0) {
+      bucket.findings.push({ file, type: typeName, kind: "frontmatter", problems: fmProblems });
+    }
+    const statusProblems = checkStatus(fm.data, def);
+    if (statusProblems.length > 0) {
+      bucket.findings.push({ file, type: typeName, kind: "status", problems: statusProblems });
+    }
+    const idProblems = checkIdConvention(file, fm.data, def);
+    if (idProblems.length > 0) {
+      bucket.findings.push({ file, type: typeName, kind: "id", problems: idProblems });
+    }
+    const placeholderProblems = checkPlaceholder(fm.data, bucket.required);
+    if (placeholderProblems.length > 0) {
+      bucket.findings.push({
+        file,
+        type: typeName,
+        kind: "placeholder",
+        problems: placeholderProblems,
+      });
+    }
+  });
+
+  for (const [typeName, def] of Object.entries(types)) {
+    const bucket = byType.get(typeName);
+    if (bucket) violations.push(...bucket.findings);
+    violations.push(
+      ...checkIndex(typeDir(opts.root, docsRoot, def.dir), typeName, bucket?.docs ?? [], def),
+    );
   }
 
   violations.push(...checkDuplicateIds(allDocs));

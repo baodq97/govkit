@@ -128,6 +128,16 @@ function runCli() {
     [".claude/workflows/sdlc.js", "template/.claude/workflows/sdlc.js"],
     [".claude/hooks/session-freshness.mjs", "template/.claude/hooks/session-freshness.mjs"],
     [".claude/workflows/gate-loop.js", "template/.claude/workflows/gate-loop.js"],
+    // ONE source of truth for what a scaffolded consumer gets: `npx govkit init` reads the
+    // packages/govkit/templates/*.default.* files at runtime, and template/ ships the same
+    // bytes for copy-the-directory adoption. session-freshness is a three-way mirror (root
+    // hook ↔ template hook above, plus the bundled default here) — all copies byte-identical.
+    ["packages/govkit/templates/govkit.default.yml", "template/govkit.yml"],
+    ["packages/govkit/templates/settings.default.json", "template/.claude/settings.json"],
+    [
+      "packages/govkit/templates/session-freshness.default.mjs",
+      "template/.claude/hooks/session-freshness.mjs",
+    ],
   ];
 
   for (const [rootFile, templateFile] of mirrorPairs) {

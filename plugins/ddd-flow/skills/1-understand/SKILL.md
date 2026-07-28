@@ -7,6 +7,26 @@ disable-model-invocation: true
 
 # Domain Understand
 
+## Hard rules
+
+- **Number the open questions `Q1`, `Q2`, … and never renumber them.** Every later step cites
+  them — a context map saying "classification rests on Q10" is how a reader finds out the label
+  was argued, not sourced. An unnumbered list is unciteable, so the traceability disappears
+  even though the words are still on the page.
+- **Length budget: `business-model.md` ≤ 150 lines.** A budget caps prose, not findings: over it,
+  cut rationale a reader can infer and anything restated from an upstream artifact — never open
+  questions, provenance, or a stated absence.
+- **Never invent a business model.** If nobody said what the revenue stream is, the block stays
+  empty and becomes an open question. A plausible-sounding canvas is worse than a sparse one,
+  because the next three skills will build on it without knowing it was fiction.
+- **Record provenance per block** — interview (who, when) or document (which file). Six months
+  later, nobody can tell a sourced claim from a generated one unless you wrote it down.
+- **`unknown` is a valid answer** for evolution stage, differentiation and any horizon. Forcing a
+  value here is how a commodity gets classified as core.
+- **Do not classify contexts.** That is `3-decompose`'s job; this skill supplies the inputs.
+  Naming bounded contexts here pre-empts a decision that needs the discovery step first.
+- Fresh docs start `status: draft`, `owner: TBD`. Setting status is a human act.
+
 > *"Every decision we take regarding the architecture, the code, or the organisation has business
 > and user consequences."* — ddd-crew, Understand
 
@@ -119,86 +139,8 @@ to be in the room to answer them.
 
 ## Output shape
 
-```markdown
----
-id: DOMAIN-BM-0001
-title: <Organisation> — business model & user needs
-status: draft
-owner: TBD
-date: <date>
-mode: interview | discover | update
----
-
-## Sources            <!-- DISCOVER mode: what was read, so nothing looks self-derived -->
-## Who was in the room <!-- and who was missing; proxies named as proxies -->
-
-## Business Model Canvas
-| Block | Content | Source |
-|---|---|---|
-| Customer segments | … | interview 2026-07-27 / README.md |
-| Value propositions | … | … |
-| Channels · Customer relationships · Revenue streams | … | … |
-| Key activities · Key resources · Key partners · Cost structure | … | … |
-
-## User Story Map
-<!-- backbone across the top, activities beneath, pain points marked -->
-
-## Goals
-| Horizon | Goal | Source |
-|---|---|---|
-| Short (this quarter) | … | … |
-| Medium (this year) | … | … |
-| Long (1-3 years) | … | … |
-
-## Capability classification inputs
-| Capability | business_role | evolution_stage | differentiation | Source |
-|---|---|---|---|---|
-
-## Open questions
-<!-- one line each: the question, and who could answer it -->
-```
-
-## Hard rules
-
-- **Number the open questions `Q1`, `Q2`, … and never renumber them.** Every later step cites
-  them — a context map saying "classification rests on Q10" is how a reader finds out the label
-  was argued, not sourced. An unnumbered list is unciteable, so the traceability disappears
-  even though the words are still on the page.
-- **Length budget: `business-model.md` ≤ 150 lines.** A budget caps prose, not findings: over it,
-  cut rationale a reader can infer and anything restated from an upstream artifact — never open
-  questions, provenance, or a stated absence.
-- **Never invent a business model.** If nobody said what the revenue stream is, the block stays
-  empty and becomes an open question. A plausible-sounding canvas is worse than a sparse one,
-  because the next three skills will build on it without knowing it was fiction.
-- **Record provenance per block** — interview (who, when) or document (which file). Six months
-  later, nobody can tell a sourced claim from a generated one unless you wrote it down.
-- **`unknown` is a valid answer** for evolution stage, differentiation and any horizon. Forcing a
-  value here is how a commodity gets classified as core.
-- **Do not classify contexts.** That is `3-decompose`'s job; this skill supplies the inputs.
-  Naming bounded contexts here pre-empts a decision that needs the discovery step first.
-- Fresh docs start `status: draft`, `owner: TBD`. Setting status is a human act.
+The exact output contract is in `references/output-template.md` — read it before emitting.
 
 ## Worked example
 
-**Input (DISCOVER mode):** a repo with a README describing an equipment-rental platform, plus a
-pricing page showing per-day rental fees and a paid "priority depot transfer" add-on.
-
-**Sourced:** revenue streams (rental fees + transfer add-on, from pricing), customer segments
-(contractors, from README).
-
-**Empty → open questions:** cost structure, key partners, long-term goals — nothing in the repo
-says. Recorded as: *"Cost structure — unknown. Would need whoever owns the P&L."*
-
-**Classification inputs it produced:**
-
-| Capability | business_role | evolution_stage | differentiation |
-|---|---|---|---|
-| Depot transfer scheduling | revenue-generator | custom-built | yes — the add-on people pay for |
-| Invoicing | compliance-enforcer | commodity | no |
-
-That table is what stops the next skill from modelling Invoicing as richly as the thing customers
-actually pay extra for.
-
-Note what the example does **not** do: it doesn't assert a customer segment the README never
-mentions, and it doesn't guess the cost structure from the pricing page. Two blocks stay empty and
-say who could fill them.
+A full worked run is in `references/worked-example.md` — read it when the shape of the output is unclear.

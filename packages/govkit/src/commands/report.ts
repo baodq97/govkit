@@ -1,7 +1,6 @@
-import { readFileSync } from "node:fs";
 import { type GovkitConfig, loadConfig } from "../config";
-import { isParseError, parseFrontMatter } from "../frontmatter";
-import { listMarkdown, str, typeDir } from "../util";
+import { isParseError } from "../frontmatter";
+import { str, walkGovernedDocs } from "../util";
 
 // The cleanup/lifecycle report (RFC-0008, advisory half). It answers the user's "which docs
 // are done / outdated / need cleanup" by SURFACING the lifecycle — a per-type status histogram
@@ -73,33 +72,33 @@ export function renderReportPrBody(result: ReportResult): string {
 
 export function runReport(opts: ReportOptions): ReportResult {
   const config = opts.config ?? loadConfig(opts.root);
-  const { ignore, types, root: docsRoot = "." } = config.docs;
+  const { types } = config.docs;
   const summaries: ReportTypeSummary[] = [];
   let total = 0;
 
+  // The shared corpus walk (util.walkGovernedDocs), for the same reason verify, eval and the
+  // shared id collector route through it: a lifecycle view that walks a NARROWER corpus than
+  // the gate reports "1 governed doc" for a tree the gate is checking two of — the nested doc
+  // is gated and graded yet invisible in its own lifecycle, which is the
+  // "looks-governed-but-isn't" leak stated at util.ts typeDir.
+  const statusByType = new Map<string, Map<string, string[]>>();
+  walkGovernedDocs(opts.root, config, ({ file, typeName, fm }) => {
+    // Unparseable docs are verify's problem to report; here they simply have no lifecycle to
+    // show, so they are excluded from the histogram (counted by verify, not double-counted).
+    if (!fm || isParseError(fm)) return;
+    total++;
+    const byStatus = statusByType.get(typeName) ?? new Map<string, string[]>();
+    statusByType.set(typeName, byStatus);
+    const status = str(fm.data.status) || NO_STATUS;
+    const id = str(fm.data.id) || `(${file})`;
+    const ids = byStatus.get(status) ?? [];
+    ids.push(id);
+    byStatus.set(status, ids);
+  });
+
   for (const [typeName, def] of Object.entries(types)) {
     const terminal = new Set(def.terminalStatuses ?? []);
-    const byStatus = new Map<string, string[]>();
-    let typeTotal = 0;
-
-    // The type's `recursive` layout switch, passed here for the same reason verify, eval and the
-    // shared id collector pass it (verify.ts, eval.ts, util.ts scanParsedDocs): a lifecycle view
-    // that walks a NARROWER corpus than the gate reports "1 governed doc" for a tree the gate is
-    // checking two of — the nested doc is gated and graded yet invisible in its own lifecycle,
-    // which is the "looks-governed-but-isn't" leak stated at util.ts typeDir.
-    for (const file of listMarkdown(typeDir(opts.root, docsRoot, def.dir), ignore, def.recursive)) {
-      const fm = parseFrontMatter(readFileSync(file, "utf8"));
-      // Unparseable docs are verify's problem to report; here they simply have no lifecycle to
-      // show, so they are excluded from the histogram (counted by verify, not double-counted).
-      if (!fm || isParseError(fm)) continue;
-      typeTotal++;
-      total++;
-      const status = str(fm.data.status) || NO_STATUS;
-      const id = str(fm.data.id) || `(${file})`;
-      const ids = byStatus.get(status) ?? [];
-      ids.push(id);
-      byStatus.set(status, ids);
-    }
+    const byStatus = statusByType.get(typeName) ?? new Map<string, string[]>();
 
     const buckets: ReportStatusBucket[] = [...byStatus.entries()]
       .map(([status, ids]) => ({
@@ -112,7 +111,7 @@ export function runReport(opts: ReportOptions): ReportResult {
 
     summaries.push({
       type: typeName,
-      total: typeTotal,
+      total: buckets.reduce((sum, b) => sum + b.count, 0),
       hasTerminal: terminal.size > 0,
       buckets,
     });

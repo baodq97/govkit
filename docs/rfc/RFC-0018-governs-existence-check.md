@@ -4,7 +4,7 @@ title: Governs-existence check — a ghost pathspec is a broken declaration, gat
 status: implemented
 owner: baodq97
 date: 2026-07-08
-reconciled: sha256:27d646ef780f623d
+reconciled: sha256:995a017932e37dbc
 governs:
   - packages/govkit/src/commands/drift.ts
 ---
@@ -88,6 +88,15 @@ per-spec `gitMatchCount` pass over every governed doc ahead of the claim check, 
 field on the violation entry, unackable reporting in `--ack` (ack-all surfaces non-target
 ghost docs), and e2e tests pinning the ghost-among-live case, the governs-only case, and the
 ack-all CANNOT case.
+
+**Addendum (2026-07-29, spawn batching):** the existence check now runs batch-first — one
+`git ls-files` spawn per doc over all its governs, falling back to the original per-pathspec
+probe only when the batch reports fewer matches than pathspecs (74 → 30 spawns on this repo;
+every fixture scenario — ghost-among-live, all-ghost, unevaluable magic, overlap — probes and
+classifies identically). One named boundary: a ghost literal hidden behind a SIBLING glob that
+over-matches (batch count ≥ pathspec count) skips the probe and goes unreported until any of
+the doc's governed content changes. Recorded as the batching trade-off, not silently; if a
+real corpus ever hits it, the fallback trigger widens to "any literal pathspec present".
 
 ## Deviations from design
 

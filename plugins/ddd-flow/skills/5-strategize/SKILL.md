@@ -7,6 +7,30 @@ disable-model-invocation: true
 
 # Domain Strategize
 
+## Hard rules
+
+- **Length budget: `core-domain-chart.md` ≤ 150 lines.** A budget caps prose, not findings: over
+  it, cut rationale a reader can infer and anything restated from an upstream artifact — never
+  open questions, provenance, or a stated absence.
+- **Never infer differentiation from the code.** A big model means the team spent effort there, not
+  that customers value it — that inference is exactly the bias this step exists to break. y comes
+  from business evidence or it stays `unknown`.
+- **`unknown` is a real answer.** A chart with two contexts placed and six marked unknown, plus the
+  question each needs, is more useful than eight confident dots. It tells you what conversation to
+  have next.
+- **At most one or two core contexts.** If your chart says everything is core, nothing is; the
+  differentiation axis has not been thought about. Say that plainly rather than plotting five dots
+  in the top-right corner.
+- **Don't reclassify the model here.** Disagreements with `subdomain_type` are proposed deltas for
+  `3-decompose` to merge — it owns stable ids, human edits, and the tactical right-sizing that
+  depends on the label.
+- **Record the date and the bet.** Placement expresses a belief about the future. Six months later
+  nobody can tell an assessed placement from an inherited assumption unless the assessment says what
+  it assumed and when.
+- **Complexity is not effort spent, and not headcount.** Assess what the domain *requires*, not what
+  the current implementation costs — otherwise accidental complexity gets rewarded with more
+  investment, which is how a cost sink defends itself.
+
 > *"Time and resources are limited, so understanding which parts of the domain to focus on is
 > critical to delivering optimal business impact."* — ddd-crew, Strategize
 
@@ -158,104 +182,8 @@ questions and who has to be in the room to answer them.
 
 ## Output shape
 
-````markdown
----
-id: DOMAIN-CDC-0001
-title: <Organisation> — core domain chart
-status: draft
-owner: TBD
-date: <date>
----
-
-## How this was assessed
-<!-- who was in the room; which axis each person could speak to; what stayed unknown -->
-
-## Chart
-```mermaid
-quadrantChart …
-```
-
-## Placement
-| Context | Complexity | Evidence (measured) | Adjustment (judged) | Differentiation | Source | Quadrant |
-|---|---|---|---|---|---|---|
-
-## Decisions
-| Context | Build / buy / outsource | Modelling rigour | Team type implied | Rationale |
-|---|---|---|---|---|
-
-## Investment mismatch
-| Context | Model mass | Differentiation | Mismatch |
-|---|---|---|---|
-
-## Trajectory
-| Context | Today | Expected | Trigger that confirms the move |
-|---|---|---|---|
-
-## Disagreements with the current classification
-| Context | `subdomain_type` today | Chart says | Proposed delta |
-|---|---|---|---|
-
-## Open questions
-````
-
-## Hard rules
-
-- **Length budget: `core-domain-chart.md` ≤ 150 lines.** A budget caps prose, not findings: over
-  it, cut rationale a reader can infer and anything restated from an upstream artifact — never
-  open questions, provenance, or a stated absence.
-- **Never infer differentiation from the code.** A big model means the team spent effort there, not
-  that customers value it — that inference is exactly the bias this step exists to break. y comes
-  from business evidence or it stays `unknown`.
-- **`unknown` is a real answer.** A chart with two contexts placed and six marked unknown, plus the
-  question each needs, is more useful than eight confident dots. It tells you what conversation to
-  have next.
-- **At most one or two core contexts.** If your chart says everything is core, nothing is; the
-  differentiation axis has not been thought about. Say that plainly rather than plotting five dots
-  in the top-right corner.
-- **Don't reclassify the model here.** Disagreements with `subdomain_type` are proposed deltas for
-  `3-decompose` to merge — it owns stable ids, human edits, and the tactical right-sizing that
-  depends on the label.
-- **Record the date and the bet.** Placement expresses a belief about the future. Six months later
-  nobody can tell an assessed placement from an inherited assumption unless the assessment says what
-  it assumed and when.
-- **Complexity is not effort spent, and not headcount.** Assess what the domain *requires*, not what
-  the current implementation costs — otherwise accidental complexity gets rewarded with more
-  investment, which is how a cost sink defends itself.
+The exact output contract is in `references/output-template.md` — read it before emitting.
 
 ## Worked example
 
-**Input:** the equipment-rental model — `Allocation`, `Logistics`, `Invoicing`, `Notifications` —
-plus `business-model.md` showing rental fees and a paid *priority depot transfer* add-on.
-
-**Measured (x):** Invoicing — 4 aggregates, 30 tables, 112 attributes on its densest entity.
-Allocation — 1 aggregate, 6 tables, but one hard invariant (no overlapping commitment of a physical
-unit) and a scheduling decision that today happens on a whiteboard (operational complexity, judged
-adjustment: +).
-
-**Sourced (y):** Allocation — high; the transfer add-on is the thing customers pay extra for and a
-new entrant would need the same depot network to match it. Invoicing — low; every competitor
-invoices, and nobody chose the product for it.
-
-| Context | x | y | Quadrant |
-|---|---|---|---|
-| Allocation | 0.7 | 0.9 | Core |
-| Invoicing | 0.75 | 0.2 | Cost sink |
-| Notifications | 0.15 | 0.1 | Generic |
-
-**Investment mismatch — the finding:** the richest model in the system sits in the least
-differentiating context, and the capability customers pay extra for has one aggregate. Decision:
-stop extending Invoicing's model, evaluate an off-the-shelf billing engine behind an anti-corruption
-layer, and move the deepest modelling effort to Allocation.
-
-**Disagreement with the current classification:** `docs/domain/invoicing/model.yaml` says
-`subdomain_type: supporting`, but the chart places it as a cost sink at 0.75 complexity — proposed
-delta: `generic`, with the migration note that its complexity is largely accidental.
-
-**Trajectory:** Allocation stays core for ~18 months; the trigger is a competitor announcing
-cross-depot transfer. When that lands, the next core is likely predictive utilisation — start
-watching now.
-
-Note what the example does **not** do: it does not call Allocation core because it is the most
-interesting engineering problem, and it does not leave Invoicing labelled `supporting` just because
-someone wrote that first. It also does not outsource Invoicing on the spot — it names the evaluation
-and who has to make the call.
+A full worked run is in `references/worked-example.md` — read it when the shape of the output is unclear.

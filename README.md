@@ -62,7 +62,7 @@ The gate enforces **structure**, not **provenance**. A stateless, no-git check c
 born straight at `accepted` (no draft history, no human approval) from one a human accepted — both
 pass `verify` and `eval`. So "a doc starts at `startStatus` and only a human flips it forward" is an
 **honor-system** rule, held by commit discipline + the human accept + the keyed reviewer, not by the
-gate (RFC-0012). govkit's three tiers, named honestly: **firm** (the `verify` gate — blocks),
+gate (RFC-0024). govkit's three tiers, named honestly: **firm** (the `verify` gate — blocks),
 **advisory** (`eval` score, `stale`, `report`, the per-write `remind` nudge — never blocks), and
 **honor-system** (status provenance, substance soundness — outside the engine by design).
 

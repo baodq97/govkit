@@ -7,6 +7,35 @@ disable-model-invocation: true
 
 # Domain Discover
 
+## Hard rules
+
+- **Give every hotspot a stable id `H1`, `H2`, … and never renumber them.** Hotspots are the one
+  thing every downstream artifact points back at; a boundary justified by "blocked on H1" is
+  only checkable while H1 keeps meaning the same question. Re-running this step adds ids, it
+  does not renumber the existing ones.
+- **Length budget: ≤ 120 lines per file in `discovery/`.** A budget caps prose, not findings:
+  over it, cut rationale a reader can infer and anything restated from an upstream artifact —
+  never open questions, provenance, or a stated absence.
+- **Never invent an event, rule, or actor.** Naming `TransferRequested` from "people request
+  transfers" is the job. Inventing `TransferCancelled` when nothing in the domain ever cancels is
+  fabrication, and it is undetectable downstream. If the timeline has a gap, the gap is a hotspot.
+- **Distinguish confirmed from candidate.** Every item carries whether a human confirmed it or an
+  artifact implied it. Without this, a run that merely re-read the schemas looks identical to one
+  that talked to the business — and only one of those is discovery.
+- **Distinguish as-is from to-be from could-be**, in a column of its own. What the business does
+  today, what it has decided to change, and what someone floated in the room are three different
+  claims, and a wall records them in the same handwriting. This is a second axis, not a rename of
+  the first: an element can be `confirmed` (a person said it) and `could-be` (what they confirmed is
+  that it is only an idea). Default `as-is`, change it on evidence, and make an unplaceable element
+  a hotspot rather than a guess.
+- **Attribute.** Who said it, when. Terms especially: a definition without a holder cannot be
+  challenged later.
+- **Don't draw boundaries.** Clustering events into candidate contexts is `3-decompose`'s
+  job. Doing it here collapses discovery and design into one step and loses the disagreement that
+  discovery exists to surface.
+- **Don't resolve hotspots to keep things tidy.** An open hotspot is a finding. A quietly closed
+  one is a decision nobody made.
+
 > *"This is the most crucial aspect of DDD. You cannot skip discovery. If your whole team doesn't
 > build up a good understanding of the domain, all software decisions will be misguided."*
 > — ddd-crew, Discover
@@ -127,57 +156,6 @@ ubiquitous language, the hotspots, and the attendance record. `status: draft`, `
 Then say plainly what the next step is: `3-decompose` consumes this as its step-2 input, and
 it will be as good as this discovery was.
 
-## Hard rules
-
-- **Give every hotspot a stable id `H1`, `H2`, … and never renumber them.** Hotspots are the one
-  thing every downstream artifact points back at; a boundary justified by "blocked on H1" is
-  only checkable while H1 keeps meaning the same question. Re-running this step adds ids, it
-  does not renumber the existing ones.
-- **Length budget: ≤ 120 lines per file in `discovery/`.** A budget caps prose, not findings:
-  over it, cut rationale a reader can infer and anything restated from an upstream artifact —
-  never open questions, provenance, or a stated absence.
-- **Never invent an event, rule, or actor.** Naming `TransferRequested` from "people request
-  transfers" is the job. Inventing `TransferCancelled` when nothing in the domain ever cancels is
-  fabrication, and it is undetectable downstream. If the timeline has a gap, the gap is a hotspot.
-- **Distinguish confirmed from candidate.** Every item carries whether a human confirmed it or an
-  artifact implied it. Without this, a run that merely re-read the schemas looks identical to one
-  that talked to the business — and only one of those is discovery.
-- **Distinguish as-is from to-be from could-be**, in a column of its own. What the business does
-  today, what it has decided to change, and what someone floated in the room are three different
-  claims, and a wall records them in the same handwriting. This is a second axis, not a rename of
-  the first: an element can be `confirmed` (a person said it) and `could-be` (what they confirmed is
-  that it is only an idea). Default `as-is`, change it on evidence, and make an unplaceable element
-  a hotspot rather than a guess.
-- **Attribute.** Who said it, when. Terms especially: a definition without a holder cannot be
-  challenged later.
-- **Don't draw boundaries.** Clustering events into candidate contexts is `3-decompose`'s
-  job. Doing it here collapses discovery and design into one step and loses the disagreement that
-  discovery exists to surface.
-- **Don't resolve hotspots to keep things tidy.** An open hotspot is a finding. A quietly closed
-  one is a decision nobody made.
-
 ## Worked example
 
-**Input (DISCOVER mode):** an equipment-rental repo whose only domain writing is a set of schema
-migration ADRs.
-
-**Ground pass** produced candidates from table names: `ReservationCreated`, `InvoiceIssued` —
-both marked `candidate`, sourced to ADR-0012.
-
-**Interview, one question at a time:**
-
-> *"Tell me about the last time a booking went wrong."*
-> — "A unit got double-booked across two depots. It's the thing that hurts most."
-
-That answer produced, in one exchange: a **confirmed** event (`EquipmentAllocated`), an
-**invariant** stated for the first time (*"the same physical unit can never be committed twice for
-overlapping windows, even from a different depot"*), and a **hotspot** (nobody agreed who releases
-a unit when the depot changes mid-rental).
-
-**Ubiquitous-language conflict found:** *"Transfer"* meant a physical depot-to-depot move to
-operations, and a billing line item to finance. Both recorded, with holders. That single conflict
-is worth more to the next step than the whole candidate list from the ground pass.
-
-Note what the example does **not** do: it doesn't promote the two candidate events to confirmed
-just because they came from an accepted ADR, and it doesn't settle who releases the unit — that
-stays a hotspot with a name attached.
+A full worked run is in `references/worked-example.md` — read it when the shape of the output is unclear.

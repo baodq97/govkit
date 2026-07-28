@@ -4,7 +4,7 @@ title: report --pr-body — render governance state as an idempotent fenced mark
 status: implemented
 owner: baodq97
 date: 2026-07-08
-reconciled: sha256:175220bdfb25a1a9
+reconciled: sha256:5250a9dba62345c3
 governs:
   - packages/govkit/src/commands/report.ts
 ---

@@ -1,8 +1,8 @@
-import { readFileSync, writeFileSync } from "node:fs";
+import { writeFileSync } from "node:fs";
 import { basename } from "node:path";
 import { type DocType, type GovkitConfig, loadConfig } from "../config";
-import { isParseError, parseFrontMatter } from "../frontmatter";
-import { effectiveRequired, listMarkdown, str, stripNonProse, typeDir } from "../util";
+import { isParseError } from "../frontmatter";
+import { effectiveRequired, str, stripNonProse, walkGovernedDocs } from "../util";
 
 // The sentinel for a field that could not be extracted (or was uncertain). It is an
 // ANGLE-BRACKET placeholder on purpose: `verify`'s checkPlaceholder flags `/<[^>]*>/` on
@@ -130,62 +130,62 @@ function serialize(fields: AdoptField[]): string {
 // Pure-fs/no-key/no-git: extraction is regex over file contents, same trust class as verify.
 export function runAdopt(opts: AdoptOptions): AdoptResult {
   const config = opts.config ?? loadConfig(opts.root);
-  const { ignore, base, types, root: docsRoot = "." } = config.docs;
+  const { base, types } = config.docs;
   const planned: AdoptDocPlan[] = [];
   const driftByType: Record<string, Set<string>> = {};
+  // Shared with verify + audit-write: adopt must not scaffold a key the gate exempts via
+  // `excludeBase` (it used to write a `<MISSING — fill in>` sentinel for one). Computed once
+  // per type, the first time the walk reaches it.
+  const requiredByType = new Map<string, string[]>();
 
-  for (const [typeName, def] of Object.entries(types)) {
-    // Shared with verify + audit-write: adopt must not scaffold a key the gate exempts via
-    // `excludeBase` (it used to write a `<MISSING — fill in>` sentinel for one).
-    const required = effectiveRequired(base, def);
+  // The shared corpus walk (util.walkGovernedDocs), per-type `recursive` flag included. The
+  // migrator is the one reader where a narrower walk is unrecoverable: a nested doc the gate
+  // already flags for missing front-matter is never even offered a block here, so it can never
+  // be adopted and stays red forever.
+  walkGovernedDocs(opts.root, config, ({ file, typeName, def, content, fm }) => {
+    // A malformed block already HAS a `---` block — adopt must not prepend a second one.
+    // Leave it for the verify gate to report (US-0002); adopt only scaffolds missing blocks.
+    if (isParseError(fm)) return;
 
-    // Same per-type `recursive` flag every other reader passes (verify, eval, report, the shared
-    // id collector). The migrator is the one reader where a narrower walk is unrecoverable: a
-    // nested doc the gate already flags for missing front-matter is never even offered a block
-    // here, so it can never be adopted and stays red forever.
-    for (const file of listMarkdown(typeDir(opts.root, docsRoot, def.dir), ignore, def.recursive)) {
-      const content = readFileSync(file, "utf8");
-      const fm = parseFrontMatter(content);
-
-      // A malformed block already HAS a `---` block — adopt must not prepend a second one.
-      // Leave it for the verify gate to report (US-0002); adopt only scaffolds missing blocks.
-      if (isParseError(fm)) continue;
-
-      if (fm) {
-        // Lane 2: a doc that already has a block — adopt does NOT touch it. Only collect
-        // status-vocabulary drift so the human can decide whether to widen the enum.
-        const status = str(fm.data.status);
-        if (def.statuses && def.statuses.length > 0 && status && !def.statuses.includes(status)) {
-          driftByType[typeName] ??= new Set();
-          driftByType[typeName]?.add(status);
-        }
-        continue;
+    if (fm) {
+      // Lane 2: a doc that already has a block — adopt does NOT touch it. Only collect
+      // status-vocabulary drift so the human can decide whether to widen the enum.
+      const status = str(fm.data.status);
+      if (def.statuses && def.statuses.length > 0 && status && !def.statuses.includes(status)) {
+        driftByType[typeName] ??= new Set();
+        driftByType[typeName]?.add(status);
       }
-
-      // Lane 1: no block → propose one. Trigger predicate is exactly verify's "missing YAML
-      // front-matter", so adopt targets precisely the docs verify flags — and is idempotent
-      // (after --apply the doc has a block, so the next run skips it here).
-      // Strip fenced code / comments before extraction (same as eval): a doc showing a
-      // front-matter EXAMPLE in a fence must not have that example lifted as its real metadata.
-      const prose = stripNonProse(content);
-      const fields: AdoptField[] = required.map((key) => {
-        const v = extractField(key, prose, file, def);
-        return v
-          ? { key, value: v, source: "extracted" as const }
-          : { key, value: MISSING, source: "missing" as const };
-      });
-      const block = serialize(fields);
-      planned.push({
-        file,
-        type: typeName,
-        fields,
-        block,
-        hasMissing: fields.some((f) => f.source === "missing"),
-      });
-
-      if (opts.apply) writeFileSync(file, `${block}\n${content}`, "utf8");
+      return;
     }
-  }
+
+    // Lane 1: no block → propose one. Trigger predicate is exactly verify's "missing YAML
+    // front-matter", so adopt targets precisely the docs verify flags — and is idempotent
+    // (after --apply the doc has a block, so the next run skips it here).
+    // Strip fenced code / comments before extraction (same as eval): a doc showing a
+    // front-matter EXAMPLE in a fence must not have that example lifted as its real metadata.
+    let required = requiredByType.get(typeName);
+    if (!required) {
+      required = effectiveRequired(base, def);
+      requiredByType.set(typeName, required);
+    }
+    const prose = stripNonProse(content);
+    const fields: AdoptField[] = required.map((key) => {
+      const v = extractField(key, prose, file, def);
+      return v
+        ? { key, value: v, source: "extracted" as const }
+        : { key, value: MISSING, source: "missing" as const };
+    });
+    const block = serialize(fields);
+    planned.push({
+      file,
+      type: typeName,
+      fields,
+      block,
+      hasMissing: fields.some((f) => f.source === "missing"),
+    });
+
+    if (opts.apply) writeFileSync(file, `${block}\n${content}`, "utf8");
+  });
 
   const drift: AdoptConfigDrift[] = Object.entries(driftByType).map(([type, set]) => {
     const unknown = [...set].sort();

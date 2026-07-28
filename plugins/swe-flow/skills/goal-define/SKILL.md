@@ -127,45 +127,16 @@ Suggest 2-3 based on task type:
 - Audit: "codebase structure doesn't match expected layout"
 - Refactoring: "existing tests fail before any changes made"
 
+## Reference
+
+For the full goal template with all fields, the compressed output skeleton, the optional
+sections, and the compression guide, see `references/goal-template.md`.
+
 ## Output
 
 **Budget: the final goal text MUST be under 3000 characters.** Goals are pasted into `/goal` prompts where context space is precious. A bloated goal wastes tokens on every turn the agent reads it.
 
-After all phases, assemble the goal using compressed format — no ASCII trees, no verbose bullets, no section headers for empty sections. Apply these compression rules automatically:
-
-- Single-line summaries instead of per-item annotations
-- Shorthand: `→`, `+`, `NO`, `ONLY`, `MUST` instead of prose
-- Merge "Validation: During" checks into the relevant "Done when" criterion (they must mirror each other anyway — don't duplicate)
-- Collapse multi-sentence explanations into comma-separated phrases
-- Drop optional sections that add no information beyond what's already in Constraints or Done-when
-
-```
-/goal <Type>: <Title>
-
-  Context:
-  - <path> (<why — 3-5 words>)
-
-  Method:
-  - <tool — when to use>
-
-  Constraints:
-  - <HARD rule — NO/ONLY/MUST>
-
-  Operating rules:
-  - <Process rule — one line>
-
-  Done when:
-  - <Measurable criterion + how to verify>
-
-  Pause if:
-  - <Testable condition>
-```
-
-### Optional Sections (only when they add info not covered above)
-
-- **Resources** (Exploration) — external endpoints, credentials, resource names in compact table
-- **Output layout** (Implementation) — one-line pattern like `{env}/sessions/ + workspaces/ + summary.json`
-- **Before/after** (Refactoring) — what changes vs. what stays
+After all phases, assemble the goal using the compressed format in `references/goal-template.md` — no ASCII trees, no verbose bullets, no section headers for empty sections. Apply its compression rules automatically, and include an optional section only when it adds info not covered above.
 
 ## Quality Checks
 
@@ -198,7 +169,3 @@ If you notice these in user input, flag and fix:
 | Scope too broad for single goal | → Suggest decomposition into sub-goals |
 | "We'll measure later" (no success metric) | → Owner question / `TBD` / labeled `PROPOSAL`; never accept the deferral as the answer |
 | Unsourced number in goal text | → Cite intake source, or label `[assumption]`/`PROPOSAL` on that line |
-
-## Reference
-
-For the full goal template with all fields and compression guide, see `references/goal-template.md`.

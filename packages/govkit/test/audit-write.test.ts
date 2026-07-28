@@ -176,14 +176,14 @@ describe("auditWrite — as-built nudge extension (RFC-0010)", () => {
   });
 });
 
-// RFC-0012: born-at-non-startStatus provenance nudge. A Write that CREATES a governed doc (no
+// RFC-0024: born-at-non-startStatus provenance nudge. A Write that CREATES a governed doc (no
 // file on disk yet) at a status other than its type's startStatus skipped the draft→accept
 // provenance an agent must follow (author at startStatus; a human owner flips it forward in a
 // separate accept). Non-blocking by design — provenance is honor-system, the hook sees only
 // Writes (not Edits/Bash), so this is a courtesy nudge, never a gate. It requires the type to
 // declare a startStatus, and an overwrite (file already on disk) is left alone: that is an edit
 // whose status transition a stateless hook cannot judge — verify / the human own it.
-describe("auditWrite — born-at-non-startStatus provenance nudge (RFC-0012)", () => {
+describe("auditWrite — born-at-non-startStatus provenance nudge (RFC-0024)", () => {
   // The fixture `config` declares adr.startStatus: proposed and no terminalStatuses.
   const absent = "docs/adr/ADR-0009.md"; // not on disk → a creation
   const present = "docs/adr/ADR-0001-good.md"; // on disk → an overwrite
@@ -193,7 +193,7 @@ describe("auditWrite — born-at-non-startStatus provenance nudge (RFC-0012)", (
     expect(d.block).toBe(false);
     expect(d.remind).toBeTruthy();
     expect(d.remind).toContain("proposed"); // the start status it should have begun at
-    expect(d.remind).toContain("RFC-0012");
+    expect(d.remind).toContain("RFC-0024");
   });
 
   it("does NOT nudge a new doc created at its start status", () => {

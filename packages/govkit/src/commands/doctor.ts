@@ -1,8 +1,8 @@
 import { existsSync, readdirSync, readFileSync } from "node:fs";
 import { dirname, join, relative, resolve } from "node:path";
 import { type GovkitConfig, loadConfig } from "../config";
-import { isParseError, parseFrontMatter } from "../frontmatter";
-import { listMarkdown, typeDir } from "../util";
+import { isParseError } from "../frontmatter";
+import { typeDir, walkGovernedDocs } from "../util";
 
 /**
  * The orientation command (Adoption context). Every other command answers "is this corpus
@@ -278,36 +278,30 @@ export function runDoctor(opts: DoctorOptions): DoctorResult {
   let totalDocs = 0;
   let missingFrontMatter = 0;
   let malformedFrontMatter = 0;
+  // The SAME walk verify uses (util.walkGovernedDocs), per-type `recursive` included — a doctor
+  // that counted a different corpus than the gate would be a map of a repo nobody runs.
+  const counts = new Map<string, { docs: number; missing: number; malformed: number }>();
+  walkGovernedDocs(root, config, ({ typeName, fm }) => {
+    const c = counts.get(typeName) ?? { docs: 0, missing: 0, malformed: 0 };
+    counts.set(typeName, c);
+    c.docs++;
+    // Two buckets, not one. `verify` reports both as kind `frontmatter`, but ADOPT treats them
+    // oppositely — it scaffolds a block where there is none and refuses to touch one that
+    // exists — so a recommendation that merged them would send half the cases to a no-op.
+    if (!fm) c.missing++;
+    else if (isParseError(fm)) c.malformed++;
+  });
   for (const [name, def] of Object.entries(config.docs.types)) {
-    const dir = typeDir(root, docsRoot, def.dir);
-    // The SAME walk verify uses, per-type `recursive` included — a doctor that counted a
-    // different corpus than the gate would be a map of a repo nobody runs.
-    const files = listMarkdown(dir, config.docs.ignore, def.recursive);
-    let missing = 0;
-    let malformed = 0;
-    for (const file of files) {
-      let raw: string;
-      try {
-        raw = readFileSync(file, "utf8");
-      } catch {
-        continue;
-      }
-      const fm = parseFrontMatter(raw);
-      // Two buckets, not one. `verify` reports both as kind `frontmatter`, but ADOPT treats them
-      // oppositely — it scaffolds a block where there is none and refuses to touch one that
-      // exists — so a recommendation that merged them would send half the cases to a no-op.
-      if (!fm) missing++;
-      else if (isParseError(fm)) malformed++;
-    }
-    totalDocs += files.length;
-    missingFrontMatter += missing;
-    malformedFrontMatter += malformed;
+    const c = counts.get(name) ?? { docs: 0, missing: 0, malformed: 0 };
+    totalDocs += c.docs;
+    missingFrontMatter += c.missing;
+    malformedFrontMatter += c.malformed;
     types.push({
       name,
-      dir: posix(relative(root, dir)),
-      docs: files.length,
-      missingFrontMatter: missing,
-      malformedFrontMatter: malformed,
+      dir: posix(relative(root, typeDir(root, docsRoot, def.dir))),
+      docs: c.docs,
+      missingFrontMatter: c.missing,
+      malformedFrontMatter: c.malformed,
       ...(def.startStatus ? { startStatus: def.startStatus } : {}),
       ...(def.statuses ? { statuses: def.statuses } : {}),
     });

@@ -1,4 +1,3 @@
-import { readFileSync } from "node:fs";
 import {
   classifyWaivers,
   type GovkitConfig,
@@ -9,16 +8,8 @@ import {
   type WaiverSummary,
   waiverCovers,
 } from "../config";
-import { isParseError, parseFrontMatter } from "../frontmatter";
-import {
-  headingLines,
-  listMarkdown,
-  matches,
-  str,
-  stripNonProse,
-  toPathspec,
-  typeDir,
-} from "../util";
+import { isParseError } from "../frontmatter";
+import { headingLines, matches, str, stripNonProse, toPathspec, walkGovernedDocs } from "../util";
 
 export interface RuleResult {
   id: string;
@@ -242,25 +233,21 @@ export function runEval(opts: EvalOptions): EvalResult {
     };
   }
 
-  const { ignore, types, root: docsRoot = "." } = config.docs;
   const artifacts: ArtifactScore[] = [];
-  for (const [typeName, def] of Object.entries(types)) {
+  // The shared corpus walk (util.walkGovernedDocs) — the graded corpus must be the gated
+  // corpus, or a nested doc would pass the gate and never be scored.
+  walkGovernedDocs(opts.root, config, ({ file, typeName, fm }) => {
     const rubric = rubrics[typeName];
-    if (!rubric || rubric.length === 0) continue;
-    // Same `recursive` flag verify walks with — the graded corpus must be the gated corpus,
-    // or a nested doc would pass the gate and never be scored.
-    for (const file of listMarkdown(typeDir(opts.root, docsRoot, def.dir), ignore, def.recursive)) {
-      if (opts.changed && !opts.changed.files.has(file)) continue; // RFC-0005: score only changed
-      const fm = parseFrontMatter(readFileSync(file, "utf8"));
-      if (!fm || isParseError(fm)) continue; // unparseable front-matter is the gate's job; eval grades well-formed docs
-      // Repo-relative, forward-slash: a `scope` must mean the same thing on every OS and in
-      // every clone — the same spelling verify matches against.
-      const rel = toPathspec(opts.root, file);
-      const waiverFor = (ruleId: string): Waiver | undefined =>
-        activeWaivers.find((w) => waiverCovers(w, ruleId, rel));
-      artifacts.push(scoreArtifact(file, typeName, fm.data, fm.body, rubric, threshold, waiverFor));
-    }
-  }
+    if (!rubric || rubric.length === 0) return; // no rubric for this type → nothing to grade
+    if (opts.changed && !opts.changed.files.has(file)) return; // RFC-0005: score only changed
+    if (!fm || isParseError(fm)) return; // unparseable front-matter is the gate's job; eval grades well-formed docs
+    // Repo-relative, forward-slash: a `scope` must mean the same thing on every OS and in
+    // every clone — the same spelling verify matches against.
+    const rel = toPathspec(opts.root, file);
+    const waiverFor = (ruleId: string): Waiver | undefined =>
+      activeWaivers.find((w) => waiverCovers(w, ruleId, rel));
+    artifacts.push(scoreArtifact(file, typeName, fm.data, fm.body, rubric, threshold, waiverFor));
+  });
 
   const scored = artifacts.length;
   const sum = (pick: (a: ArtifactScore) => number): number =>

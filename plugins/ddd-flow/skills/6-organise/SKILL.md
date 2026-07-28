@@ -7,6 +7,30 @@ disable-model-invocation: true
 
 # Domain Organise
 
+## Hard rules
+
+- **Length budget: `team-topology.md` ≤ 150 lines.** A budget caps prose, not findings: over it,
+  cut rationale a reader can infer and anything restated from an upstream artifact — never open
+  questions, provenance, or a stated absence.
+- **Never assign named individuals.** This produces a team *shape*; who joins which team involves
+  consent, career context and things no document knows. Naming people also guarantees the proposal
+  is read as a reorg and rejected on that basis.
+- **Never propose more teams than the organisation can staff.** A topology requiring six teams in a
+  fourteen-person company is not a plan; it is a wish. Propose what fits and state what the second
+  option would need.
+- **Collaboration mode carries an end date.** Without one it silently becomes the permanent
+  operating model, and its cost stops being visible.
+- **Don't redraw boundaries here.** If the topology cannot work with the current contexts, that is a
+  finding for `3-decompose` and `4-connect` — with the evidence attached. Organisational
+  convenience is a legitimate input to boundary design, but it goes through the skill that owns the
+  model.
+- **Teams participate in defining their own boundaries.** Write the document as a proposal to be
+  argued with, and record who has not yet been consulted. A topology imposed on teams gets the
+  compliance it deserves.
+- **Say what you do not know.** Headcount, existing team skills, on-call load and political
+  constraints usually are not in the repo. Unknowns marked as unknowns keep the proposal honest;
+  unknowns filled in with plausible guesses make it confidently wrong.
+
 > *"Organisation is not something that is done to teams, rather teams should be involved in the
 > process of defining their boundaries, interactions, and responsibilities."* — ddd-crew, Organise
 
@@ -162,109 +186,8 @@ decided by people — and by which people.
 
 ## Output shape
 
-````markdown
----
-id: DOMAIN-ORG-0001
-title: <Organisation> — team topology proposal
-status: draft
-owner: TBD
-date: <date>
----
-
-## Reality check
-<!-- engineers, existing teams, contexts; what is known vs assumed -->
-
-## Ownership
-| Context | Proposed team | Team type | Sub-domain type | Load contribution | Notes |
-|---|---|---|---|---|---|
-
-## Team cognitive load
-| Team | Contexts owned | Intrinsic (model mass) | Extrinsic | Verdict |
-|---|---|---|---|---|
-
-## Interaction modes
-| Team A | Team B | Mode | Why (flow evidence) | Ends when |
-|---|---|---|---|---|
-
-## Sociotechnical map
-```mermaid
-graph LR
-  subgraph "Team Allocation (stream-aligned)"
-    Allocation
-    Logistics
-  end
-  Allocation -->|X-as-a-Service| Billing
-```
-
-## Independent Service Heuristics
-| Candidate boundary | Yes / probably | Weakest answers |
-|---|---|---|
-
-## Findings
-| # | Finding | Evidence | Suggested move |
-|---|---|---|---|
-
-## Open decisions
-<!-- one line each: the decision, and who must make it -->
-````
-
-## Hard rules
-
-- **Length budget: `team-topology.md` ≤ 150 lines.** A budget caps prose, not findings: over it,
-  cut rationale a reader can infer and anything restated from an upstream artifact — never open
-  questions, provenance, or a stated absence.
-- **Never assign named individuals.** This produces a team *shape*; who joins which team involves
-  consent, career context and things no document knows. Naming people also guarantees the proposal
-  is read as a reorg and rejected on that basis.
-- **Never propose more teams than the organisation can staff.** A topology requiring six teams in a
-  fourteen-person company is not a plan; it is a wish. Propose what fits and state what the second
-  option would need.
-- **Collaboration mode carries an end date.** Without one it silently becomes the permanent
-  operating model, and its cost stops being visible.
-- **Don't redraw boundaries here.** If the topology cannot work with the current contexts, that is a
-  finding for `3-decompose` and `4-connect` — with the evidence attached. Organisational
-  convenience is a legitimate input to boundary design, but it goes through the skill that owns the
-  model.
-- **Teams participate in defining their own boundaries.** Write the document as a proposal to be
-  argued with, and record who has not yet been consulted. A topology imposed on teams gets the
-  compliance it deserves.
-- **Say what you do not know.** Headcount, existing team skills, on-call load and political
-  constraints usually are not in the repo. Unknowns marked as unknowns keep the proposal honest;
-  unknowns filled in with plausible guesses make it confidently wrong.
+The exact output contract is in `references/output-template.md` — read it before emitting.
 
 ## Worked example
 
-**Input:** the equipment-rental model — nine contexts, of which `Allocation` is core (0.7 / 0.9 on
-the chart) and `Invoicing` is a cost sink. Message flows show `Allocation` and `Logistics`
-exchanging six messages in the transfer scenario, including an invariant spanning both. Org reality:
-**11 engineers, 3 existing teams**.
-
-**Reality check first:** 9 contexts, 11 engineers. Three teams, each owning several contexts. The
-arithmetic rules out a team per context before anyone gets attached to the idea.
-
-| Team | Contexts | Type | Why |
-|---|---|---|---|
-| Rental Flow | Allocation, Logistics | stream-aligned | they share the no-double-booking invariant; splitting them would create a permanent collaboration edge |
-| Commercial | Invoicing, Pricing, Contracts | stream-aligned | one flow, one customer-facing outcome; Invoicing is contained, not extended |
-| Foundations | (no domain contexts) Notifications adapter, CI, environments | platform | all three teams were solving deployment separately |
-
-**Interaction modes read off the flows:** Rental Flow → Commercial is **X-as-a-Service** (one event,
-`EquipmentAllocated`, stable contract). Rental Flow ↔ Foundations is **Facilitation**, ending when
-the deployment pipeline is self-service — with a date on it.
-
-**ISH on the Rental Flow boundary:** eight *yes*. Weakest answers: cost tracking (depot costs are
-booked centrally) and data (utilisation data comes from Commercial's warehouse). Both are real
-objections and both are fixable; recorded rather than averaged away.
-
-**Findings:**
-
-| Finding | Evidence | Suggested move |
-|---|---|---|
-| `Invoicing` is owned by two teams today | both teams have merged to it in the last quarter | single owner — Commercial; Rental Flow consumes via contract |
-| Bus factor 1 on the allocation scheduler | one engineer holds the depot-constraint logic | pair rotation before any transfer work starts |
-| Foundations would own `Notifications` domain logic | its adapter has grown business rules | the rules belong to Commercial; platform owns the delivery mechanism only |
-
-Note what the example does **not** do: it does not propose nine teams for nine contexts, it does not
-put names in the ownership table, and it does not merge `Allocation` and `Logistics` into one
-context to make the topology tidy — the two stay separate contexts owned by one team, which is a
-different and reversible decision.
+A full worked run is in `references/worked-example.md` — read it when the shape of the output is unclear.

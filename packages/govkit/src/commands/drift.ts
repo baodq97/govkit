@@ -3,7 +3,7 @@ import { readFileSync, writeFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { type GovkitConfig, loadConfig } from "../config";
 import { frontMatterSpan } from "../frontmatter";
-import { gitAvailable, gitIndexManifest, gitMatchCount, scanGoverned, toPathspec } from "../util";
+import { gitAvailable, gitIndexRecords, gitMatchCount, scanGoverned, toPathspec } from "../util";
 
 // The deterministic spec↔code drift GATE (RFC-0015, as amended) — the blocking sibling of
 // RFC-0009's `stale` advisory. The move that makes a gate honest where the proxy could not
@@ -123,13 +123,17 @@ function scanDrift(root: string, config: GovkitConfig): DriftDoc[] {
   });
 }
 
-/** The pathspecs a doc's drift is judged against: its governs, with the doc's OWN path always
- *  excluded — a doc can never drift ITSELF. Without the exclusion, a doc whose governs globs
- *  match its own path (e.g. `governs: docs/**`) re-drifts on every ack commit forever: the
- *  ack edit itself changes the doc's governed content past the claim it just recorded (once
- *  staged), so the ritual could never converge. */
-function governedPathspecs(doc: DriftDoc): string[] {
-  return [...doc.governs, `:(exclude)${doc.path}`];
+/** The claim manifest a doc's drift is judged against, derived from its batched index records:
+ *  every record EXCEPT the one naming the doc's OWN path — a doc can never drift ITSELF.
+ *  (In-process, this is what a `:(exclude)<docPath>` pathspec did back when the manifest was
+ *  its own git spawn.) Without the exclusion, a doc whose governs globs match its own path
+ *  (e.g. `governs: docs/**`) re-drifts on every ack commit forever: the ack edit itself changes
+ *  the doc's governed content past the claim it just recorded (once staged), so the ritual
+ *  could never converge. Null when nothing governed remains — "governs paths match no tracked
+ *  file", the same verdict the spawned exclusion produced. */
+function manifestExcludingSelf(records: string[], docPath: string): string | null {
+  const kept = records.filter((r) => r.slice(r.indexOf("\t") + 1) !== docPath);
+  return kept.length === 0 ? null : kept.join("\n");
 }
 
 /** The verdict for one opted-in doc: null = in sync, else the violation entry. A short claim
@@ -206,12 +210,29 @@ export function runDrift(opts: DriftOptions, preScanned?: DriftDoc[]): DriftResu
     // the governs list itself needs the hand edit. A pathspec git REFUSES to evaluate (invalid
     // magic — gitMatchCount null) is its own violation class, named as such rather than
     // misdiagnosed as a ghost (review hardening, RFC-0018 § Deviations).
+    //
+    // ONE batched spawn per doc on the green path. For an opted-in doc the index records over
+    // its raw governs answer BOTH per-doc questions at once — how many tracked files the
+    // declaration matched (existence) and what content state they are in (the claim manifest,
+    // self-excluded in-process by manifestExcludingSelf); a governs-only doc needs only the
+    // count. The per-pathspec probe below runs ONLY when the batch cannot prove every pathspec
+    // live — fewer matched files than pathspecs, or git refusing the whole batch — because a
+    // batch names no offender: the fallback exists to NAME which pathspec is a ghost (or
+    // unevaluable), with exactly the pre-batching classification.
+    const records = doc.hasReconciled ? gitIndexRecords(opts.root, doc.governs) : null;
+    const matched = doc.hasReconciled
+      ? records === null
+        ? null
+        : records.length
+      : gitMatchCount(opts.root, doc.governs);
     const ghost: string[] = [];
     const unevaluable: string[] = [];
-    for (const g of doc.governs) {
-      const n = gitMatchCount(opts.root, [g]);
-      if (n === null) unevaluable.push(g);
-      else if (n === 0) ghost.push(g);
+    if (matched === null || matched < doc.governs.length) {
+      for (const g of doc.governs) {
+        const n = gitMatchCount(opts.root, [g]);
+        if (n === null) unevaluable.push(g);
+        else if (n === 0) ghost.push(g);
+      }
     }
     if (ghost.length > 0 || unevaluable.length > 0) {
       const parts = [
@@ -238,7 +259,7 @@ export function runDrift(opts: DriftOptions, preScanned?: DriftDoc[]): DriftResu
       continue;
     }
     if (!doc.hasReconciled) continue; // existence-checked only; the claim check is opt-in
-    const entry = judge(doc, gitIndexManifest(opts.root, governedPathspecs(doc)));
+    const entry = judge(doc, records === null ? null : manifestExcludingSelf(records, doc.path));
     if (entry) drifted.push(entry);
   }
   return {

@@ -14,6 +14,19 @@ allowed-tools: Read, Grep, Glob, Bash, Edit, Write
 
 # Spec Author
 
+## Hard rules
+
+- **Discover the schema; never hardcode doc dirs or required keys.** Read `govkit.yml` every run.
+- **`owner: TBD` on every new artifact.** Propose the human owner in the PR body — never self-assign.
+- **Start status only.** PRD `draft`, RFC `draft`, ADR `proposed`, US `open` (per `govkit.yml`).
+  Never write an advanced status; propose advancement in the PR body for the doc owner to flip.
+- **INDEX row must contain the id and the status verbatim** — keep it in sync or verify fails.
+- **Capture only what the design source states.** Flag gaps; never invent requirements,
+  decisions, or acceptance criteria. Match neighbour-doc structure in the target dir.
+- **`npx govkit verify` is the source of truth** — author and call it, never reimplement or
+  bypass it. Fix the artifact until verify is clean.
+- **Never self-approve, self-merge, or act as code owner.**
+
 Turn design output — a domain model (`docs/domain`), an API design (`docs/api`), a data
 design (`docs/data`) — into a **governed lifecycle artifact**: a PRD, RFC, ADR, or User Story
 (US). This is the keystone that converts design into the doc chain `PRD → RFC → ADR → US →
@@ -107,19 +120,6 @@ Surface what you wrote (path, id, start status) and the **PR-body proposals the 
 must apply**: the proposed `owner:` (replacing `TBD`), and — if the artifact is ready to
 advance — the proposed next `status:`. Link the upstream artifact(s) by id. Stop at "ready for
 review"; do not flip status, assign an owner, approve, or merge.
-
-## Hard rules
-
-- **Discover the schema; never hardcode doc dirs or required keys.** Read `govkit.yml` every run.
-- **`owner: TBD` on every new artifact.** Propose the human owner in the PR body — never self-assign.
-- **Start status only.** PRD `draft`, RFC `draft`, ADR `proposed`, US `open` (per `govkit.yml`).
-  Never write an advanced status; propose advancement in the PR body for the doc owner to flip.
-- **INDEX row must contain the id and the status verbatim** — keep it in sync or verify fails.
-- **Capture only what the design source states.** Flag gaps; never invent requirements,
-  decisions, or acceptance criteria. Match neighbour-doc structure in the target dir.
-- **`npx govkit verify` is the source of truth** — author and call it, never reimplement or
-  bypass it. Fix the artifact until verify is clean.
-- **Never self-approve, self-merge, or act as code owner.**
 
 ## Picking the type (quick guide)
 

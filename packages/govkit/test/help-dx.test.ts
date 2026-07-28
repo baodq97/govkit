@@ -6,13 +6,10 @@
 //
 // Spawns dist/cli.js like cli.test.ts — the help/dispatch layer only exists at the entrypoint.
 import { afterEach, beforeEach, describe, expect, it } from "bun:test";
-import { execFileSync } from "node:child_process";
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
-import { tmpdir } from "node:os";
+import { rmSync } from "node:fs";
 import { join } from "node:path";
 import { runInit } from "../src/commands/init";
-
-const CLI = join(import.meta.dir, "../dist/cli.js");
+import { rmRepo, runCli, tmpRepo, writeDoc } from "./helpers";
 
 /** Every command the CLI dispatches — the same closed list cli.ts types HELP_PAGES against.
  *  Kept here so "a command shipped without a page" fails a test, not just a code review. */
@@ -30,14 +27,11 @@ const COMMANDS = [
   "audit-write",
 ] as const;
 
-function run(args: string[]): { out: string; err: string; status: number } {
-  try {
-    const out = execFileSync(process.execPath, [CLI, ...args], { encoding: "utf8", stdio: "pipe" });
-    return { out, err: "", status: 0 };
-  } catch (e: unknown) {
-    const failure = e as { status: number; stdout: string; stderr: string };
-    return { out: failure.stdout, err: failure.stderr, status: failure.status };
-  }
+/** The shared runCli, with this suite's historical field names (out/err) preserved: `--root`
+ *  is harmless on every help path (`--help` short-circuits before flag validation). */
+function run(args: string[]): { out: string; err: string; status: number | null } {
+  const r = runCli(root, args);
+  return { out: r.stdout, err: r.stderr, status: r.status };
 }
 
 const lineCount = (text: string): number => text.replace(/\n$/, "").split("\n").length;
@@ -47,11 +41,11 @@ const nextLines = (text: string): string[] =>
 let root: string;
 
 beforeEach(() => {
-  root = mkdtempSync(join(tmpdir(), "govkit-helpdx-"));
+  root = tmpRepo("govkit-helpdx-");
 });
 
 afterEach(() => {
-  rmSync(root, { recursive: true, force: true });
+  rmRepo(root);
 });
 
 describe("global help is an INDEX, not a manual", () => {
@@ -129,43 +123,40 @@ describe("per-command help is SCOPED to that command", () => {
 
 describe("every command ends by naming what to run next", () => {
   it("init on a fresh dir names the next command", () => {
-    const { out, status } = run(["init", "--root", root]);
+    const { out, status } = run(["init"]);
     expect(status).toBe(0);
     expect(nextLines(out)).toHaveLength(1);
     expect(nextLines(out)[0]).toMatch(/govkit \w/);
   });
 
   it("init on a repo that ALREADY has unmigrated docs points at --adopt, not the happy path", () => {
-    mkdirSync(join(root, "docs", "adr"), { recursive: true });
-    writeFileSync(join(root, "docs", "adr", "ADR-0001-legacy.md"), "# Legacy\n", "utf8");
-    const { out } = run(["init", "--root", root]);
+    writeDoc(root, join("docs", "adr", "ADR-0001-legacy.md"), "# Legacy\n");
+    const { out } = run(["init"]);
     expect(nextLines(out)).toHaveLength(1);
     expect(nextLines(out)[0]).toContain("govkit init --adopt");
   });
 
   it("a dry-run adopt points at --apply; nothing-to-migrate points at the gate", () => {
     runInit({ root });
-    mkdirSync(join(root, "docs", "adr"), { recursive: true });
-    writeFileSync(join(root, "docs", "adr", "ADR-0001-legacy.md"), "# Legacy\n", "utf8");
-    const dry = run(["init", "--adopt", "--root", root]);
+    writeDoc(root, join("docs", "adr", "ADR-0001-legacy.md"), "# Legacy\n");
+    const dry = run(["init", "--adopt"]);
     expect(nextLines(dry.out)[0]).toContain("--apply");
 
     rmSync(join(root, "docs", "adr", "ADR-0001-legacy.md"));
-    const empty = run(["init", "--adopt", "--root", root]);
+    const empty = run(["init", "--adopt"]);
     expect(nextLines(empty.out)).toHaveLength(1);
     expect(nextLines(empty.out)[0]).toContain("govkit verify");
   });
 
   it("a PASSING verify points forward; a FAILING one points at the fix", () => {
     runInit({ root });
-    const pass = run(["verify", "--root", root]);
+    const pass = run(["verify"]);
     expect(pass.status).toBe(0);
     expect(nextLines(pass.out)).toHaveLength(1);
     expect(nextLines(pass.out)[0]).toContain("govkit eval");
 
-    mkdirSync(join(root, "docs", "adr"), { recursive: true });
-    writeFileSync(join(root, "docs", "adr", "ADR-0001-legacy.md"), "# Legacy\n", "utf8");
-    const fail = run(["verify", "--root", root]);
+    writeDoc(root, join("docs", "adr", "ADR-0001-legacy.md"), "# Legacy\n");
+    const fail = run(["verify"]);
     expect(fail.status).toBe(1);
     // The report AND its footer go to stderr on a failure, so a hook harness feeds both back.
     expect(nextLines(fail.err)).toHaveLength(1);
@@ -174,13 +165,12 @@ describe("every command ends by naming what to run next", () => {
 
   it("a doc that fails on a REPAIRABLE key points at the repair, not at a migration", () => {
     runInit({ root });
-    mkdirSync(join(root, "docs", "adr"), { recursive: true });
-    writeFileSync(
-      join(root, "docs", "adr", "ADR-0001-x.md"),
+    writeDoc(
+      root,
+      join("docs", "adr", "ADR-0001-x.md"),
       "---\nid: ADR-0001\ntitle: T\nstatus: bogus\nowner: TBD\ndate: 2026-07-28\n---\n\nbody\n",
-      "utf8",
     );
-    const { err, status } = run(["verify", "--root", root]);
+    const { err, status } = run(["verify"]);
     expect(status).toBe(1);
     // `init --adopt` would do nothing here — the block exists. The footer must not suggest it.
     expect(nextLines(err)[0]).not.toContain("--adopt");
@@ -189,9 +179,8 @@ describe("every command ends by naming what to run next", () => {
 
   it("check emits exactly ONE footer for the composite run, owned by the failing half", () => {
     runInit({ root });
-    mkdirSync(join(root, "docs", "adr"), { recursive: true });
-    writeFileSync(join(root, "docs", "adr", "ADR-0001-legacy.md"), "# Legacy\n", "utf8");
-    const { err, status } = run(["check", "--root", root]);
+    writeDoc(root, join("docs", "adr", "ADR-0001-legacy.md"), "# Legacy\n");
+    const { err, status } = run(["check"]);
     expect(status).toBe(1);
     expect(nextLines(err)).toHaveLength(1);
     expect(nextLines(err)[0]).toContain("govkit init --adopt");
@@ -199,7 +188,7 @@ describe("every command ends by naming what to run next", () => {
 
   it("--json keeps stdout a pure machine channel — no footer spliced into it", () => {
     runInit({ root });
-    const { out, status } = run(["verify", "--root", root, "--json"]);
+    const { out, status } = run(["verify", "--json"]);
     expect(status).toBe(0);
     expect(nextLines(out)).toHaveLength(0);
     expect(() => JSON.parse(out) as unknown).not.toThrow();
@@ -209,14 +198,13 @@ describe("every command ends by naming what to run next", () => {
 describe("every violation the gate emits names its fix", () => {
   it("frontmatter, status and index violations each print a one-line remedy", () => {
     runInit({ root });
-    mkdirSync(join(root, "docs", "adr"), { recursive: true });
-    writeFileSync(join(root, "docs", "adr", "ADR-0001-legacy.md"), "# Legacy\n", "utf8");
-    writeFileSync(
-      join(root, "docs", "adr", "ADR-0002-x.md"),
+    writeDoc(root, join("docs", "adr", "ADR-0001-legacy.md"), "# Legacy\n");
+    writeDoc(
+      root,
+      join("docs", "adr", "ADR-0002-x.md"),
       "---\nid: ADR-0002\ntitle: T\nstatus: bogus\nowner: TBD\ndate: 2026-07-28\n---\n\nbody\n",
-      "utf8",
     );
-    const { err } = run(["verify", "--root", root]);
+    const { err } = run(["verify"]);
     expect(err).toContain("Fixes:");
     expect(err).toContain("fix: [frontmatter]");
     expect(err).toContain("fix: [status]");
@@ -233,27 +221,21 @@ describe("every violation the gate emits names its fix", () => {
   // migration for both would send the broken-block case to a command that does nothing.
   it("offers the --adopt migration only where a doc actually has NO block", () => {
     runInit({ root });
-    mkdirSync(join(root, "docs", "adr"), { recursive: true });
-    writeFileSync(
-      join(root, "docs", "adr", "ADR-0001-broken.md"),
-      "---\nid: [x\n---\n\nb\n",
-      "utf8",
-    );
-    const broken = run(["verify", "--root", root]);
+    writeDoc(root, join("docs", "adr", "ADR-0001-broken.md"), "---\nid: [x\n---\n\nb\n");
+    const broken = run(["verify"]);
     expect(broken.status).toBe(1);
     expect(broken.err).toContain("fix: [frontmatter]");
     expect(broken.err).not.toContain("--adopt");
 
-    writeFileSync(join(root, "docs", "adr", "ADR-0002-legacy.md"), "# Legacy\n", "utf8");
-    const migratable = run(["verify", "--root", root]);
+    writeDoc(root, join("docs", "adr", "ADR-0002-legacy.md"), "# Legacy\n");
+    const migratable = run(["verify"]);
     expect(migratable.err).toContain("govkit init --adopt");
   });
 
   it("a remedy is never mistaken for a violation entry — the 2-space entry grammar is intact", () => {
     runInit({ root });
-    mkdirSync(join(root, "docs", "adr"), { recursive: true });
-    writeFileSync(join(root, "docs", "adr", "ADR-0001-legacy.md"), "# Legacy\n", "utf8");
-    const { err } = run(["verify", "--root", root]);
+    writeDoc(root, join("docs", "adr", "ADR-0001-legacy.md"), "# Legacy\n");
+    const { err } = run(["verify"]);
     const header = err.split("\n").find((l) => l.startsWith("govkit verify:"));
     const entries = err.split("\n").filter((l) => /^ {2}\S/.test(l)).length;
     // The counting invariant beside verifySummaryLine: the header may never claim fewer
@@ -263,7 +245,7 @@ describe("every violation the gate emits names its fix", () => {
 
   it("a clean run prints no Fixes block at all — the report stays byte-quiet when green", () => {
     runInit({ root });
-    const { out } = run(["verify", "--root", root]);
+    const { out } = run(["verify"]);
     expect(out).not.toContain("Fixes:");
     expect(out.split("\n")[0]).toBe("govkit verify: OK — 0 doc(s) checked, 0 violations.");
   });

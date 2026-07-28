@@ -14,6 +14,23 @@ allowed-tools: Read, Grep, Glob, Bash, Write, Edit
 
 # Workflow Author
 
+## Hard rules
+
+- **Workflows are project-scoped — write to `.claude/workflows/<name>.js`; never try to add a
+  `workflows` field to a plugin.** They CANNOT be bundled in a plugin (`plugin.json` has no
+  `workflows` field — verified). The file lands in the consumer repo, not the plugin.
+- **`meta` is a PURE LITERAL.** `export const meta = { name, description, phases: [...] }` with
+  no variables, calls, spreads, or template interpolation — and every declared phase title must
+  be realized in the body (a `phase("...")` call, or a `phase:` opt on an agent inside
+  `pipeline`/`parallel` stages, where a global `phase()` would race).
+- **`node --check` MUST pass before handoff.** A workflow that doesn't parse is worse than none.
+- **The rest of the constraints are canonical in `references/authoring-workflows.md` §2** — no
+  filesystem/shell in the script (agents do ALL I/O), plugin-namespaced or built-in agents only,
+  plain JS, no `Date.now()` / `Math.random()`, no top-level `return` (end with `log(...)`),
+  reviewer verdicts control FLOW only (never flip a `status:` or assign an owner), determinism
+  lives in govkit (never reimplement the gate in JS), and the mandatory fallback header (§3).
+  Read it before emitting.
+
 Turn a repeatable, multi-step process into a **reusable dynamic workflow** — a deterministic
 `.claude/workflows/<name>.js` script the team can re-run, version, and trust. You **compose
 what already exists** (the swe-flow agents + the `govkit` gate) into a small set of proven
@@ -32,34 +49,6 @@ agents, or a default agent — and may only gate with `npx govkit verify`. If a 
 need a brand-new specialist agent or a new skill, **STOP and say so**: that is a different (and
 far heavier) job, not this skill. This is the line that separates a lean orchestration generator
 from a "generate a whole agent team" meta-framework.
-
-## Non-negotiable rules (bake into every generated workflow)
-
-- **Workflows are project-scoped — write to `.claude/workflows/<name>.js`.** They CANNOT be
-  bundled in a plugin (`plugin.json` has no `workflows` field — verified). The file lands in the
-  consumer repo, not the plugin.
-- **`meta` is a PURE LITERAL.** `export const meta = { name, description, phases: [...] }` with
-  no variables, calls, spreads, or template interpolation. Each `phases[].title` must be realized
-  in the body — either by a `phase("...")` call (the top-level sequence) OR by a `phase:` field in
-  an agent's `opts` (the correct way inside `pipeline`/`parallel` stages, where a global `phase()`
-  would race). A pipeline's first phase is usually a `phase()` call; its later phases are usually
-  `opts.phase` — both count.
-- **The script has NO filesystem or shell access.** Every read and write is done by a dispatched
-  `agent(...)`; the script only *sequences* them. Never write `fs` / `child_process` in it.
-- **End with `log(...)`, not a top-level `return`.** A top-level `return` is valid at runtime but
-  FAILS `node --check` (return outside a function). Mirror `sdlc.js`: summarize with `log()`. Only
-  use `return` when the workflow is called as a sub-step — then validate by wrapping (see
-  `references/authoring-workflows.md`).
-- **Reviewer verdicts control FLOW ONLY.** A `swe-flow:reviewer` gate decides whether the workflow
-  advances; it NEVER flips a doc `status:` or assigns an owner (human acts — root `AGENTS.md`
-  § Agent constraints). `proposedNextStatus` is a proposal only.
-- **Determinism lives in govkit, not the script.** Wire `npx govkit verify` (or a reviewer gate)
-  at each checkpoint; never reimplement the gate in JS.
-- **Every workflow carries the MANDATORY fallback header** (`references/authoring-workflows.md`):
-  workflows are research-preview and globally disableable, so the script documents the by-hand
-  order that reaches the same result.
-- **Plain JS only** (no TypeScript syntax) and **no `Date.now()` / `Math.random()` / argless
-  `new Date()`** (they break workflow resume — pass timestamps via `args`).
 
 ## Orchestration economics (measured: 3 rounds, 27 agents, 1738 tool calls)
 
@@ -142,15 +131,6 @@ Fix the SCRIPT until every check passes — never weaken a check to make it pass
 Give the user the file path, how to run it (it appears in `/workflows`, or via the Workflow tool
 with `{scriptPath}`), and restate the manual fallback. Stop at "ready to run" — do not execute it
 unless asked.
-
-## Hard rules
-
-- **Compose existing agents + `govkit verify` only. Never generate new agents / skills / teams.**
-- **Write to `.claude/workflows/`; never try to add a `workflows` field to a plugin.**
-- **`meta` pure literal; every phase title realized (`phase()` call or `phase:` opt); plain JS; no `Date.now` / `Math.random`; no top-level `return`.**
-- **Reviewer gates control flow only — never flip a `status:` or assign an owner.**
-- **`node --check` MUST pass before handoff.** A workflow that doesn't parse is worse than none.
-- **Always embed the manual-fallback header** — the workflow is an accelerant; govkit is the gate.
 
 ## Picking the shape (quick guide)
 

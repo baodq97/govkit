@@ -30,12 +30,16 @@ for a real, working file: `.claude/workflows/sdlc.js`.
 3. **The script sequences; agents do ALL I/O.** No `fs`, `child_process`, or network in the body —
    dispatch an agent to read a file or run `govkit verify`.
 4. **Plain JS, ESM.** No TypeScript. `export` + top-level `await` are fine (the dir is ESM).
-   **No top-level `return`** — it fails `node --check`; summarize with `log()` instead.
+   **No top-level `return`** — it is valid at runtime but fails `node --check` (return outside a
+   function); mirror `sdlc.js` and summarize with `log()` instead. Only use `return` when the
+   workflow is called as a sub-step — then validate by wrapping.
 5. **No `Date.now()` / `Math.random()` / argless `new Date()`** — they break resume. Use `args` for
    timestamps; vary randomness by index/label.
 6. **Reviewer gates control FLOW only.** `BLOCK` → `throw` to halt; `APPROVE`/`SHIP-WITH-CAVEATS` →
-   advance. NEVER `doc.status = ...` or assign an owner — those are human acts (`proposedNextStatus`
-   is a proposal). govkit is the gate; the workflow is the accelerant.
+   advance. NEVER `doc.status = ...` or assign an owner — those are human acts (root `AGENTS.md`
+   § Agent constraints; `proposedNextStatus` is a proposal). Determinism lives in govkit, not the
+   script: wire `npx govkit verify` (or a reviewer gate) at each checkpoint; never reimplement the
+   gate in JS. govkit is the gate; the workflow is the accelerant.
 
 ## 3. The mandatory fallback header (paste at the top of every generated workflow)
 

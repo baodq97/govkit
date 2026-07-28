@@ -78,10 +78,10 @@ const dispatchRole = (name, prompt, opts) =>
     const match = message.match(AGENT_RESOLUTION_FAILURE);
     if (!match) throw err;
     log(
-      `[gate-loop] agentType swe-flow:${name} did not resolve (matched "${match[0]}") — falling back to a generic agent reading plugins/swe-flow/agents/${name}.md`,
+      `[gate-loop] agentType swe-flow:${name} did not resolve (matched "${match[0]}") — falling back to a generic agent reading the ${name} agent definition`,
     );
     return agent(
-      `FIRST read \`plugins/swe-flow/agents/${name}.md\` in full and EXECUTE that role exactly as written — the plugin version carrying it is not installed, so you embody it from the file. Honor every never-rule in it.\n${prompt}`,
+      `FIRST try to read \`plugins/swe-flow/agents/${name}.md\` in full (it exists only in the govkit monorepo). If that file does not exist, read the agent definition from the installed plugin cache instead: \`~/.claude/plugins/cache/govkit/swe-flow/*/agents/${name}.md\`. If neither file exists, proceed using the role as summarized in the dispatch prompt below. EXECUTE that role exactly as written — the plugin version carrying it is not installed, so you embody it from the definition. Honor every never-rule in it.\n${prompt}`,
       opts,
     );
   });

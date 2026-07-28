@@ -4,7 +4,7 @@ title: Deterministic spec↔code drift gate — reconciled shas and an explicit 
 status: implemented
 owner: baodq97
 date: 2026-07-07
-reconciled: sha256:27d646ef780f623d
+reconciled: sha256:995a017932e37dbc
 governs:
   - packages/govkit/src/commands/drift.ts
 ---
@@ -147,9 +147,11 @@ the load-bearing ones are folded into § Design above and recorded here as post-
   governs paths with no commit history fail loud as unverifiable — such docs are also
   *unackable* (an ack cannot vouch for a code state that does not exist), so an ack run
   reporting them exits non-zero.
-- **Self-path exclusion:** the doc's own path is appended as an `:(exclude)` pathspec when
-  resolving its governed sha — added after review found the livelock where a doc whose governs
-  glob matches itself (e.g. `docs/**`) re-drifts on every ack commit forever.
+- **Self-path exclusion:** the doc's own path is excluded when resolving its governed sha —
+  added after review found the livelock where a doc whose governs glob matches itself (e.g.
+  `docs/**`) re-drifts on every ack commit forever. (Originally an `:(exclude)` pathspec;
+  since the 2026-07-29 spawn-batching refactor the exclusion is applied in-process over the
+  batched index records — same digest bytes, so existing acks stayed green.)
 - **Comment-preserving, bare-key-refusing ack:** the rewrite replaces only the value token, so
   a same-line `# comment` survives; a `reconciled:` line with no same-line value token
   (continuation-line YAML) is refused with the rewrite-by-hand operational error instead of

@@ -7,6 +7,19 @@ disable-model-invocation: true
 
 # Domain Visualize
 
+## Hard rules
+
+- **Never draw anything that is not in the model.** The renderer is deterministic and the layout
+  is fixed; if a context is missing from the picture it is missing from `model.json`. Do not
+  hand-edit the generated view to make a diagram nicer.
+- **Phase-1 previews stay out of the doc tree.** `.ddd-flow/preview/` is ephemeral and gitignored.
+  A draft that lands in `docs/` looks governed when it is not.
+- **Do not change `shell.html` to fix one model.** It is the frozen shell for every consumer; a
+  per-project tweak there is how the "one payload, no contradictions" guarantee dies. Change the
+  data instead.
+- The picture inherits the model's honesty, nothing more. If the model has zero confirmed events,
+  say so alongside the picture rather than letting a clean diagram imply confidence.
+
 A model nobody looks at gets approved by default. This skill puts the current model on a screen —
 live, interactive, and honest about what it does not know — so the people who can spot a wrong
 boundary actually spot it.
@@ -146,19 +159,6 @@ This is the part that matters most and is easiest to skip.
 Populate these fields even when — especially when — the model is thin. A picture that looks
 complete because the gaps were rendered as whitespace is worse than no picture, because it wins
 arguments it should lose.
-
-## Hard rules
-
-- **Never draw anything that is not in the model.** The renderer is deterministic and the layout
-  is fixed; if a context is missing from the picture it is missing from `model.json`. Do not
-  hand-edit the generated view to make a diagram nicer.
-- **Phase-1 previews stay out of the doc tree.** `.ddd-flow/preview/` is ephemeral and gitignored.
-  A draft that lands in `docs/` looks governed when it is not.
-- **Do not change `shell.html` to fix one model.** It is the frozen shell for every consumer; a
-  per-project tweak there is how the "one payload, no contradictions" guarantee dies. Change the
-  data instead.
-- The picture inherits the model's honesty, nothing more. If the model has zero confirmed events,
-  say so alongside the picture rather than letting a clean diagram imply confidence.
 
 ## Files
 

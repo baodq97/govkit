@@ -123,7 +123,7 @@ export function auditWrite(input: HookInput, root: string, config?: GovkitConfig
   // RFC-0024: born-at-non-startStatus provenance nudge. A Write that CREATES a governed doc (no
   // file on disk yet) at a status other than its type's startStatus skipped the draft→accept
   // provenance — agents author a new doc at startStatus; a human owner flips it forward in a
-  // separate accept. Non-blocking BY DESIGN: provenance is honor-system (RFC-0012), the hook
+  // separate accept. Non-blocking BY DESIGN: provenance is honor-system (RFC-0024), the hook
   // sees only full Writes (not Edits/Bash), so this is a courtesy nudge, never a gate. An
   // overwrite (file exists) is left alone — that is an edit whose status TRANSITION a stateless
   // hook cannot judge; verify and the human own it. Guarded on startStatus so a status-less
@@ -135,7 +135,7 @@ export function auditWrite(input: HookInput, root: string, config?: GovkitConfig
         `govkit: ${basename(filePath)} is being created at status '${status}', not the start ` +
         `status '${def.startStatus}'. A new ${typeName} is authored at '${def.startStatus}'; a ` +
         `human owner flips it forward in a separate accept — status provenance is not ` +
-        `gate-enforced (RFC-0012). Confirm this was authorized.`,
+        `gate-enforced (RFC-0024). Confirm this was authorized.`,
     };
   }
   return { block: false }; // governed and complete

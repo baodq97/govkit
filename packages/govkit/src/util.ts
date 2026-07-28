@@ -2,7 +2,12 @@ import { execFileSync } from "node:child_process";
 import { existsSync, readdirSync, readFileSync } from "node:fs";
 import { isAbsolute, join, relative, resolve } from "node:path";
 import type { DocType, GovkitConfig } from "./config";
-import { type FrontMatter, isParseError, parseFrontMatter } from "./frontmatter";
+import {
+  type FrontMatter,
+  type FrontMatterError,
+  isParseError,
+  parseFrontMatter,
+} from "./frontmatter";
 
 /** Root-confinement check shared by every path the engine is handed from outside (a hook's
  *  file_path, a config `journal.path`): true only when `file` resolves STRICTLY inside `dir`.
@@ -44,6 +49,40 @@ export function listMarkdown(dir: string, ignore: string[], recursive = false): 
   // Depth-second: this dir's own files keep their pre-existing order, nested ones follow.
   for (const sub of subdirs) files.push(...listMarkdown(sub, ignore, true));
   return files;
+}
+
+/** One governed doc as `walkGovernedDocs` hands it to a visitor: the file, the type that
+ *  governs it, the raw content, and the ONE parse of its front-matter (`null` = no block,
+ *  `isParseError(fm)` = a block that would not parse). */
+export interface WalkedDoc {
+  file: string;
+  typeName: string;
+  def: DocType;
+  content: string;
+  fm: FrontMatter | FrontMatterError | null;
+}
+
+/** THE corpus walk — the one generator every file-by-file reader routes through (verify, eval,
+ *  report, adopt, doctor, and this module's own `scanParsedDocs`). For each configured type it
+ *  lists the type dir's markdown (honouring the per-type `recursive` flag), reads and parses
+ *  each doc ONCE, and hands the visitor `{file, typeName, def, content, fm}` in walk order.
+ *  What a visitor does with a missing (`fm === null`) or malformed (`isParseError(fm)`) block
+ *  is deliberately ITS policy — verify reports both as violations, eval/report skip both,
+ *  adopt scaffolds only the missing case, doctor counts them into separate buckets — because
+ *  those policies ARE the commands. What must never diverge again is WHICH files each command
+ *  walks; six hand-copied loops is how a reader ends up governing a different corpus. */
+export function walkGovernedDocs(
+  root: string,
+  config: GovkitConfig,
+  visit: (doc: WalkedDoc) => void,
+): void {
+  const { ignore, types, root: docsRoot = "." } = config.docs;
+  for (const [typeName, def] of Object.entries(types)) {
+    for (const file of listMarkdown(typeDir(root, docsRoot, def.dir), ignore, def.recursive)) {
+      const content = readFileSync(file, "utf8");
+      visit({ file, typeName, def, content, fm: parseFrontMatter(content) });
+    }
+  }
 }
 
 /** The type a single path belongs to, or null — the SINGLE-PATH DUAL of `listMarkdown`.
@@ -184,19 +223,14 @@ export interface GovernedDoc {
  *  Unparseable front-matter is the verify gate's job to surface, not the git-backed
  *  siblings' — skipped here exactly as `stale` always skipped it. */
 function scanParsedDocs(root: string, config: GovkitConfig): Omit<GovernedDoc, "governs">[] {
-  const { ignore, types, root: docsRoot = "." } = config.docs;
   const docs: Omit<GovernedDoc, "governs">[] = [];
-  for (const [typeName, def] of Object.entries(types)) {
-    // Honors the type's `recursive` flag for the same reason verify does: the id universe
-    // collected here is what verify's reference check resolves INTO, so a scan narrower than
-    // verify's would report a live ref to a nested doc as dangling.
-    for (const file of listMarkdown(typeDir(root, docsRoot, def.dir), ignore, def.recursive)) {
-      const content = readFileSync(file, "utf8");
-      const fm = parseFrontMatter(content);
-      if (!fm || isParseError(fm)) continue;
-      docs.push({ file, rel: toPathspec(root, file), type: typeName, fm, content });
-    }
-  }
+  // The shared walk honors each type's `recursive` flag for the same reason verify does: the id
+  // universe collected here is what verify's reference check resolves INTO, so a scan narrower
+  // than verify's would report a live ref to a nested doc as dangling.
+  walkGovernedDocs(root, config, ({ file, typeName, content, fm }) => {
+    if (!fm || isParseError(fm)) return;
+    docs.push({ file, rel: toPathspec(root, file), type: typeName, fm, content });
+  });
   return docs;
 }
 
@@ -254,26 +288,35 @@ export function gitCommitTime(root: string, pathspecs: string[]): number | null 
   }
 }
 
-/** Index manifest of the tracked files matching `pathspecs` — one `<mode> <blobOid> <stage>\t<path>`
- *  record per file (git ls-files -s), NUL-separated for byte-exact paths, or null when nothing
- *  matches. The drift gate's (RFC-0015, as amended) ground truth: blob OIDs are git's OWN
- *  content hashes, so the manifest names the exact CONTENT state a doc's `reconciled:` claim
- *  is checked against — stable across squash/rebase (which rewrite commit shas but never blob
- *  OIDs) and across CRLF working trees (the index blob is what's committed on every platform).
- *  Same single-spawn try/catch degrade as `gitCommitTime` (null, never a throw). */
-export function gitIndexManifest(root: string, pathspecs: string[]): string | null {
+/** Index records of the tracked files matching `pathspecs` — one `<mode> <blobOid> <stage>\t<path>`
+ *  record per file (git ls-files -s), NUL-separated for byte-exact paths. `[]` means the
+ *  pathspecs matched nothing; `null` means git itself refused to run (no git, no index, or an
+ *  invalid pathspec — the same two-failure-mode split `gitMatchCount` keeps). One spawn, so the
+ *  drift gate can answer BOTH of its per-doc questions — how many tracked files the governs
+ *  matched, and what content state they are in — from a single batched call. */
+export function gitIndexRecords(root: string, pathspecs: string[]): string[] | null {
   try {
     const out = execFileSync("git", ["ls-files", "-s", "-z", "--", ...pathspecs], {
       cwd: root,
       encoding: "utf8",
       stdio: ["ignore", "pipe", "ignore"],
     });
-    const records = out.split("\0").filter((r) => r !== "");
-    return records.length === 0 ? null : records.join("\n");
+    return out.split("\0").filter((r) => r !== "");
   } catch {
     // safe to degrade: no git / no index — the caller surfaces the skip, never a crash.
     return null;
   }
+}
+
+/** Index manifest of the tracked files matching `pathspecs` — `gitIndexRecords` joined with
+ *  newlines, or null when nothing matches (or git errored). The drift gate's (RFC-0015, as
+ *  amended) ground truth: blob OIDs are git's OWN content hashes, so the manifest names the
+ *  exact CONTENT state a doc's `reconciled:` claim is checked against — stable across
+ *  squash/rebase (which rewrite commit shas but never blob OIDs) and across CRLF working trees
+ *  (the index blob is what's committed on every platform). */
+export function gitIndexManifest(root: string, pathspecs: string[]): string | null {
+  const records = gitIndexRecords(root, pathspecs);
+  return records === null || records.length === 0 ? null : records.join("\n");
 }
 
 /** Content of `relPath` (forward-slash, repo-root-relative) as of HEAD, or null when it cannot

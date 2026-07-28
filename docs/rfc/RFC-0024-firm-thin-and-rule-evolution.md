@@ -137,3 +137,44 @@ stay uncovered, because provenance is honor-system and the nudge is a courtesy, 
 - **n=2 same-author limits new promotions.** Most friction today is self-generated; the loop's real
   compounding needs n≥3 external friction, which depends on R0. The mechanism is cheap to define now
   and idle until then — that is acceptable, not a reason to defer.
+
+## As-built
+
+All three parts and the one code change shipped, over several commits rather than one PR:
+
+1. **Tier declaration** — README § the trust-layer table carries the three tiers named
+   honestly (firm / advisory / honor-system, "outside the engine by design"), and AGENTS.md
+   § Agent constraints opens by declaring itself honor-system with the control set (commit
+   discipline + the human accept + the keyed reviewer + the non-blocking per-write nudge).
+2. **The provenance claim corrected** — RFC-0001's honest-ceiling section carries the third
+   limit as a recorded deviation: a doc born at `accepted` passes `verify` clean and the gate
+   enforces structure, not provenance.
+3. **The friction→rule protocol** — the standing "Friction→rule protocol" section at the top
+   of `LEARNING-LOOP.md`, applied by every round since; the PROMOTE path's "no firm rule
+   without a RED fixture first" is the convention `govkit calibrate` pins (FP=0,
+   non-regressing recall on every distill proposal, RFC-0017).
+4. **The code nudge** — the born-at-non-`startStatus` remind branch in `audit-write.ts`
+   (guarded on `startStatus`, Write-only, never blocks), covered by the
+   "born-at-non-startStatus provenance nudge" describe in `audit-write.test.ts` (nudge on
+   born-at-other, silence at `startStatus`, silence when the type declares no `startStatus`).
+
+Later work built ON this tier vocabulary rather than diverging from it: RFC-0027's
+ratification policy tiers the honor-system transitions themselves (R0/R1/R2), and its
+2026-07-28 amendment re-binds WHO may act (main agent vs propose-only sub-agents) — both are
+refinements of the honor-system tier this RFC named, with the engine still reading none of it.
+
+## Deviations from design
+
+- **The shipped surfaces credited the wrong RFC.** The protocol header in LEARNING-LOOP.md,
+  RFC-0001's deviation notes, the README/AGENTS.md tier attributions, the `audit-write.ts`
+  comments, and even the remind string the hook EMITS all cited RFC-0012 (the journal RFC)
+  instead of this one. Found by the 2026-07-29 corpus audit and corrected everywhere in the
+  same change-set as this section — the content was this RFC's, verbatim; only the citation
+  was wrong. Recorded here because a misattributed rule is provenance debt of exactly the
+  kind this RFC exists to name.
+- **Part 3's home stayed `LEARNING-LOOP.md`** (the open question resolved by use): 22 rounds
+  plus an archive split later, no separate doc type was needed — the protocol is standing text
+  at the top of the active file, and the archive move (2026-07-29) verified every tooling
+  contract is last-round + append.
+- Otherwise implemented as accepted; the nudge's deliberate partiality (Write-only) is
+  unchanged and remains the honest thin boundary.

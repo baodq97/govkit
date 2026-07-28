@@ -7,15 +7,12 @@
 //   • e2e — an advisory-only repo exits 0, the summary counts advisories, and the
 //     --journal record carries the tier.
 import { afterEach, beforeEach, describe, expect, it } from "bun:test";
-import { spawnSync } from "node:child_process";
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
-import { tmpdir } from "node:os";
+import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { runVerify } from "../src/commands/verify";
 import { type GovkitConfig, loadConfig } from "../src/config";
 import type { JournalRecord } from "../src/journal";
-
-const CLI = join(import.meta.dir, "../dist/cli.js");
+import { baseConfig, rmRepo, runCli, tmpRepo, writeDoc } from "./helpers";
 
 const CONFIG: GovkitConfig = {
   schemaVersion: 1,
@@ -49,17 +46,16 @@ const STALE_INDEX = `# ADR Index
 let root: string;
 
 function buildFixture(): void {
-  mkdirSync(join(root, "docs", "adr"), { recursive: true });
-  writeFileSync(join(root, "docs", "adr", "ADR-0001.md"), VALID_DOC);
-  writeFileSync(join(root, "docs", "adr", "INDEX.md"), STALE_INDEX);
+  writeDoc(root, join("docs", "adr", "ADR-0001.md"), VALID_DOC);
+  writeDoc(root, join("docs", "adr", "INDEX.md"), STALE_INDEX);
 }
 
 beforeEach(() => {
-  root = mkdtempSync(join(tmpdir(), "govkit-tiers-"));
+  root = tmpRepo("govkit-tiers-");
 });
 
 afterEach(() => {
-  rmSync(root, { recursive: true, force: true });
+  rmRepo(root);
 });
 
 describe("runVerify — risk tiers (RFC-0014)", () => {
@@ -109,26 +105,18 @@ describe("loadConfig — tiers validation", () => {
 });
 
 describe("tiers (e2e on dist/cli.js)", () => {
-  const cli = (args: string[]) =>
-    spawnSync(process.execPath, [CLI, ...args], { encoding: "utf8", stdio: "pipe" });
+  const cli = (args: string[]) => runCli(root, args);
 
-  const YML_WITH_TIERS = `schemaVersion: 1
-tiers:
+  // baseConfig() is exactly the pre-helper YAML (adr type, the five base keys); only the
+  // tiers block is this suite's own — appended, since YAML key order is irrelevant.
+  const YML_WITH_TIERS = `${baseConfig()}tiers:
   index: advisory
-docs:
-  ignore: [INDEX.md, _TEMPLATE.md]
-  base:
-    required: [id, title, status, owner, date]
-  types:
-    adr:
-      dir: docs/adr
-      required: [id, title, status, owner, date]
 `;
 
   it("an advisory-only repo exits 0, prints the advisory count + warn entry", () => {
     buildFixture();
-    writeFileSync(join(root, "govkit.yml"), YML_WITH_TIERS);
-    const r = cli(["verify", "--root", root]);
+    writeDoc(root, "govkit.yml", YML_WITH_TIERS);
+    const r = cli(["verify"]);
     expect(r.status).toBe(0);
     expect(r.stdout).toContain("govkit verify: OK");
     // The summary counts the entry it is about to print, then says why it did not block. It used
@@ -140,8 +128,8 @@ docs:
 
   it("the --journal record carries the tier on each violation entry", () => {
     buildFixture();
-    writeFileSync(join(root, "govkit.yml"), YML_WITH_TIERS);
-    const r = cli(["verify", "--journal", "--root", root]);
+    writeDoc(root, "govkit.yml", YML_WITH_TIERS);
+    const r = cli(["verify", "--journal"]);
     expect(r.status).toBe(0);
     const journal = join(root, ".govkit", "journal.jsonl");
     expect(existsSync(journal)).toBe(true);

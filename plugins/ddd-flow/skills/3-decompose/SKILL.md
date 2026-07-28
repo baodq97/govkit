@@ -7,6 +7,28 @@ disable-model-invocation: true
 
 # Domain Decompose
 
+## Hard rules
+
+- **Length budget: `context-map.md` ≤ 180 lines**, and the first-pass context `README.md` stays a
+  sketch — `7-define` owns the canvas depth. A budget caps prose, not findings: over it, cut
+  rationale a reader can infer and anything restated from an upstream artifact — never open
+  questions, provenance, or a stated absence.
+- **Never invent business rules, invariants, or domain events.** Capture only what the user
+  stated; flag gaps rather than filling them. Naming an event the prose *implies*
+  (`AppointmentBooked` from "patients book appointments") is the job; inventing one for a flow the
+  input never describes (an `AppointmentCancelled` when nothing is ever cancelled) is fabrication —
+  don't. Fresh docs start `status: draft`, `owner: TBD`. In update mode,
+  **preserve** whatever a human set — never reset an escalated status, assigned owner, or
+  hand-written rule back to draft/TBD. Setting status (or reverting it) is a human act, not yours.
+- Model from the **domain description, not code**.
+- **Ownership vs. audit metadata.** Model the *owning party* (user / team / org) as a real domain
+  relationship when the business actually has one — that ownership belongs in the model. But
+  technical audit metadata (`created_at/by`, `updated_at/by`) and tenancy isolation columns are
+  infrastructural cross-cutting concerns — do **not** add them to aggregates/entities here; they are
+  decided and applied in the data layer (the `data-model` skill).
+- Boundaries and aggregates **will change** as understanding deepens — present the model as a
+  draft to iterate, not a final truth.
+
 Turn a prose domain/requirements description into a Domain-Driven Design decomposition — bounded
 contexts → aggregates → entities, value objects, and domain events — named in the business's
 ubiquitous language; each context doubles as a candidate service boundary on the monolith →
@@ -161,77 +183,6 @@ consent change, drift risk), rather than leaving it on the map unlabeled.
 The same word in two contexts is kept in both, qualified by context — that polysemy is the
 *point* of bounded contexts, not a naming clash.
 
-## Hard rules
-
-- **Length budget: `context-map.md` ≤ 180 lines**, and the first-pass context `README.md` stays a
-  sketch — `7-define` owns the canvas depth. A budget caps prose, not findings: over it, cut
-  rationale a reader can infer and anything restated from an upstream artifact — never open
-  questions, provenance, or a stated absence.
-- **Never invent business rules, invariants, or domain events.** Capture only what the user
-  stated; flag gaps rather than filling them. Naming an event the prose *implies*
-  (`AppointmentBooked` from "patients book appointments") is the job; inventing one for a flow the
-  input never describes (an `AppointmentCancelled` when nothing is ever cancelled) is fabrication —
-  don't. Fresh docs start `status: draft`, `owner: TBD`. In update mode,
-  **preserve** whatever a human set — never reset an escalated status, assigned owner, or
-  hand-written rule back to draft/TBD. Setting status (or reverting it) is a human act, not yours.
-- Model from the **domain description, not code**.
-- **Ownership vs. audit metadata.** Model the *owning party* (user / team / org) as a real domain
-  relationship when the business actually has one — that ownership belongs in the model. But
-  technical audit metadata (`created_at/by`, `updated_at/by`) and tenancy isolation columns are
-  infrastructural cross-cutting concerns — do **not** add them to aggregates/entities here; they are
-  decided and applied in the data layer (the `data-model` skill).
-- Boundaries and aggregates **will change** as understanding deepens — present the model as a
-  draft to iterate, not a final truth.
-
 ## Worked example
 
-**Input:** "Students browse our course catalog and enrol in courses. Enrolment requires payment;
-we email a receipt and a welcome message. Instructors create and publish courses."
-
-**First-pass contexts + classification (`context-map.md`):**
-
-```mermaid
-graph LR
-  Enrolment -->|downstream of| Catalog
-  Enrolment -->|requests| Payments
-  Enrolment -->|publishes events to| Notifications
-```
-
-| Bounded Context | Sub-domain type | Why |
-|---|---|---|
-| Enrolment | core | the differentiating capability |
-| Catalog | supporting | needed, not differentiating |
-| Payments | generic | commodity — could be outsourced |
-| Notifications | generic | commodity |
-
-**Enrolment context (`docs/domain/enrolment/model.yaml`)** — tactical block (full schema in
-output-template.md §4):
-
-```yaml
-context: Enrolment
-subdomain_type: core
-aggregates:
-  - name: Enrolment
-    root: Enrolment
-    entities:
-      - { name: Enrolment, attributes: [studentId, courseId, status] }
-    value_objects:
-      - { name: Money, attributes: [amount, currency] }
-    domain_events:
-      - { name: EnrolmentRequested, payload: [studentId, courseId] }
-      - { name: EnrolmentConfirmed, payload: [enrolmentId] }
-relationships:
-  - to: Payments
-    direction: downstream
-    our_roles: [acl]
-    their_roles: [other]
-    note: A bought provider; we translate at our edge and it publishes no contract of its own.
-  - to: Catalog
-    direction: downstream
-    our_roles: [other]
-    their_roles: [published-language]
-    note: Course identity and price read as a versioned contract, not a shared model.
-```
-
-Note what the example does **not** do: it doesn't assert a rule like "a student may enrol in at
-most 5 courses" because the input never said so. If that mattered, the skill would ask.
+A full worked run is in `references/worked-example.md` — read it when the shape of the output is unclear.

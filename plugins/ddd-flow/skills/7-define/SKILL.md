@@ -7,6 +7,31 @@ disable-model-invocation: true
 
 # Domain Define
 
+## Hard rules
+
+- **Length budget, by sub-domain type: core ≤ 180 lines, supporting ≤ 90, generic and master-data
+  ≤ 35.** Right-sizing is the doctrine that stops happening silently — a 160-line canvas for a
+  context you have just declared bought is the failure, and the ratio between a core canvas and a
+  generic one should be nearer ten to one than two to one. A budget caps prose, not findings:
+  over it, cut rationale a reader can infer and anything restated from an upstream artifact —
+  never open questions, provenance, or a stated absence.
+- **Never invent a business decision, a rule, or a message.** Take them from discovery, the flows,
+  or the people in the room. Anything you inferred goes under *assumptions*, labelled as inferred,
+  where somebody can knock it down. That relabelling is the whole safety mechanism of this step.
+- **Assumptions and open questions stay populated.** A canvas with both empty is not a confident
+  design; it is an unexamined one. If the room genuinely had no open questions on a core context,
+  say who was in it — that is usually the real finding.
+- **No technical detail in the purpose.** Frameworks, databases and endpoints in the purpose field
+  mean the context is being described as a component instead of a capability, and the canvas stops
+  being reviewable by the people who know the business.
+- **Don't re-classify.** Strategic classification comes from `5-strategize` / `1-understand`
+  by citation. Disagreement is a finding, not a local edit.
+- **Don't redraw boundaries.** A context whose purpose needs an "and also" is evidence for
+  `3-decompose`; write the finding, keep the canvas honest, and let the owning skill move the
+  line.
+- **Verification metrics must be collectable.** Name the source — CI, tracker, production telemetry.
+  A metric with no source is decoration.
+
 > *"Before committing to a design, make explicit decisions about the choices which can have a
 > significant impact on the overall design. Have these conversations early while it is still easy
 > to change your mind and explore alternative models."* — ddd-crew, Define
@@ -162,66 +187,6 @@ contradicts `model.yaml`, propose the delta; `3-decompose` owns that file.
 Optionally add a **C4 System Context** diagram when a context talks to external systems or several
 user types — it answers "what sits around this thing", which the canvas does not.
 
-## Hard rules
-
-- **Length budget, by sub-domain type: core ≤ 180 lines, supporting ≤ 90, generic and master-data
-  ≤ 35.** Right-sizing is the doctrine that stops happening silently — a 160-line canvas for a
-  context you have just declared bought is the failure, and the ratio between a core canvas and a
-  generic one should be nearer ten to one than two to one. A budget caps prose, not findings:
-  over it, cut rationale a reader can infer and anything restated from an upstream artifact —
-  never open questions, provenance, or a stated absence.
-- **Never invent a business decision, a rule, or a message.** Take them from discovery, the flows,
-  or the people in the room. Anything you inferred goes under *assumptions*, labelled as inferred,
-  where somebody can knock it down. That relabelling is the whole safety mechanism of this step.
-- **Assumptions and open questions stay populated.** A canvas with both empty is not a confident
-  design; it is an unexamined one. If the room genuinely had no open questions on a core context,
-  say who was in it — that is usually the real finding.
-- **No technical detail in the purpose.** Frameworks, databases and endpoints in the purpose field
-  mean the context is being described as a component instead of a capability, and the canvas stops
-  being reviewable by the people who know the business.
-- **Don't re-classify.** Strategic classification comes from `5-strategize` / `1-understand`
-  by citation. Disagreement is a finding, not a local edit.
-- **Don't redraw boundaries.** A context whose purpose needs an "and also" is evidence for
-  `3-decompose`; write the finding, keep the canvas honest, and let the owning skill move the
-  line.
-- **Verification metrics must be collectable.** Name the source — CI, tracker, production telemetry.
-  A metric with no source is decoration.
-
 ## Worked example
 
-**Input:** the Nordic Freight model — `Consolidation` placed as the core context by
-`5-strategize` (the Guaranteed Consolidation premium), with message flows already traced.
-
-**Right-sizing:** full canvas for `Consolidation`, lighter ones for `Booking` and `Customs`, stubs
-for `Notifications` (bought) and `Routing`.
-
-**Purpose:** *"Decide which consignments travel in which container on which departure, so that
-customers who paid for Guaranteed Consolidation get their slot and containers leave as full as
-possible."* Actors: depot planners, and indirectly the exporters who bought the premium.
-
-**Domain role:** execution (it enforces a workflow) **and** analysis (it optimises fill). Naming
-both surfaced the finding: the optimiser and the commitment ledger have different change rhythms,
-and the optimiser could move behind a port without splitting the context.
-
-**Interface critique found:** `ReserveCapacity` was modelled as an inbound query followed by a
-command — question 2 says it should be one command the context accepts or rejects. Question 4 caught
-`ContainerLoad` being exposed wholesale to Booking, which is the context's internal state.
-
-**Assumptions written down (previously implicit):**
-
-- a container is committed to exactly one departure and never re-planned after sealing,
-- planners will keep resolving infeasible stacks by hand — the optimiser is advisory,
-- volume, not weight, is the binding constraint on Nordic's lanes.
-
-The third turned out to be contested in the room, which made it an open question rather than an
-assumption — and it is the kind of thing that would have been discovered by a production incident
-instead.
-
-**Verification metrics chosen:** how often `Consolidation` and `Booking` change in the same pull
-request (change coupling, from CI); planner manual overrides per week (from the live system). If
-the first climbs, the boundary is wrong; if the second climbs, the model does not match the work.
-
-Note what the example does **not** do: it does not invent a business rule about re-planning, it does
-not reclassify `Consolidation` on its own authority, and it does not fill the open-questions section
-with rhetorical questions to look thorough — the one question there is a real disagreement with two
-names on it.
+A full worked run is in `references/worked-example.md` — read it when the shape of the output is unclear.
