@@ -65,8 +65,11 @@ record per run, with fields:
 - `at` (ISO timestamp), `cmd`, `root`;
 - `gitSha` via the existing `gitAvailable`/git helpers in `util.ts` — omitted when git is
   absent, never an error;
-- `verify` — `{ docs, violations: [{ path, kind }] }` — and/or `eval` — `{ artifacts,
-  floorPassRate, advisoryPassRate, averageScore }`, per what ran;
+- `verify` — `{ docs, violations: [{ path, kind, tier, waived? }] }` — and/or `eval` —
+  `{ artifacts, floorPassRate, advisoryPassRate, averageScore, waived? }`, per what ran. The
+  `tier` and `waived?` fields joined later, additively: without them a human-signed exception
+  journals identically to a broken gate, and a consumer learns from an incident that never
+  happened;
 - `ok`, `durationMs`; `changed` (the resolved base ref) when the run was `--changed`-scoped, so
   a 1-doc scoped run is never trended against full-repo runs;
 - `error` on a crashed run: a thrown gate still appends `ok: false` with the first line of the

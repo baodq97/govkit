@@ -33,11 +33,20 @@ export interface JournalRecord {
     docs: number;
     violations: Array<{ path: string; kind: string; tier: string; waived?: true }>;
   };
+  /** `waived` is the SAME marker as on a verify violation, one layer up: eval's record carries
+   *  aggregates, not per-finding entries, so the marker is the COUNT of artifacts whose required
+   *  floor was cleared only by an active waiver — the same unit `floorPassRate` is computed in,
+   *  so a consumer can reconcile `floorPassRate × artifacts + waived + blocked = artifacts`.
+   *  Omitted when zero, never 0, exactly like `waived` above and `ack` below. Without it a
+   *  fully-waived corpus journals `floorPassRate: 0` on an `ok: true` line — the same
+   *  signed-exception-reads-as-broken-gate confusion, with no violation entry to carry the mark.
+   *  `check` writes BOTH records, so a chained run is marked on both halves. */
   eval?: {
     artifacts: number;
     floorPassRate: number;
     advisoryPassRate: number;
     averageScore: number;
+    waived?: number;
   };
   /** Drift gate (RFC-0015) counts — additive, only `drift` runs write it. `ack: true`
    *  (omitted on check runs, never false) marks a `drift --ack` run: an ack REWRITES the

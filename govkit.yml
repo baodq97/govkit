@@ -59,6 +59,14 @@ docs:
       terminalStatuses: [done]
       # A US's `parent` (the RFC/ADR it implements) must resolve to a real id.
       refs: [{ key: parent, type: rfc }]
+    domain:
+      dir: docs/domain
+      required: [id, title, status, owner, date]
+      idPrefix: DOMAIN
+      startStatus: draft
+      statuses: [draft, review, accepted, superseded]
+      recursive: true
+      idFilenameConvention: false
     rel:
       dir: docs/releases
       required: [id, title, status, owner, date]

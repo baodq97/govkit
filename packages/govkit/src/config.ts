@@ -17,6 +17,7 @@ export type IndexConfig = false | { sync: string[] };
  * the two can never drift. Alphabetical, so the validation error doubles as documentation.
  */
 export const VIOLATION_KINDS = [
+  "citation",
   "coherence",
   "duplicate",
   "frontmatter",

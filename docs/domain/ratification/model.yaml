@@ -68,3 +68,13 @@ relationships:
     our_roles: [published-language]
     their_roles: [conformist]
     note: The hook's two reminders (audit-write.ts:88-136) are the ONLY code anywhere that reflects this policy — and both are explicitly non-blocking.
+  - to: WaiverPolicy
+    direction: upstream
+    our_roles: [published-language]
+    their_roles: [conformist]
+    note: >-
+      Mirror of WaiverPolicy's edge. `authorized_by` is the same human-authorization act this
+      context governs for a status flip, borrowed verbatim: an agent may PROPOSE a waiver, never
+      author the signature (config.ts:229-234; AGENTS.md:112-113). Honor-system like every other
+      edge here — the field is required non-empty, and nothing checks WHO wrote the name, which is
+      why it is `published-language` and not `open-host`.

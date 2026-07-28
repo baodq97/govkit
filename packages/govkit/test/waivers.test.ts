@@ -473,24 +473,102 @@ docs:
       statuses: [draft, accepted]
 ${waivers}`;
 
-  const ACTIVE = `waivers:
-  - rule: index
+  // One `waivers:` key, composed from entries — `check` needs BOTH layers waived at once to
+  // produce the fully-waived corpus the journal bar is stated over.
+  const W_INDEX = `  - rule: index
     scope: docs/adr/**
     reason: INDEX rows are backfilled by the migration; blocking stalls it on a mechanical edit
     authorized_by: "@baodq97"
     expires: "2999-12-31"
 `;
+  const W_SUBSTANCE = `  - rule: substance
+    scope: docs/adr/**
+    reason: the stub is tracked by the migration; blocking stalls it
+    authorized_by: "@baodq97"
+    expires: "2999-12-31"
+`;
+  // No entries ⇒ no `waivers:` key at all: an empty list key is itself a config error, and this
+  // helper must be able to build the UNWAIVED control corpus too.
+  const waiverBlock = (...entries: string[]): string =>
+    entries.length === 0 ? "" : `waivers:\n${entries.join("")}`;
+  const ACTIVE = waiverBlock(W_INDEX);
 
-  /** The header must describe its own BODY: the count that opens the summary is the number of
-   *  entries printed beneath it. This is the assertion the old printer failed — it headed a
-   *  waived finding "0 violations" and then listed it. */
+  /** A TWO-rule required floor, so one fixture drives both halves of the defect: an artifact that
+   *  fails only `substance` is FULLY signed for, and one that fails both is PARTLY signed — still
+   *  blocking, and still owing the reader its signature. */
+  const RUBRIC = `eval:
+  threshold: 50
+  rubrics:
+    adr:
+      - id: substance
+        desc: not an empty stub
+        weight: 50
+        kind: minWords
+        min: 40
+        required: true
+      - id: decision
+        desc: has a Decision section
+        weight: 50
+        kind: section
+        pattern: Decision
+        required: true
+`;
+  /** Fails `substance` only — its whole floor gap is covered by W_SUBSTANCE. */
+  const SIGNED_STUB = "## Decision\n\ntoo short";
+  /** Fails `substance` AND `decision` — only the first is covered. */
+  const HALF_SIGNED_STUB = "too short";
+
+  /** The header must describe its own BODY: the count that opens a command's summary is the
+   *  number of entries printed beneath it, up to the next command's header. This is the assertion
+   *  the old verify printer failed — it headed a waived finding "0 violations" and then listed it.
+   *
+   *  ONE assertion on THREE surfaces. It runs over every `govkit <cmd>:` header in the output, so
+   *  `check` — which prints a verify report and an eval report back to back — is covered by the
+   *  same call, and a fourth printer would be covered by adding one row to `COUNTS`. Both printers
+   *  use the same grammar: two-space-then-non-space is one entry, and everything else (a problem
+   *  line, a `Fixes:` remedy, a `Next:` line) is indented differently on purpose. */
+  type HeaderClaim = {
+    /** The head term — how many entries the printer is about to list. */
+    total: RegExp;
+    /** The waived term and the body rows that must account for it. Both printers state a waived
+     *  count, and both had to be taught the unit the BODY is in: verify lists one row per finding,
+     *  eval one row per artifact while a waiver is rule×scope. */
+    waived: { claim: RegExp; row: RegExp };
+  };
+  const COUNTS: Record<string, HeaderClaim> = {
+    "govkit verify:": {
+      total: /, (\d+) violations?/,
+      waived: { claim: /, (\d+) waived/, row: /^ {2}waived / },
+    },
+    "govkit eval:": {
+      total: /— (\d+) artifact\(s\)/,
+      waived: { claim: /waived on (\d+) artifact\(s\)/, row: /^ {2}\S.*\(signed: / },
+    },
+  };
   function expectHeaderCountsItsBody(out: string): void {
     const lines = out.split("\n");
-    const header = lines.find((l) => l.startsWith("govkit verify:"));
-    expect(header).toBeDefined();
-    const entries = lines.filter((l) => /^ {2}\S/.test(l)).length;
-    const claimed = Number(/, (\d+) violations?/.exec(header ?? "")?.[1]);
-    expect(claimed).toBe(entries);
+    const heads = lines.flatMap((l, i) =>
+      Object.keys(COUNTS).some((p) => l.startsWith(p)) ? [i] : [],
+    );
+    expect(heads.length).toBeGreaterThan(0);
+    for (const [n, start] of heads.entries()) {
+      const header = lines[start] ?? "";
+      const claims = Object.entries(COUNTS).find(([p]) => header.startsWith(p))?.[1];
+      const body = lines.slice(start + 1, heads[n + 1] ?? lines.length);
+      const rows = body.filter((l) => /^ {2}\S/.test(l));
+      // Asserted as one object so a failure names the header that lied, not just two integers.
+      expect({ header, entries: Number(claims?.total.exec(header)?.[1]) }).toEqual({
+        header,
+        entries: rows.length,
+      });
+      // A count with no matching term in the header claims zero, so an unwaived report is held to
+      // "then print no signature" — the mismatch has to be caught in both directions.
+      const waived = claims?.waived;
+      expect({ header, waived: Number(waived?.claim.exec(header)?.[1] ?? 0) }).toEqual({
+        header,
+        waived: rows.filter((l) => waived?.row.test(l)).length,
+      });
+    }
   }
 
   function fixture(waivers: string): void {
@@ -534,40 +612,94 @@ ${waivers}`;
     expect(line.verify?.violations[0]?.waived).toBe(true); // …and THIS finding was signed for
   });
 
+  /** Write an eval fixture: `bodies` maps an ADR id to its prose, `waivers` are the entries. */
+  function evalFixture(bodies: Record<string, string>, ...waivers: string[]): void {
+    for (const [id, body] of Object.entries(bodies)) {
+      write(`docs/adr/${id}.md`, doc({ id, ...meta }, body));
+    }
+    writeFileSync(join(root, "govkit.yml"), `${YML(waiverBlock(...waivers))}${RUBRIC}`);
+  }
+
   // The same header-vs-body contradiction lived in the EVAL printer, found while wiring this one:
   // it branched on the literal `requiredOk`, so an artifact whose every missed required rule was
   // signed for printed `BLOCK` under an `OK` header, naming no waiver at all.
   it("the eval report shows a waived floor as waived, not as BLOCK under an OK header", () => {
-    write("docs/adr/ADR-0001.md", doc({ id: "ADR-0001", ...meta }, "too short"));
-    writeFileSync(
-      join(root, "govkit.yml"),
-      `${YML(`waivers:
-  - rule: substance
-    scope: docs/adr/**
-    reason: the stub is tracked by the migration; blocking stalls it
-    authorized_by: "@baodq97"
-    expires: "2999-12-31"
-`)}eval:
-  threshold: 50
-  rubrics:
-    adr:
-      - id: substance
-        desc: not an empty stub
-        weight: 100
-        kind: minWords
-        min: 40
-        required: true
-`,
-    );
+    evalFixture({ "ADR-0001": SIGNED_STUB }, W_SUBSTANCE);
     const r = cli(["eval", "--root", root]);
     expect(r.status).toBe(0);
     expect(r.stdout).toContain("govkit eval: OK");
-    // The literal floor stays 0% (calibrate must never see a waiver) — but the line now says why.
-    expect(r.stdout).toContain("required floor: 0% passed, 1 waived");
+    // The literal floor stays 0% (calibrate must never see a waiver) — but the line now says why,
+    // in BOTH units: a waiver is rule×scope, an artifact line is one artifact.
+    expect(r.stdout).toContain("required floor: 0% passed, 1 rule(s) waived on 1 artifact(s)");
     expect(r.stdout).not.toContain("BLOCK");
-    expect(r.stdout).toContain("waived 0/100");
+    expect(r.stdout).toContain("waived 50/100");
     expect(r.stdout).toContain("missing required: not an empty stub");
     expect(r.stdout).toContain("(signed: substance by @baodq97 until 2999-12-31)");
+    expectHeaderCountsItsBody(r.stdout);
+  });
+
+  // The half the header could still contradict: a PARTIAL waive. The waived branch is reachable
+  // (ADR-0001 below prints it), but an artifact that is partly signed falls to the earlier
+  // `!floorOk` branch — which used to drop the signature entirely, leaving the header's waived
+  // count with a line beneath it that mentioned no waiver at all.
+  it("a partly signed artifact still blocks — and still prints who signed what", () => {
+    evalFixture({ "ADR-0001": SIGNED_STUB, "ADR-0002": HALF_SIGNED_STUB }, W_SUBSTANCE);
+    const r = cli(["eval", "--root", root]);
+    expect(r.status).toBe(1); // ADR-0002 still owes an unsigned `decision`
+    expect(r.stderr).toContain("required floor: 0% passed, 2 rule(s) waived on 2 artifact(s)");
+    const block = r.stderr.split("\n").find((l) => l.includes("BLOCK"));
+    expect(block).toContain("ADR-0002.md");
+    expect(block).toContain("missing required: not an empty stub; has a Decision section");
+    // The signature the blocking line used to swallow — 1 of its 2 gaps IS signed for.
+    expect(block).toContain("(signed: substance by @baodq97 until 2999-12-31)");
+    // …and the fully signed one is still shown as waived, not blocked.
+    expect(r.stderr).toContain("waived 50/100");
+    // 2 rules on 2 artifacts, 2 artifact lines, both naming a signature: the units are labelled,
+    // so nothing in the header is left without a line to account for it.
+    expectHeaderCountsItsBody(r.stderr);
+  });
+
+  it("the eval --journal record marks the waived floor — 0% passed on an ok:true line", () => {
+    evalFixture({ "ADR-0001": SIGNED_STUB }, W_SUBSTANCE);
+    const r = cli(["eval", "--journal", "--root", root]);
+    expect(r.status).toBe(0);
+    const line = JSON.parse(
+      readFileSync(join(root, ".govkit", "journal.jsonl"), "utf8").trim(),
+    ) as JournalRecord;
+    expect(line.ok).toBe(true);
+    // The pair that reads as a gate failing open without the marker, and reconciles with it:
+    // floorPassRate × artifacts + waived + blocked = artifacts.
+    expect(line.eval?.floorPassRate).toBe(0);
+    expect(line.eval?.artifacts).toBe(1);
+    expect(line.eval?.waived).toBe(1);
+  });
+
+  it("an unwaived eval failure carries no `waived` key at all — omitted, never 0", () => {
+    evalFixture({ "ADR-0001": HALF_SIGNED_STUB });
+    const r = cli(["eval", "--journal", "--root", root]);
+    expect(r.status).toBe(1);
+    const line = JSON.parse(
+      readFileSync(join(root, ".govkit", "journal.jsonl"), "utf8").trim(),
+    ) as JournalRecord;
+    expect(line.ok).toBe(false);
+    expect(line.eval?.floorPassRate).toBe(0);
+    expect(line.eval?.waived).toBeUndefined();
+    expect(Object.keys(line.eval ?? {})).not.toContain("waived");
+  });
+
+  // `check` chains both layers, so it is the record a consumer of a whole gate run actually reads.
+  // A fully-waived corpus is the worst case: every number in it reads like a failure.
+  it("check marks BOTH halves of a fully-waived corpus, and its report counts its body", () => {
+    evalFixture({ "ADR-0001": SIGNED_STUB }, W_INDEX, W_SUBSTANCE);
+    const r = cli(["check", "--journal", "--root", root]);
+    expect(r.status).toBe(0);
+    expectHeaderCountsItsBody(r.stdout); // one call, both printers
+    const line = JSON.parse(
+      readFileSync(join(root, ".govkit", "journal.jsonl"), "utf8").trim(),
+    ) as JournalRecord;
+    expect(line.ok).toBe(true);
+    expect(line.verify?.violations[0]?.waived).toBe(true);
+    expect(line.eval?.waived).toBe(1);
   });
 
   it("a genuine blocking failure is distinguishable from it — no `waived` field at all", () => {

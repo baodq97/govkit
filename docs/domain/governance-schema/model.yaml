@@ -64,6 +64,15 @@ relationships:
     our_roles: [published-language]
     their_roles: [acl]
     note: The only downstream that translates rather than conforms — it overrides docs.root to "." (calibrate.ts:123).
+  - to: WaiverPolicy
+    direction: upstream
+    our_roles: [published-language, open-host]
+    their_roles: [conformist]
+    note: >-
+      Mirror of WaiverPolicy's edge, and the one consumer this schema deliberately under-validates:
+      `waivers` is typed `unknown[]` and only its LIST shape is checked at load (config.ts:187-194,
+      :489-499). Every other key is validated here; this one is validated at GATE time, so a
+      malformed waiver reaches the gate and is REPORTED rather than throwing the whole load.
   - to: Adoption
     direction: peer
     our_roles: [partnership]

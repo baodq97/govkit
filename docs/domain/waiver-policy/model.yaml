@@ -86,10 +86,11 @@ relationships:
       that never happened. That is what a missing edge costs: not a merge conflict, which
       file-level review catches, but two contexts quietly disagreeing about what a record means.
       Closed by `waived: true` on each violation entry, omitted and never false like `ack`
-      (packages/govkit/src/journal.ts:24-35 JournalRecord.verify;
-      packages/govkit/src/cli.ts:606-614). This context supplies the marker; GateJournal still
-      owns the line shape. GateJournal's own file lists five suppliers and not this one — its
-      mirror of this edge is still owed.
+      (packages/govkit/src/journal.ts:24-34 JournalRecord.verify;
+      packages/govkit/src/cli.ts:1097-1101). This context supplies the marker; GateJournal still
+      owns the line shape. The mirror is no longer owed — GateJournal now lists this context as its
+      sixth supplier, and both files record what is still open: journal.ts:36-49 declares the same
+      marker on the EVAL record and no writer sets it (cli.ts:1105-1113).
   - to: Calibration
     direction: peer
     our_roles: [separate-ways]

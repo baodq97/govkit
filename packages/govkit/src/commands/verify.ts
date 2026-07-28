@@ -1,5 +1,6 @@
 import { existsSync, readFileSync } from "node:fs";
 import { basename, join } from "node:path";
+import { type CitationSummary, runCitations } from "../citations";
 import {
   classifyWaivers,
   type DocType,
@@ -59,6 +60,10 @@ export interface VerifyResult {
   /** Waiver accounting for this run — `waived` is `waivers.applied`. Always present (all-zero
    *  when nothing is configured) so a consumer never has to special-case its absence. */
   waivers: WaiverSummary;
+  /** Set only when `checkCitations` was requested (RFC-pending, opt-in). Carries the resolved /
+   *  skipped / failed accounting for the whole run, so the report can never state a citation
+   *  verdict without the denominator it was measured against. Absent ⇒ the pass did not run. */
+  citations?: CitationSummary;
   /** Set only when `changed` scoping was applied — names the base ref and how many
    *  governed docs fell in the changed set, so output is never silently scoped. */
   scoped?: { ref: string; changedDocs: number };
@@ -74,6 +79,14 @@ export interface VerifyOptions {
   /** The instant waiver expiry is judged against. Injected so a test can prove the boundary
    *  without waiting for it; defaults to now. Nothing else in verify reads a clock. */
   now?: Date;
+  /**
+   * OPT-IN (`--check-citations`): resolve every `path:line` reference the governed tree makes
+   * into the code it claims to describe. Deliberately not default and deliberately OUT of the
+   * no-key CI gate: it is a brand-new rule with no calibration history, and the repo rule is
+   * that a rule earns its severity with evidence before it blocks anyone. Off ⇒ the pass does
+   * not run at all and `citations` is absent, so an unflagged run is byte-identical to before.
+   */
+  checkCitations?: boolean;
 }
 
 interface Doc {
@@ -383,6 +396,31 @@ function checkRequiredSections(docs: Doc[], types: Record<string, DocType>): Fin
   return violations;
 }
 
+// ANCHORED citation resolution (opt-in, `--check-citations`). A governed doc that cites
+// `verify.ts:645` is asserting something about code, and that assertion rots silently: the
+// measured incident this exists for is a citation that went stale inside the round that wrote
+// it, because a +34-line edit pushed the cited block down while SOMETHING still occupied the old
+// line. Resolution therefore anchors on a token from the citing sentence rather than on the line
+// number alone (see citations.ts for the three-step rule and the three failure names).
+// ONE violation per citing FILE carrying one problem per failure — the same grouping checkIndex
+// uses, and for the same reason: a doc with nine moved citations is one repair, not nine reports.
+// Reported on the citing file, so `--changed` scopes it like any other per-doc check.
+function checkCitations(
+  root: string,
+  config: GovkitConfig,
+): { findings: Finding[]; summary: CitationSummary } {
+  const { summary, reports } = runCitations(root, config);
+  const findings = reports.map((report) => ({
+    file: report.file,
+    type: report.type,
+    kind: "citation" as const,
+    problems: report.failures.map(
+      (f) => `line ${f.citation.fromLine} cites \`${f.citation.raw}\` — ${f.reason}: ${f.detail}`,
+    ),
+  }));
+  return { findings, summary };
+}
+
 // The waiver config is itself governed. Every waiver that is NOT in force gets said out loud, on
 // `govkit.yml`, as one `waiver`-kind violation carrying one problem per broken entry:
 //   • MALFORMED (missing a mandatory field, or naming a rule the gate never emits) — it suppresses
@@ -471,7 +509,30 @@ export function verifySummaryLine(result: VerifyResult): string {
     // even on a clean report: an exception about to die is news before the finding returns.
     parts.push(`${plural(expiringSoon, "waiver")} expiring within ${horizonDays} days`);
   }
+  if (result.citations) parts.push(citationLine(result.citations));
   return parts.join(", ");
+}
+
+/** The citation pass's own accounting, appended to the summary ONLY when the pass ran (so an
+ *  unflagged run's line is byte-identical to before it existed).
+ *
+ *  All four totals are always stated — found, resolved, skipped, failed — because the whole point
+ *  of this check is that a number without its denominator lies: the positional checker it replaces
+ *  reported "0 errors" over a corpus that already carried a stale citation. `found = resolved +
+ *  skipped + failed` holds by construction, so a reader can audit the line against itself, and the
+ *  skipped/failed breakdowns name WHICH form was skipped and WHICH way it failed — a silent skip
+ *  reads as coverage, and one generic failure name sends the reader to the wrong repair. */
+function citationLine(c: CitationSummary): string {
+  const breakdown = (by: Record<string, number>): string => {
+    const named = Object.entries(by)
+      .filter(([, n]) => n > 0)
+      .map(([name, n]) => `${name} ${n}`);
+    return named.length > 0 ? ` (${named.join(", ")})` : "";
+  };
+  return (
+    `citations: ${c.found} found in ${c.files} file(s), ${c.resolved} resolved, ` +
+    `${c.skipped} skipped${breakdown(c.skippedBy)}, ${c.failed} failed${breakdown(c.failedBy)}`
+  );
 }
 
 // RFC-0004 adoption scoping: keep ONLY the violations a changed set is responsible for,
@@ -629,6 +690,12 @@ export function runVerify(opts: VerifyOptions): VerifyResult {
   violations.push(...checkCoherence(allDocs, types));
   violations.push(...checkRequiredSections(allDocs, types));
 
+  // Opt-in and last among the checks: it is the only one that reads files OUTSIDE the governed
+  // corpus (the code a doc cites), and the only one whose severity is not yet calibrated. Off by
+  // default, so `citations` stays absent and an unflagged run is byte-identical to before.
+  const citations = opts.checkCitations ? checkCitations(opts.root, config) : undefined;
+  if (citations) violations.push(...citations.findings);
+
   // Waivers are classified ONCE, against ONE instant, before anything is judged: a run that
   // read the clock per-violation could put the same waiver in force for one finding and expired
   // for the next. `checkWaivers` then reports every entry that is NOT in force as a normal
@@ -667,11 +734,18 @@ export function runVerify(opts: VerifyOptions): VerifyResult {
       checked,
       violations: reported,
       waivers,
+      ...(citations ? { citations: citations.summary } : {}),
       scoped: {
         ref: opts.changed.ref,
         changedDocs: scannedFiles.filter((s) => opts.changed?.files.has(s.file)).length,
       },
     };
   }
-  return { ok: passes(reported), checked, violations: reported, waivers };
+  return {
+    ok: passes(reported),
+    checked,
+    violations: reported,
+    waivers,
+    ...(citations ? { citations: citations.summary } : {}),
+  };
 }

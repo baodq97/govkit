@@ -47,3 +47,13 @@ relationships:
     our_roles: [acl]
     their_roles: [published-language]
     note: The one context that TRANSLATES the config at its edge rather than conforming — it forces docs.root back to "." because the corpus layout is its own convention (calibrate.ts:123).
+  - to: WaiverPolicy
+    direction: peer
+    our_roles: [separate-ways]
+    their_roles: [separate-ways]
+    note: >-
+      Mirror of WaiverPolicy's edge, and Separate Ways is the DESIGN, not a gap. This context's
+      confusion matrix reads `requiredOk` — the literal structural truth, deliberately unmoved by
+      waivers (eval.ts:34-40, :247) — while the gate reads `floorOk`, which honors them
+      (eval.ts:179). A signed exception must never be able to move the number that judges the
+      rubric which produced the finding.

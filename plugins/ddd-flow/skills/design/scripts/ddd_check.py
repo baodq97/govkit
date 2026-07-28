@@ -6,11 +6,13 @@ look for — moving it into a script means it runs every time instead of only wh
 and it catches the class of problem that reading markdown file-by-file cannot: a contradiction that
 lives BETWEEN two files.
 
-    python3 ddd_check.py --root .            # human-readable
-    python3 ddd_check.py --root . --json     # for the review lens
+    python3 ddd_check.py --root .                     # human-readable
+    python3 ddd_check.py --root . --json              # for the review lens
+    python3 ddd_check.py --root . --strict-symmetry   # block on a one-way relationship
 
-Exit code is 0 unless --strict is passed (then non-zero when any finding has severity=high).
-This reports; the gate stays `npx govkit verify`.
+Exit code is 0 unless --strict is passed (then non-zero when any finding has severity=high) or
+--strict-symmetry is (then non-zero on a one-way or disagreeing relationship, which is `info` and
+therefore silent by default — see check 15). This reports; the gate stays `npx govkit verify`.
 """
 
 from __future__ import annotations
@@ -108,6 +110,54 @@ def _roles(node) -> list[str]:
     if isinstance(node, str):
         return [node.strip().lower()] if node.strip() else []
     return [str(x).strip().lower() for x in (node or []) if str(x).strip()]
+
+
+# The mirror of a relationship is not the relationship copied — it is the same edge seen from the
+# other side, so the direction flips. `peer` is its own mirror. See check 15.
+MIRROR_DIRECTION = {"upstream": "downstream", "downstream": "upstream", "peer": "peer"}
+
+# The findings `--strict-symmetry` blocks on. Kept next to the rule rather than in main() so that
+# adding a symmetry finding cannot silently escape the flag.
+SYMMETRY_IDS = ("relationship-one-way", "relationship-asymmetric")
+
+
+def _direction(r: dict) -> str:
+    return str(r.get("direction") or "").strip().lower()
+
+
+def _side(r: dict) -> str:
+    """One side rendered so a mismatch is readable without opening the other file."""
+    return (f"direction {_direction(r) or '—'}, "
+            f"ours [{', '.join(_roles(r.get('our_roles'))) or '—'}], "
+            f"theirs [{', '.join(_roles(r.get('their_roles'))) or '—'}]")
+
+
+def _same_side(a: list[str], b: list[str]) -> bool:
+    """Do two files describe ONE side of a boundary compatibly? Overlap, not equality.
+
+    A side may name itself more fully than its counterpart names it — GovernanceSchema calls itself
+    `published-language, open-host` toward FeatureLedger, which names only `published-language`.
+    Less specific is not wrong. An empty side is check 14's finding, not this one's, and `other` is
+    the open-enum wildcard check 14 defends, so both read as compatible here.
+    """
+    sa, sb = set(a), set(b)
+    if not sa or not sb or "other" in sa or "other" in sb:
+        return True
+    return bool(sa & sb)
+
+
+def _mirrors(a: dict, b: dict) -> bool:
+    """Is `b` (the counterpart's entry) the same edge as `a`, seen from the other side?
+
+    Direction flips; roles CROSS — a's `our_roles` and b's `their_roles` describe the same side.
+    An unrecognised direction is not judged: the vocabulary is open, and a rule must degrade rather
+    than explode on a value it has no opinion about.
+    """
+    da, db = _direction(a), _direction(b)
+    if da in MIRROR_DIRECTION and db in MIRROR_DIRECTION and MIRROR_DIRECTION[da] != db:
+        return False
+    return (_same_side(_roles(a.get("our_roles")), _roles(b.get("their_roles")))
+            and _same_side(_roles(a.get("their_roles")), _roles(b.get("our_roles"))))
 
 
 def _cap(lines: list[str], keep: int = 8) -> list[str]:
@@ -699,6 +749,85 @@ def run_checks(root: Path, docs: Path) -> list[Finding]:
                 "build their own ACL."],
             "3-decompose"))
 
+    # 15 — a relationship is a claim about TWO contexts, and until now nothing asked the second one
+    # whether it agreed. `output-template.md` has stated the symmetry convention in prose since the
+    # schema was written; prose that no rule reads is a convention, not a constraint. That is how
+    # this repo's own model drifted from itself: six WaiverPolicy edges declared in one file, zero
+    # declared back, and a context map drawing two of the six — three sources disagreeing about one
+    # fact with every gate green, because declaring an edge is not the same as checking it.
+    #
+    # COMPATIBLE, NOT IDENTICAL, and the difference is the whole design of the rule. Customer /
+    # Supplier and upstream / downstream are asymmetric BY DESIGN — the two sides SHOULD read
+    # differently while the edge is mutual. So:
+    #   · direction flips (`MIRROR_DIRECTION`): upstream faces downstream, peer faces peer;
+    #   · roles CROSS: A's `our_roles` and B's `their_roles` describe the same side of the boundary;
+    #   · and they cross by OVERLAP, not equality (`_same_side`), because a side may name itself
+    #     more fully than its counterpart names it. Demanding equality would fire on the correct
+    #     GovernanceSchema ↔ FeatureLedger pair, and a rule that fires on correct models is a rule
+    #     people learn to scroll past.
+    # Both sides' roles are printed in the finding for the same reason: a mismatch a reader has to
+    # open two files to see is a mismatch that does not get fixed.
+    #
+    # A `to:` outside the model — `to: Site manager`, an actor — is skipped, not reported. An
+    # unmodelled counterpart has no file to declare anything back in, and calling that one-way would
+    # be this rule answering for a different defect class.
+    #
+    # Severity `info`, per the graduation rule: a new rule earns promotion with evidence, and on a
+    # corpus nobody has migrated it would otherwise block on process, not on defect. But an `info`
+    # finding cannot fail anything, so `--strict-symmetry` makes exactly these two ids blocking on
+    # request — a rule with no way to fail changes no behaviour. PROMOTE to `high` by default once
+    # `--strict-symmetry` has run green in CI across a release on a corpus that was NOT hand-fixed
+    # for it, i.e. once the one-way count stays 0 without anyone chasing it; until then the flag is
+    # opt-in and the finding is advisory.
+    by_norm = {_norm(n): n for n in ctx}
+    one_way, asymmetric, judged = [], [], 0
+    for name in sorted(ctx):
+        for r in (ctx[name].get("relationships") or []):
+            if not isinstance(r, dict) or not r.get("to"):
+                continue
+            target = by_norm.get(_norm(r["to"]))
+            if target is None or target == name:
+                continue
+            judged += 1
+            back = [b for b in (ctx[target].get("relationships") or [])
+                    if isinstance(b, dict) and _norm(b.get("to") or "") == _norm(name)]
+            if not back:
+                one_way.append(f"{name} → {target} ({_side(r)}) — {target} declares nothing back")
+                continue
+            if any(_mirrors(r, b) for b in back):
+                continue
+            b = back[0]
+            why = []
+            da, db = _direction(r), _direction(b)
+            if da in MIRROR_DIRECTION and db in MIRROR_DIRECTION and MIRROR_DIRECTION[da] != db:
+                why.append(f"`{da}` must face `{MIRROR_DIRECTION[da]}`, not `{db}`")
+            if not _same_side(_roles(r.get("our_roles")), _roles(b.get("their_roles"))):
+                why.append(f"{name}'s own role is unrecognised by {target}")
+            if not _same_side(_roles(r.get("their_roles")), _roles(b.get("our_roles"))):
+                why.append(f"{name}'s view of {target} is not the role {target} claims")
+            asymmetric.append(f"{name} → {target}: {'; '.join(why)} · "
+                              f"{name} says {_side(r)} · {target} says {_side(b)}")
+    if one_way:
+        out.append(Finding(
+            "relationship-one-way", "info",
+            f"{len(one_way)} of {judged} relationships are declared by one side only",
+            _cap(one_way) + [
+                "the counterpart's own model.yaml needs the mirror entry: opposite `direction`, "
+                "`our_roles` and `their_roles` swapped. A boundary only one side has agreed to is a "
+                "boundary the other side can change without knowing it broke anything."],
+            "3-decompose"))
+    if asymmetric:
+        out.append(Finding(
+            "relationship-asymmetric", "info",
+            f"{len(asymmetric)} of {judged} relationships are declared by both sides, which "
+            "disagree about the edge",
+            _cap(asymmetric) + [
+                "compatible, not identical: upstream faces downstream, peer faces peer, and each "
+                "side's `our_roles` must be a role the other side names in `their_roles`. Roles "
+                "need only overlap — naming yourself more fully than your counterpart does is not "
+                "a conflict."],
+            "3-decompose"))
+
     order = {"high": 0, "medium": 1, "info": 2}
     return sorted(out, key=lambda f: (order[f.severity], f.id))
 
@@ -732,6 +861,9 @@ def main() -> int:
     ap.add_argument("--docs", default=None)
     ap.add_argument("--json", action="store_true")
     ap.add_argument("--strict", action="store_true", help="exit 1 when a high-severity finding exists")
+    ap.add_argument("--strict-symmetry", action="store_true",
+                    help="exit 1 when a relationship is one-way or its two sides disagree "
+                         "(check 15 is `info` by default, so it cannot block without this)")
     args = ap.parse_args()
 
     root = Path(args.root).resolve()
@@ -759,6 +891,8 @@ def main() -> int:
             print()
 
     if args.strict and any(f.severity == "high" for f in findings):
+        return 1
+    if args.strict_symmetry and any(f.id in SYMMETRY_IDS for f in findings):
         return 1
     return 0
 

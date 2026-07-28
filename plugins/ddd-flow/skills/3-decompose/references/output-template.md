@@ -137,9 +137,26 @@ no name for it, write `other` and say what is actually known in `note:`. A toler
 closed enum that forces a modeller to file a real relationship under the wrong pattern. `ddd_check`
 enforces **presence** (a direction, and at least one role on each side), never the value.
 
-**Symmetry.** The convention is self-relative — `direction` and `our_roles` describe *this* context
-toward `to`. So the other context's own file must mirror it: opposite direction, roles swapped.
-A `peer` edge (Partnership, Shared Kernel) carries the same role on both sides.
+**Symmetry, and it is checked.** The convention is self-relative — `direction` and `our_roles`
+describe *this* context toward `to`. So the other context's own file must mirror it: opposite
+direction (`upstream` faces `downstream`, `peer` faces `peer`), roles swapped, because your
+`our_roles` and their `their_roles` describe the same side of one boundary. A `peer` edge
+(Partnership, Shared Kernel, Separate Ways) carries the same role on both sides.
+
+`ddd_check` reports a missing mirror as `relationship-one-way` and two sides that disagree as
+`relationship-asymmetric`, printing both sides' roles so the mismatch is readable without opening
+two files. Both are `info` — `--strict-symmetry` makes them exit 1 when you want the model to hold
+the line in CI. The rule was written after a corpus drifted from itself with every gate green: six
+edges declared in one file, none of them declared back, and a context map drawing two of the six.
+Stating this convention in prose for a year had not prevented it.
+
+**Compatible is not identical**, and writing the check the other way would be a defect. Customer /
+Supplier is asymmetric *by design*: the two sides SHOULD read differently while the edge is mutual.
+So the roles need only **overlap** — a side may name itself more fully than its counterpart names
+it (`published-language, open-host` facing a counterpart that wrote only `published-language`), and
+less specific is not wrong. Measured on this repo's own model: a rule demanding equality would have
+flagged **16 of 60** correct relationship entries. `other` is compatible with anything, for the
+same reason it is a legal value at all.
 
 **Say what is published.** `exposed_to_api: true` on an aggregate or value object marks it as part
 of the API model — the subset a facade may expose. Default `false`; set `true` only where the

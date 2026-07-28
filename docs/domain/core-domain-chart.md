@@ -52,7 +52,7 @@ all), so an x value would be meaningless rather than low.
 
 | Context | x | Evidence (measured) | Adjustment (judged) | y | Source for y | Quadrant |
 |---|---|---|---|---|---|---|
-| StructuralGate | 0.95 | 1 aggregate (root = the CORPUS, not the doc), **14 invariants**, 658 LoC, 9 violation kinds | — none needed; the largest model here by every measure | 0.50 | `RFC-0001:97` (no linter is config-driven over a doc chain) but **`PRD-0001` never names it as what govkit competes on** | Exposed advantage / borderline |
+| StructuralGate | 0.95 | 1 aggregate (root = the CORPUS, not the doc), **14 invariants**, 658 LoC, 11 violation kinds | — none needed; the largest model here by every measure | 0.50 | `RFC-0001:97` (no linter is config-driven over a doc chain) but **`PRD-0001` never names it as what govkit competes on** | Exposed advantage / borderline |
 | Reconciliation | 0.90 | 1 aggregate, **18 invariants**, 465 LoC (drift 368 + stale 97), 4 verdict values | **+** operational: the content-hash amendment was forced by a live CI escape (squash merges orphaning acks) | 0.85 | `PRD-0001:64` — the Fowler SDD review: *"no tool has deterministic drift detection"* | **Core** |
 | Calibration | 0.35 | `aggregates: []`, 11 invariants, 204 LoC | **+** the numbers it produces are the product's success criterion, not a diagnostic | 0.90 | `PRD-0001:37-42` (north star = the confusion matrix), `:40-41` ("the corpus, not rule count, is the compounding asset"), `:75-76` ("the immune system") | **Core — and mislabelled** |
 | WaiverPolicy | 0.55 | 1 aggregate, **18 invariants** — joint-most with Reconciliation — ~230 LoC across 3 files | **−** the mass is refusals guarding one 5-field record | 0.20 | none — no source claims differentiation | Cost-sink edge |

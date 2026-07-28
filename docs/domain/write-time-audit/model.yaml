@@ -12,13 +12,18 @@ ubiquitous_language:
     definition: A non-blocking nudge injected as additionalContext; the write proceeds (audit-write.ts:20-28, cli.ts:214-225).
   - term: Start status
     definition: The status a freshly authored doc of a type is born at (config.ts:62, govkit.yml:19,25,45,55,66).
+  - term: Governed path
+    definition: A path `governedTypeOf` maps to a configured type — the single-path dual of the reader walk, applying docs.root, the ignore list (basenames AND directory names) and the type's `recursive` depth in one rule (util.ts governedTypeOf).
 aggregates: []
 invariants:
   - "Only a full-content `Write` is governed; every other tool defers, because an Edit carries partial content that cannot be parsed. — packages/govkit/src/commands/audit-write.ts:37; packages/govkit/src/cli.ts:84-88 (HELP)"
   - A non-markdown path, or a payload without both a string file_path and a string content, defers. — packages/govkit/src/commands/audit-write.ts:38-41
   - A repo with no readable govkit.yml is treated as not governed and defers — the gate never crash-blocks a user's write. — packages/govkit/src/commands/audit-write.ts:43-49
-  - A file whose basename is in the ignore list, or that lies outside every governed type dir, defers. — packages/govkit/src/commands/audit-write.ts:52, :139
-  - Type-dir resolution routes through the SAME typeDir helper every reader uses, so a non-default docs.root cannot be honoured by CI and silently bypassed at write time. — packages/govkit/src/commands/audit-write.ts:57; packages/govkit/src/util.ts:22 (typeDir)
+  - A file whose basename is in the ignore list, or that lies outside every governed type dir, defers. — packages/govkit/src/util.ts governedTypeOf; packages/govkit/src/commands/audit-write.ts:56-62
+  - Path resolution routes through ONE shared resolver, `governedTypeOf` — the single-path dual of the reader walk — so docs.root, the ignore list and depth are decided once for CI and for the hook. A second copy of the rule is what let them disagree. — packages/govkit/src/commands/audit-write.ts:56; packages/govkit/src/util.ts governedTypeOf/listMarkdown
+  - "The hook governs exactly what the gate governs: with `recursive: false` a type governs its DIRECT children only, so a nested write defers instead of being denied on a doc verify and report both report as ungoverned. — packages/govkit/test/reader-parity.test.ts (recursive: false — the flat DEFAULT narrows all of them together, hook included)"
+  - An ignored DIRECTORY name opts its whole subtree out of the hook exactly as it opts out of the walk. — packages/govkit/src/util.ts governedTypeOf; packages/govkit/src/util.ts:33 (listMarkdown, ignore matches subdirectory names)
+  - "One accepted divergence from the walk: `listMarkdown` skips a symlinked directory (it can stat one), while the hook must answer about a path that need not exist yet — so a write beneath a symlinked subdir is judged governed and stays invisible to the walk. The hook errs toward asking for front-matter; the gate is the authority. — packages/govkit/src/util.ts governedTypeOf"
   - A governed doc written with no front-matter block BLOCKS, naming the required keys, the type's start status, and `owner: TBD`. — packages/govkit/src/commands/audit-write.ts:60-66
   - A present-but-unparseable block BLOCKS with the parser's own message — the same violation shape the CI gate emits, never a stack trace. — packages/govkit/src/commands/audit-write.ts:69-76
   - A governed doc missing any required key BLOCKS, naming exactly which keys are missing. — packages/govkit/src/commands/audit-write.ts:77-87
@@ -41,9 +46,9 @@ relationships:
     note: Required keys, startStatus, terminalStatuses, refs and requiredSectionsByStatus all come from config; nothing is hardcoded here.
   - to: StructuralGate
     direction: peer
-    our_roles: [partnership]
-    their_roles: [partnership]
-    note: "The per-write twin (verify.ts:523-528). It duplicates required-key checking (audit-write.ts:77) rather than calling runVerify — a partnership that has to be kept in step by hand."
+    our_roles: [partnership, shared-kernel]
+    their_roles: [partnership, shared-kernel]
+    note: "The per-write twin (verify.ts:523-528). WHICH paths are governed is now shared kernel — `governedTypeOf` and `listMarkdown` are one rule in util.ts, so the two cannot disagree about the corpus (they did: a flat type's nested file was denied here and ungoverned there). WHAT a governed doc must carry is still duplicated (audit-write.ts:84 re-checks required keys rather than calling runVerify) and stays a hand-kept partnership; `excludeBase` is subtracted by verify and not here."
   - to: Ratification
     direction: downstream
     our_roles: [conformist]

@@ -44,7 +44,7 @@ against an author who might otherwise quietly delete a claim that stopped being 
 |---|---|---|
 | Claim | a done-ness assertion about a feature | **yes** — Reconciliation: a content-hash claim about a doc |
 | Check | the human-readable command that earned `passes` — provenance, never a gate input | **yes** — the CLI's composite `check` entrypoint (`cli.ts:701`) |
-| Violation | one of six ledger kinds | **yes** — StructuralGate's nine kinds; two disjoint enums, deliberately not shared |
+| Violation | one of six ledger kinds | **yes** — StructuralGate's eleven kinds; two disjoint enums, deliberately not shared |
 | Baseline | the last committed ledger at HEAD | **yes** — Calibration: the committed confusion-matrix snapshot |
 | Append-only | claims may move, evidence may not vanish | — |
 

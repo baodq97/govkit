@@ -82,6 +82,34 @@ export interface EvalResult {
   scoped?: { ref: string; changedDocs: number };
 }
 
+/** The `required floor:` clause of the eval header. Lives beside the counting rule rather than in
+ *  the CLI printer, the same home `verifySummaryLine` has and for the same reason: the header may
+ *  never claim a number its own body cannot account for, and the numbers must be assertable
+ *  without spawning a process.
+ *
+ *  TWO units, so both are named. `applied` counts rule×artifact — a waiver is a rule×scope
+ *  exception — while the body prints one line per ARTIFACT, so a bare "2 waived" over two lines of
+ *  which one reads BLOCK is a count the reader cannot reconcile with anything visible. The
+ *  artifact term counts every artifact that prints a signature below, INCLUDING a partly-signed
+ *  one that still blocks, so the two numbers describe exactly the lines beneath them. */
+export function evalFloorLine(result: EvalResult): string {
+  const passed = `required floor: ${Math.round(result.floorPassRate * 100)}% passed`;
+  const applied = result.waivers.applied;
+  if (applied === 0) return passed;
+  const signed = result.artifacts.filter((a) => a.waived.length > 0).length;
+  return `${passed}, ${applied} rule(s) waived on ${signed} artifact(s)`;
+}
+
+/** Artifacts whose required floor was cleared ONLY by an active waiver: `requiredOk` says the
+ *  literal structural truth is a failure and `floorOk` says the gate cleared it anyway. This is
+ *  the number that EXPLAINS a sub-100% `floorPassRate` on an `ok: true` run, so it is the count
+ *  the journal carries. Deliberately NOT the number of artifacts that print a signature — an
+ *  artifact can be partly signed and still block, which is the printer's concern and not a
+ *  consumer's "did this gate fail open?" question. */
+export function waiverClearedArtifacts(result: EvalResult): number {
+  return result.artifacts.filter((a) => !a.requiredOk && a.floorOk).length;
+}
+
 export interface EvalOptions {
   root: string;
   config?: GovkitConfig;

@@ -2,7 +2,7 @@ import { existsSync } from "node:fs";
 import { basename } from "node:path";
 import { type GovkitConfig, loadConfig } from "../config";
 import { isParseError, parseFrontMatter } from "../frontmatter";
-import { isInside, typeDir } from "../util";
+import { governedTypeOf } from "../util";
 
 // The JSON a PreToolUse hook receives on stdin (Claude Code 2.1.x). Only the
 // fields this gate uses are typed; the rest is ignored.
@@ -48,93 +48,93 @@ export function auditWrite(input: HookInput, root: string, config?: GovkitConfig
     return { block: false };
   }
 
-  const { ignore, base, types, root: docsRoot = "." } = cfg.docs;
-  if (ignore.includes(basename(filePath))) return { block: false };
+  // RFC-0007: ONE resolver, the single-path dual of the walk every reader uses. It applies
+  // docs.root, the ignore list AND the type's `recursive` flag together, so the hook cannot
+  // claim a path the gate reports as ungoverned — a flat type governs its direct children, not
+  // its whole subtree. The basename/ignore early-out that used to live here is part of that
+  // one rule now, rather than a second copy of it.
+  const governed = governedTypeOf(root, cfg, filePath);
+  if (!governed) return { block: false }; // not under any governed doc dir
+  const { type: typeName, def } = governed;
 
-  for (const [typeName, def] of Object.entries(types)) {
-    // RFC-0007: resolve through the SAME `typeDir` helper as every reader, so a non-`.`
-    // docs.root is honored by the per-write gate too — not silently bypassed here.
-    if (!isInside(typeDir(root, docsRoot, def.dir), filePath)) continue;
-    const required = [...new Set([...base.required, ...def.required])];
-    const start = def.startStatus ?? "(see docs/AGENTS.md)";
-    const fm = parseFrontMatter(content);
-    if (!fm) {
-      return {
-        block: true,
-        reason: `govkit: ${basename(filePath)} (${typeName}) is missing its YAML front-matter block.`,
-        context: `Governed docs under ${def.dir} must open with a \`---\` block carrying: ${required.join(", ")}. Set owner: TBD (agents never self-assign) and status: ${start} for a new ${typeName}.`,
-      };
-    }
-    // Present but unparseable (US-0002): block with the parser's message, not a thrown stack
-    // trace — the same violation shape the verify gate emits for this doc.
-    if (isParseError(fm)) {
-      return {
-        block: true,
-        reason: `govkit: ${basename(filePath)} (${typeName}) has invalid YAML front-matter: ${fm.error}`,
-        context: `Fix the \`---\` block so it parses (e.g. quote a value beginning with a reserved character like \`@\`: owner: "@handle"). Required keys: ${required.join(", ")}.`,
-      };
-    }
-    const missing = required.filter((key) => {
-      const value = fm.data[key];
-      return value === undefined || value === null || String(value).trim() === "";
-    });
-    if (missing.length > 0) {
-      return {
-        block: true,
-        reason: `govkit: ${basename(filePath)} (${typeName}) is missing required front-matter: ${missing.join(", ")}.`,
-        context: `Add the missing key(s) before writing. Type '${typeName}' requires: ${required.join(", ")}; start status: ${start}; owner: TBD.`,
-      };
-    }
-    // Governed and complete. One last, NON-blocking check: is this write flipping the doc into
-    // a terminal (decided/shipped) status while it points at a parent? If so, nudge the author
-    // to reconcile the parent — the proactive "feedback after implement" the CI gate delivers
-    // only after the fact. Single-file: we read the parent's id from THIS doc, never load it.
-    const status = String(fm.data.status ?? "").trim();
-    const terminal = def.terminalStatuses ?? [];
-    if (terminal.includes(status)) {
-      const parents = (def.refs ?? [])
-        .map((ref) => ({ key: ref.key, value: String(fm.data[ref.key] ?? "").trim() }))
-        .filter((r) => r.value !== "");
-      if (parents.length > 0) {
-        const links = parents.map((p) => `${p.key}: ${p.value}`).join(", ");
-        // RFC-0010: if THIS status also keys required as-built sections, fold that reminder in —
-        // the same flip is the moment to write down what diverged. (verify enforces it; this only
-        // nudges, and only on the Write path — the Edit-based flip is the inherited gap.)
-        const needsAsBuilt = def.requiredSectionsByStatus?.[status];
-        const asBuilt =
-          needsAsBuilt && needsAsBuilt.length > 0
-            ? ` Also fill its required as-built section(s) (${needsAsBuilt.join(", ")}) — ` +
-              "record what diverged from the design, or affirm “None” (RFC-0010)."
-            : "";
-        return {
-          block: false,
-          remind:
-            `govkit: ${basename(filePath)} is being marked '${status}' (a shipped/terminal ` +
-            `state). Re-read its ${links} and confirm the design doc reflects what actually ` +
-            `shipped — and that the parent is itself decided (accepted/superseded), or \`govkit ` +
-            `verify\` will flag the chain (RFC-0008).${asBuilt}`,
-        };
-      }
-    }
-    // RFC-0012: born-at-non-startStatus provenance nudge. A Write that CREATES a governed doc (no
-    // file on disk yet) at a status other than its type's startStatus skipped the draft→accept
-    // provenance — agents author a new doc at startStatus; a human owner flips it forward in a
-    // separate accept. Non-blocking BY DESIGN: provenance is honor-system (RFC-0012), the hook
-    // sees only full Writes (not Edits/Bash), so this is a courtesy nudge, never a gate. An
-    // overwrite (file exists) is left alone — that is an edit whose status TRANSITION a stateless
-    // hook cannot judge; verify and the human own it. Guarded on startStatus so a status-less
-    // type (e.g. an excludeBase runbook) never trips it.
-    if (def.startStatus && status && status !== def.startStatus && !existsSync(filePath)) {
+  const required = [...new Set([...cfg.docs.base.required, ...def.required])];
+  const start = def.startStatus ?? "(see docs/AGENTS.md)";
+  const fm = parseFrontMatter(content);
+  if (!fm) {
+    return {
+      block: true,
+      reason: `govkit: ${basename(filePath)} (${typeName}) is missing its YAML front-matter block.`,
+      context: `Governed docs under ${def.dir} must open with a \`---\` block carrying: ${required.join(", ")}. Set owner: TBD (agents never self-assign) and status: ${start} for a new ${typeName}.`,
+    };
+  }
+  // Present but unparseable (US-0002): block with the parser's message, not a thrown stack
+  // trace — the same violation shape the verify gate emits for this doc.
+  if (isParseError(fm)) {
+    return {
+      block: true,
+      reason: `govkit: ${basename(filePath)} (${typeName}) has invalid YAML front-matter: ${fm.error}`,
+      context: `Fix the \`---\` block so it parses (e.g. quote a value beginning with a reserved character like \`@\`: owner: "@handle"). Required keys: ${required.join(", ")}.`,
+    };
+  }
+  const missing = required.filter((key) => {
+    const value = fm.data[key];
+    return value === undefined || value === null || String(value).trim() === "";
+  });
+  if (missing.length > 0) {
+    return {
+      block: true,
+      reason: `govkit: ${basename(filePath)} (${typeName}) is missing required front-matter: ${missing.join(", ")}.`,
+      context: `Add the missing key(s) before writing. Type '${typeName}' requires: ${required.join(", ")}; start status: ${start}; owner: TBD.`,
+    };
+  }
+  // Governed and complete. One last, NON-blocking check: is this write flipping the doc into
+  // a terminal (decided/shipped) status while it points at a parent? If so, nudge the author
+  // to reconcile the parent — the proactive "feedback after implement" the CI gate delivers
+  // only after the fact. Single-file: we read the parent's id from THIS doc, never load it.
+  const status = String(fm.data.status ?? "").trim();
+  const terminal = def.terminalStatuses ?? [];
+  if (terminal.includes(status)) {
+    const parents = (def.refs ?? [])
+      .map((ref) => ({ key: ref.key, value: String(fm.data[ref.key] ?? "").trim() }))
+      .filter((r) => r.value !== "");
+    if (parents.length > 0) {
+      const links = parents.map((p) => `${p.key}: ${p.value}`).join(", ");
+      // RFC-0010: if THIS status also keys required as-built sections, fold that reminder in —
+      // the same flip is the moment to write down what diverged. (verify enforces it; this only
+      // nudges, and only on the Write path — the Edit-based flip is the inherited gap.)
+      const needsAsBuilt = def.requiredSectionsByStatus?.[status];
+      const asBuilt =
+        needsAsBuilt && needsAsBuilt.length > 0
+          ? ` Also fill its required as-built section(s) (${needsAsBuilt.join(", ")}) — ` +
+            "record what diverged from the design, or affirm “None” (RFC-0010)."
+          : "";
       return {
         block: false,
         remind:
-          `govkit: ${basename(filePath)} is being created at status '${status}', not the start ` +
-          `status '${def.startStatus}'. A new ${typeName} is authored at '${def.startStatus}'; a ` +
-          `human owner flips it forward in a separate accept — status provenance is not ` +
-          `gate-enforced (RFC-0012). Confirm this was authorized.`,
+          `govkit: ${basename(filePath)} is being marked '${status}' (a shipped/terminal ` +
+          `state). Re-read its ${links} and confirm the design doc reflects what actually ` +
+          `shipped — and that the parent is itself decided (accepted/superseded), or \`govkit ` +
+          `verify\` will flag the chain (RFC-0008).${asBuilt}`,
       };
     }
-    return { block: false }; // governed and complete
   }
-  return { block: false }; // not under any governed doc dir
+  // RFC-0012: born-at-non-startStatus provenance nudge. A Write that CREATES a governed doc (no
+  // file on disk yet) at a status other than its type's startStatus skipped the draft→accept
+  // provenance — agents author a new doc at startStatus; a human owner flips it forward in a
+  // separate accept. Non-blocking BY DESIGN: provenance is honor-system (RFC-0012), the hook
+  // sees only full Writes (not Edits/Bash), so this is a courtesy nudge, never a gate. An
+  // overwrite (file exists) is left alone — that is an edit whose status TRANSITION a stateless
+  // hook cannot judge; verify and the human own it. Guarded on startStatus so a status-less
+  // type (e.g. an excludeBase runbook) never trips it.
+  if (def.startStatus && status && status !== def.startStatus && !existsSync(filePath)) {
+    return {
+      block: false,
+      remind:
+        `govkit: ${basename(filePath)} is being created at status '${status}', not the start ` +
+        `status '${def.startStatus}'. A new ${typeName} is authored at '${def.startStatus}'; a ` +
+        `human owner flips it forward in a separate accept — status provenance is not ` +
+        `gate-enforced (RFC-0012). Confirm this was authorized.`,
+    };
+  }
+  return { block: false }; // governed and complete
 }

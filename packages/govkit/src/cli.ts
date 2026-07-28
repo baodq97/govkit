@@ -10,7 +10,13 @@ import {
 } from "./commands/calibrate";
 import { type DoctorResult, type NextAction, runDoctor } from "./commands/doctor";
 import { type DriftAckResult, type DriftResult, runDrift, runDriftAck } from "./commands/drift";
-import { type EvalResult, runEval } from "./commands/eval";
+import {
+  type ArtifactScore,
+  type EvalResult,
+  evalFloorLine,
+  runEval,
+  waiverClearedArtifacts,
+} from "./commands/eval";
 import { type InitResult, runInit } from "./commands/init";
 import { type LedgerResult, runLedger } from "./commands/ledger";
 import { type ReportResult, renderReportPrBody, runReport } from "./commands/report";
@@ -143,7 +149,7 @@ init ends by naming the next command for YOUR repo; \`govkit doctor\` recomputes
 
 Usage:
   govkit verify [--root <dir>] [--json] [--changed [--base <ref>]]
-                [--journal] [--hook]
+                [--check-citations] [--journal] [--hook]
 
 Checks every governed doc for: a parseable leading \`---\` block carrying each required
 key, a status inside the type's enum, the id/filename convention, a matching INDEX.md
@@ -158,6 +164,8 @@ Flags:
   --changed     Scope the REPORT to docs new-or-modified vs --base; cross-doc checks
                 still scan everything, so a new duplicate id is still caught. Needs git.
   --base <ref>  Base ref for --changed (default: origin/main, else HEAD).
+  --check-citations   OPT-IN, ANCHORED: every \`path:line\` the tree cites must still NAME the
+                code it claims — a moved block fails though its old line exists. verify only.
   --journal     Append one JSON line for this run to .govkit/journal.jsonl.
   --hook        Map a FAIL to exit 2 and route the report to stderr (blocking hook).
 
@@ -387,6 +395,8 @@ Next: govkit doctor   (confirm the hook is the one this repo has installed)
  * are told where the enum is.
  */
 const VIOLATION_REMEDY: Record<ViolationKind, string> = {
+  citation:
+    "a `path:line` reference no longer describes what the sentence claims — re-read the cited file and update the line (path-missing: the file moved or was renamed; line-beyond-eof: the file shrank; anchor-not-found: the cited block moved, so re-cite it or name its symbol in the sentence)",
   coherence:
     "a decided doc points at a parent that is not decided — advance the parent's status, or repoint `parent:` (the decided set is docs.types.<type>.terminalStatuses)",
   duplicate:
@@ -562,13 +572,23 @@ function printEval(result: EvalResult, toStderr = false): void {
   // `floorPassRate` stays waiver-BLIND on purpose (a waiver must never move the number
   // calibrate reads), so an all-waived run reads "0% passed" under an OK header. Without the
   // waived count that pair is unreadable — the same header-vs-body contradiction printVerify
-  // just lost. The count names the gap between the literal truth and the verdict.
-  const waivedTail = result.waivers.applied > 0 ? `, ${result.waivers.applied} waived` : "";
+  // just lost. Counted in eval.ts beside the data, in BOTH units, so the header can only ever
+  // describe the lines printed under it.
   stream.write(
-    `govkit eval: ${header} — ${result.scored} artifact(s)${scope}; required floor: ` +
-      `${Math.round(result.floorPassRate * 100)}% passed${waivedTail}; ` +
+    `govkit eval: ${header} — ${result.scored} artifact(s)${scope}; ${evalFloorLine(result)}; ` +
       `advisory score: avg ${result.averageScore}/100, ${advPct}% ≥ ${result.threshold}.\n`,
   );
+  // Who signed for this artifact's missed required rules, and until when. Printed on EVERY line
+  // that has one — the blocking line too: an artifact can be partly signed (one missed required
+  // rule waived, one not), it still blocks, and dropping the signature there is what makes a
+  // human-signed exception indistinguishable from a bug. It is also what left the header's waived
+  // count with no line beneath it to account for.
+  const signature = (a: ArtifactScore): string =>
+    a.waived.length === 0
+      ? ""
+      : ` (signed: ${a.waived
+          .map((w) => `${w.rule} by ${w.waiver.authorized_by} until ${w.waiver.expires}`)
+          .join("; ")})`;
   for (const a of result.artifacts) {
     // Branch on what the GATE read (`floorOk`), not on the literal `requiredOk`: an artifact
     // whose every missed required rule is signed for printed `BLOCK` under an `OK` header and
@@ -576,14 +596,11 @@ function printEval(result: EvalResult, toStderr = false): void {
     // shown as what it is.
     if (!a.floorOk) {
       stream.write(
-        `  BLOCK ${a.score}/100  ${a.file} [${a.type}] — missing required: ${a.missedRequired.join("; ")}\n`,
+        `  BLOCK ${a.score}/100  ${a.file} [${a.type}] — missing required: ${a.missedRequired.join("; ")}${signature(a)}\n`,
       );
     } else if (!a.requiredOk) {
-      const signed = a.waived
-        .map((w) => `${w.rule} by ${w.waiver.authorized_by} until ${w.waiver.expires}`)
-        .join("; ");
       stream.write(
-        `  waived ${a.score}/100  ${a.file} [${a.type}] — missing required: ${a.missedRequired.join("; ")} (signed: ${signed})\n`,
+        `  waived ${a.score}/100  ${a.file} [${a.type}] — missing required: ${a.missedRequired.join("; ")}${signature(a)}\n`,
       );
     } else {
       const mark = a.passedAdvisory ? "ok   " : "warn ";
@@ -937,6 +954,7 @@ async function main(argv: string[]): Promise<number> {
       ack: { type: "boolean", default: false },
       "pr-body": { type: "boolean", default: false },
       "docs-root": { type: "string" },
+      "check-citations": { type: "boolean", default: false },
       force: { type: "boolean", default: false },
       help: { type: "boolean", short: "h", default: false },
     },
@@ -985,6 +1003,10 @@ async function main(argv: string[]): Promise<number> {
     { set: values.corpus !== undefined, flag: "--corpus", allowed: ["calibrate"] },
     { set: values.baseline !== undefined, flag: "--baseline", allowed: ["calibrate"] },
     { set: values["update-baseline"], flag: "--update-baseline", allowed: ["calibrate"] },
+    // `verify` only, deliberately NOT `check`: `check` is the no-API-key CI gate, and a rule with
+    // no calibration history may not be reachable from the command CI runs. It earns its way in
+    // with evidence, not by being wired everywhere on day one.
+    { set: values["check-citations"], flag: "--check-citations", allowed: ["verify"] },
     { set: values.changed, flag: "--changed", allowed: gateCommands },
   ];
   for (const { set, flag, allowed } of scopedFlags) {
@@ -1011,6 +1033,17 @@ async function main(argv: string[]): Promise<number> {
   if (values["pr-body"] && values.json) {
     process.stderr.write(
       "govkit: --pr-body cannot be combined with --json — one stdout, one machine channel\n",
+    );
+    return 2;
+  }
+  // The citation pass reads the governed TREE (a design tree's `model.yaml` carries most of this
+  // repo's own citations), while `--changed` resolves its scope from git with an `.md`-only
+  // filter. Combined, every non-markdown citing file would silently fall out of the report — the
+  // "looks-checked-but-isn't" leak this whole check exists to close. Refuse loudly instead.
+  if (values["check-citations"] && values.changed) {
+    process.stderr.write(
+      "govkit: --check-citations cannot be combined with --changed — the changed set is " +
+        "resolved for `.md` docs only, so non-markdown citing files would drop out unreported\n",
     );
     return 2;
   }
@@ -1110,6 +1143,15 @@ async function main(argv: string[]): Promise<number> {
                   floorPassRate: parts.eval.floorPassRate,
                   advisoryPassRate: parts.eval.advisoryPassRate,
                   averageScore: parts.eval.averageScore,
+                  // The same marker the verify entries carry, one layer up: eval journals
+                  // aggregates, so the mark is the COUNT of artifacts a waiver cleared the floor
+                  // for. Omitted when zero (never 0), so lines written before it stay readable.
+                  // Without it `floorPassRate: 0` on an `ok: true` line is a gate failing open as
+                  // far as any consumer can tell — RFC-0017's distiller would learn from an
+                  // incident nobody had.
+                  ...(waiverClearedArtifacts(parts.eval) > 0
+                    ? { waived: waiverClearedArtifacts(parts.eval) }
+                    : {}),
                 },
               }
             : {}),
@@ -1196,7 +1238,12 @@ async function main(argv: string[]): Promise<number> {
     case "verify": {
       const root = values.root ?? process.cwd();
       const { ok } = runGate("verify", root, (config) => {
-        const result = runVerify({ root, config, changed });
+        const result = runVerify({
+          root,
+          config,
+          changed,
+          checkCitations: values["check-citations"],
+        });
         // --json keeps stdout the pure machine channel even under --hook; the human
         // report otherwise follows the hook's stderr routing.
         if (values.json) process.stdout.write(`${JSON.stringify(result, null, 2)}\n`);

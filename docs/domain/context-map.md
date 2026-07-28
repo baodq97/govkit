@@ -30,30 +30,44 @@ graph LR
   GovernanceSchema -->|required keys + startStatus| WriteTimeAudit
   GovernanceSchema -->|journal.path| GateJournal
   GovernanceSchema -->|docs.root forced to '.'| Calibration
-  GovernanceSchema -->|scaffolded default schema| Adoption
   GovernanceSchema -->|terminalStatuses| LifecycleReport
-  StructuralGate -->|shared kernel: collectGovernedIds| FeatureLedger
+  GovernanceSchema -->|list shape only, validated at gate time| WaiverPolicy
+  GovernanceSchema ---|partnership: init writes it, init --adopt reads it| Adoption
   QualityEval -->|graded by| Calibration
   StructuralGate -->|verdict record| GateJournal
   QualityEval -->|verdict record| GateJournal
   Reconciliation -->|verdict record + ack marker| GateJournal
   FeatureLedger -->|verdict record| GateJournal
-  Adoption -->|writes docs the gate then judges| StructuralGate
-  WriteTimeAudit -->|per-write twin of| StructuralGate
-  WaiverPolicy -->|shared kernel: rule vocabulary| StructuralGate
-  WaiverPolicy -->|shared kernel: rubric rule ids| QualityEval
-  Ratification -.->|honor-system, engine never reads| StructuralGate
-  Ratification -.->|R1 condition: full gate green| QualityEval
-  Ratification -.->|R1 transition: drift --ack| Reconciliation
+  WaiverPolicy -->|waived marker on each finding| GateJournal
+  StructuralGate -->|supplies the docs it then judges| Adoption
+  StructuralGate -->|supplies the governed corpus| LifecycleReport
+  StructuralGate ---|shared kernel: collectGovernedIds| FeatureLedger
+  StructuralGate ---|partnership: the per-write twin| WriteTimeAudit
+  StructuralGate ---|shared kernel: rule vocabulary| WaiverPolicy
+  QualityEval ---|shared kernel: rubric rule ids| WaiverPolicy
+  StructuralGate -.->|R1 condition: gate green| Ratification
+  QualityEval -.->|R1 condition: full gate green| Ratification
+  Reconciliation -.->|R1 transition: drift --ack| Ratification
+  Ratification -.->|authorization: who may sign| WaiverPolicy
+  Ratification -.->|the policy the two reminders restate| WriteTimeAudit
 ```
 
-Dotted edges are **honor-system**: no code reads them (`govkit.yml:128-134`).
+`A --> B` is the `direction` axis alone: A is upstream, B depends on A. `A --- B` is a `peer` edge,
+where an arrowhead would assert a dependency the model denies. Dotted is **honor-system** — no code
+*enforces* it (`govkit.yml:128-134`), and the only place any reaches code is WriteTimeAudit's two
+non-blocking reminders (`audit-write.ts:88-136`). **30** relationships across the twelve
+`model.yaml` files, minus **3** `separate-ways` — a declaration that there is *no* integration, so
+a line would be a lie — equals the **27** links above. The three: StructuralGate ↔ QualityEval,
+Adoption ↔ QualityEval, Calibration ↔ WaiverPolicy (load-bearing — a signed exception must never
+move the confusion matrix that judges the rubric). `ddd_check.py --strict-symmetry` holds the two
+model sides to each other; that arithmetic is what holds this drawing to them, by hand until
+something reads the fence.
 
 ## Sub-domain classification
 
 | Bounded Context | Sub-domain type | Tactical pattern | Why |
 |---|---|---|---|
-| StructuralGate | core | full-domain-model | The binary merge-blocking gate. Owns 9 violation kinds (`config.ts:19 VIOLATION_KINDS`) and the only corpus-level invariants in the system. |
+| StructuralGate | core | full-domain-model | The binary merge-blocking gate. Owns 11 violation kinds (`config.ts:19 VIOLATION_KINDS`) and the only corpus-level invariants in the system. |
 | Reconciliation | core | full-domain-model | The spec↔code claim gate + its ack ritual + the recency advisory. PRD-0001:64 sources the differentiation: "no tool has deterministic drift detection". |
 | Calibration | supporting | transaction-script | A regression harness for QualityEval, not a capability a consumer runs — which is what `supporting` means here. **Contested**: its OUTPUT is the product's north star (PRD-0001:37-42, :75-76), so `core-domain-chart.md` places it highest on differentiation and proposes promoting it. |
 | Ratification | supporting | crud | Committed config + prose that binds actors, never the engine (`govkit.yml:128-134`). No code, no state, no aggregate — the only context whose invariants have zero runtime enforcement. Its measured value is removed interrupt load (RFC-0027:52-73), an internal cost saving; no source claims differentiation. |
@@ -77,14 +91,12 @@ policy an actor honours, or a read-only projection.
 
 ## The load-bearing extraction seam
 
-**`govkit.yml` as Published Language.** It is the one artifact every context reads and no context
-owns behaviourally: doc dirs, required keys, status enums, terminal sets, `refs`, risk tiers, the
-eval rubric, and the ratification tiers all live there (`govkit.yml:5-153`). `README.md:98`
-already names it the "pluggable schema", and `config.ts:417 loadConfig` is its single reader.
-Extract that contract first and every gate becomes independently deployable.
-
-Declined as a context of its own beyond the master-data slice: the config owns validation rules
-but no domain model. Its owner is GovernanceSchema; every consumer conforms.
+**`govkit.yml` as Published Language.** The one artifact every context reads and none owns
+behaviourally — doc dirs, required keys, status enums, terminal sets, `refs`, risk tiers, the eval
+rubric and the ratification tiers all live there (`govkit.yml:5-153`), behind a single reader
+(`config.ts:417 loadConfig`). Extract that contract first and every gate becomes independently
+deployable. Declined as a context of its own beyond the master-data slice: it owns validation rules
+but no domain model. Owner is GovernanceSchema; every consumer conforms.
 
 ## Shared artifacts and their sharing level
 
@@ -136,7 +148,7 @@ commands (`journal.ts:17`).
 |---|---|
 | `GateRunRecorded` (GateJournal, on behalf of verify · eval · check · drift · ledger) | **No in-process consumer.** RFC-0017's distiller reads `.govkit/journal.jsonl` out of band; nothing in `packages/govkit/src` reads a journal line back. |
 
-That is a finding, not an omission: an eleven-context model with one event and zero subscribers is
+That is a finding, not an omission: a twelve-context model with one event and zero subscribers is
 evidence that the coupling here is **call-stack coupling**, not message coupling. See
 `core-domain-chart.md` § Investment mismatch and `message-flows/README.md` finding F-1.
 
@@ -147,7 +159,7 @@ evidence that the coupling here is **call-stack coupling**, not message coupling
 | Which docs `verify` scans | `util.ts:33 listMarkdown` doc-comment (pre-edit): "Non-recursive by design — governed docs live flat in their type dir" | Live code at snapshot: `listMarkdown(dir, ignore, def.recursive)` with a per-type `recursive?: boolean` (`config.ts:52`, `verify.ts:554`) | **Live code** | A sibling agent is mid-change. `docs/domain/**` is a nested tree, so whether this model's own files become governed depends on that change landing. |
 | Is `docs/domain` a governed doc type? | This tree exists and carries `DOMAIN-*` front-matter | `govkit.yml` (mtime 07-24) declares only `prd, rfc, adr, us, rel` (`govkit.yml:14-75`) | **govkit.yml** — these docs are **not** governed today | Adding a `domain:` type is a `govkit.yml` edit nobody has authorised; out of scope for this agent. |
 | Effective `required` front-matter keys | `verify.ts:541-547` + the documented rule at `config.ts:100-106`: `(base.required − excludeBase) ∪ type.required` | `audit-write.ts:58`: `base.required ∪ type.required` — `excludeBase` is never subtracted | **verify** — `config.ts:100-106` states the subtraction as the contract, and CI is the gate of record | A type declaring `excludeBase` would be BLOCKED at write time for a key CI does not require. Not asserted as a defect; no source says which side is intended. |
-| Which files a type's readers walk | `verify.ts:554` and `eval.ts:225` pass the per-type `recursive` flag | `report.ts:85` and `adopt.ts:140` call `listMarkdown` without it | **verify/eval** — `util.ts:17-19` names honouring a path in some readers and not others as the "looks-governed-but-isn't" leak | On a nested design tree (like this one) the corpus is gated and graded but under-counted in its lifecycle view and skipped by the migrator. |
+| Which files a type's readers walk | `verify.ts:573` and `eval.ts:252` pass the per-type `recursive` flag | at the snapshot, `report.ts` and `adopt.ts` called `listMarkdown` without it | **Resolved in live code, not by this map** — every reader now passes it: `report.ts:90`, `adopt.ts:144`, `util.ts:166`, `doctor.ts:286` | Was: a nested design tree gated and graded but under-counted in its lifecycle view and skipped by the migrator. Re-measured this round; the divergence is closed. `util.ts:17-19` still names honouring a path in some readers and not others as the "looks-governed-but-isn't" leak. |
 | What `bun run check` runs | `AGENTS.md:45`: "biome + typecheck + build + tests + `verify` + `eval`" | `package.json:28` also chains `calibrate`, `drift` and `ledger` | **package.json** — it is the executable definition | The repo's agent-facing doc understates its own gate by three commands, all git-backed. A doc fix. |
 | Is `stale` one context with `drift`, or its own? | Two RFCs, two verdict vocabularies (`stale.ts:7` vs `drift.ts:33`) | One shared scanner asserted as a correctness property (`util.ts:147`) | **One context (Reconciliation)** | Recorded, not hidden — if `stale` grows its own lifecycle the split is cheap. |
 
@@ -192,6 +204,12 @@ flows, no chart, no index).
   citations, 73 symbol-anchored, all resolving.
 - **Preserved:** every `DOMAIN-*` id, every `status: draft` / `owner: TBD`, and all 9 prior
   `model.yaml` files' invariants and relationships, edited only where a citation had drifted.
+- **Added (symmetry pass):** the 8 missing counterpart declarations — 6 of them WaiverPolicy's,
+  which named six counterparts while none named it back and this map drew two. One fact, three
+  sources, three answers, every gate green, because `ddd_check.py` had no rule reading a
+  relationship's other side. It has one now (`relationship-one-way` / `relationship-asymmetric`,
+  `info`, blocking under `--strict-symmetry`): 8 → 0. Same pass reconciled the mermaid, which
+  disagreed on 14 of 27 links (5 absent, 5 peers arrowheaded, 4 arrows against `direction`).
 - **Flagged:** nothing is on disk but absent from the model. Three new Conflicts rows record
   cross-context divergences found BY the modelling (`excludeBase`, `recursive`, `bun run check`);
   none is asserted as a defect, because no source states which side is intended.

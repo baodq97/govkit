@@ -29,6 +29,10 @@ invariants:
   - With no rubric configured anywhere, eval returns ok with a note and pass-rates of 1 — it never invents a bar. — packages/govkit/src/commands/eval.ts:203-213 (runEval)
   - Under --changed, only the changed docs are SCORED (not merely reported) — safe precisely because eval has no cross-doc check, so no global violation can be masked. — packages/govkit/src/commands/eval.ts:225 and the contract note at :85-93 (EvalOptions.changed)
   - A malformed user-supplied pattern fails its rule rather than crashing the run. — packages/govkit/src/util.ts:78 (matches)
+  - "The header may never claim a number its own body cannot account for, so the `required floor:` clause is built beside the data — the same home `verifySummaryLine` has, and assertable without spawning the CLI. — packages/govkit/src/commands/eval.ts:86-101 (evalFloorLine); packages/govkit/src/cli.ts:574"
+  - "The waived count is stated in BOTH units, because they differ: a waiver is rule-times-scope while the body prints one line per ARTIFACT, and a bare \"2 waived\" over two lines of which one reads BLOCK is a number the reader cannot reconcile with anything visible. — packages/govkit/src/commands/eval.ts:95-101 (evalFloorLine)"
+  - Every artifact carrying a signature PRINTS it — who signed and until when — including a PARTLY signed one that still blocks, because dropping the signature on the blocking line is exactly what makes a human-signed exception read as a bug. — packages/govkit/src/cli.ts:578-587 (signature), :593-601
+  - "This context reports its own waiver accounting in two different units on purpose: the printer counts artifacts that show a signature (what the reader can see), the journal counts artifacts whose floor a waiver CLEARED (what explains `floorPassRate` on an `ok: true` line). — packages/govkit/src/commands/eval.ts:103-111 (waiverClearedArtifacts)"
 notes: >-
   Deliberately light. Scoring is ONE pure function over one artifact (eval.ts:103 scoreArtifact) —
   no identity, no lifecycle, no state transition, so no aggregate. The honest boundary is stated
@@ -52,7 +56,14 @@ relationships:
     direction: upstream
     our_roles: [supplier]
     their_roles: [customer, published-language]
-    note: Supplies artifacts / floorPassRate / advisoryPassRate / averageScore only (cli.ts:612-621).
+    note: >-
+      Supplies artifacts / floorPassRate / advisoryPassRate / averageScore, AND the `waived` count
+      that makes them readable (eval.ts:103-111 waiverClearedArtifacts, written at
+      cli.ts:1121-1136). The edge previously carried the four numbers only, which was the defect:
+      `floorPassRate` is waiver-blind by design, so a fully-waived corpus supplied `0` on an
+      `ok: true` line and nothing that said why — RFC-0017's distiller reads that as a gate failing
+      open and learns from an incident that never happened. GateJournal owns the line shape and
+      chose the COUNT form; this context owns the number.
   - to: StructuralGate
     direction: peer
     our_roles: [separate-ways]
@@ -63,3 +74,18 @@ relationships:
     our_roles: [supplier]
     their_roles: [conformist]
     note: "R1's `full_gate_green: bun run check` (govkit.yml:148) covers this floor too — honor-system, unread by any code."
+  - to: WaiverPolicy
+    direction: peer
+    our_roles: [shared-kernel]
+    their_roles: [shared-kernel]
+    note: >-
+      Mirror of WaiverPolicy's edge. Every rubric rule id in this context's config is a name a
+      waiver may claim — `knownRuleKeys` unions the verify kinds with the ids of every configured
+      rubric into ONE vocabulary (config.ts:291-302). Mutual-consent change in both directions:
+      adding a rubric rule widens what a waiver may name, and only an active waiver can let a
+      failed required rule still clear the floor (eval.ts:167-179 `floorOk`).
+  - to: Adoption
+    direction: peer
+    our_roles: [separate-ways]
+    their_roles: [separate-ways]
+    note: Mirror of Adoption's edge. No call in either direction — a migrated corpus is scored by the same rubric as any other, with nothing special about its provenance. The only thing in common is `stripNonProse` (util.ts:60), used for the same reason on both sides.
