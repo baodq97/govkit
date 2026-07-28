@@ -147,3 +147,40 @@ That is right-sizing working as advertised: a stub is a complete answer, not a t
 Three of four bars pass and the failing one is the high-variance measure. Not enough to ship on, and
 enough to keep: the next thing to measure is wall-clock across repeats, not another design change.
 `ddd_slice.py` stays in-tree, still called by no step skill.
+
+---
+
+# The wall-clock bar was mis-set, and I set it
+
+Rather than buy three more fan-out runs to sharpen one number, the fourteen agent durations already
+collected — seven from each round, same workload class — bound it. Resampling max-of-7 across all
+3,432 combinations:
+
+| | |
+|---|---|
+| agent duration | min 112s · median 241s · mean 265s · max 514s · sd 104s |
+| **wall-clock (max of 7)** | p05 **349s** · p50 **390s** · p95 **514s** |
+| P(wall-clock ≤ 361s) | **10%** |
+| P(wall-clock ≤ 722s, the baseline) | **100%** |
+
+The 361s bar was set at 50% of baseline **after** watching round one come in at 349s. That is a bar
+calibrated on the single sample it then had to judge, and it happens to sit at the 5th percentile —
+fan-out clears it one run in ten. Round two did not get slower; round one got lucky.
+
+The defensible statement is distributional, not a pass/fail: **fan-out beats the single agent every
+time, by a median of 1.85×**, and the tail runs to parity-plus rather than to a loss. Three more
+runs would cost roughly a million tokens to move a median that fourteen samples already place
+within about ±60s.
+
+## Where this leaves the shape
+
+| claim | status |
+|---|---|
+| coordination cost is real and fixable centrally | **shown** — 955 → 594 lines, quality 5/6 → 6/6 |
+| the tier rule reproduces whole-model judgement | **shown** — 6 of 7 against the single agent |
+| fan-out is faster than one agent | **shown** — 100% of resampled runs, median 1.85× |
+| fan-out is *2×* faster | **not shown** — that was one lucky draw |
+| the speed is worth 3.2× tokens | **not a measurement** — a call about what is scarce |
+
+The last row is the only one left, and it is not mine to decide. Nothing here is wired into a step
+skill; `ddd_slice.py` is called by no SKILL.md.
