@@ -60,6 +60,39 @@ from a "generate a whole agent team" meta-framework.
 - **Plain JS only** (no TypeScript syntax) and **no `Date.now()` / `Math.random()` / argless
   `new Date()`** (they break workflow resume — pass timestamps via `args`).
 
+## Orchestration economics (measured: 3 rounds, 27 agents, 1738 tool calls)
+
+Numbers from three real multi-agent rounds on this repo. The full write-up, including three
+pre-registered experiments that all failed, is in `references/orchestration-lessons.md`.
+
+- **Print the price of every gate.** Gate wait grew 71s → 177s → 363s across the three rounds
+  while the agent count *fell* 13 → 9 → 8, because each round added "re-run and paste the full
+  output" without saying what that cost. One command — the 16s test suite — was 79% of round 3's
+  total wait. An agent cannot ration what it cannot price, so put the table in the prompt:
+  ```
+  cheap  (<2s, run freely):  verify · eval · build · lint · a scoped check
+  costly (16s, cap at two):  the full test suite — scope it to changed files while iterating
+  ```
+- **One builder per shared artifact.** Agents share one working tree. Round 3 ran 11 builds
+  concurrently with 18 test runs over the same `dist/`, and round 1 caught the consequence:
+  *"4 drift e2e failures — a concurrent rebuild by the sibling agent wiping dist mid-run — does
+  not reproduce."* Not reproducing is what a race looks like. Nominate one builder, or give the
+  ones that build `isolation: 'worktree'`.
+- **Ship the command that measures a bar's denominator, not the number.** Eight bars in one round
+  rested on a stale count — 605 citations were 652, five readers were seven, nine violation kinds
+  were eleven. The instruction to re-measure was already in that round's prompt and still missed
+  eight times. `scripts/measure-bars.sh` emits the block instead of asking an agent to remember.
+- **Reviewers re-run the gate; builders don't run it for them.** A reviewer that trusts a pasted
+  transcript is a second writer. Round 3's reviewers overturned their builders in three places.
+  Budget it per role: builders run the scoped check while working plus the full chain once at the
+  end; reviewers run the full chain once, because that is the job.
+- **Every agent writes its report to disk and returns a path.** Round 2 lost its most valuable
+  measurement — an external cold-start trial — because the result was truncated in transit and
+  existed nowhere else. `<run-dir>/<label>.md` first, summary second.
+- **Name the cheap tool and show it.** Bash was 66–71% of all tool calls, and 30–50 per round were
+  `cat`/`head`/`sed -n` doing what Read and Grep do for less. The agents were not sloppy —
+  duplicate commands ran at 1–3% and errors at 0–1%. They followed the shape they were handed.
+
 ## Reference (read before emitting)
 
 - `references/authoring-workflows.md` — ONE doc, read top-to-bottom: the Workflow runtime API
