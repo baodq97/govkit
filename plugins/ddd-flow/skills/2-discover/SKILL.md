@@ -1,7 +1,7 @@
 ---
 name: 2-discover
 description: >
-  DDD loop 1 — discover: EventStorming timeline, ubiquitous language, hotspots and attendance, tracking confirmed vs candidate. Writes docs/domain/discovery/.
+  DDD loop 1 — discover: EventStorming timeline, ubiquitous language, hotspots and attendance, tracking confirmed vs candidate and as-is vs to-be vs could-be. Writes docs/domain/discovery/.
 disable-model-invocation: true
 ---
 
@@ -142,6 +142,12 @@ it will be as good as this discovery was.
 - **Distinguish confirmed from candidate.** Every item carries whether a human confirmed it or an
   artifact implied it. Without this, a run that merely re-read the schemas looks identical to one
   that talked to the business — and only one of those is discovery.
+- **Distinguish as-is from to-be from could-be**, in a column of its own. What the business does
+  today, what it has decided to change, and what someone floated in the room are three different
+  claims, and a wall records them in the same handwriting. This is a second axis, not a rename of
+  the first: an element can be `confirmed` (a person said it) and `could-be` (what they confirmed is
+  that it is only an idea). Default `as-is`, change it on evidence, and make an unplaceable element
+  a hotspot rather than a guess.
 - **Attribute.** Who said it, when. Terms especially: a definition without a holder cannot be
   challenged later.
 - **Don't draw boundaries.** Clustering events into candidate contexts is `3-decompose`'s

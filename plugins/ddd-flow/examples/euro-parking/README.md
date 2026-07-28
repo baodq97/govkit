@@ -63,6 +63,11 @@ contradictions **between** files that reading them one at a time would not surfa
 needs eleven messages against a nine-message limit, and four contexts labelled `core` on a map whose
 own core domain chart reduces that to one.
 
+It also reports `discovery-state-unlabelled`, and that one is a gap in **this run**, not in the
+domain: the timeline predates the `as-is` / `to-be` / `could-be` column, so every element here is
+implicitly present-tense. It is left standing rather than back-filled, because hand-editing the
+output would cost this example the only thing that makes it worth reading.
+
 ## Provenance
 
 Requirements: <https://github.com/SAP/curated-resources-for-domain-driven-design/blob/main/ddd-kata.md>

@@ -511,10 +511,19 @@ def build_timeline(docs: Path) -> dict | None:
                 # hand-written count can disagree with the wall it claims to describe. Reporting
                 # "0 confirmed" over 68 confirmed stickies is the worst failure this view has.
                 status = lambda e: str(e.get("status", "")).lower()  # noqa: E731
+                # `state` is the second axis — as-is / to-be / could-be. Counted separately from
+                # status because they answer different questions, and a wall that mixes today with
+                # next year needs to say so before anyone reads a boundary off it. Absent entirely
+                # is its own signal, so count declared elements rather than defaulting them.
+                state = lambda e: str(e.get("state", "")).strip().lower()  # noqa: E731
                 return {"elements": tl[:200], "hotspots": d.get("hotspots", [])[:60],
                         "language": d.get("ubiquitousLanguage", [])[:80],
                         "confidence": {"confirmed": sum(1 for e in tl if status(e) == "confirmed"),
-                                       "candidates": sum(1 for e in tl if status(e) == "candidate")}}
+                                       "candidates": sum(1 for e in tl if status(e) == "candidate"),
+                                       "asIs": sum(1 for e in tl if state(e) == "as-is"),
+                                       "toBe": sum(1 for e in tl if state(e) == "to-be"),
+                                       "couldBe": sum(1 for e in tl if state(e) == "could-be"),
+                                       "stated": sum(1 for e in tl if state(e))}}
         except Exception:
             pass
     f = docs / "discovery" / "timeline.md"

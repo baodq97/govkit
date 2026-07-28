@@ -142,6 +142,48 @@ def _traced_messages(docs: Path) -> dict[str, list[str]] | None:
     return seen
 
 
+STATES = ("as-is", "to-be", "could-be")
+
+
+def _discovery_states(docs: Path) -> dict[str, str] | None:
+    """element name -> `as-is` / `to-be` / `could-be`, as discovery declared it.
+
+    Three return values, and the difference between them is the whole point: `None` means
+    2-discover has not run, `{}` means it ran and never said which elements happen today, and a
+    populated dict means the axis is being used. Reads model.json first, then the `State` column of
+    timeline.md by header name, so a repo that orders its columns differently still parses.
+    """
+    f = docs / "discovery" / "model.json"
+    if f.exists():
+        try:
+            tl = json.loads(f.read_text(errors="ignore")).get("timeline")
+            if isinstance(tl, list):
+                return {str(e["name"]): str(e["state"]).strip().lower() for e in tl
+                        if isinstance(e, dict) and e.get("name") and e.get("state")}
+        except Exception:
+            pass
+    f = docs / "discovery" / "timeline.md"
+    if not f.exists():
+        return None
+    out: dict[str, str] = {}
+    i_el = i_st = None
+    for line in f.read_text(errors="ignore").splitlines():
+        if not line.lstrip().startswith("|"):
+            i_el = i_st = None
+            continue
+        cells = _cells(line)
+        low = [c.lower() for c in cells]
+        if "element" in low and "state" in low:
+            i_el, i_st = low.index("element"), low.index("state")
+            continue
+        if i_el is None or i_st is None or len(cells) <= max(i_el, i_st):
+            continue
+        name, st = cells[i_el].strip("`* "), cells[i_st].strip("`* ").lower()
+        if name and st in STATES:
+            out[name] = st
+    return out
+
+
 def load_contexts(docs: Path, root: Path | None = None) -> dict[str, dict]:
     ctx = {}
     if not docs.is_dir():
@@ -490,6 +532,35 @@ def run_checks(root: Path, docs: Path) -> list[Finding]:
                         "artifact-over-budget", "medium" if n > cap * 1.5 else "info",
                         f"{rel} is {n} lines against a {cap}-line budget",
                         [str(f.relative_to(root))], owner))
+
+    # 13 — as-is versus to-be versus could-be. A timeline that mixes what happens today with what
+    # someone wishes happened reads identically either way, and every step downstream inherits the
+    # confusion: 3-decompose can draw a boundary around behaviour that does not exist, 5-strategize
+    # can source differentiation from an idea nobody committed to. The axis is orthogonal to
+    # confirmed-versus-candidate — a person can confirm, on the record, that something is only an
+    # idea, and that element is `confirmed` and `could-be` at once.
+    states = _discovery_states(docs)
+    if states is not None and not states:
+        out.append(Finding(
+            "discovery-state-unlabelled", "medium",
+            "the discovery timeline never says which elements happen today — as-is, to-be and "
+            "could-be are indistinguishable",
+            ["discovery/timeline.md: add a `State` column; discovery/model.json: a `state` field per element",
+             "until then a boundary drawn around future behaviour looks exactly like one drawn "
+             "around a running system"],
+            "2-discover"))
+    elif states:
+        for name in sorted(ctx):
+            known = {e: states[e] for e, src in emitted.items() if src == name and e in states}
+            if len(known) >= 2 and all(v != "as-is" for v in known.values()):
+                out.append(Finding(
+                    "context-is-future-only", "info",
+                    f"{name}'s boundary rests entirely on behaviour that does not happen yet — "
+                    f"{len(known)} events, none `as-is`",
+                    [ctx[name]["_path"], *(f"{e} → {v}" for e, v in sorted(known.items())[:4]),
+                     "expected on greenfield; on a migration it is a boundary nothing running can "
+                     "falsify"],
+                    "3-decompose"))
 
     order = {"high": 0, "medium": 1, "info": 2}
     return sorted(out, key=lambda f: (order[f.severity], f.id))

@@ -298,7 +298,15 @@
   /* Domain names are single long words — `AdditionalPaymentCollected` has no break opportunity and
      runs straight off the card. Break inside the word rather than lose the end of the name. */
   .sticky b { display: block; margin-bottom: 3px; font-weight: 600; overflow-wrap: anywhere; }
-  .sticky span { color: var(--muted); font-size: 10.5px; }
+  .sticky span { display: block; color: var(--muted); font-size: 10.5px; }
+  /* Two axes, two channels: evidence (confirmed/candidate) is the border style, time
+     (as-is/to-be/could-be) is this chip. `as-is` renders no chip at all — the default has to be the
+     quiet one, or a wall of what the business already does every day reads as an alarm. */
+  .sticky .state { display: inline-block; margin-top: 4px; padding: 1px 5px; border-radius: 2px;
+    font-size: 9.5px; font-weight: 700; letter-spacing: .03em; text-transform: uppercase;
+    color: #3d2c04; background: #f3d283; }
+  .sticky .state.could-be { background: transparent; color: var(--muted);
+    border: 1px dashed var(--line); padding: 0 4px; }
   .bmc-extra table { border-collapse: collapse; font-size: 12px; width: 100%; }
   .bmc-extra th, .bmc-extra td { text-align: left; padding: 4px 8px; border-bottom: 1px solid var(--line); }
   .bmc-extra th { font-size: 10.5px; text-transform: uppercase; letter-spacing: 0.07em; color: var(--muted); }
@@ -1950,21 +1958,35 @@ function renderRelations() {
 const EL_TYPE = { event: "#f5a623", command: "#4a90d9", policy: "#9b59b6", "read-model": "#2fa84f",
                   actor: "#f7d774", "external-system": "#e8a0a0", hotspot: "#d0021b" };
 
+// Read off the element rather than the confidence block: the same renderer serves the model.json
+// payload and the markdown-table fallback, and only the first carries pre-counted totals.
+const STATE_OF = (e) => String(e.state ?? e.State ?? "").trim().toLowerCase();
+
 function renderTimeline() {
   const c = model.confidence || {};
+  const els = model.elements || [];
+  const stated = els.filter(STATE_OF).length;
+  const tally = (s) => els.filter((e) => STATE_OF(e) === s).length;
   const host = docHost("Discovery timeline",
-    `${(model.elements || []).length} elements · ${c.confirmed ?? "?"} confirmed · ${c.candidates ?? "?"} candidate · ${(model.hotspots || []).length} hotspots`);
+    `${els.length} elements · ${c.confirmed ?? "?"} confirmed · ${c.candidates ?? "?"} candidate · ${(model.hotspots || []).length} hotspots`
+    + (stated ? ` · ${tally("as-is")} as-is / ${tally("to-be")} to-be / ${tally("could-be")} could-be` : ""));
 
-  if ((c.confirmed ?? 0) === 0 && (model.elements || []).length) {
+  if ((c.confirmed ?? 0) === 0 && els.length) {
     const w = document.createElement("p");
     w.className = "doc-warn";
     w.textContent = "Nothing here was confirmed by a person. Every element is mined from documents, and everything downstream inherits that.";
     host.append(w);
   }
+  if (!stated && els.length) {
+    const w = document.createElement("p");
+    w.className = "doc-warn";
+    w.textContent = "Nothing here says whether it happens today. What the business does, what it has decided to change, and what someone floated in the room are all on this wall in the same handwriting — and a boundary read off it cannot tell them apart.";
+    host.append(w);
+  }
 
   const wall = document.createElement("div");
   wall.className = "wall";
-  for (const e of model.elements || []) {
+  for (const e of els) {
     const card = document.createElement("div");
     const type = String(e.type || "event").toLowerCase();
     card.className = `sticky${e.status === "candidate" ? " candidate" : ""}`;
@@ -1974,6 +1996,13 @@ function renderTimeline() {
     const meta = document.createElement("span");
     meta.textContent = [type, e.actor, e.source].filter(Boolean).join(" · ");
     card.append(name, meta);
+    const state = STATE_OF(e);
+    if (state && state !== "as-is") {
+      const tag = document.createElement("i");
+      tag.className = `state ${state}`;
+      tag.textContent = state;
+      card.append(tag);
+    }
     wall.append(card);
   }
   host.append(wall);

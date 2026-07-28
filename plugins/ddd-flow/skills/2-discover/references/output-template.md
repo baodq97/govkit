@@ -62,19 +62,40 @@ One row per element, in time order. `source` distinguishes what a person said fr
 implied — the single field that keeps this honest.
 
 ```markdown
-| # | Element | Type | Actor / command | Status | Source |
-|---|---|---|---|---|---|
-| 1 | EquipmentAllocated | event | Depot Clerk / CommitReservation | confirmed | Ha, 2026-07-27 |
-| 2 | DepotTransferRequested | event | — | candidate | ADR-0013 §Decision |
-| 3 | whenever a unit goes out of service, cancel its reservations | policy | — | confirmed | Ha, 2026-07-27 |
+| # | Element | Type | State | Actor / command | Status | Source |
+|---|---|---|---|---|---|---|
+| 1 | EquipmentAllocated | event | as-is | Depot Clerk / CommitReservation | confirmed | Ha, 2026-07-27 |
+| 2 | DepotTransferRequested | event | to-be | — | candidate | ADR-0013 §Decision |
+| 3 | whenever a unit goes out of service, cancel its reservations | policy | as-is | — | confirmed | Ha, 2026-07-27 |
+| 4 | DepotCapacityForecast | read-model | could-be | — | confirmed | Minh, 2026-07-27 — "we've talked about it" |
 ```
 
 Types: `event` · `command` · `actor` · `policy` · `read-model` · `external-system` · `aggregate`
 (see `eventstorming.md` for the grammar).
 
-Status is `confirmed` (a person said it) or `candidate` (derived from an artifact, unverified). A
-run that ends with every element still `candidate` has not discovered anything, and the README's
-confidence line should say so rather than presenting the list as findings.
+**Two independent columns. Do not collapse them.**
+
+`Status` is about **evidence**: `confirmed` (a person said it) or `candidate` (derived from an
+artifact, unverified). A run that ends with every element still `candidate` has not discovered
+anything, and the README's confidence line should say so rather than presenting the list as findings.
+
+`State` is about **time**: `as-is` happens today · `to-be` is a decided change somebody owns ·
+`could-be` is an idea on the wall that nobody has committed to. Default to `as-is` and change it
+only on evidence — an element nobody could place is a hotspot, not a guess.
+
+Row 4 shows why they are separate: Minh confirmed, on the record, that the forecast is only an idea.
+That element is `confirmed` **and** `could-be` at once, and a single column would have to lie about
+one of them.
+
+The cost of skipping this is not tidiness. `3-decompose` can draw a boundary around behaviour that
+does not exist and nothing running can falsify it; `5-strategize` can claim differentiation from a
+capability the business has only discussed. Both read as confident findings afterwards, and neither
+is recoverable from the timeline once the column is gone. `ddd_check.py` reports a timeline with no
+`State` column as `discovery-state-unlabelled`.
+
+Modelling all three states is the first thing DDD asks of discovery, and it is what makes a
+migration tractable: the as-is rows are what a running system can be checked against, and the
+difference between the two sets is the work.
 
 ## `ubiquitous-language.md`
 
@@ -110,7 +131,7 @@ The same payload the preview surface renders, so the wall and the document canno
   "kind": "discovery",
   "source": { "mode": "discover", "date": "<date>", "attendance": { "domainExpert": true, "endUser": false } },
   "timeline": [
-    { "seq": 1, "name": "EquipmentAllocated", "type": "event", "status": "confirmed",
+    { "seq": 1, "name": "EquipmentAllocated", "type": "event", "status": "confirmed", "state": "as-is",
       "actor": "Depot Clerk", "command": "CommitReservation", "source": "Ha, 2026-07-27" }
   ],
   "ubiquitousLanguage": [
@@ -128,6 +149,9 @@ The same payload the preview surface renders, so the wall and the document canno
 - **Never invent** an event, rule, actor or term. A gap is a hotspot, not a blank to fill.
 - **Never promote a candidate to confirmed** without a person confirming it — an accepted ADR is
   still a document, not a domain expert.
+- **Never let a `to-be` or `could-be` element go unmarked.** Wishes recorded as facts are the one
+  error discovery cannot recover from later: downstream, the row is indistinguishable from something
+  the business does every day.
 - **Never draw context boundaries here.** Clustering into contexts is `3-decompose`'s job;
   doing it here collapses discovery into design and loses the disagreements discovery exists to
   surface.
