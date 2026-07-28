@@ -7,7 +7,7 @@ description: >
   API design", "GraphQL schema", "API versioning", "pagination patterns", or asks about HTTP
   resource modeling, API contracts, or error response structure. This is also the API-design
   step of the swe-flow chain: when a domain model already exists in `docs/domain/` (from
-  domain-decompose), use this skill to turn those bounded contexts and aggregates into API
+  the ddd-flow plugin), use this skill to turn those bounded contexts and aggregates into API
   surfaces and contracts — trigger on "design the API for this domain", "turn the domain model
   into an API", or "now build the API" after a decomposition. Works standalone from a prose
   description too.
@@ -20,13 +20,14 @@ Specification-first API design: domain → resources → OpenAPI 3.1 contract �
 
 ## Where this fits
 
-This is the API-design step of the swe-flow chain: `goal-define` → `domain-decompose` →
+This is the API-design step of the swe-flow chain: `goal-define` → `ddd-flow:3-decompose`
+(ships in the `ddd-flow` plugin; the handoff is the `docs/domain/` tree, not an import) →
 **`api-designer`**. When `docs/domain/` exists, consume it; otherwise work from a prose
 description — both paths produce the same contract under `docs/api/`.
 
 ## Consume the domain model
 
-First check for `docs/domain/` (domain-decompose output: `context-map.md`, per-context folders
+First check for `docs/domain/` (ddd-flow decompose output: `context-map.md`, per-context folders
 each with `README.md` + `model.yaml`). If present, treat it as authoritative input and map it
 onto the API — don't re-derive the domain or rename its concepts:
 
@@ -80,7 +81,7 @@ Load on demand:
 ## Output
 
 Write under the project's `docs/api/` directory (create it if missing), mirroring the
-domain-decompose layout: one shared index plus one folder per bounded context (or one folder for
+the decompose layout: one shared index plus one folder per bounded context (or one folder for
 a standalone API).
 
 ```

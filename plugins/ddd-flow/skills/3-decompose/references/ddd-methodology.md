@@ -1,6 +1,6 @@
 # DDD Methodology Reference
 
-Theory and heuristics behind every step of `domain-decompose`: strategic + tactical DDD for
+Theory and heuristics behind every step of `3-decompose`: strategic + tactical DDD for
 defining domain entities and dividing bounded contexts, focused on the monolith → microservices
 journey. Input is a domain narrative (capabilities and events), NOT source code. Short citations
 key to the Sources section.

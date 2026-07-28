@@ -1,17 +1,8 @@
 ---
-name: domain-decompose
+name: 3-decompose
 description: >
-  Decompose a domain into bounded contexts, aggregates, entities, value objects, and domain
-  events with ubiquitous-language naming, mapping bounded contexts to candidate microservice
-  boundaries. Use whenever the user wants to decompose a domain, split a system into bounded
-  contexts, identify aggregates / value objects / domain events, define clean domain entities,
-  draw clear boundaries, or plan a monolith-to-microservices breakup. Also use when an
-  already-decomposed domain has evolved and the user wants to update, extend, re-run, or
-  "read existing and update" an existing `docs/domain` model rather than start over — re-running
-  delta-merges into the existing docs (stable ids, preserves human edits, flags drops) instead of
-  overwriting. Works from a prose domain/requirements description, not existing code. Trigger even
-  when the user never says "DDD", as long as they are carving a domain into boundaries, modelling
-  entities/aggregates/events, or updating a model they already have.
+  DDD loop 2 — decompose: bounded contexts, aggregates, entities, value objects and events, right-sized by sub-domain type; delta-merges on re-run. Writes docs/domain/.
+disable-model-invocation: true
 ---
 
 # Domain Decompose
@@ -134,7 +125,7 @@ Follow `references/output-template.md` exactly. Detect the project's `docs/domai
 ask if none), then check whether it **already holds generated artifacts** (`DOMAIN-NNNN`
 frontmatter, `INDEX.md` rows, per-context `model.yaml`):
 
-- **Create mode** (empty/new): write `context-map.md` (Mermaid map + Core Domain Chart) and, per
+- **Create mode** (empty/new): write `context-map.md` (Mermaid map + sub-domain classification) and, per
   context, a folder with `README.md` (Bounded Context Canvas) + `model.yaml`. Fresh docs start
   `status: draft`, `owner: TBD`, with `DOMAIN-NNNN` ids; create `INDEX.md`.
 - **Update mode** (prior output exists): **read it first**, then merge the new model in as a
@@ -166,6 +157,10 @@ The same word in two contexts is kept in both, qualified by context — that pol
 
 ## Hard rules
 
+- **Length budget: `context-map.md` ≤ 180 lines**, and the first-pass context `README.md` stays a
+  sketch — `7-define` owns the canvas depth. A budget caps prose, not findings: over it, cut
+  rationale a reader can infer and anything restated from an upstream artifact — never open
+  questions, provenance, or a stated absence.
 - **Never invent business rules, invariants, or domain events.** Capture only what the user
   stated; flag gaps rather than filling them. Naming an event the prose *implies*
   (`AppointmentBooked` from "patients book appointments") is the job; inventing one for a flow the

@@ -1,6 +1,6 @@
 # Output Template — runtime artifacts
 
-What `domain-decompose` writes at runtime. Output lands in the **invoking project's** docs folder
+What `3-decompose` writes at runtime. Output lands in the **invoking project's** docs folder
 — never in this plugin repo or any reference template you studied. Read before emitting anything.
 
 ## 1. Locate the docs root (detection order)
@@ -46,12 +46,17 @@ graph LR
   Discovery -->|conformist| Catalog
 ```
 
-**Core Domain Chart** — a table classifying every context:
+**Sub-domain classification** — a table classifying every context:
 
 | Bounded Context | Sub-domain type | Why |
 |---|---|---|
 | Booking | core | competitive differentiator |
 | Notifications | generic | commodity, could be bought |
+
+This is a first-pass label, enough to right-size the tactical model (step 4). It is **not** a Core
+Domain Chart: that plots complexity against business differentiation on two axes and turns the
+placement into build/buy/outsource and staffing decisions — `5-strategize` owns it, and its
+findings come back here as proposed `subdomain_type` deltas.
 
 **Conflicts & reconciliation** — **required whenever you reconcile existing artifacts that
 disagree** (e.g. a draft PRD vs shipped code). One row per divergence. Never blend the two into a

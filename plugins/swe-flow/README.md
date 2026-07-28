@@ -14,14 +14,20 @@ Everything **calls** `npx govkit verify` to validate — nothing embeds the dete
   and how to record ordering when one slice depends on another. Tier-1 and dependency-free —
   calls no other skill.
 - **`skills/goal-define`** — structure a clear, verifiable goal from rough input.
-- **`skills/domain-decompose`** — DDD: prose → bounded contexts, aggregates, entities, value
-  objects, events → `docs/domain` (delta-merge on re-run).
 - **`skills/api-designer`** — domain → OpenAPI 3.1 contract → `docs/api`.
 - **`skills/data-model`** — domain → relational schema (+ PostgreSQL projection) → `docs/data`;
   forward or audit mode.
 - **`skills/spec-author`** — turn design output into a governed **PRD / RFC / ADR / US** with
   correct front-matter + INDEX row, then self-validate via `npx govkit verify`. Discovers doc
   dirs + required keys from the consumer's `govkit.yml`.
+
+> **Domain modelling lives in [`ddd-flow`](../ddd-flow).** The DDD loop — understand · discover ·
+> decompose · connect · strategize · organise · define · code, plus the `/ddd-flow:design` orchestrator
+> and the live `domain-visualize` surface — moved to its own plugin in v0.11.0. It is episodic
+> work (greenfield projects, migrations and refactors toward DDD), and its ten skill descriptions
+> were 64% of this plugin's always-in-context budget for a phase most sessions never enter.
+> The two plugins meet at an artifact, not an import: `ddd-flow` writes `docs/domain/`,
+> and `api-designer` / `data-model` / `spec-author` read it. Install either without the other.
 
 **Skill — the orchestration layer:**
 

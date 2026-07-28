@@ -26,3 +26,8 @@ Thumbs.db
 # govkit --journal / calibrate local run records (sensor output, never committed).
 # Anchored to the repo root: test fixtures legitimately SHIP a .govkit docs tree.
 /.govkit/
+
+# ddd-flow: generated preview sessions and python bytecode
+.ddd-flow/
+__pycache__/
+*.pyc

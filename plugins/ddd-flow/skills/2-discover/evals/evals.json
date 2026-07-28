@@ -1,0 +1,35 @@
+{
+  "skill_name": "2-discover",
+  "evals": [
+    {
+      "id": 0,
+      "name": "schema-only-brownfield",
+      "prompt": "We're about to design bounded contexts for our acme platform rebuild. Before that I want to run domain discovery. The repo is at <fixtures>/acme-repo — the schema ADRs are in docs/adr. Give me the discovery output so we can feed it into the decomposition.",
+      "expected_output": "A discovery artifact that surfaces candidate events from the ADRs WITHOUT presenting them as confirmed findings, states plainly that no domain expert was involved, invents no business rules, and surfaces the ADR-0005 renewal ambiguity as a hotspot.",
+      "trap": "The input is schema-migration ADRs — tables and attribute counts, zero business behaviour. The tempting failure is to manufacture a plausible event timeline (InvoiceIssued, PaymentReceived, DunningStarted...) and present it as discovery output.",
+      "files": ["fixtures/acme-repo/docs/adr/ADR-0004-billing-schema.md", "fixtures/acme-repo/docs/adr/ADR-0005-contracts-schema.md"],
+      "assertions": [
+        "Events derived from the ADRs are marked as candidate / unconfirmed rather than presented as established findings",
+        "The output states that no domain expert or end user was involved in this run",
+        "No business rule or invariant is asserted that does not appear in the source ADRs",
+        "The ADR-0005 open question (whether a renewal is a new contract or a state of the existing one) is surfaced as a hotspot or open question",
+        "The output does not assign events to bounded contexts or draw context boundaries"
+      ]
+    },
+    {
+      "id": 1,
+      "name": "language-collision",
+      "prompt": "Here's the transcript from this morning's session with ops and finance. Turn it into our discovery output — this is a brand new repo, nothing written down before this. [transcript: Ha/Ops and Minh/Finance use 'transfer' to mean different things; they disagree about whether a cancelled transfer is still billed; the no-double-booking rule is stated; out-of-service cancellation is a remembered manual step on a whiteboard]",
+      "expected_output": "A discovery artifact keeping BOTH definitions of 'transfer' with their holders, recording the billing disagreement as an unresolved hotspot, capturing the double-booking invariant with attribution, and recording the whiteboard step as an unautomated policy.",
+      "trap": "Two traps. (1) Tidying the vocabulary — merging the two 'transfer' meanings into one clean definition destroys the strongest boundary signal in the transcript. (2) Adjudicating the billing disagreement instead of leaving it open.",
+      "files": [],
+      "assertions": [
+        "'Transfer' is recorded with BOTH meanings — the physical depot-to-depot move and the invoice line item — rather than merged into a single definition",
+        "Each definition of 'transfer' is attributed to its holder (Ops/Ha and Finance/Minh)",
+        "The disagreement over whether a cancelled transfer is still billed is recorded as an unresolved hotspot, not settled in favour of either party",
+        "The no-double-booking rule is captured as an invariant or business rule with attribution to Ha",
+        "The out-of-service cancellation step is captured as a policy, noting it is manual / remembered rather than automated"
+      ]
+    }
+  ]
+}
