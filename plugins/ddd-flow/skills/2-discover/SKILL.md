@@ -61,7 +61,7 @@ hotspots rather than becoming confident findings.
 Discovery is visual and collaborative or it is not discovery. Start the shared surface first:
 
 ```bash
-node <plugin>/skills/view/scripts/preview-server.cjs --dir .ddd-flow/discovery
+node ${CLAUDE_PLUGIN_ROOT}/skills/view/scripts/preview-server.cjs --dir .ddd-flow/discovery
 ```
 
 Write the model to `<dir>/model.json`; the page updates itself, so participants watch the timeline

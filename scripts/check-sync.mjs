@@ -87,34 +87,38 @@ export function findOrphans({ files, pkgScripts, sourceTexts, scriptsDir = "scri
 function runCli() {
   const failures = [];
 
-  // Check A: plugin manifest ↔ marketplace entry.
-  const pluginPath = "plugins/swe-flow/.claude-plugin/plugin.json";
+  // Check A: plugin manifest ↔ marketplace entry — for EVERY plugin the monorepo ships.
+  // (This check exists because swe-flow once bumped only plugin.json and marketplace browsers
+  // never saw the release; ddd-flow has the same two-file shape and gets the same guard.)
   const marketplacePath = ".claude-plugin/marketplace.json";
-  const plugin = JSON.parse(readFileSync(join(repoRoot, pluginPath), "utf8"));
   const marketplace = JSON.parse(readFileSync(join(repoRoot, marketplacePath), "utf8"));
-  const entry = (marketplace.plugins ?? []).find((p) => p.name === plugin.name);
+  for (const pluginName of ["swe-flow", "ddd-flow"]) {
+    const pluginPath = `plugins/${pluginName}/.claude-plugin/plugin.json`;
+    const plugin = JSON.parse(readFileSync(join(repoRoot, pluginPath), "utf8"));
+    const entry = (marketplace.plugins ?? []).find((p) => p.name === plugin.name);
 
-  if (!entry) {
-    failures.push(
-      `${marketplacePath} has no entry named "${plugin.name}", but ${pluginPath} declares it.\n` +
-        `  Fix: add a "${plugin.name}" entry whose version and description are copied from ${pluginPath}.`,
-    );
-  } else {
-    if (entry.version !== plugin.version) {
+    if (!entry) {
       failures.push(
-        `version drift: ${pluginPath} says "${plugin.version}" but the "${plugin.name}" entry in ` +
-          `${marketplacePath} says "${entry.version}".\n` +
-          `  Fix: set the marketplace entry's "version" to "${plugin.version}" (the plugin manifest ` +
-          `is the source of truth; every plugin bump updates both files).`,
+        `${marketplacePath} has no entry named "${plugin.name}", but ${pluginPath} declares it.\n` +
+          `  Fix: add a "${plugin.name}" entry whose version and description are copied from ${pluginPath}.`,
       );
-    }
-    if (entry.description !== plugin.description) {
-      failures.push(
-        `description drift: the "${plugin.name}" entry in ${marketplacePath} is not byte-identical ` +
-          `to the "description" in ${pluginPath}.\n` +
-          `  Fix: copy the description verbatim from ${pluginPath} into the marketplace entry — ` +
-          `identical-by-construction, no paraphrasing.`,
-      );
+    } else {
+      if (entry.version !== plugin.version) {
+        failures.push(
+          `version drift: ${pluginPath} says "${plugin.version}" but the "${plugin.name}" entry in ` +
+            `${marketplacePath} says "${entry.version}".\n` +
+            `  Fix: set the marketplace entry's "version" to "${plugin.version}" (the plugin manifest ` +
+            `is the source of truth; every plugin bump updates both files).`,
+        );
+      }
+      if (entry.description !== plugin.description) {
+        failures.push(
+          `description drift: the "${plugin.name}" entry in ${marketplacePath} is not byte-identical ` +
+            `to the "description" in ${pluginPath}.\n` +
+            `  Fix: copy the description verbatim from ${pluginPath} into the marketplace entry — ` +
+            `identical-by-construction, no paraphrasing.`,
+        );
+      }
     }
   }
 
@@ -199,8 +203,8 @@ function runCli() {
   }
 
   console.log(
-    `check-sync: OK — marketplace "${plugin.name}" entry matches ${pluginPath} ` +
-      `(version ${plugin.version}, description byte-identical), ${mirrorPairs.length} ` +
+    `check-sync: OK — marketplace entries match plugin.json for swe-flow and ddd-flow ` +
+      `(version + description byte-identical), ${mirrorPairs.length} ` +
       `root↔template mirror pair(s) are byte-identical, ${onDisk.size} agent/skill(s) are ` +
       `all named in ${readmePath}, and all ${scriptFiles.length} ${scriptsDir}/*.mjs are wired to ` +
       `a gate or imported (no orphans).`,

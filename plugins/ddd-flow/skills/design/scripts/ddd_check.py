@@ -834,16 +834,16 @@ def run_checks(root: Path, docs: Path) -> list[Finding]:
 
 def _steps_config(config: Path | None = None) -> dict:
     """steps.yml is the shared configuration: artifact conventions, staleness edges, budgets.
-    Reading it here means a repo overrides a file, not the script."""
+    Reading it here means a repo overrides a file, not the script. Delegates to
+    ddd_state.load_config, whose _mini_yaml fallback handles steps.yml's shape — a bare
+    `except ImportError: return {}` here used to silently drop EVERY budget check (the
+    right-sizing doctrine, check 12) on machines without PyYAML, with no warning."""
     p = config or Path(__file__).resolve().parent.parent / "references" / "steps.yml"
     if not p.exists():
         return {}
-    try:
-        import yaml  # type: ignore
+    import ddd_state
 
-        return yaml.safe_load(p.read_text(errors="ignore")) or {}
-    except ImportError:
-        return {}
+    return ddd_state.load_config(p) or {}
 
 
 def _budgets(config: Path | None = None) -> dict:

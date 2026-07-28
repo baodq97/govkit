@@ -17,6 +17,7 @@ import {
 import { isParseError, parseFrontMatter } from "../frontmatter";
 import {
   collectGovernedIds,
+  effectiveRequired,
   headingLines,
   listMarkdown,
   matches,
@@ -618,13 +619,9 @@ export function runVerify(opts: VerifyOptions): VerifyResult {
   let checked = 0;
 
   for (const [typeName, def] of Object.entries(types)) {
-    // RFC-0011 (G1): a type may drop base keys it has no lifecycle for (e.g. a status-less
+    // RFC-0023 (G1): a type may drop base keys it has no lifecycle for (e.g. a status-less
     // runbook). Effective required = (base.required − excludeBase) ∪ def.required.
-    const excluded = new Set(def.excludeBase ?? []);
-    const effectiveBase = excluded.size
-      ? base.required.filter((k) => !excluded.has(k))
-      : base.required;
-    const required = [...new Set([...effectiveBase, ...def.required])];
+    const required = effectiveRequired(base, def);
     const typeDocs: Doc[] = [];
     const dir = typeDir(opts.root, docsRoot, def.dir);
 

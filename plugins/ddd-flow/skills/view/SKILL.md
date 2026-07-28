@@ -114,11 +114,10 @@ artifact — an open event-stream keeps the page permanently "loading" and stall
 `type`: `upstream` · `downstream` · `shared-kernel` · `conformist` · `acl` · `open-host` ·
 `published-language` · `partnership` · `customer-supplier`.
 
-**Review** (`kind: "review"`): produced by one command, not hand-written —
-
-```bash
-python3 <design-skill>/scripts/ddd_state.py --root . --review > .ddd-flow/preview/model.json
-```
+**Review** (`kind: "review"`): built automatically by `ddd_view.py` as one document inside the
+workspace payload — no separate command. (Do NOT redirect `ddd_state.py --review` over
+`model.json`: that replaces the whole workspace with a review-only payload and collapses the
+doc rail. The `--review` stdout report remains available for terminal use via the design skill.)
 
 It merges step state (`ddd_state.py`) with cross-artifact findings (`ddd_check.py`): `steps[]` with
 status / evidence / `stale_against`, `candidates[]`, and `findings[]` each carrying `severity`,

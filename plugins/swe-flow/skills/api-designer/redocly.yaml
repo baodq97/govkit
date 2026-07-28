@@ -7,7 +7,7 @@
 # this ruleset does NOT try to replace (aggregate -> resource mapping,
 # relationship-role -> contract decisions, operation-responsibility taxonomy).
 #
-# Usage: npx @redocly/cli lint --config plugins/swe-flow/skills/api-designer/redocly.yaml <spec>.yaml
+# Usage: npx @redocly/cli lint --config ${CLAUDE_SKILL_DIR}/redocly.yaml <spec>.yaml
 
 extends:
   - recommended

@@ -623,7 +623,7 @@ def build(root: Path, docs: Path) -> dict:
     if review:
         documents.append(doc("review", "Review — state & findings", "review", "design", review))
     else:
-        gaps.append("ddd_state.py --review produced nothing; the Review lens is missing")
+        gaps.append("the in-process review build produced nothing; the Review lens is missing")
 
     domain = build_domain(docs)
     if domain["contexts"]:

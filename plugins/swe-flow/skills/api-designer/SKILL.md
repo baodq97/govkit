@@ -63,7 +63,7 @@ a candidate endpoint TABLE is reviewed before any YAML gets written:
 3. **Name each operation's responsibility** — State Creation / Retrieval / State Transition /
    Computation, per `references/rest-patterns.md` § Operation-responsibility taxonomy
 4. **Derive the candidate endpoint list (CEL)** — run
-   `plugins/swe-flow/skills/api-designer/scripts/derive_cel.py` against `docs/domain/` (owned by a
+   `${CLAUDE_SKILL_DIR}/scripts/derive_cel.py` against `docs/domain/` (owned by a
    sibling script, not this skill) to produce a candidate endpoint TABLE (resource, operation,
    responsibility); review the table before writing any spec
 5. **Evaluate contract necessity per relationship (REL)** — apply
@@ -72,7 +72,7 @@ a candidate endpoint TABLE is reviewed before any YAML gets written:
 6. **Decide integration technology, then write the contract** — REST/gRPC/messaging is decided
    here, not assumed at step 1; record the decision as an ADR. For REST, copy
    `assets/openapi-skeleton.yaml`, fill it in, and lint:
-   `npx @redocly/cli lint --config plugins/swe-flow/skills/api-designer/redocly.yaml openapi.yaml`
+   `npx @redocly/cli lint --config ${CLAUDE_SKILL_DIR}/redocly.yaml openapi.yaml`
 7. **Mock and verify** — `npx @stoplight/prism-cli mock openapi.yaml`
 8. **Plan evolution** — versioning strategy and deprecation policy
 

@@ -9,8 +9,8 @@
 #   webhooks.resourcePublished         -> the same transition's outbound domain event
 #
 # Lint with the pinned ruleset:
-#   npx @redocly/cli lint --config plugins/swe-flow/skills/api-designer/redocly.yaml \
-#     plugins/swe-flow/skills/api-designer/assets/openapi-skeleton.yaml
+#   npx @redocly/cli lint --config ${CLAUDE_SKILL_DIR}/redocly.yaml \
+#     ${CLAUDE_SKILL_DIR}/assets/openapi-skeleton.yaml
 
 openapi: 3.1.0
 info:

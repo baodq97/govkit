@@ -2,7 +2,7 @@ import { readFileSync, writeFileSync } from "node:fs";
 import { basename } from "node:path";
 import { type DocType, type GovkitConfig, loadConfig } from "../config";
 import { isParseError, parseFrontMatter } from "../frontmatter";
-import { listMarkdown, str, stripNonProse, typeDir } from "../util";
+import { effectiveRequired, listMarkdown, str, stripNonProse, typeDir } from "../util";
 
 // The sentinel for a field that could not be extracted (or was uncertain). It is an
 // ANGLE-BRACKET placeholder on purpose: `verify`'s checkPlaceholder flags `/<[^>]*>/` on
@@ -135,7 +135,9 @@ export function runAdopt(opts: AdoptOptions): AdoptResult {
   const driftByType: Record<string, Set<string>> = {};
 
   for (const [typeName, def] of Object.entries(types)) {
-    const required = [...new Set([...base.required, ...def.required])];
+    // Shared with verify + audit-write: adopt must not scaffold a key the gate exempts via
+    // `excludeBase` (it used to write a `<MISSING — fill in>` sentinel for one).
+    const required = effectiveRequired(base, def);
 
     // Same per-type `recursive` flag every other reader passes (verify, eval, report, the shared
     // id collector). The migrator is the one reader where a narrower walk is unrecoverable: a

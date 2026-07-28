@@ -4,7 +4,7 @@ title: Config generality hardening — let a divergent consumer retire its paral
 status: implemented
 owner: baodq97
 date: 2026-06-09
-reconciled: sha256:1679905ad67cfb29
+reconciled: sha256:98983d46e5cd1b2f
 governs:
   - packages/govkit/src/config.ts
   - packages/govkit/src/commands/verify.ts

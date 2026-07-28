@@ -4,7 +4,7 @@ title: Substance judge — the keyed Layer-3 verdict govkit's floor deliberately
 status: implemented
 owner: baodq97
 date: 2026-07-08
-reconciled: sha256:ee16cabfd06db096
+reconciled: sha256:69833c3d292b6aaf
 governs:
   - plugins/swe-flow/agents/judge.md
   - plugins/swe-flow/skills/substance-judge/SKILL.md

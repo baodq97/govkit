@@ -4,7 +4,7 @@ title: Risk-tiered verify checks — advisory vs blocking, per kind, in config
 status: implemented
 owner: baodq97
 date: 2026-07-07
-reconciled: sha256:1679905ad67cfb29
+reconciled: sha256:98983d46e5cd1b2f
 governs:
   - packages/govkit/src/commands/verify.ts
   - packages/govkit/src/config.ts

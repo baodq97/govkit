@@ -53,7 +53,7 @@ happens to need no key, but the ranking probe is keyed, and neither belongs in C
      every judge dispatch this run (probe and real), so all verdicts pin the same bytes:
 
      ```
-     node -e "const {readFileSync}=require('node:fs'),{createHash}=require('node:crypto');const c=readFileSync(process.argv[1],'utf8').replace(/\r\n/g,'\n');console.log('sha256:'+createHash('sha256').update(c).digest('hex'))" plugins/swe-flow/skills/substance-judge/references/scoring-anchors.md
+     node -e "const {readFileSync}=require('node:fs'),{createHash}=require('node:crypto');const c=readFileSync(process.argv[1],'utf8').replace(/\r\n/g,'\n');console.log('sha256:'+createHash('sha256').update(c).digest('hex'))" ${CLAUDE_SKILL_DIR}/references/scoring-anchors.md
      ```
 
      That is `sha256:<hex>` of the anchors file content, CRLF→LF normalized (Windows

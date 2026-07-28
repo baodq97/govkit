@@ -107,14 +107,41 @@ export function headingLines(prose: string): string[] {
 /** Compile + test a user-supplied pattern; a malformed pattern is treated as "no match" (the
  *  rule simply fails) rather than crashing. Multiline + case-insensitive so `^`/`$` anchor to
  *  line starts. Shared by `eval` and `verify` so a "does this text match" judgement is identical
- *  across the two trust layers. */
+ *  across the two trust layers. Patterns come from config (a small, fixed set per run) but are
+ *  tested per (rule × heading × artifact) — the cache turns thousands of compiles into one per
+ *  distinct pattern. A malformed pattern caches as null so it fails its check exactly once per
+ *  shape, same behaviour as before, without retrying the compile. */
+const patternCache = new Map<string, RegExp | null>();
 export function matches(pattern: string, text: string): boolean {
-  try {
-    return new RegExp(pattern, "im").test(text);
-  } catch {
-    // safe to ignore: a bad pattern fails its check (surfaced to the caller), never a crash.
-    return false;
+  let re = patternCache.get(pattern);
+  if (re === undefined) {
+    try {
+      re = new RegExp(pattern, "im");
+    } catch {
+      // safe to ignore: a bad pattern fails its check (surfaced to the caller), never a crash.
+      re = null;
+    }
+    patternCache.set(pattern, re);
   }
+  return re ? re.test(text) : false;
+}
+
+/** The one place "which front-matter keys does this type require" is computed:
+ *  (base.required − excludeBase) ∪ type.required (RFC-0023 G1). Three readers act on required
+ *  keys — the verify gate, the adopt migrator, and the audit-write hook — and when each carried
+ *  its own copy, only verify subtracted `excludeBase`: the hook BLOCKED writes for a key the
+ *  gate deliberately exempts, and adopt scaffolded a sentinel nobody asked for. One function,
+ *  three callers, so the readers structurally cannot disagree again (the reader-parity census
+ *  pins it). */
+export function effectiveRequired(
+  base: { required: string[] },
+  def: Pick<DocType, "required" | "excludeBase">,
+): string[] {
+  const excluded = new Set(def.excludeBase ?? []);
+  const effectiveBase = excluded.size
+    ? base.required.filter((k) => !excluded.has(k))
+    : base.required;
+  return [...new Set([...effectiveBase, ...def.required])];
 }
 
 /** A `governs` front-matter value may be a single glob or a list; normalize to a trimmed,

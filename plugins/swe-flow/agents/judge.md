@@ -23,7 +23,7 @@ Input: the absolute path of one doc (and optionally the paths its `governs:` nam
 spot-checking claims against reality), plus the `anchorsHash` the invoking skill computed
 (RFC-0020). Steps:
 
-1. Read `plugins/swe-flow/skills/substance-judge/references/scoring-anchors.md` — or, in a
+1. Read `${CLAUDE_PLUGIN_ROOT}/skills/substance-judge/references/scoring-anchors.md` — or, in a
    consumer repo, the copy the invoking skill hands you. That file IS the scale; do not
    improvise dimensions or bands.
 2. Read the doc. If its front-matter or sections look structurally broken, STOP and return

@@ -408,3 +408,39 @@ describe("loadConfig — 'required' and 'dir' are STRICT keys, failing loud at l
     expect(config.ledger?.path).toBe(17 as unknown as string);
   });
 });
+
+describe("required parity — the three readers of 'which keys must exist' agree on excludeBase", () => {
+  // The seam this pins: verify subtracted `excludeBase` (RFC-0023 G1) while adopt and the
+  // audit-write hook each carried their own base∪type union — so the hook BLOCKED a write for
+  // a key the CI gate deliberately exempts, and adopt scaffolded a `<MISSING — fill in>`
+  // sentinel for it. All three now call util.effectiveRequired; this test is the parity row
+  // that makes a fourth divergent copy fail loudly.
+  const STATUSLESS = { excludeBase: ["status"], statuses: [], terminalStatuses: [] };
+  const DOC = `---\nid: DOMAIN-0001\ntitle: "t"\nowner: TBD\n---\n\n${BODY}`;
+
+  it("verify does not require the excluded key", () => {
+    const config = useConfig(STATUSLESS);
+    write("context-map.md", DOC);
+    const result = runVerify({ root, config });
+    expect(result.violations.filter((v) => v.kind === "frontmatter")).toEqual([]);
+  });
+
+  it("the hook does not block a write the gate would pass", () => {
+    const config = useConfig(STATUSLESS);
+    const decision = auditWrite(
+      { tool_name: "Write", tool_input: { file_path: TOP(), content: DOC } },
+      root,
+      config,
+    );
+    expect(decision.block).toBe(false);
+  });
+
+  it("adopt does not scaffold a sentinel for the excluded key", () => {
+    const config = useConfig(STATUSLESS);
+    write("context-map.md", BODY); // no front-matter → adopt plans a block
+    const result = runAdopt({ root, config });
+    expect(result.planned).toHaveLength(1);
+    const keys = result.planned[0].fields.map((f) => f.key);
+    expect(keys).not.toContain("status");
+  });
+});

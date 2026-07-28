@@ -1,22 +1,17 @@
 ---
 name: design
 description: >
-  Orchestrate the DDD modelling process end to end. Reads repo state with a deterministic script
-  (artifacts on disk plus an append-only journal), then decides what to do next against your goal
-  instead of following a fixed pipeline: which step to run, which to skip and at what cost, what a
-  change invalidates, and which step skill to hand it to. The eight steps ship as hidden sub-skills
-  this one names for you to run — understand · discover · decompose · connect · strategize ·
-  organise · define · code — plus a live visual surface. Use for "let's do DDD", "model this domain
-  properly", "design the domain end to end", "where do we start with domain-driven design", "what's
-  next in our domain modelling", "resume the domain modelling", "we're adding a new business line —
-  how does that fit", and for event storming, bounded contexts, context maps, core domain charts,
-  build-vs-buy on a sub-domain, team topologies for our contexts, bounded context canvas, aggregate
-  design, "làm DDD cho hệ thống này", "thiết kế domain từ đầu", "tiếp theo làm gì". Trigger whenever
-  a request spans more than one modelling step, when a change lands in a domain that is already
-  modelled, or when a model exists and nobody knows how much of the process was really done —
-  restarting finished work is the failure this prevents. Built for greenfield projects and DDD
-  migrations. It never models: it reads state, decides, routes, and records.
-allowed-tools: Bash(python3 ${CLAUDE_SKILL_DIR}/scripts/ddd_state.py *)
+  Orchestrate the DDD modelling process end to end. Reads repo state with a deterministic script,
+  then decides what to do next against your goal instead of following a fixed pipeline: which
+  step to run, which to skip and at what cost, what a change invalidates, and which of the eight
+  hidden step sub-skills (understand · discover · decompose · connect · strategize · organise ·
+  define · code, plus a live visual surface) to hand it to. Use for "let's do DDD", "model this
+  domain properly", "design the domain end to end", "what's next in our domain modelling",
+  "resume the domain modelling", "we're adding a new business line — how does that fit", "làm
+  DDD cho hệ thống này", "thiết kế domain từ đầu", "tiếp theo làm gì". Also trigger when a
+  change lands in an already-modelled domain, or when a model exists and nobody knows how much
+  of the process was really done — restarting finished work is the failure this prevents.
+allowed-tools: Bash(python3 ${CLAUDE_SKILL_DIR}/scripts/*.py *)
 ---
 
 # DDD Design — control flow for the modelling loop

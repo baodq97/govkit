@@ -9,7 +9,7 @@ Don't write a spec from a blank file. Copy `../assets/openapi-skeleton.yaml`, re
 and fill in the fields; then lint:
 
 ```bash
-npx @redocly/cli lint --config plugins/swe-flow/skills/api-designer/redocly.yaml docs/api/<context>/openapi.yaml
+npx @redocly/cli lint --config ${CLAUDE_SKILL_DIR}/redocly.yaml docs/api/<context>/openapi.yaml
 ```
 
 For error bodies, copy `../assets/problem-details.yaml`'s `ProblemDetails` schema — see

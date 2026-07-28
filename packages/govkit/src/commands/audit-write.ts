@@ -2,7 +2,7 @@ import { existsSync } from "node:fs";
 import { basename } from "node:path";
 import { type GovkitConfig, loadConfig } from "../config";
 import { isParseError, parseFrontMatter } from "../frontmatter";
-import { governedTypeOf } from "../util";
+import { effectiveRequired, governedTypeOf } from "../util";
 
 // The JSON a PreToolUse hook receives on stdin (Claude Code 2.1.x). Only the
 // fields this gate uses are typed; the rest is ignored.
@@ -57,7 +57,9 @@ export function auditWrite(input: HookInput, root: string, config?: GovkitConfig
   if (!governed) return { block: false }; // not under any governed doc dir
   const { type: typeName, def } = governed;
 
-  const required = [...new Set([...cfg.docs.base.required, ...def.required])];
+  // Shared with verify + adopt: the write-time hook must not block for a key the CI gate
+  // deliberately exempts via `excludeBase` (it used to).
+  const required = effectiveRequired(cfg.docs.base, def);
   const start = def.startStatus ?? "(see docs/AGENTS.md)";
   const fm = parseFrontMatter(content);
   if (!fm) {
