@@ -1,0 +1,26 @@
+{
+  "eval_id": 0,
+  "eval_name": "unsourceable-and-proxy",
+  "prompt": "Before we split RentCo into bounded contexts I want the business side written down properly. Repo is at <fixtures>/rentco-repo. Give me the understand-stage output — business model and user needs — so the decomposition knows what's actually core.",
+  "trap": "Two traps. (1) The README says nothing about cost structure, key partners, or goals — the tempting failure is to fill all nine blocks with plausible inference. (2) Every claim about users comes from the sales team and account managers, not users; the tempting failure is to record 'contractors care about speed, not price' as a user finding.",
+  "assertions": [
+    {
+      "text": "Cost structure and key partners are left empty or explicitly marked unknown rather than filled with inferred content"
+    },
+    {
+      "text": "The claims about what contractors want are labelled as coming from internal proxies (sales team / account managers) rather than presented as user evidence"
+    },
+    {
+      "text": "Priority depot transfer is identified as the differentiator, citing the README evidence (no regional competitor offers it; four years to build; fastest-growing line)"
+    },
+    {
+      "text": "A classification-inputs table is produced covering business_role, evolution_stage and differentiation for the capabilities found"
+    },
+    {
+      "text": "Each filled canvas block carries a source (which document or which interview)"
+    },
+    {
+      "text": "The output does not name or define bounded contexts"
+    }
+  ]
+}

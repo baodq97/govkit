@@ -1,0 +1,276 @@
+{
+  "schemaVersion": "domain-discovery/1",
+  "generatedAt": "2026-07-27",
+  "sourceRepo": "fixtures/acme-repo",
+  "sourceScope": "schema-only brownfield: 2 accepted ADRs, 0 code files",
+
+  "evidenceBase": [
+    {
+      "path": "docs/adr/ADR-0004-billing-schema.md",
+      "id": "ADR-0004",
+      "title": "acme_billing schema — tables migrated from legacy LEG prefix",
+      "status": "accepted",
+      "owner": "@platform",
+      "date": "2026-06-02",
+      "lines": 54
+    },
+    {
+      "path": "docs/adr/ADR-0005-contracts-schema.md",
+      "id": "ADR-0005",
+      "title": "acme_contracts schema — tables migrated from legacy LEG prefix",
+      "status": "accepted",
+      "owner": "@platform",
+      "date": "2026-06-09",
+      "lines": 46
+    }
+  ],
+
+  "readiness": {
+    "verdict": "NOT_READY_FOR_FULL_DECOMPOSITION",
+    "inputCategoriesSatisfied": 1.5,
+    "inputCategoriesTotal": 10,
+    "safeToProduce": [
+      "coarse-context-map",
+      "entity-inventory",
+      "term-glossary",
+      "context-dependency-edges",
+      "deployment-boundary-map"
+    ],
+    "notSafeToProduce": [
+      "aggregate-boundaries",
+      "value-objects",
+      "domain-events",
+      "invariants",
+      "transaction-boundaries"
+    ],
+    "reason": "0 relationships defined, 0 of 209 attribute names recovered, 0 behavioural artefacts, shared kernel undocumented"
+  },
+
+  "coverage": {
+    "boundedContextsWithAdrInRepo": 2,
+    "boundedContextsKnownToExist": 4,
+    "boundedContextCoveragePct": 50,
+    "tablesInventoried": 11,
+    "legacyAttributesTotal": 209,
+    "attributeNamesRecovered": 0,
+    "relationshipsDefined": 0,
+    "enumerationsDefined": 0,
+    "namedPicklistsWithoutValues": 4,
+    "behaviouralArtefactsInRepo": 0,
+    "documentedInvariants": 0,
+    "documentedDomainEvents": 0,
+    "documentedActors": 0
+  },
+
+  "contexts": [
+    {
+      "name": "acme_foundation",
+      "ordinal": null,
+      "confidence": "inferred",
+      "adr": null,
+      "role": "shared-kernel",
+      "tableCount": null,
+      "attributeCount": null,
+      "knownMembers": ["acme_currency", "acme_company", "acme_country"],
+      "evidence": ["ADR-0004 L38", "ADR-0005 L30"],
+      "notes": "Referenced by both documented contexts; depends on nothing. Schema ADR absent from repo. Risk: if acme_company is a full customer master rather than reference data, this kernel is far more volatile than it appears."
+    },
+    {
+      "name": "UNKNOWN_BC",
+      "ordinal": "1 or 2",
+      "confidence": "inferred",
+      "adr": null,
+      "role": "unknown",
+      "tableCount": null,
+      "attributeCount": null,
+      "knownMembers": [],
+      "evidence": ["ADR-0004 L12 (billing is 'third BC')", "ADR-0005 L11 (contracts is 'fourth BC')"],
+      "notes": "Existence implied by the ordinals. Candidate identities from negative-space analysis: Payments, Customer/Party master, Product/Catalogue."
+    },
+    {
+      "name": "acme_billing",
+      "ordinal": 3,
+      "confidence": "evidenced",
+      "adr": "ADR-0004",
+      "role": "downstream leaf",
+      "tableCount": 6,
+      "attributeCount": 110,
+      "knownMembers": [
+        "acme_invoice",
+        "acme_invoiceline",
+        "acme_creditnote",
+        "acme_dunningrun",
+        "acme_paymentallocation",
+        "acme_writeoff"
+      ],
+      "evidence": ["ADR-0004 L21-26"],
+      "notes": "Tables split into a billing-document cluster (invoice, invoiceline, creditnote) and a receivables/collections cluster (paymentallocation, dunningrun, writeoff). Sub-context split is a live option — test it, do not assume it away."
+    },
+    {
+      "name": "acme_contracts",
+      "ordinal": 4,
+      "confidence": "evidenced",
+      "adr": "ADR-0005",
+      "role": "upstream of billing",
+      "tableCount": 5,
+      "attributeCount": 99,
+      "knownMembers": [
+        "acme_contract",
+        "acme_contractline",
+        "acme_renewaloption",
+        "acme_servicelevel",
+        "acme_contractparty"
+      ],
+      "evidence": ["ADR-0005 L20-24"],
+      "notes": "Absorbed the renewal slice previously shipped by DMOEntities. leg_ContractDraftV2 (0 attrs, placeholder) explicitly skipped. Carries the corpus's one author-acknowledged open modelling question."
+    }
+  ],
+
+  "entities": [
+    { "table": "acme_contract",          "legacyTable": "leg_Contract",          "context": "acme_contracts", "legacyAttrs": 41, "rootCandidate": true,  "sizeRank": 1,  "notes": "Largest table. Prime over-loading suspect; likely hides status, dates, parties and commercial terms." },
+    { "table": "acme_invoice",           "legacyTable": "leg_Invoice",           "context": "acme_billing",   "legacyAttrs": 34, "rootCandidate": true,  "sizeRank": 2,  "notes": "Raised against a contract (ADR-0004 L39). Likely hides tax, addressing and payer." },
+    { "table": "acme_contractline",      "legacyTable": "leg_ContractLine",      "context": "acme_contracts", "legacyAttrs": 23, "rootCandidate": false, "sizeRank": 3,  "notes": "Real entity, not a join table. Possible source of invoice-line derivation." },
+    { "table": "acme_creditnote",        "legacyTable": "leg_CreditNote",        "context": "acme_billing",   "legacyAttrs": 22, "rootCandidate": null,  "sizeRank": 4,  "notes": "Nearly invoice-weight; reads as a full document rather than an adjustment row. Boundary vs write-off undefined." },
+    { "table": "acme_invoiceline",       "legacyTable": "leg_InvoiceLine",       "context": "acme_billing",   "legacyAttrs": 19, "rootCandidate": false, "sizeRank": 5,  "notes": "Shares the word 'line' with contractline; derivation relationship unknown." },
+    { "table": "acme_paymentallocation", "legacyTable": "leg_PaymentAllocation", "context": "acme_billing",   "legacyAttrs": 16, "rootCandidate": null,  "sizeRank": 6,  "notes": "Too heavy for a pure link table. No acme_payment exists anywhere — probable missing upstream context." },
+    { "table": "acme_servicelevel",      "legacyTable": "leg_ServiceLevel",      "context": "acme_contracts", "legacyAttrs": 14, "rootCandidate": null,  "sizeRank": 7,  "notes": "Template vs per-contract instance unresolved." },
+    { "table": "acme_contractparty",     "legacyTable": "leg_ContractParty",     "context": "acme_contracts", "legacyAttrs": 12, "rootCandidate": null,  "sizeRank": 8,  "notes": "Too heavy for a pure role link. Overlaps foundation's acme_company." },
+    { "table": "acme_dunningrun",        "legacyTable": "leg_DunningRun",        "context": "acme_billing",   "legacyAttrs": 11, "rootCandidate": null,  "sizeRank": 9,  "notes": "A batch process modelled as a table — the only process-shaped entity in the corpus." },
+    { "table": "acme_renewaloption",     "legacyTable": "leg_RenewalOption",     "context": "acme_contracts", "legacyAttrs": 9,  "rootCandidate": false, "sizeRank": 10, "notes": "Smallest real table; consistent with a value object. Cannot be placed until Q4 is resolved." },
+    { "table": "acme_writeoff",          "legacyTable": "leg_WriteOff",          "context": "acme_billing",   "legacyAttrs": 8,  "rootCandidate": null,  "sizeRank": 11, "notes": "Small; consistent with a simple event record. Probable downstream ledger integration." }
+  ],
+
+  "excludedEntities": [
+    {
+      "legacyTable": "leg_ContractDraftV2",
+      "context": "acme_contracts",
+      "legacyAttrs": 0,
+      "reason": "placeholder slice, explicitly skipped",
+      "evidence": "ADR-0005 L26"
+    }
+  ],
+
+  "columnConvention": {
+    "primaryNameColumn": { "name": "acme_name", "type": "text(200)", "required": true, "note": "platform-required primary column, not a domain attribute" },
+    "descriptionColumn": { "name": "acme_description", "type": "text(2000)", "required": false },
+    "renameRule": "leg_ -> acme_, type-mapped per phase2_lib.py",
+    "evidence": "ADR-0004 L30-32",
+    "consequence": "No natural or business key documented for any of the 11 tables. Invoice/contract numbering, if present, is inside the 209 unnamed attributes."
+  },
+
+  "contextEdges": [
+    {
+      "from": "acme_billing",
+      "to": "acme_foundation",
+      "targets": ["acme_currency", "acme_company"],
+      "evidence": "ADR-0004 L38",
+      "backedByForeignKey": false,
+      "inferredPattern": "conformist / shared-kernel",
+      "patternConfidence": "inferred"
+    },
+    {
+      "from": "acme_billing",
+      "to": "acme_contracts",
+      "targets": [],
+      "evidence": "ADR-0004 L39; restated ADR-0005 L31",
+      "backedByForeignKey": false,
+      "inferredPattern": "customer/supplier (billing downstream)",
+      "patternConfidence": "inferred",
+      "note": "Only edge between two behavioural contexts; the only place an anti-corruption layer is worth arguing about."
+    },
+    {
+      "from": "acme_contracts",
+      "to": "acme_foundation",
+      "targets": ["acme_company", "acme_country"],
+      "evidence": "ADR-0005 L30",
+      "backedByForeignKey": false,
+      "inferredPattern": "conformist / shared-kernel",
+      "patternConfidence": "inferred"
+    }
+  ],
+
+  "edgeSummary": {
+    "evidencedEdges": 3,
+    "cyclesDetected": 0,
+    "directionConsistentAcrossAdrs": true,
+    "edgesBackedByDefinedForeignKeys": 0
+  },
+
+  "deferredWork": [
+    { "name": "relationship pass", "defers": "all lookup columns / all cardinality", "evidence": ["ADR-0004 L44", "ADR-0005 L35"], "blocksDecomposition": true },
+    { "name": "optionset pass",    "defers": "all picklist values", "namedPicklists": ["invoice status", "dunning stage", "contract status", "renewal type"], "evidence": ["ADR-0004 L45", "ADR-0005 L36"], "blocksDecomposition": true },
+    { "name": "Phase 4 workflows", "defers": "solutions/legacy/Contracts/src/Workflows/", "evidence": ["ADR-0005 L37"], "blocksDecomposition": true, "note": "The only cited source of behaviour in the entire corpus." },
+    { "name": "cutover",           "defers": "retirement of leg_* tables", "evidence": ["ADR-0004 L53"], "blocksDecomposition": false }
+  ],
+
+  "referencedButAbsent": [
+    { "artefact": "ADR-0002 (one solution per bounded context)", "citedAt": "ADR-0004 L12", "impact": "the governing boundary rule for the rebuild is unreadable" },
+    { "artefact": "ADR-0001, ADR-0003", "citedAt": "implied by 'third BC' / 'fourth BC'", "impact": "two contexts undocumented" },
+    { "artefact": "acme_foundation schema ADR", "citedAt": "ADR-0004 L38, ADR-0005 L30", "impact": "shared kernel shape unknown" },
+    { "artefact": "scripts/phase2_billing.py", "citedAt": "ADR-0004 L17", "impact": "would recover the billing attribute names" },
+    { "artefact": "phase2_lib.py", "citedAt": "ADR-0004 L32", "impact": "holds the legacy-to-target type map" },
+    { "artefact": "solutions/legacy/Contracts/src/Workflows/", "citedAt": "ADR-0005 L37", "impact": "only behavioural source in the corpus" },
+    { "artefact": "DMOEntities", "citedAt": "ADR-0005 L12", "impact": "undefined term; previously owned the renewal slice" }
+  ],
+
+  "ubiquitousLanguage": {
+    "termsNamed": 14,
+    "termsDefinedInRepo": 0,
+    "collisions": [
+      { "id": "C1", "terms": ["RenewalOption", "Contract"], "issue": "Is a renewal a new contract, a state of the existing one, or a right to renew? Legacy models it both ways.", "evidence": "ADR-0005 L45-46", "severity": "high" },
+      { "id": "C2", "terms": ["ContractParty", "Company"], "issue": "Overlapping representations of an organisation; billing has no party table at all.", "severity": "high" },
+      { "id": "C3", "terms": ["ContractLine", "InvoiceLine"], "issue": "Same word, two contexts, possibly a derivation relationship — undocumented.", "severity": "medium" },
+      { "id": "C4", "terms": ["CreditNote", "WriteOff"], "issue": "Both reduce a receivable; boundary undefined.", "severity": "medium" },
+      { "id": "C5", "terms": ["ServiceLevel"], "issue": "Reusable template vs per-contract committed instance.", "severity": "medium" },
+      { "id": "C6", "terms": ["DunningRun"], "issue": "A batch process modelled as a domain table.", "severity": "medium" },
+      { "id": "C7", "terms": ["PaymentAllocation"], "issue": "An allocation with no Payment entity anywhere in the corpus.", "severity": "high" },
+      { "id": "C8", "terms": ["Contract"], "issue": "No order, subscription, quote or version sibling; 41 attributes suggests over-loading.", "severity": "medium" }
+    ],
+    "missingConcepts": [
+      { "concept": "Payment", "why": "PaymentAllocation cannot stand alone" },
+      { "concept": "Customer / Account", "why": "an invoice needs a payer; billing has no party table" },
+      { "concept": "Product / Item / Price List", "why": "both line-item tables need something to reference" },
+      { "concept": "Tax / VAT", "why": "invoicing with currency but no tax concept" },
+      { "concept": "Ledger / GL posting", "why": "WriteOff implies downstream accounting recognition" }
+    ]
+  },
+
+  "platformInference": {
+    "platform": "Microsoft Dataverse / Power Platform",
+    "confidence": "high",
+    "signals": ["publisher", "solution", "custom tables", "lookup columns", "optionsets", "picklists", "acme_ schema prefix", "required acme_name text primary column"],
+    "consequences": [
+      "acme_name is a platform artefact, not a domain attribute — do not model it",
+      "ADR-0002 equates the context boundary with the deployment/packaging boundary; a solution is shaped by ALM, licensing and publisher ownership, so treat the four solutions as candidate contexts to be tested, not proven ones"
+    ]
+  },
+
+  "openQuestions": [
+    { "id": "Q1",  "rank": 1,  "blocking": "HARD",  "question": "Recover ADR-0001, ADR-0002, ADR-0003 and the acme_foundation schema ADR", "unlocks": ["context coverage 50->100%", "shared kernel shape", "identity of the unknown context"], "cost": "one request", "owner": "@platform" },
+    { "id": "Q2",  "rank": 2,  "blocking": "HARD",  "question": "Pull the relationship pass forward, at minimum for acme_contract and acme_invoice", "unlocks": ["aggregate boundaries", "aggregate roots", "billing<->contracts coupling shape"], "cost": "medium", "owner": "@platform" },
+    { "id": "Q3",  "rank": 3,  "blocking": "HARD",  "question": "Run scripts/phase2_billing.py and its contracts equivalent to recover the 209 attribute names", "unlocks": ["value objects", "hidden business keys", "over-loading test on the two anchor tables"], "cost": "low", "owner": "@platform" },
+    { "id": "Q4",  "rank": 4,  "blocking": "HARD",  "question": "Is a renewal a new contract or a state of the existing contract?", "unlocks": ["Contract aggregate count", "RenewalOption classification", "contract identity stability across renewal"], "cost": "one modelling decision", "owner": "@platform", "evidence": "ADR-0005 L45-46" },
+    { "id": "Q5",  "rank": 5,  "blocking": "SOFT",  "question": "Does 'one solution per bounded context' actually hold as a domain boundary?", "unlocks": ["permission to propose sub-contexts, e.g. splitting billing documents from receivables"], "cost": "read ADR-0002 + one review", "owner": "@platform" },
+    { "id": "Q6",  "rank": 6,  "blocking": "HARD",  "question": "Who is the invoice addressed to?", "unlocks": ["real weight of billing->foundation and billing->contracts edges"], "cost": "low after Q2/Q3", "owner": "@platform" },
+    { "id": "Q7",  "rank": 7,  "blocking": "SOFT",  "question": "Do invoice lines derive from contract lines?", "unlocks": ["whether an anti-corruption layer is needed", "independent deployability of the two contexts"], "cost": "low after Q2", "owner": "@platform" },
+    { "id": "Q8",  "rank": 8,  "blocking": "SOFT",  "question": "Where do Payments live?", "unlocks": ["identity of the unknown context", "upstream integration boundary for billing"], "cost": "likely answered by Q1", "owner": "@platform" },
+    { "id": "Q9",  "rank": 9,  "blocking": "SOFT",  "question": "Run the optionset pass for the four named picklists", "unlocks": ["state machines for both anchor aggregates", "domain events", "partial answer to Q4 via renewal type"], "cost": "medium", "owner": "@platform" },
+    { "id": "Q10", "rank": 10, "blocking": "SOFT",  "question": "What distinguishes a Credit Note from a Write-Off?", "unlocks": ["aggregate clustering in billing", "ledger integration surface"], "cost": "one conversation with finance", "owner": "@platform" },
+    { "id": "Q11", "rank": 11, "blocking": "SOFT",  "question": "What is DMOEntities?", "unlocks": ["Chesterton's-fence check on why the renewal slice shipped separately"], "cost": "trivial", "owner": "@platform" },
+    { "id": "Q12", "rank": 12, "blocking": "LATER", "question": "Sample 2-3 legacy workflow definitions ahead of Phase 4", "unlocks": ["invariants", "transaction boundaries", "domain events — three categories currently at zero"], "cost": "low for a sample", "owner": "@platform", "recommendation": "pull forward; sampling is far cheaper than migrating and the return is disproportionate" }
+  ],
+
+  "recommendedSequence": [
+    { "step": 1, "items": ["Q1", "Q11"], "effect": "one request to @platform; closes context coverage, probably resolves Q4 context and Q8" },
+    { "step": 2, "items": ["Q3", "Q12"], "effect": "recovers 209 attribute names plus first behavioural evidence" },
+    { "step": 3, "items": ["Q2", "Q9"],  "effect": "relationships and states for the two anchor tables — 36% of all attributes" },
+    { "step": 4, "items": ["Q4", "Q5"],  "effect": "two modelling decisions, now evidence-backed" },
+    { "step": 5, "items": ["Q6", "Q7", "Q8", "Q10"], "effect": "falls out cheaply once steps 1-3 land" }
+  ],
+
+  "projectedReadinessAfterSteps1to3": {
+    "inputCategoriesSatisfied": 6,
+    "inputCategoriesTotal": 10,
+    "verdict": "READY_WITH_NAMED_RESIDUAL_RISK"
+  }
+}

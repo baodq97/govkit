@@ -1,0 +1,309 @@
+{
+  "schemaVersion": 1,
+  "kind": "discovery",
+  "source": {
+    "mode": "interview",
+    "date": "2026-07-27",
+    "technique": "eventstorming-big-picture",
+    "attendance": {
+      "domainExpert": true,
+      "endUser": false,
+      "productStrategy": false,
+      "developers": false,
+      "participants": [
+        { "name": "Ha", "role": "Operations" },
+        { "name": "Minh", "role": "Finance" }
+      ],
+      "missing": ["Depot Manager", "Driver", "Contractor (end user)", "Product/strategy", "Developers"]
+    },
+    "confidence": {
+      "confirmed": 16,
+      "candidates": 0,
+      "invariants": 1,
+      "hotspots": 5,
+      "note": "confirmed means a participant said it, not that participants agree; elements 5 and 6 are contested (HS-1)"
+    }
+  },
+  "timeline": [
+    {
+      "seq": 1,
+      "name": "UnitCommitted",
+      "type": "event",
+      "status": "confirmed",
+      "actor": null,
+      "command": "CommitUnit",
+      "source": "Ha, 2026-07-27",
+      "note": "\"if the machine is already booked\"; who commits it was not asked"
+    },
+    {
+      "seq": 2,
+      "name": "Contractor",
+      "type": "actor",
+      "status": "confirmed",
+      "actor": "Contractor",
+      "command": null,
+      "source": "Facilitator framing accepted by Ha, 2026-07-27"
+    },
+    {
+      "seq": 3,
+      "name": "MachineRequestedAtDifferentDepot",
+      "type": "event",
+      "status": "confirmed",
+      "actor": "Contractor",
+      "command": "RequestMachineAtDepot",
+      "source": "Facilitator + Ha, 2026-07-27"
+    },
+    {
+      "seq": 4,
+      "name": "TransferRaised",
+      "type": "event",
+      "status": "confirmed",
+      "actor": "Operations",
+      "command": "RaiseTransfer",
+      "source": "Ha, 2026-07-27",
+      "note": "\"We raise a transfer\""
+    },
+    {
+      "seq": 5,
+      "name": "TransferFeeCharged",
+      "type": "event",
+      "status": "confirmed",
+      "contested": "HS-1",
+      "actor": "Finance",
+      "command": "ChargeTransferFee",
+      "source": "Minh, 2026-07-27",
+      "note": "the GBP 180 line on the invoice; charged on request, not on completion"
+    },
+    {
+      "seq": 6,
+      "name": "whenever a transfer is requested, raise the GBP 180 charge - regardless of whether the drive happens",
+      "type": "policy",
+      "status": "confirmed",
+      "contested": "HS-1",
+      "actor": "Finance",
+      "command": null,
+      "source": "Minh, 2026-07-27; contradicted by Ha in the room"
+    },
+    {
+      "seq": 7,
+      "name": "UnitDispatched",
+      "type": "event",
+      "status": "confirmed",
+      "pivotal": true,
+      "actor": null,
+      "command": "DispatchUnit",
+      "source": "Ha + Minh, 2026-07-27",
+      "note": "\"someone drives it over, usually overnight\" - the role was never named"
+    },
+    {
+      "seq": 8,
+      "name": "TransferCancelled",
+      "type": "event",
+      "status": "confirmed",
+      "actor": "Contractor",
+      "command": "CancelTransfer",
+      "source": "Minh, 2026-07-27; case acknowledged by Ha with a different expected outcome"
+    },
+    {
+      "seq": 9,
+      "name": "UnitArrivedAtReceivingDepot",
+      "type": "event",
+      "status": "confirmed",
+      "actor": null,
+      "command": null,
+      "source": "Ha, 2026-07-27"
+    },
+    {
+      "seq": 10,
+      "name": "UnitMarkedAvailable",
+      "type": "event",
+      "status": "confirmed",
+      "actor": "Operations",
+      "command": "MarkUnitAvailable",
+      "source": "Ha, 2026-07-27",
+      "note": "which role marks it was not asked - HS-5"
+    },
+    {
+      "seq": 11,
+      "name": "Invoice",
+      "type": "read-model",
+      "status": "confirmed",
+      "actor": "Finance",
+      "command": null,
+      "source": "Minh, 2026-07-27"
+    },
+    {
+      "seq": 12,
+      "name": "Depot Manager",
+      "type": "actor",
+      "status": "confirmed",
+      "actor": "Depot Manager",
+      "command": null,
+      "source": "Ha, 2026-07-27; Minh disclaimed the decision (\"Not me\")"
+    },
+    {
+      "seq": 13,
+      "name": "UnitTakenOutOfService",
+      "type": "event",
+      "status": "confirmed",
+      "actor": "Depot Manager",
+      "command": "TakeUnitOutOfService",
+      "source": "Ha, 2026-07-27"
+    },
+    {
+      "seq": 14,
+      "name": "whenever a unit is taken out of service, cancel any reservations on it",
+      "type": "policy",
+      "status": "confirmed",
+      "actor": "Operations",
+      "command": null,
+      "source": "Ha, 2026-07-27",
+      "note": "manual - \"someone has to remember\"; see HS-3"
+    },
+    {
+      "seq": 15,
+      "name": "ReservationCancelled",
+      "type": "event",
+      "status": "confirmed",
+      "actor": null,
+      "command": "CancelReservation",
+      "source": "Ha, 2026-07-27",
+      "note": "consequence of policy 14; performed by whoever remembers"
+    },
+    {
+      "seq": 16,
+      "name": "Out-of-service whiteboard",
+      "type": "read-model",
+      "status": "confirmed",
+      "actor": "Operations",
+      "command": null,
+      "source": "Ha, 2026-07-27"
+    }
+  ],
+  "invariants": [
+    {
+      "id": "INV-1",
+      "statement": "A unit can never be committed twice for overlapping windows, including across depots",
+      "status": "confirmed",
+      "source": "Ha, 2026-07-27",
+      "evidence": "stated as the one rule that cannot be broken; a 2023 incident was cited",
+      "openQuestion": "HS-4 - nothing in the timeline describes what enforces it"
+    }
+  ],
+  "ubiquitousLanguage": [
+    {
+      "term": "Transfer",
+      "definition": "a physical depot-to-depot move of a unit, driven over, usually overnight",
+      "heldBy": "Operations (Ha)",
+      "status": "confirmed",
+      "collision": "Transfer"
+    },
+    {
+      "term": "Transfer",
+      "definition": "the GBP 180 line on the invoice; the physical move is explicitly out of scope",
+      "heldBy": "Finance (Minh)",
+      "status": "confirmed",
+      "collision": "Transfer"
+    },
+    {
+      "term": "Dispatched",
+      "definition": "the point after which Finance bills the transfer even if the contractor cancels",
+      "heldBy": "Finance (Minh)",
+      "status": "confirmed",
+      "collision": "Dispatched"
+    },
+    {
+      "term": "Dispatched",
+      "definition": "when the driver sets off with the unit; the drive it starts is what Ops says the charge depends on",
+      "heldBy": "Operations (Ha)",
+      "status": "confirmed",
+      "collision": "Dispatched"
+    },
+    {
+      "term": "Available",
+      "definition": "the state a unit is put into once it is physically at the receiving depot",
+      "heldBy": "Operations (Ha)",
+      "status": "confirmed"
+    },
+    {
+      "term": "Committed",
+      "definition": "a unit held for a window; the same unit may not be committed for two overlapping windows, even at different depots",
+      "heldBy": "Operations (Ha)",
+      "status": "confirmed"
+    },
+    {
+      "term": "Booked",
+      "definition": "used interchangeably with committed",
+      "heldBy": "Operations (Ha)",
+      "status": "confirmed"
+    },
+    {
+      "term": "Reservation",
+      "definition": "used, not defined - the thing that must be cancelled when a unit goes out of service",
+      "heldBy": "Operations (Ha)",
+      "status": "candidate"
+    },
+    {
+      "term": "Out of service",
+      "definition": "a unit state decided by the depot manager, obliging cancellation of the unit's reservations",
+      "heldBy": "Operations (Ha)",
+      "status": "confirmed"
+    },
+    {
+      "term": "Depot manager",
+      "definition": "the role with authority to declare a unit out of service",
+      "heldBy": "Operations (Ha)",
+      "status": "confirmed"
+    },
+    {
+      "term": "Contractor",
+      "definition": "the party who asks for a machine at a different depot, and who cancels",
+      "heldBy": "Facilitator / Ha / Minh",
+      "status": "confirmed"
+    }
+  ],
+  "hotspots": [
+    {
+      "id": "HS-1",
+      "question": "Does a transfer cancelled after dispatch still incur the GBP 180 charge?",
+      "raisedBy": "Ha vs Minh - direct contradiction, parked by the facilitator",
+      "blocks": "the charge lifecycle; whether the billing transfer is a separate concept",
+      "whoCouldAnswer": "Finance lead + depot manager; ultimately the owner of the contractor agreement"
+    },
+    {
+      "id": "HS-2",
+      "question": "Are the physical move and the GBP 180 charge one lifecycle or two?",
+      "raisedBy": "the Transfer language collision (Ha vs Minh)",
+      "blocks": "context boundaries; whether cancellation is one event or two",
+      "whoCouldAnswer": "Ops lead + Finance lead"
+    },
+    {
+      "id": "HS-3",
+      "question": "Who is accountable for cancelling reservations when a unit goes out of service, and what happens when it is forgotten?",
+      "raisedBy": "Ha - \"someone has to remember. It's on a whiteboard.\"",
+      "blocks": "the out-of-service policy; real enforcement of INV-1",
+      "whoCouldAnswer": "Depot manager (not present)"
+    },
+    {
+      "id": "HS-4",
+      "question": "What actually enforces \"never committed twice for overlapping windows\" across depots today?",
+      "raisedBy": "Ha asserted it cannot happen; the 2023 incident says it did",
+      "blocks": "INV-1; whether the invariant is a system rule or a human habit",
+      "whoCouldAnswer": "Ops lead + whoever built the current booking process"
+    },
+    {
+      "id": "HS-5",
+      "question": "Which role marks a unit available at the receiving depot, and against what check?",
+      "raisedBy": "Ha - \"we mark it available\", role never named",
+      "blocks": "actor on element 10; the boundary between transfer and availability",
+      "whoCouldAnswer": "Depot manager, receiving depot"
+    }
+  ],
+  "openUnknowns": [
+    "state of the unit and its commitment between dispatch and arrival",
+    "whether GBP 180 is fixed, per-unit, per-move or negotiable",
+    "whether a raised charge can be reversed, and by whom",
+    "whether reservation, booked and committed name one concept or several",
+    "what happens to an in-flight transfer if the unit is taken out of service mid-drive"
+  ]
+}

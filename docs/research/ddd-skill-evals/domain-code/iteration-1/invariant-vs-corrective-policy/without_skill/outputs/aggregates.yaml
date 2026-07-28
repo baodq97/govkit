@@ -1,0 +1,209 @@
+# Consolidation — implementable aggregate model.
+# Companion to aggregate-design.md (DOMAIN-CONS-0001), which carries the rationale.
+# model.yaml is the older first-pass tactical sketch and is left untouched; see the
+# divergence table at the end of aggregate-design.md.
+context: Consolidation
+date: 2026-07-27
+status: draft
+owner: TBD
+
+ubiquitous_language:
+  - term: Container load
+    definition: The set of lines committed to one physical container on one departure
+  - term: Committed line
+    definition: >
+      A physical stack of goods committed to a container, with a volume and a weight. Consolidation's
+      own term. NOT the same as Invoicing's "consignment", which is a billable line (hotspot #2).
+  - term: Reservation
+    definition: >
+      A hold on container capacity, identified by reservationId, taken before a booking is confirmed
+      and released automatically if it is not confirmed within its TTL
+  - term: Cut-off
+    definition: The instant after which a departure accepts no further capacity reservations
+  - term: Fill rate
+    definition: Committed volume divided by container capacity — a goal, never an invariant
+  - term: Guaranteed
+    definition: >
+      Service level sold at +18% of the forwarding fee. Promises the shipment sails on its booked
+      departure even if the container is partly filled. Not a priority-allocation right (assumption 2)
+
+aggregates:
+  - name: ContainerLoad
+    root: ContainerLoad
+    identity: containerId
+    boundary_rationale: >
+      Smallest boundary that can decide "does this fit?" without reading another aggregate. The
+      no-overbooking rule is transactional, so it must live entirely inside one aggregate, and
+      nothing that does not participate in that rule may be dragged into the same transaction.
+    entities:
+      - name: ContainerLoad
+        attributes:
+          - containerId
+          - departureId
+          - portCode
+          - cutOffAt          # copied from Departure at open time, immutable — keeps reservation single-aggregate
+          - capacityM3
+          - capacityKg
+          - allowedHazardClasses
+          - committedM3       # running total, maintained on write, never recomputed from children
+          - committedKg
+          - state             # Open | Sealed | Dispatched | Cancelled
+      - name: CommittedLine
+        cardinality: 0..*
+        attributes:
+          - lineId
+          - bookingId
+          - reservationId
+          - volumeM3
+          - weightKg
+          - stackable
+          - hazardClass
+          - service           # Standard | Guaranteed
+          - state             # Held | Confirmed | Released
+    value_objects:
+      - { name: ShipmentRef, attributes: [prefix, sequence] }
+      - { name: Volume, attributes: [m3] }
+      - { name: Weight, attributes: [kg] }
+    commands:
+      - name: ReserveCapacity
+        payload: [reservationId, bookingId, lines, service]
+        idempotency_key: reservationId
+        emits: [CapacityReserved, CapacityRejected]
+      - { name: ConfirmReservation, payload: [reservationId], emits: [CapacityConfirmed] }
+      - { name: ReleaseReservation, payload: [reservationId, reason], emits: [CapacityReleased] }
+      - { name: Seal, payload: [], emits: [ContainerSealed] }
+      - { name: Dispatch, payload: [], emits: [ContainerDispatched] }
+    invariants:
+      - id: I1
+        rule: committedM3 <= capacityM3 AND committedKg <= capacityKg, counting Held and Confirmed lines
+        enforcement: transactional
+        why: >
+          Violation bumps a shipment, which voids the Guaranteed Consolidation promise. No
+          compensating action exists once the container has sailed.
+      - id: I2
+        rule: no reservation accepted at or after cutOffAt, evaluated on the server clock at commit time
+        enforcement: transactional
+        why: Physical and irreversible — the ship leaves.
+      - id: I3
+        rule: no reservation accepted unless state = Open
+        enforcement: transactional
+      - id: I4
+        rule: >
+          a container holding at least one Guaranteed line may not be rolled to a later departure;
+          it seals and sails at cut-off regardless of fill rate
+        enforcement: transactional
+        why: This is the premium promise. It is the rule a fill-rate optimiser will want to break.
+      - id: I5
+        rule: a line's hazardClass must be in allowedHazardClasses
+        enforcement: transactional
+        status: candidate — inferred from Booking's hazardClass attribute, not stated in any interview
+    excluded_from_boundary:
+      - which container a booking should go to (ContainerSelection domain service)
+      - stowage and stacking geometry (whiteboard; out of scope for slice 1)
+      - anything owned by Booking
+    concurrency:
+      strategy: pessimistic per-container row lock, one short transaction, no I/O inside it
+      rejected_alternatives:
+        - { option: optimistic concurrency + retry, why_not: retry amplification peaks exactly during the pre-cut-off burst }
+        - { option: capacity partitioned into K sub-buckets, why_not: strands capacity in each bucket and fights the 71%->80% fill goal; premature without measurements }
+        - { option: accept-then-bump with corrective re-plan, why_not: this is the March incident and it breaks the product }
+      revisit_threshold: sustained >50 reservations/s on one container, or p99 lock wait >500ms in the final hour
+    domain_events:
+      - { name: CapacityReserved, payload: [containerId, reservationId, bookingId, volumeM3, expiresAt] }
+      - { name: CapacityRejected, payload: [containerId, reservationId, bookingId, reason] }
+      - { name: CapacityConfirmed, payload: [containerId, reservationId, bookingId] }
+      - { name: CapacityReleased, payload: [containerId, reservationId, reason] }
+      - { name: ContainerSealed, payload: [containerId, departureId, fillRate] }
+      - { name: ContainerDispatched, payload: [containerId, departureId, carrierId] }
+
+  - name: Departure
+    root: Departure
+    identity: departureId
+    boundary_rationale: >
+      Separate lifecycle from a container and never loaded on the reservation path. It owns the
+      cut-off; containers own a copy of it.
+    entities:
+      - name: Departure
+        attributes: [departureId, portCode, sailingRef, cutOffAt, departsAt, state, containerIds]
+        # state: Open | CutOff | Sailed
+    commands:
+      - { name: OpenContainer, payload: [containerId, capacityM3, capacityKg], emits: [ContainerOpened] }
+      - { name: ExtendCutOff, payload: [newCutOffAt, reason], emits: [CutOffExtended] }
+      - { name: CutOff, payload: [], emits: [DepartureCutOff] }
+      - { name: MarkSailed, payload: [], emits: [DepartureSailed] }
+    invariants:
+      - { id: J1, rule: containers may only be opened while state = Open, enforcement: transactional }
+      - { id: J2, rule: cutOffAt may only change while state = Open, enforcement: transactional }
+    domain_events:
+      - { name: ContainerOpened, payload: [departureId, containerId, cutOffAt] }
+      - { name: CutOffExtended, payload: [departureId, newCutOffAt] }
+      - { name: DepartureCutOff, payload: [departureId, at] }
+      - { name: DepartureSailed, payload: [departureId, at] }
+
+domain_services:
+  - name: ContainerSelection
+    stateless: true
+    responsibility: >
+      Proposes an ordered list of candidate containers for a consignment on a departure — first fit
+      by remaining volume, tie-broken by highest resulting fill rate. Runs BEFORE the lock. Its
+      output is advice; ContainerLoad remains the authority and may reject, in which case the caller
+      tries the next candidate.
+
+# Rules that are deliberately NOT invariants. The test: enforce transactionally only when failure is
+# irreversible and lands on the customer promise; use a corrective policy when the failure direction
+# is "we carried less than we could have" — that costs margin, not trust.
+corrective_policies:
+  - name: ReleaseExpiredReservation
+    trigger: reservation TTL elapses without ConfirmReservation
+    action: ReleaseReservation(reason = Expired)
+    consistency: eventual
+    failure_direction: under-fill — safe
+    note: >
+      TTL near cut-off must be short, otherwise abandoned bookings freeze capacity during the burst.
+      Proposal hold = clamp(default_hold, 60s, time_to_cutoff / 4). Needs commercial sign-off.
+  - name: ReleaseOnBookingAbandoned
+    trigger: Booking reports the booking was abandoned or failed after reserving
+    action: ReleaseReservation(reason = BookingAbandoned)
+    consistency: eventual
+    failure_direction: under-fill — safe
+  - name: PropagateCutOffExtension
+    trigger: CutOffExtended
+    action: update cutOffAt on open ContainerLoads of that departure
+    consistency: eventual
+    failure_direction: containers keep enforcing the earlier cut-off meanwhile, so a late booking may be rejected slightly early — safe
+  - name: RaiseFillRate
+    trigger: planner review before cut-off
+    action: re-plan lines across containers
+    consistency: planning-time only
+    note: >
+      The 80% fill goal is a target, never an invariant. Enforcing it transactionally means holding a
+      container back to fill it, which violates I4.
+
+# Contract changes required of other teams before I1 is enforceable.
+upstream_contract_requirements:
+  - context: Booking
+    change: >
+      Replace the remaining-capacity query followed by a reserve command with a single atomic
+      ReserveCapacity command returning CapacityReserved | CapacityRejected. The check-then-act gap
+      is discovery hotspot #1 — the two shipments committed to one slot in March. The remaining-
+      capacity read may stay for planner screens, labelled advisory and stale, never a decision input.
+    blocking: true
+  - context: Booking
+    change: >
+      Retire ConsignmentLine as a Shared Kernel. An aggregate cannot guarantee a total it does not
+      exclusively own. Consolidation owns CommittedLine, populated from the ReserveCapacity payload;
+      Booking keeps its own ConsignmentLine. The payload becomes a published contract, not shared storage.
+    blocking: true
+
+relationships:
+  - { to: Booking, type: upstream, note: "accepts ReserveCapacity; returns accept/reject synchronously" }
+  - { to: Customs, type: upstream, note: "publishes ContainerSealed" }
+  - { to: Departure/Routing, type: upstream, note: "publishes ContainerDispatched" }
+
+open_questions:
+  - { id: 1, question: "Burst magnitude is unmeasured — reservations/s on the hottest container in the final hour", owner: engineering, method: "histogram of booking creation time relative to cutOffAt, last 90 days, grouped by departure and container" }
+  - { id: 2, question: "Does Guaranteed grant priority allocation, or only a no-delay departure? Design assumes no preemption.", owner: commercial director, impact: high }
+  - { id: 3, question: "Reservation hold TTL near cut-off", owner: commercial director }
+  - { id: 4, question: "May one consignment be split across two containers?", owner: depot planners }
+  - { id: 5, question: "Who owns the case where a partner carrier refuses a sealed container (hotspot #3)?", owner: unassigned }
+  - { id: 6, question: "Is I5 (hazard-class compatibility) a real rule?", owner: depot planners }

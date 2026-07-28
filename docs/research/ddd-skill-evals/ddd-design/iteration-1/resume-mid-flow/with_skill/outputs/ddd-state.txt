@@ -1,0 +1,41 @@
+DDD modelling state — /home/bd/personal-projects/govkit/docs/research/ddd-skill-evals/ddd-design/iteration-1/resume-mid-flow/with_skill/repo/docs/domain
+
+loop step        status    evidence
+1    understand  done      docs/domain/business-model.md
+1    discover    done      docs/domain/discovery/timeline.md
+2    decompose   done      docs/domain/booking/model.yaml, docs/domain/consolidation/model.yaml, docs/domain/context-map.md (+5 more)
+2    connect     -         —
+2    strategize  -         —
+2    organise    -         —
+3    define      -         —
+3    code        -         —
+
+journal: 1 entry — last: 2026-07-27 ddd-design (Resumed mid-flow. Loops 1-2 partly done (understand/discover/decompose all 'done', journal empty). Plan: connect first (cheapest step that can still invalidate decompose/define/code/organise; 7 contexts; 3 discovery hotspots are all cross-boundary), then strategize (business-model and context-map contradict each other on Invoicing vs Consolidation), then define+code for the 4 contexts on the premium flow. 5 steps, not 8. Nothing re-run.)
+
+candidate actions (choose against the goal; this is not an order):
+  [resolve] ddd-design
+      open item carried in the journal: Routing owns no invariant and no aggregate (aggregates_rationale: 'It owns no rule of its own') — connect's readiness heuristic 'does every context own a real invariant?' fails for it. If connect confirms it is a pass-through, decompose re-enters in update mode
+  [resolve] ddd-design
+      open item carried in the journal: Customs owns the invariant 'a shipment cannot be handed to a carrier before its declaration is submitted' but Routing is the context that hands to the carrier — candidate distributed invariant, for connect to trace
+  [resolve] ddd-design
+      open item carried in the journal: Booking does a synchronous remaining-capacity check on Consolidation then commands it to reserve, while the no-overbooking invariant belongs to Consolidation — candidate check-then-act across a boundary; matches discovery hotspot 1 (two shipments in the same slot, March)
+  [resolve] ddd-design
+      open item carried in the journal: 'Consignment' means different things in Booking (goods handed over as one unit) and Invoicing (a billable line) — discovery hotspot 2, unresolved in the models
+  [resolve] ddd-design
+      open item carried in the journal: ConsignmentLine is declared a Shared Kernel written by both Booking and Consolidation — highest-risk coupling on the map
+  [resolve] ddd-design
+      open item carried in the journal: context-map.md classification 'has not been revisited since the first modelling session in March'; 4 of 7 contexts labelled core; Invoicing labelled core with 34 tables while business-model.md records zero differentiation for it, and Consolidation (the +18% Guaranteed Consolidation premium) is labelled supporting with 5 tables — for strategize
+  [resolve] ddd-design
+      open item carried in the journal: differentiation column in business-model.md is proxy (commercial director speaking for customers, no customer in the room) — weakens strategize's y axis; flag the placement as proxy-sourced
+  [resolve] ddd-design
+      open item carried in the journal: Nobody owns responsibility when a partner carrier refuses a sealed container — discovery hotspot 3
+  [run] connect via domain-connect
+      never run — answers: Do real use cases flow across these boundaries without hidden coupling?
+  [run] strategize via domain-strategize
+      never run — answers: Which parts deserve the investment, and what do we buy instead of build?
+  [run] organise via domain-organise
+      never run — answers: Which team owns which context, and at what cognitive load?
+  [run] define via domain-define
+      never run — answers: What is each context responsible for, and what is it assuming?
+  [run] code via domain-code
+      never run — answers: What stays consistent in one transaction, and what gets repaired afterwards?

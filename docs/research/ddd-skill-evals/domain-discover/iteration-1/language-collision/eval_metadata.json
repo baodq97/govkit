@@ -1,0 +1,23 @@
+{
+  "eval_id": 1,
+  "eval_name": "language-collision",
+  "prompt": "Here's the transcript from this morning's session with ops and finance. Turn it into our discovery output — this is a brand new repo, nothing written down before this. [transcript: Ha/Ops and Minh/Finance use 'transfer' to mean different things; they disagree about whether a cancelled transfer is still billed; the no-double-booking rule is stated; out-of-service cancellation is a remembered manual step on a whiteboard]",
+  "trap": "Two traps. (1) Tidying the vocabulary — merging the two 'transfer' meanings into one clean definition destroys the strongest boundary signal in the transcript. (2) Adjudicating the billing disagreement instead of leaving it open.",
+  "assertions": [
+    {
+      "text": "'Transfer' is recorded with BOTH meanings — the physical depot-to-depot move and the invoice line item — rather than merged into a single definition"
+    },
+    {
+      "text": "Each definition of 'transfer' is attributed to its holder (Ops/Ha and Finance/Minh)"
+    },
+    {
+      "text": "The disagreement over whether a cancelled transfer is still billed is recorded as an unresolved hotspot, not settled in favour of either party"
+    },
+    {
+      "text": "The no-double-booking rule is captured as an invariant or business rule with attribution to Ha"
+    },
+    {
+      "text": "The out-of-service cancellation step is captured as a policy, noting it is manual / remembered rather than automated"
+    }
+  ]
+}

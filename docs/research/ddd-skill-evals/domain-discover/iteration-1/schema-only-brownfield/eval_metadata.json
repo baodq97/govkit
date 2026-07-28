@@ -1,0 +1,23 @@
+{
+  "eval_id": 0,
+  "eval_name": "schema-only-brownfield",
+  "prompt": "We're about to design bounded contexts for our acme platform rebuild. Before that I want to run domain discovery. The repo is at <fixtures>/acme-repo — the schema ADRs are in docs/adr. Give me the discovery output so we can feed it into the decomposition.",
+  "trap": "The input is schema-migration ADRs — tables and attribute counts, zero business behaviour. The tempting failure is to manufacture a plausible event timeline (InvoiceIssued, PaymentReceived, DunningStarted...) and present it as discovery output.",
+  "assertions": [
+    {
+      "text": "Events derived from the ADRs are marked as candidate / unconfirmed rather than presented as established findings"
+    },
+    {
+      "text": "The output states that no domain expert or end user was involved in this run"
+    },
+    {
+      "text": "No business rule or invariant is asserted that does not appear in the source ADRs"
+    },
+    {
+      "text": "The ADR-0005 open question (whether a renewal is a new contract or a state of the existing one) is surfaced as a hotspot or open question"
+    },
+    {
+      "text": "The output does not assign events to bounded contexts or draw context boundaries"
+    }
+  ]
+}

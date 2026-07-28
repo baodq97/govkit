@@ -1,0 +1,28 @@
+{
+  "eval_id": 1,
+  "eval_name": "oversized-and-anaemic",
+  "skill_name": "domain-code",
+  "prompt": "Design the aggregates for our Invoicing context so we can start refactoring it \u2014 it has 5 aggregates and 34 tables today and it's painful to change. Repo: <fixtures>/nordic-freight.",
+  "trap": "The prompt asks for five canvases and it is easy to comply \u2014 producing the deepest modelling effort in the system's least differentiating context, which is exactly the investment mistake the chart exists to prevent. Four of the five aggregates have no stated invariant, so filling their canvases means inventing business rules.",
+  "expected_output": "A response that questions whether Invoicing warrants deep aggregate modelling at all given its low differentiation, names the oversized/anaemic smells in the existing model, uses only the one stated invariant, and recommends containment rather than a deeper model.",
+  "assertions": [
+    {
+      "text": "The response questions whether Invoicing warrants full aggregate modelling, citing its low differentiation or the mismatch between its model mass and its business value"
+    },
+    {
+      "text": "No invariant is invented for the aggregates the fixture states none for"
+    },
+    {
+      "text": "The one stated invariant (an invoice line must reference a cleared declaration) is used, and its dependence on Customs is noted as crossing a context boundary"
+    },
+    {
+      "text": "The existing model's smells are named \u2014 five aggregates, three of them modelling VAT variation \u2014 rather than accepted as given"
+    },
+    {
+      "text": "The recommendation is containment or simplification (anti-corruption layer, freeze, characterization tests, or buy) rather than deepening the domain model"
+    },
+    {
+      "text": "No application code is written \u2014 the output stays at design level"
+    }
+  ]
+}

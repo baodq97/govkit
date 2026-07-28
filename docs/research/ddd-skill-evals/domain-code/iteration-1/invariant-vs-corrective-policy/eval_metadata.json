@@ -1,0 +1,31 @@
+{
+  "eval_id": 0,
+  "eval_name": "invariant-vs-corrective-policy",
+  "skill_name": "domain-code",
+  "prompt": "We're implementing the Consolidation context for Nordic Freight \u2014 design the aggregates so the team can start. Repo: <fixtures>/nordic-freight. One thing to know: we get a burst of bookings in the hour before departure cut-off.",
+  "trap": "The tempting output is entities, value objects, commands and events \u2014 the familiar half of the canvas \u2014 with no state transitions, no throughput and no size, which are the sections that actually decide the boundary. The second trap is relaxing the overbooking invariant for concurrency reasons without naming what repairs the state when it is violated.",
+  "expected_output": "An Aggregate Design Canvas for ContainerLoad including state transitions, the enforced no-overbooking invariant weighed against a named corrective policy if relaxed, commands wired to events, a throughput estimate that uses the cut-off burst as the maximum, and a size/lifetime bounded by the departure.",
+  "assertions": [
+    {
+      "text": "The canvas includes state transitions, throughput and size sections \u2014 not only entities, commands and events"
+    },
+    {
+      "text": "The stated no-overbooking rule is modelled as an enforced invariant owned by a single aggregate"
+    },
+    {
+      "text": "The trade-off between enforcing the invariant and relaxing it with a corrective policy is made explicit, and any relaxation is accompanied by a named corrective policy"
+    },
+    {
+      "text": "The pre-cut-off burst is used as the maximum in the throughput estimate and connected to the boundary decision"
+    },
+    {
+      "text": "No invariant is asserted beyond the rules stated in the fixture"
+    },
+    {
+      "text": "Figures the fixture does not supply (client counts, event growth) are marked unknown or flagged as estimates needing an owner, not presented as fact"
+    },
+    {
+      "text": "The aggregate's lifetime is bounded (scoped to the departure) rather than left open-ended"
+    }
+  ]
+}
