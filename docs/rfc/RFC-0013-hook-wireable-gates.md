@@ -4,7 +4,7 @@ title: Hook-wireable gates — a blocking-hook contract for verify/eval/check (-
 status: implemented
 owner: baodq97
 date: 2026-07-07
-reconciled: sha256:13cec992226a7321
+reconciled: sha256:b9f3bdd80265ff3a
 governs:
   - packages/govkit/src/cli.ts
   - template/.claude/settings.json
@@ -118,6 +118,17 @@ Stop-hook block in `settings.example.json` (the non-intrusive form § Design lef
 implementer). Validation at merge: full `bun run check` green, the test suite extended to
 cover the exit-2 mapping, the stderr routing, the `--json`-on-stdout preservation, and the
 fail-closed operational-error path; engine version bumped 0.4.0 → 0.5.0.
+
+**Addendum (2026-07-28, drift reconcile):** two things have moved since the original ship,
+both by later accepted work, and are recorded here so this doc reads true against current
+code. (1) `--hook` is now accepted on `drift` and `ledger` as well (RFC-0015/RFC-0016 extended
+the sensor set); the flag-scope table in cli.ts remains the single rejection point, and the
+new `doctor` command correctly rejects it. (2) The template now ships the Stop hook **live**,
+not commented: `template/.claude/settings.json` wires `npx --yes govkit check --hook`
+directly, and no `settings.example.json` exists — the intrusiveness concern § Design raised
+was resolved in favour of working-by-default when the template moved to a full consumer
+scaffold. The exit-code mapping, stream routing, fail-closed posture, and run*-purity layer
+split are all unchanged.
 
 ## Deviations from design
 

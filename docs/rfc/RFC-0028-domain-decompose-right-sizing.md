@@ -4,12 +4,12 @@ title: Domain-decompose right-sizing — proportional tactical modelling and an 
 status: implemented
 owner: TBD
 date: 2026-07-24
-reconciled: sha256:8219e5c3e8e1fe63
+reconciled: sha256:aa5ef27712235d7f
 governs:
-  - plugins/swe-flow/skills/domain-decompose/SKILL.md
-  - plugins/swe-flow/skills/domain-decompose/references/ddd-methodology.md
-  - plugins/swe-flow/skills/domain-decompose/references/output-template.md
-  - plugins/swe-flow/skills/domain-decompose/references/aggregate-design-canvas.md
+  - plugins/ddd-flow/skills/3-decompose/SKILL.md
+  - plugins/ddd-flow/skills/3-decompose/references/ddd-methodology.md
+  - plugins/ddd-flow/skills/3-decompose/references/output-template.md
+  - plugins/ddd-flow/skills/3-decompose/references/aggregate-design-canvas.md
 parent: PRD-0001
 ---
 
@@ -194,6 +194,13 @@ step-6 sharing-level wiring + §2.4; `output-template.md` contract delta (`subdo
 decide-if-aggregates-at-all gate. Post-implementation eval held **44/44 on both runners**
 (`docs/research/domain-decompose-eval/runs/after-*`). Full gate green at every commit in the
 sequence (`712d376` → `5079d62` → `0c97566` → `46a62fb`).
+
+**Relocation (2026-07-28, `f382b33`/`03babf0`):** the `domain-decompose` skill — including all
+four governed files and the right-sizing doctrine this RFC encodes — moved from
+`plugins/swe-flow/skills/domain-decompose/` into `plugins/ddd-flow/skills/3-decompose/` when the
+DDD modelling loop was carved out as its own plugin (swe-flow v0.11.0 deleted the originals).
+The `governs` pathspecs above track the new location; prose references to the swe-flow path in
+this doc are historical and left as written.
 
 ## Deviations from design
 
