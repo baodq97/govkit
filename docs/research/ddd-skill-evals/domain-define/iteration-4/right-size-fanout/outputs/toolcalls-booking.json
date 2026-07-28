@@ -1,0 +1,1 @@
+{"context": "Booking", "file_reads": 4, "bash_calls": 5, "notes": "header+slice first, then only booking/model.yaml opened as the one raw artifact quoted; no message-flows or core-domain-chart exist on disk"}

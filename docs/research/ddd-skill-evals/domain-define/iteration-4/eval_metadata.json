@@ -1,0 +1,31 @@
+{
+  "eval_id": 0,
+  "eval_name": "right-size-and-populate-the-skipped-sections",
+  "skill_name": "domain-define",
+  "prompt": "We're about to start building Nordic Freight. Define the bounded contexts properly before anyone writes code \u2014 repo at <fixtures>/nordic-freight.",
+  "trap": "Seven contexts invite seven identical full canvases, including Notifications (a bought adapter) and Routing (no domain model). The three sections that get left blank \u2014 assumptions, verification metrics, open questions \u2014 are the ones the canvas exists for. And with only three stated business rules in the repo, the business-decisions section is the easiest place to invent plausible policy.",
+  "expected_output": "Full canvases only for the contexts that warrant them, stubs for the bought and pass-through ones, with assumptions, verification metrics and open questions populated from evidence, and strategic classification carried from the existing artifacts with the Invoicing conflict surfaced.",
+  "assertions": [
+    {
+      "text": "Contexts are right-sized \u2014 Notifications and Routing receive a stub or light treatment rather than a full canvas, with the reason stated"
+    },
+    {
+      "text": "Every canvas produced has a non-empty Assumptions section"
+    },
+    {
+      "text": "Verification metrics are named together with a collectable source (CI, issue tracker, or production telemetry)"
+    },
+    {
+      "text": "Open questions are populated, including the unresolved responsibility for a partner carrier refusing a sealed container"
+    },
+    {
+      "text": "No business decision is asserted beyond the rules stated in the discovery timeline and the model.yaml invariants"
+    },
+    {
+      "text": "Strategic classification is carried from the existing business model / classification with a source, and the conflict on Invoicing (labelled core, but no differentiation per the business model) is surfaced rather than silently reproduced"
+    },
+    {
+      "text": "Inbound and outbound messages are typed (command / query / event) and name both the collaborator and the relationship type"
+    }
+  ]
+}

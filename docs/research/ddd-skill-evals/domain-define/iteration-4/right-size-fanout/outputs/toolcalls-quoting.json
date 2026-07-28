@@ -1,0 +1,1 @@
+{"context": "Quoting", "file_reads": 5, "bash_calls": 7, "notes": "Header+slice as sole upstream input; opened only quoting/model.yaml and discovery/timeline.md, each to quote it; trimmed 189->180 lines to hit the core budget."}

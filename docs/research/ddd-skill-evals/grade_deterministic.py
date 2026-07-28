@@ -107,7 +107,16 @@ def grade(outputs: Path, vocab: set[str], expect_flow: bool = True) -> list[dict
     # Names the output asserts that the fixture never declared. Prose words in PascalCase (a heading,
     # a product name) would be false positives, so only look at names used where a domain name goes:
     # backticked, or in a table cell next to a message type.
-    claimed = set(re.findall(r"`([A-Z][a-z]+(?:[A-Z][a-z0-9]+)+)`", text))
+    # A name introduced as a NAMED ABSENCE is the opposite of a fabrication — "the missing
+    # `AcceptQuote` command" is the skill doing its job. Only the line carrying the name counts, so
+    # this cannot be widened into a general excuse by a document that says "missing" anywhere.
+    ABSENCE = re.compile(r"\b(absent|missing|no such|does not exist|nonexistent|gap|propos|consider|"
+                         r"perturbation|should be|would need|add the|introduce)\b", re.I)
+    claimed = set()
+    for line in text.splitlines():
+        names = re.findall(r"`([A-Z][a-z]+(?:[A-Z][a-z0-9]+)+)`", line)
+        if names and not ABSENCE.search(line):
+            claimed.update(names)
     declared_tokens = {_tokens(v) for v in vocab}
     unknown = sorted(n for n in claimed - vocab if _tokens(n) not in declared_tokens)
     out.append({"text": "no domain name is asserted with no relative in the fixture's vocabulary (fabrication check)",
