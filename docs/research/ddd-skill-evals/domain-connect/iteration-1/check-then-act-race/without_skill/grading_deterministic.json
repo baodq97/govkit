@@ -1,0 +1,24 @@
+{
+  "expectations": [
+    {
+      "text": "no transport or implementation detail (HTTP verbs, status codes, OpenAPI, queues, retries)",
+      "passed": true,
+      "evidence": "clean"
+    },
+    {
+      "text": "messages are numbered and every numbered row carries a type (command/event/query)",
+      "passed": false,
+      "evidence": "no numbered message table found"
+    },
+    {
+      "text": "no domain name is asserted with no relative in the fixture's vocabulary (fabrication check)",
+      "passed": false,
+      "evidence": "2 with no declared relative: BookingRejected, CapacityRejected"
+    },
+    {
+      "text": "findings cite message numbers as evidence rather than adjectives",
+      "passed": false,
+      "evidence": "0 numeric citation(s)"
+    }
+  ]
+}

@@ -1,0 +1,5 @@
+{
+  "file_reads": 6,
+  "bash_calls": 10,
+  "notes": "Most time went on reading the 7 model.yaml files + timeline/context-map/business-model to ground every message in a confirmed artifact, then on the ddd_check loop to bring the README index inside the 90-line budget."
+}

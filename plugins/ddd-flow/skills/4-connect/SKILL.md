@@ -45,6 +45,12 @@ The pack reports what is traced, never what should be. A message absent from it 
 flows, which may mean the flow is incomplete or may mean the event is peripheral — deciding which is
 this step's work.
 
+**Treat the pack as the input, not as a summary to verify against the files.** Re-reading every
+`model.yaml` after running it is the failure mode here, and a measured one: the run that did that
+cost 30% more tokens and took 54% longer than the same task with no pack at all, and reached the
+same verdict. Open a raw artifact only to **quote** it — an invariant's exact wording, a hotspot's
+full text — and open only that one.
+
 Nothing under `docs/domain/`? The pack will say so, and that is the answer: there is no design to
 challenge yet, and `3-decompose` runs first. Modelling flows between contexts you are inventing as
 you go produces a diagram that validates itself.

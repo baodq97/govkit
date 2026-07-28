@@ -1,0 +1,34 @@
+{
+  "expectations": [
+    {
+      "text": "no transport or implementation detail (HTTP verbs, status codes, OpenAPI, queues, retries)",
+      "passed": false,
+      "evidence": "1 leak(s): retry policy"
+    },
+    {
+      "text": "messages carry a type (command/event/query)",
+      "passed": true,
+      "evidence": "57 typed mention(s)"
+    },
+    {
+      "text": "a `assumption` section exists and is not left blank",
+      "passed": true,
+      "evidence": "present, non-empty"
+    },
+    {
+      "text": "a `open question` section exists and is not left blank",
+      "passed": true,
+      "evidence": "present, non-empty"
+    },
+    {
+      "text": "a `verification metric` section exists and is not left blank",
+      "passed": true,
+      "evidence": "present, non-empty"
+    },
+    {
+      "text": "no domain name is asserted with no relative in the fixture's vocabulary (fabrication check)",
+      "passed": false,
+      "evidence": "2 with no declared relative: GetRemainingCapacity, StackItem"
+    }
+  ]
+}

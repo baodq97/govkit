@@ -1,0 +1,5 @@
+{
+  "file_reads": 8,
+  "bash_calls": 9,
+  "notes": "1 context-pack script run joined the upstream facts; most time went to the interface critique (shared-kernel + check-then-act) and to cutting the canvas from 214 to 180 lines for the core budget."
+}

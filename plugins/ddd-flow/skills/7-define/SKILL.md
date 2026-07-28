@@ -42,9 +42,15 @@ The pack is **upstream fact, not a draft**. It tells you what is on disk; the ca
 to argue. Where it prints an absence — no capability row, no traced message, a canvas at 1/3 — that
 absence is a finding to carry into Open Questions, not a blank to fill.
 
-Read the raw artifacts when the pack raises something you need the wording of: the exact phrasing of
-a business rule, an assumption's provenance, a hotspot's full text. The pack replaces the joining,
-not the reading.
+**Treat the pack as the input, not as a summary to check against the files.** Opening the artifacts
+again afterwards is the failure mode here, and it is an expensive one: a measured run that read the
+pack and then re-read the same six files cost 62% more than the same task with no pack at all, for
+an identical result. The pack is generated from those files by a script that does not get tired, so
+re-reading them buys nothing.
+
+Open a raw artifact only when you are about to **quote** it — the exact phrasing of a business rule,
+an assumption's provenance, a hotspot's full text — and open only that one. If you cannot name which
+file and which sentence before opening it, the pack already told you what you were going to find.
 
 | Still missing after the pack | Then |
 |---|---|
