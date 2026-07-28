@@ -3,12 +3,13 @@
 > **Governance you can run, not just read.** A docs-as-code SDLC governance engine
 > for the AI-agent era — deterministic, cross-platform, zero-install.
 
-This is the **ecosystem monorepo**. Four things co-evolve here so they *cannot drift*:
+This is the **ecosystem monorepo**. Five things co-evolve here so they *cannot drift*:
 
 | Path | What | Ships via |
 |---|---|---|
 | `packages/govkit/` | **govkit** — the deterministic governance CLI (TypeScript) | npm → `npx govkit` |
 | `plugins/swe-flow/` | the **swe-flow** Claude Code plugin (skills + agents) that *authors* artifacts | marketplace (git-subdir) |
+| `plugins/ddd-flow/` | the **ddd-flow** Claude Code plugin — the DDD modelling loop; writes `docs/domain/`, which swe-flow's designers consume | marketplace (git-subdir) |
 | `template/` | the consumer **scaffold surface** (pins `govkit`, installs the plugin — carries **no** engine source) | `govkit init` / "Use this template" |
 | `.claude/workflows/` | the **`sdlc`** workflow orchestrating PRD→RFC→ADR→US→Code | project-scoped (workflows can't be bundled in a plugin) |
 
@@ -85,7 +86,7 @@ Three paths, depending on where you start. All of them end at the same contract:
 > **govkit is on npm** — [`govkit`](https://www.npmjs.com/package/govkit) resolves from the
 > registry, so `npx --yes govkit …` works out of the box. To pin it in a consumer repo:
 > ```bash
-> npm i -D govkit            # or pin a line: npm i -D govkit@^0.3.0
+> npm i -D govkit            # or pin a line: npm i -D govkit@^0.7.0
 > ```
 
 ### Path A — greenfield repo from the template (recommended)
@@ -143,7 +144,7 @@ then `npx govkit verify` until green.
 
 # 2. Install the authoring companion (Claude Code):
 claude plugin marketplace add baodq97/govkit   # the marketplace lives in this repo
-claude plugin install swe-flow@govkit          # spec-author, workflow-author, working-discipline, substance-judge, 5 agents
+claude plugin install swe-flow@govkit          # authoring skills + role agents — see plugins/swe-flow/README.md for the full surface
 
 # 3. Daily loop:
 npx govkit verify    # structural gate (what blocks)
@@ -178,7 +179,7 @@ npx govkit calibrate --corpus <dir> --baseline <file>
 ```bash
 bun install
 bun run build          # build every package (tsup)
-bun run check          # biome + typecheck + build + tests + verify + eval, then re-runs the gate under stock node (portability proof)
+bun run check          # the FULL gate: check-sync + skill-lint + biome + typecheck + build + tests + verify + eval + calibrate + drift + ledger, re-run under stock node (portability proof)
 
 # run the engine against this repo (dogfood) — the shipped bundle is Node-portable,
 # so the SAME dist runs identically under bun OR stock node:
@@ -198,7 +199,9 @@ on consumers (ADR-0002). Node ≥ 20 is the distribution baseline.
 MVP adoptable. Both trust layers ship and run no-key in CI: `govkit verify` (front-matter,
 status enum, id convention, INDEX sync, unique ids, no placeholders) and `govkit eval`
 (graded rubric proven by a labeled corpus), plus `govkit init` (scaffold) and the
-`audit-write` hook. The `swe-flow` plugin (goal→domain→API→data→spec-author + 5 agents)
-and the `sdlc` workflow author the artifacts the engine grades. See `AGENTS.md` for the
-governance this repo runs on itself. Next: publish (`npx govkit` / marketplace) and an
-optional opt-in LLM-judge eval layer (RFC-0001 § Open questions).
+`audit-write` hook. The `swe-flow` plugin (goal→API→data→spec-author + role agents), the `ddd-flow`
+plugin (domain modelling), and the `sdlc` workflow author the artifacts the engine grades. See
+`AGENTS.md` for the governance this repo runs on itself. Shipped since this section was first
+written: npm publish (`npx govkit`, latest), the marketplace, and the opt-in keyed judge layer
+(RFC-0019/0020). The honest frontier per `docs/ledger.json`: an external consumer outside the
+author's DNA (`F-R1-N3`) and npm provenance once the repo goes public (`F-R0-PROVENANCE`).

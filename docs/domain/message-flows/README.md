@@ -2,7 +2,7 @@
 id: DOMAIN-FLOW-0000
 title: govkit — domain message flows
 status: draft
-owner: TBD
+owner: baodq97
 date: 2026-07-28
 mode: connect
 ---

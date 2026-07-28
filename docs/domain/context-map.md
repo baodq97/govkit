@@ -2,7 +2,7 @@
 id: DOMAIN-CM-0001
 title: govkit — context map
 status: draft
-owner: TBD
+owner: baodq97
 date: 2026-07-28
 mode: decompose
 ---

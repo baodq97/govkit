@@ -3,10 +3,10 @@ import { isAbsolute, join, relative, resolve } from "node:path";
 import { parse as parseYaml } from "yaml";
 
 /**
- * How a doc type relates to its INDEX.md (RFC-0011). `false` skips ALL index checks for the
+ * How a doc type relates to its INDEX.md (RFC-0023). `false` skips ALL index checks for the
  * type (a type that keeps no INDEX). An object lists the front-matter keys whose values must
  * each appear as a matched table cell in the doc's INDEX row. Absent ⇒ `{ sync: ["status"] }`
- * — the pre-RFC-0011 status-only behavior, so this field is purely additive / non-breaking.
+ * — the pre-RFC-0023 status-only behavior, so this field is purely additive / non-breaking.
  */
 export type IndexConfig = false | { sync: string[] };
 
@@ -99,13 +99,13 @@ export interface DocType {
    */
   refs?: { key: string; type?: string }[];
   /**
-   * Keys subtracted from `base.required` for THIS type (RFC-0011). Effective required =
+   * Keys subtracted from `base.required` for THIS type (RFC-0023). Effective required =
    * (base.required − excludeBase) ∪ required. Lets a lifecycle-less type (e.g. a runbook with
    * no `status`) opt out of a base key that otherwise can't be dropped. `id`/`title` may NOT be
    * excluded — they anchor duplicate-detection and refs — and loadConfig fails loud if they are.
    */
   excludeBase?: string[];
-  /** INDEX relationship (RFC-0011). See IndexConfig. Absent ⇒ status-only sync (legacy). */
+  /** INDEX relationship (RFC-0023). See IndexConfig. Absent ⇒ status-only sync (legacy). */
   index?: IndexConfig;
 }
 
@@ -457,7 +457,7 @@ export function loadConfig(root: string): GovkitConfig {
   // written must be complete, because `base: {}` is a half-finished edit, not a default.
   const base = docs.base === undefined ? { required: [] } : docs.base;
   if (docs.base !== undefined) requiredKeyList(base.required, "docs.base.required", path);
-  // RFC-0011: excluding id/title would silently disable cross-doc checks (duplicate ids, refs,
+  // RFC-0023: excluding id/title would silently disable cross-doc checks (duplicate ids, refs,
   // INDEX row lookup all key on id). Fail loud at load, same stance as the docs.root guard.
   for (const [name, def] of Object.entries(docs.types ?? {})) {
     // `dir` and `required` are the two keys that decide WHAT a type governs and WHAT it demands.

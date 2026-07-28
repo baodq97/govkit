@@ -2,10 +2,10 @@
 id: DOMAIN-0012
 title: GovernanceSchema bounded context
 status: draft
-owner: TBD
+owner: baodq97
 date: 2026-07-28
 mode: define
-related_rfcs: [RFC-0007, RFC-0011, RFC-0023]
+related_rfcs: [RFC-0007, RFC-0023]
 ---
 
 # GovernanceSchema bounded context

@@ -42,7 +42,7 @@ artifact stays Node-portable (ADR-0002). Never hand-edit `dist/`.
 | lint | `bun run lint` (`biome check .`) · format: `bun run format` |
 | typecheck | `bun run typecheck` |
 | test | `bun run test` (`bun test`) |
-| one-shot gate | `bun run check` (biome + typecheck + build + tests + `verify` + `eval`, then re-runs under stock node) — CI runs this |
+| one-shot gate | `bun run check` (check-sync + skill-lint + biome + typecheck + build + tests + `verify` + `eval` + calibrate + drift + ledger, re-run under stock node) — CI runs this |
 | run engine | `node packages/govkit/dist/cli.js verify` (gate) · `… eval` (graded quality) |
 
 ## Lifecycle — gates by change class

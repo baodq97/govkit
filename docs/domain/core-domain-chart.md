@@ -2,7 +2,7 @@
 id: DOMAIN-CDC-0001
 title: govkit — core domain chart
 status: draft
-owner: TBD
+owner: baodq97
 date: 2026-07-28
 mode: strategize
 ---

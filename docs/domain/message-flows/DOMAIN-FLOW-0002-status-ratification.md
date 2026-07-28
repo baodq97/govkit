@@ -2,7 +2,7 @@
 id: DOMAIN-FLOW-0002
 title: A status ratification — an R1 flip from evidence to accept commit
 status: draft
-owner: TBD
+owner: baodq97
 date: 2026-07-28
 contexts: [Ratification, StructuralGate, QualityEval, WriteTimeAudit]
 mode: connect

@@ -2,7 +2,7 @@
 id: DOMAIN-FLOW-0001
 title: A gate run — one `bun run check` from command to exit code
 status: draft
-owner: TBD
+owner: baodq97
 date: 2026-07-28
 contexts: [GovernanceSchema, StructuralGate, WaiverPolicy, QualityEval, GateJournal]
 mode: connect

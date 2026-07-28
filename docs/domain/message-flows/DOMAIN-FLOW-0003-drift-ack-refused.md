@@ -2,7 +2,7 @@
 id: DOMAIN-FLOW-0003
 title: A drift acknowledgement — and the ack that refuses to vouch
 status: draft
-owner: TBD
+owner: baodq97
 date: 2026-07-28
 contexts: [Reconciliation, GovernanceSchema, Ratification, GateJournal]
 mode: connect

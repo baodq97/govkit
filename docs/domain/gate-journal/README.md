@@ -3,7 +3,7 @@ id: DOMAIN-0009
 title: GateJournal bounded context
 risk: High
 status: draft
-owner: TBD
+owner: baodq97
 date: 2026-07-28
 mode: define
 related_prds: [PRD-0001]

@@ -2,7 +2,7 @@
 id: DOMAIN-IDX-0001
 title: govkit domain model — index
 status: draft
-owner: TBD
+owner: baodq97
 date: 2026-07-28
 ---
 
@@ -15,28 +15,28 @@ provenance. Every invariant traces to `packages/govkit/src/**`, `govkit.yml`, `A
 `README.md`, `package.json`, `docs/product/PRD-0001` or `docs/rfc/**` with a `file:line` citation
 and the enclosing symbol.
 
-**These files are not governed.** `govkit.yml:14-75` declares five doc types (`prd`, `rfc`, `adr`,
-`us`, `rel`) and none of them covers `docs/domain/`, so `npx govkit verify` neither reads nor gates
-this tree. The front-matter below follows the template convention anyway, and the two config flags
-a named design tree would need already exist (`config.ts:52`, `:61`). Adding a `domain:` type is an
-owner decision.
+**These files ARE governed.** `govkit.yml` declares a `domain` doc type (`dir: docs/domain`,
+`idPrefix: DOMAIN`, `recursive: true`, `idFilenameConvention: false` — see the `docs.types`
+block), so `npx govkit verify` reads and gates this whole tree; `govkit report` counts its docs
+in the governed corpus. The owner decision this paragraph once deferred was made in `776bb18`
+("govern the design tree").
 
 ## Bounded contexts (`3-decompose`, deepened by `7-define`, 2026-07-28)
 
 | Id | Title | Risk | Status | Owner | Date |
 |---|---|---|---|---|---|
-| [DOMAIN-0001](structural-gate/README.md) | StructuralGate bounded context | Critical | draft | TBD | 2026-07-28 |
-| [DOMAIN-0002](reconciliation/README.md) | Reconciliation bounded context | Critical | draft | TBD | 2026-07-28 |
-| [DOMAIN-0003](quality-eval/README.md) | QualityEval bounded context | High | draft | TBD | 2026-07-28 |
-| [DOMAIN-0004](calibration/README.md) | Calibration bounded context | High | draft | TBD | 2026-07-28 |
-| [DOMAIN-0005](waiver-policy/README.md) | WaiverPolicy bounded context | High | draft | TBD | 2026-07-28 |
-| [DOMAIN-0006](feature-ledger/README.md) | FeatureLedger bounded context | High | draft | TBD | 2026-07-28 |
-| [DOMAIN-0007](ratification/README.md) | Ratification bounded context | High | draft | TBD | 2026-07-28 |
-| [DOMAIN-0008](write-time-audit/README.md) | WriteTimeAudit bounded context | High | draft | TBD | 2026-07-28 |
-| [DOMAIN-0009](gate-journal/README.md) | GateJournal bounded context | High | draft | TBD | 2026-07-28 |
-| [DOMAIN-0010](adoption/README.md) | Adoption bounded context | High | draft | TBD | 2026-07-28 |
-| [DOMAIN-0011](lifecycle-report/README.md) | LifecycleReport bounded context | High | draft | TBD | 2026-07-28 |
-| [DOMAIN-0012](governance-schema/README.md) | GovernanceSchema bounded context | — | draft | TBD | 2026-07-28 |
+| [DOMAIN-0001](structural-gate/README.md) | StructuralGate bounded context | Critical | draft | baodq97 | 2026-07-28 |
+| [DOMAIN-0002](reconciliation/README.md) | Reconciliation bounded context | Critical | draft | baodq97 | 2026-07-28 |
+| [DOMAIN-0003](quality-eval/README.md) | QualityEval bounded context | High | draft | baodq97 | 2026-07-28 |
+| [DOMAIN-0004](calibration/README.md) | Calibration bounded context | High | draft | baodq97 | 2026-07-28 |
+| [DOMAIN-0005](waiver-policy/README.md) | WaiverPolicy bounded context | High | draft | baodq97 | 2026-07-28 |
+| [DOMAIN-0006](feature-ledger/README.md) | FeatureLedger bounded context | High | draft | baodq97 | 2026-07-28 |
+| [DOMAIN-0007](ratification/README.md) | Ratification bounded context | High | draft | baodq97 | 2026-07-28 |
+| [DOMAIN-0008](write-time-audit/README.md) | WriteTimeAudit bounded context | High | draft | baodq97 | 2026-07-28 |
+| [DOMAIN-0009](gate-journal/README.md) | GateJournal bounded context | High | draft | baodq97 | 2026-07-28 |
+| [DOMAIN-0010](adoption/README.md) | Adoption bounded context | High | draft | baodq97 | 2026-07-28 |
+| [DOMAIN-0011](lifecycle-report/README.md) | LifecycleReport bounded context | High | draft | baodq97 | 2026-07-28 |
+| [DOMAIN-0012](governance-schema/README.md) | GovernanceSchema bounded context | — | draft | baodq97 | 2026-07-28 |
 
 **Twelve contexts, 153 invariants, every one carrying a `file:line` citation.** Distribution:
 
@@ -67,7 +67,7 @@ data). Ratio **4.7 : 1**.
 
 | Id | Title | Status | Owner | Date |
 |---|---|---|---|---|
-| [DOMAIN-CDC-0001](core-domain-chart.md) | govkit — core domain chart | draft | TBD | 2026-07-28 |
+| [DOMAIN-CDC-0001](core-domain-chart.md) | govkit — core domain chart | draft | baodq97 | 2026-07-28 |
 
 Places eleven of twelve contexts; `Ratification` is unplotted because it has zero model mass by
 construction. **The investment mismatch is the deliverable**: the richest model in the system
@@ -78,10 +78,10 @@ construction. **The investment mismatch is the deliverable**: the richest model 
 
 | Id | Title | Status | Owner | Date |
 |---|---|---|---|---|
-| [DOMAIN-FLOW-0000](message-flows/README.md) | govkit — domain message flows | draft | TBD | 2026-07-28 |
-| [DOMAIN-FLOW-0001](message-flows/DOMAIN-FLOW-0001-gate-run.md) | A gate run — one `bun run check` | draft | TBD | 2026-07-28 |
-| [DOMAIN-FLOW-0002](message-flows/DOMAIN-FLOW-0002-status-ratification.md) | An R1 status flip, evidence to accept commit | draft | TBD | 2026-07-28 |
-| [DOMAIN-FLOW-0003](message-flows/DOMAIN-FLOW-0003-drift-ack-refused.md) | A drift acknowledgement, one doc refused | draft | TBD | 2026-07-28 |
+| [DOMAIN-FLOW-0000](message-flows/README.md) | govkit — domain message flows | draft | baodq97 | 2026-07-28 |
+| [DOMAIN-FLOW-0001](message-flows/DOMAIN-FLOW-0001-gate-run.md) | A gate run — one `bun run check` | draft | baodq97 | 2026-07-28 |
+| [DOMAIN-FLOW-0002](message-flows/DOMAIN-FLOW-0002-status-ratification.md) | An R1 status flip, evidence to accept commit | draft | baodq97 | 2026-07-28 |
+| [DOMAIN-FLOW-0003](message-flows/DOMAIN-FLOW-0003-drift-ack-refused.md) | A drift acknowledgement, one doc refused | draft | baodq97 | 2026-07-28 |
 
 Neither refutation trigger fired (7, 7 and 8 messages; no context in every step), so the cut is
 **not refuted**. Twelve findings, two of them clean results. The three that matter all have the
@@ -92,7 +92,7 @@ central concept is authorisation and its engine is deliberately stateless.
 
 | Id | Title | Status | Owner | Date |
 |---|---|---|---|---|
-| [DOMAIN-CM-0001](context-map.md) | govkit — context map | draft | TBD | 2026-07-28 |
+| [DOMAIN-CM-0001](context-map.md) | govkit — context map | draft | baodq97 | 2026-07-28 |
 
 ## What this model found that reading the files would not
 

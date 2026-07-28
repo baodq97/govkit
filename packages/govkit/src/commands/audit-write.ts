@@ -120,7 +120,7 @@ export function auditWrite(input: HookInput, root: string, config?: GovkitConfig
       };
     }
   }
-  // RFC-0012: born-at-non-startStatus provenance nudge. A Write that CREATES a governed doc (no
+  // RFC-0024: born-at-non-startStatus provenance nudge. A Write that CREATES a governed doc (no
   // file on disk yet) at a status other than its type's startStatus skipped the draft→accept
   // provenance — agents author a new doc at startStatus; a human owner flips it forward in a
   // separate accept. Non-blocking BY DESIGN: provenance is honor-system (RFC-0012), the hook

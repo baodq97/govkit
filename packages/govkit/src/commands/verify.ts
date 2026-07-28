@@ -169,7 +169,7 @@ function checkIdConvention(file: string, data: Record<string, unknown>, def: Doc
   return problems;
 }
 
-// RFC-0011 (G2): an id sits inside a markdown link cell (`[US-0001](./US-0001-x.md)`), so match
+// RFC-0023 (G2): an id sits inside a markdown link cell (`[US-0001](./US-0001-x.md)`), so match
 // it as a bounded TOKEN anywhere in the row — bounded by a non-id char so `US-1` never matches a
 // `US-10` row. Replaces the substring `line.includes(id)` that silently false-passed.
 function idRowPattern(id: string): RegExp {
@@ -177,7 +177,7 @@ function idRowPattern(id: string): RegExp {
   return new RegExp(`(?<![A-Za-z0-9-])${esc}(?![A-Za-z0-9-])`);
 }
 
-// RFC-0011 (KT-0004): an INDEX cell may carry YAML-style surrounding quotes (`"@handle"`) while
+// RFC-0023 (KT-0004): an INDEX cell may carry YAML-style surrounding quotes (`"@handle"`) while
 // the front-matter value is parser-unquoted (`@handle`). Strip ONE matching surrounding quote
 // pair (single or double) before comparing, so the two agree — without making quotes a wildcard
 // (`"@a"` still ≠ `@b`). Mirrors the consumer bash gate's quote-stripping.
@@ -185,7 +185,7 @@ function stripQuotes(s: string): string {
   return s.replace(/^(['"])(.*)\1$/, "$2");
 }
 
-// RFC-0011 (G2/G3): a synced column value (status, owner, …) occupies its OWN table cell, so we
+// RFC-0023 (G2/G3): a synced column value (status, owner, …) occupies its OWN table cell, so we
 // require some cell to equal it exactly after trimming + quote-stripping — this is why `done`
 // inside a title cell no longer false-passes a `status` sync. Replaces `row.includes(status)`.
 function rowHasCell(row: string, value: string): boolean {
@@ -197,7 +197,7 @@ function rowHasCell(row: string, value: string): boolean {
 // violation, not a nit (root AGENTS.md). Heuristic line-match for v1 — it catches
 // the two real failure modes (missing row, stale status) without a full table parser.
 function checkIndex(dir: string, typeName: string, docs: Doc[], def: DocType): Finding[] {
-  if (def.index === false) return []; // RFC-0011 (G1): type keeps no INDEX
+  if (def.index === false) return []; // RFC-0023 (G1): type keeps no INDEX
   if (docs.length === 0) return [];
 
   const indexPath = join(dir, "INDEX.md");
@@ -232,8 +232,8 @@ function checkIndex(dir: string, typeName: string, docs: Doc[], def: DocType): F
       );
       continue;
     }
-    // RFC-0011 (G3): sync each configured key as a bounded cell. Default is status-only (the
-    // pre-RFC-0011 behavior); a missing/empty `sync` falls back to the default rather than
+    // RFC-0023 (G3): sync each configured key as a bounded cell. Default is status-only (the
+    // pre-RFC-0023 behavior); a missing/empty `sync` falls back to the default rather than
     // crashing on a non-iterable (US-0003 fail-soft).
     const sync = def.index ? (def.index.sync ?? ["status"]) : ["status"];
     for (const key of sync) {
