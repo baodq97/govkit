@@ -68,7 +68,7 @@
       "title": "third dissimilar consumer validates generality (unblocks the R5 harness generator)",
       "spec": "PRD-0001",
       "passes": false,
-      "check": "config-surface half shipped as F-R1-CONFIG (ml-research fixture, in-repo); this entry stays red until an EXTERNAL consumer outside the author's DNA adopts \u2014 PRD-0001's monoculture risk is the unproven half"
+      "check": "config-surface half shipped as F-R1-CONFIG (ml-research fixture, in-repo); this entry stays red until an EXTERNAL consumer outside the author's DNA adopts \u2014 PRD-0001's monoculture risk is the unproven half. Generality evidence measured 2026-07-28: current engine ran green against n=3 live same-author consumers (alert-triage-agent 19 docs, customs-platform 28, mandat 25 \u2014 a Go repo, CI-pinned govkit@0.7.1), 72 governed docs across TS+Go via config alone; two further repos (augur, demo-foundation-tobacco-industry) carry govkit.yml but check 0 docs \u2014 vacuous green, flagged for backfill-or-remove. Same-author DNA, so the bar stands and passes stays false"
     },
     {
       "id": "F-R1-CONFIG",
