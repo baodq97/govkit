@@ -1,0 +1,91 @@
+context: QualityEval
+subdomain_type: supporting
+tactical_pattern: transaction-script
+ubiquitous_language:
+  - term: Rubric
+    definition: A per-doc-type list of weighted rules in govkit.yml. Config, never code (govkit.yml:89-126, config.ts:138 EvalConfig).
+  - term: Rule kind
+    definition: One of five deterministic kinds — section, regex, frontmatter, minWords, forbid (config.ts:117 RubricRuleKind).
+  - term: Required floor
+    definition: "The small subset of rules marked `required: true`. Failing one BLOCKS CI regardless of score (config.ts:130-135, eval.ts:179)."
+  - term: Advisory score
+    definition: The 0-100 weighted pass fraction. A trend to watch; it warns, it never blocks (eval.ts:122, README.md:19-27).
+  - term: Threshold
+    definition: The advisory bar, default 70 (eval.ts:145, govkit.yml:90).
+  - term: Prose
+    definition: The body after fenced code and HTML comments are stripped — what every rubric rule actually measures (eval.ts:71, util.ts:60).
+  - term: Distinct heading
+    definition: One markdown heading satisfies at most one section rule, so a kitchen-sink heading cannot pass four rules (eval.ts:125-135).
+aggregates: []
+invariants:
+  - "CI blocks ONLY on rules marked `required: true`; the 0-100 score is advisory and never flips the verdict. — packages/govkit/src/commands/eval.ts:175-179 (scoreArtifact), :243 (runEval); packages/govkit/src/config.ts:130-135 (RubricRule.required); govkit.yml:82-86"
+  - Section matching is greedy and injective — each heading satisfies at most one section rule, so a single kitchen-sink heading can no longer pass every section rule at once. — packages/govkit/src/commands/eval.ts:125-135 (scoreArtifact)
+  - Every rubric rule measures PROSE with fenced code and HTML comments stripped, so signal words hidden in a fence earn nothing. — packages/govkit/src/commands/eval.ts:114; packages/govkit/src/util.ts:60 (stripNonProse)
+  - A `forbid` rule earns its weight when the forbidden pattern is ABSENT. — packages/govkit/src/commands/eval.ts:141-144 (scoreArtifact)
+  - "Score is round(earned/total * 100); a rubric whose weights total zero scores 100 rather than dividing by zero. — packages/govkit/src/commands/eval.ts:165 (scoreArtifact)"
+  - A doc clears the advisory bar iff its score is at or above the configured threshold, default 70. — packages/govkit/src/commands/eval.ts:180 (scoreArtifact), :196 (runEval); govkit.yml:90
+  - A doc whose front-matter is absent or unparseable is SKIPPED by eval — well-formedness is the gate's job, and eval grades only well-formed docs. — packages/govkit/src/commands/eval.ts:227 (runEval)
+  - A configured doc type with no rubric is not graded at all. — packages/govkit/src/commands/eval.ts:221 (runEval)
+  - With no rubric configured anywhere, eval returns ok with a note and pass-rates of 1 — it never invents a bar. — packages/govkit/src/commands/eval.ts:203-213 (runEval)
+  - Under --changed, only the changed docs are SCORED (not merely reported) — safe precisely because eval has no cross-doc check, so no global violation can be masked. — packages/govkit/src/commands/eval.ts:225 and the contract note at :85-93 (EvalOptions.changed)
+  - A malformed user-supplied pattern fails its rule rather than crashing the run. — packages/govkit/src/util.ts:78 (matches)
+  - "The header may never claim a number its own body cannot account for, so the `required floor:` clause is built beside the data — the same home `verifySummaryLine` has, and assertable without spawning the CLI. — packages/govkit/src/commands/eval.ts:86-101 (evalFloorLine); packages/govkit/src/cli.ts:574"
+  - "The waived count is stated in BOTH units, because they differ: a waiver is rule-times-scope while the body prints one line per ARTIFACT, and a bare \"2 waived\" over two lines of which one reads BLOCK is a number the reader cannot reconcile with anything visible. — packages/govkit/src/commands/eval.ts:95-101 (evalFloorLine)"
+  - Every artifact carrying a signature PRINTS it — who signed and until when — including a PARTLY signed one that still blocks, because dropping the signature on the blocking line is exactly what makes a human-signed exception read as a bug. — packages/govkit/src/cli.ts:578-587 (signature), :593-601
+  - "This context reports its own waiver accounting in two different units on purpose: the printer counts artifacts that show a signature (what the reader can see), the journal counts artifacts whose floor a waiver CLEARED (what explains `floorPassRate` on an `ok: true` line). — packages/govkit/src/commands/eval.ts:103-111 (waiverClearedArtifacts)"
+notes: >-
+  Deliberately light. Scoring is ONE pure function over one artifact (eval.ts:103 scoreArtifact) —
+  no identity, no lifecycle, no state transition, so no aggregate. The honest boundary is stated
+  in the repo itself: a presence/shape rubric cannot tell a real artifact from a keyword-salad
+  with the right headings, so this context is scoped as a zero-false-positive FLOOR and substance
+  judgement is explicitly outside the engine (README.md:52-58; RFC-0019). `invariants:` is carried
+  at context level here because the context has no aggregate to hang them on — a deliberate
+  extension of the output template, flagged in context-map.md.
+relationships:
+  - to: GovernanceSchema
+    direction: downstream
+    our_roles: [conformist]
+    their_roles: [published-language]
+    note: The rubric IS config (govkit.yml:89-126). This context contributes no rule of its own — change the bar by editing one file, never by forking the engine.
+  - to: Calibration
+    direction: upstream
+    our_roles: [supplier]
+    their_roles: [conformist]
+    note: Calibration grades with runEval unchanged (calibrate.ts:118-124), so any rubric edit moves the confusion matrix in the same run.
+  - to: GateJournal
+    direction: upstream
+    our_roles: [supplier]
+    their_roles: [customer, published-language]
+    note: >-
+      Supplies artifacts / floorPassRate / advisoryPassRate / averageScore, AND the `waived` count
+      that makes them readable (eval.ts:103-111 waiverClearedArtifacts, written at
+      cli.ts:1121-1136). The edge previously carried the four numbers only, which was the defect:
+      `floorPassRate` is waiver-blind by design, so a fully-waived corpus supplied `0` on an
+      `ok: true` line and nothing that said why — RFC-0017's distiller reads that as a gate failing
+      open and learns from an incident that never happened. GateJournal owns the line shape and
+      chose the COUNT form; this context owns the number.
+  - to: StructuralGate
+    direction: peer
+    our_roles: [separate-ways]
+    their_roles: [separate-ways]
+    note: No call in either direction. `check` runs both and ANDs the verdicts (cli.ts:701-708); they share only the prose-stripping building blocks (util.ts:60,70).
+  - to: Ratification
+    direction: upstream
+    our_roles: [supplier]
+    their_roles: [conformist]
+    note: "R1's `full_gate_green: bun run check` (govkit.yml:148) covers this floor too — honor-system, unread by any code."
+  - to: WaiverPolicy
+    direction: peer
+    our_roles: [shared-kernel]
+    their_roles: [shared-kernel]
+    note: >-
+      Mirror of WaiverPolicy's edge. Every rubric rule id in this context's config is a name a
+      waiver may claim — `knownRuleKeys` unions the verify kinds with the ids of every configured
+      rubric into ONE vocabulary (config.ts:291-302). Mutual-consent change in both directions:
+      adding a rubric rule widens what a waiver may name, and only an active waiver can let a
+      failed required rule still clear the floor (eval.ts:167-179 `floorOk`).
+  - to: Adoption
+    direction: peer
+    our_roles: [separate-ways]
+    their_roles: [separate-ways]
+    note: Mirror of Adoption's edge. No call in either direction — a migrated corpus is scored by the same rubric as any other, with nothing special about its provenance. The only thing in common is `stripNonProse` (util.ts:60), used for the same reason on both sides.

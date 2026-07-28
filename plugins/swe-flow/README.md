@@ -9,6 +9,10 @@ Everything **calls** `npx govkit verify` to validate — nothing embeds the dete
 
 **Skills — the SDLC chain** (`slice → goal → domain → API → data → governed artifact`):
 
+- **`skills/govkit-adopt`** — get govkit governing a repo in the first place: `init` for a
+  greenfield tree, `init --adopt` (dry-run first) to migrate docs that already carry prose
+  metadata. Sets the expectation that a freshly adopted repo is **red on purpose** — adopt
+  sentinels anything it could not source rather than asserting metadata it never verified.
 - **`skills/work-breakdown`** — split a large piece of work into small, independently shippable
   vertical slices before writing any doc or code: an XS-to-XL sizing ladder, four break triggers,
   and how to record ordering when one slice depends on another. Tier-1 and dependency-free —

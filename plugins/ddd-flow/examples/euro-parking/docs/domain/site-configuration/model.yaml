@@ -23,7 +23,36 @@ notes: >-
   consistency boundary, so no aggregate. Publishes site topology and the vehicle-class vocabulary as
   Published Language rather than sharing a model. Open: H11, H16, H17.
 relationships:
-  - { to: ParkingVisit, type: upstream }
-  - { to: TerminalOperations, type: upstream }
-  - { to: OccupancyInsight, type: upstream }
-  - { to: GuidanceIntegration, type: upstream }
+  - to: ParkingVisit
+    direction: upstream
+    our_roles: [published-language]
+    their_roles: [conformist]
+    note: >-
+      Site topology and the `VehicleClass` vocabulary, versioned — chosen over a shared kernel. The
+      vocabulary is live in five contexts and flagged as a shared-kernel risk in `context-map.md`.
+      They conform: `parking-visit/model.yaml` marks its own `VehicleClass` "the vocabulary is
+      SiteConfiguration's to publish" and translates nothing.
+  - to: TerminalOperations
+    direction: upstream
+    our_roles: [published-language]
+    their_roles: [conformist]
+    note: >-
+      Which entrances and exits exist at this site; the terminal role set is left open (H11). They
+      conform — `site-configuration/README.md` lists them among the contexts that read
+      `SiteTopology?` as published language, and no source names a translation on their side.
+  - to: OccupancyInsight
+    direction: upstream
+    our_roles: [published-language]
+    their_roles: [conformist]
+    note: >-
+      Bays per type — the denominator of every occupancy number, taken as we state it.
+      `occupancy-insight/README.md` types this edge "published language, downstream" and names an
+      ACL only on its guidance edge, so the two are a deliberate contrast, not an omission.
+  - to: GuidanceIntegration
+    direction: upstream
+    our_roles: [published-language]
+    their_roles: [conformist]
+    note: >-
+      The bay list the supplier's sensors are mapped onto; a lot has no guidance system at all.
+      They conform to the list: `guidance-integration/README.md` points their ACL at the supplier
+      hardware, not at us.

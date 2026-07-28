@@ -1,7 +1,7 @@
 import { execFileSync } from "node:child_process";
 import { existsSync, readdirSync, readFileSync } from "node:fs";
 import { isAbsolute, join, relative, resolve } from "node:path";
-import type { GovkitConfig } from "./config";
+import type { DocType, GovkitConfig } from "./config";
 import { type FrontMatter, isParseError, parseFrontMatter } from "./frontmatter";
 
 /** Root-confinement check shared by every path the engine is handed from outside (a hook's
@@ -23,17 +23,60 @@ export function typeDir(root: string, docsRoot: string, dir: string): string {
   return join(root, docsRoot, dir);
 }
 
-/** Markdown docs in a directory, minus the ignore list. Non-recursive by design —
- *  governed docs live flat in their type dir. Shared by `verify` and `eval`. */
-export function listMarkdown(dir: string, ignore: string[]): string[] {
+/** Markdown docs in a directory, minus the ignore list. Shared by `verify` and `eval` (and the
+ *  governs-scanners below), so all of them see one corpus. Flat by DEFAULT — a numbered corpus
+ *  lives flat in its type dir — but `recursive` (per type, `docs.types.<t>.recursive`) walks
+ *  subdirectories for a type whose layout is a named tree instead. The default is the exact
+ *  pre-existing walk, so a config without the flag governs the same files it always did.
+ *  `ignore` also matches subdirectory NAMES, which is how a subtree opts out. A symlinked
+ *  directory reports `isDirectory() === false` here, so the walk cannot loop through one. */
+export function listMarkdown(dir: string, ignore: string[], recursive = false): string[] {
   if (!existsSync(dir)) return [];
   const files: string[] = [];
+  const subdirs: string[] = [];
   for (const entry of readdirSync(dir, { withFileTypes: true })) {
     if (entry.isFile() && entry.name.endsWith(".md") && !ignore.includes(entry.name)) {
       files.push(join(dir, entry.name));
+    } else if (recursive && entry.isDirectory() && !ignore.includes(entry.name)) {
+      subdirs.push(join(dir, entry.name));
     }
   }
+  // Depth-second: this dir's own files keep their pre-existing order, nested ones follow.
+  for (const sub of subdirs) files.push(...listMarkdown(sub, ignore, true));
   return files;
+}
+
+/** The type a single path belongs to, or null — the SINGLE-PATH DUAL of `listMarkdown`.
+ *  `listMarkdown` answers "which files does this type govern?" by walking the disk; the
+ *  per-write hook has to ask the same question backwards, about one path that need not exist
+ *  yet. Hand-rolling that as `isInside(typeDir(...))` is precisely how the two drifted: a bare
+ *  containment test claims the WHOLE subtree, so with a flat (`recursive: false`) type the hook
+ *  denied a write to a nested file that verify and report both said was not governed. The
+ *  membership rule therefore lives HERE, once, and mirrors the walk term for term — `.md`,
+ *  basename not in `ignore`, no ignored directory NAME anywhere below the type dir (that is how
+ *  a subtree opts out), and direct children only unless the type is `recursive`.
+ *  ONE divergence from the walk, and it is structural rather than an oversight: `listMarkdown`
+ *  skips a symlinked directory because it can stat one, while this must answer about a path
+ *  that may not be on disk. A write beneath a symlinked subdir is judged governed here and
+ *  stays invisible to the walk — the hook erring toward asking for front-matter, with the gate
+ *  as the authority. */
+export function governedTypeOf(
+  root: string,
+  config: GovkitConfig,
+  file: string,
+): { type: string; def: DocType } | null {
+  const { ignore, types, root: docsRoot = "." } = config.docs;
+  for (const [type, def] of Object.entries(types)) {
+    const dir = typeDir(root, docsRoot, def.dir);
+    if (!isInside(dir, file)) continue;
+    const segments = relative(resolve(dir), resolve(file)).split(/[/\\]/);
+    const name = segments[segments.length - 1] ?? "";
+    if (!name.endsWith(".md") || ignore.includes(name)) continue;
+    if (!def.recursive && segments.length > 1) continue;
+    if (segments.slice(0, -1).some((seg) => ignore.includes(seg))) continue;
+    return { type, def };
+  }
+  return null;
 }
 
 /** Front-matter values are `unknown` (YAML may yield numbers/dates); normalize to a
@@ -117,7 +160,10 @@ function scanParsedDocs(root: string, config: GovkitConfig): Omit<GovernedDoc, "
   const { ignore, types, root: docsRoot = "." } = config.docs;
   const docs: Omit<GovernedDoc, "governs">[] = [];
   for (const [typeName, def] of Object.entries(types)) {
-    for (const file of listMarkdown(typeDir(root, docsRoot, def.dir), ignore)) {
+    // Honors the type's `recursive` flag for the same reason verify does: the id universe
+    // collected here is what verify's reference check resolves INTO, so a scan narrower than
+    // verify's would report a live ref to a nested doc as dangling.
+    for (const file of listMarkdown(typeDir(root, docsRoot, def.dir), ignore, def.recursive)) {
       const content = readFileSync(file, "utf8");
       const fm = parseFrontMatter(content);
       if (!fm || isParseError(fm)) continue;

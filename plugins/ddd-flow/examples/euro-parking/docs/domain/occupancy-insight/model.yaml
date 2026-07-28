@@ -16,6 +16,28 @@ notes: >-
   whether the sensors can be trusted at all. Also carries the entitlement-bay report the expert asked
   for, which as stated has no mechanism (H6).
 relationships:
-  - { to: GuidanceIntegration, type: downstream }
-  - { to: ParkingVisit, type: downstream }
-  - { to: SiteConfiguration, type: downstream }
+  - to: GuidanceIntegration
+    direction: downstream
+    our_roles: [acl]
+    their_roles: [open-host]
+    note: >-
+      Bought guidance hardware behind our own translation; three suppliers, one internal shape —
+      that shape is their host contract, and our ACL over it is our own choice, not their absence.
+      Garage only (H3), and H4 asks whether the counts can be trusted at all.
+  - to: ParkingVisit
+    direction: downstream
+    our_roles: [conformist]
+    their_roles: [published-language]
+    note: >-
+      `EntryRecorded` and `VehicleExited` as published facts — in a lot they are the only source
+      this context has. Owning no state transitions, it takes no defensive stance: it counts their
+      events in their own terms, which is what conforming is. Contrast the guidance edge above,
+      where the same canvas did name an ACL.
+  - to: SiteConfiguration
+    direction: downstream
+    our_roles: [conformist]
+    their_roles: [published-language]
+    note: >-
+      Bays per type — the denominator of every occupancy number, taken exactly as published. H14 is
+      what it is divided by; if a car in a truck bay ever has to be reclassified here, that is the
+      day this side earns an `acl`.

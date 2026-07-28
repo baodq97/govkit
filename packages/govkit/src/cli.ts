@@ -8,126 +8,501 @@ import {
   parseBaseline,
   runCalibrate,
 } from "./commands/calibrate";
+import { type DoctorResult, type NextAction, runDoctor } from "./commands/doctor";
 import { type DriftAckResult, type DriftResult, runDrift, runDriftAck } from "./commands/drift";
-import { type EvalResult, runEval } from "./commands/eval";
+import {
+  type ArtifactScore,
+  type EvalResult,
+  evalFloorLine,
+  runEval,
+  waiverClearedArtifacts,
+} from "./commands/eval";
 import { type InitResult, runInit } from "./commands/init";
 import { type LedgerResult, runLedger } from "./commands/ledger";
 import { type ReportResult, renderReportPrBody, runReport } from "./commands/report";
 import { runStale, type StaleResult } from "./commands/stale";
-import { runVerify, type VerifyResult } from "./commands/verify";
-import { type GovkitConfig, loadConfig } from "./config";
+import { runVerify, type VerifyResult, type Violation, verifySummaryLine } from "./commands/verify";
+import { type GovkitConfig, loadConfig, type ViolationKind } from "./config";
 import { appendJournal, type JournalRecord, resolveJournalPath } from "./journal";
 import { gitChangedDocs, gitHeadSha, resolveChangedBase } from "./util";
 
+/**
+ * HELP is an INDEX, not a manual. The reader of `govkit --help` is an agent working inside
+ * someone else's repo, and it pays a tool call for every look — so the global page names what
+ * exists and where the detail is, and `govkit <cmd> --help` carries the detail for exactly the
+ * one command being run. One wall listing every flag of every command costs the agent the whole
+ * page to learn one flag.
+ */
 const HELP = `govkit — deterministic docs-as-code governance engine
 
-Usage:
-  govkit init         [--root <dir>] [--force] [--docs-root <dir>]
-  govkit init --adopt [--root <dir>] [--apply]  (migrate existing prose metadata → front-matter)
-  govkit check        [--root <dir>] [--changed [--base <ref>]] [--journal] [--hook]  (verify + eval — the no-key CI gate)
-  govkit verify       [--root <dir>] [--json] [--changed [--base <ref>]] [--journal] [--hook]
-  govkit eval         [--root <dir>] [--json] [--changed [--base <ref>]] [--journal] [--hook]
-  govkit calibrate    --corpus <dir> [--root <dir>] [--json] [--baseline <file> [--update-baseline]]
-  govkit report       [--root <dir>] [--json | --pr-body]   (lifecycle histogram — done / in-flight / cleanup)
-  govkit stale        [--root <dir>] [--json]   (advisory: governed code newer than its doc — needs git)
-  govkit drift        [--root <dir>] [--json] [--journal] [--hook]  (gate: reconciled content hash vs governed code — needs git)
-  govkit drift --ack [docPath] [--root <dir>] [--json] [--journal]  (rewrite 'reconciled:' to the current governed content hash)
-  govkit ledger       [--root <dir>] [--json] [--journal] [--hook]  (gate: the committed feature ledger — needs git)
-  govkit audit-write  [--root <dir>]        (reads a PreToolUse hook payload on stdin)
+Getting started:
+  1. govkit init      scaffold govkit.yml, the doc dirs and the write-time hook
+     (already have docs? \`govkit init --adopt\` migrates their prose metadata instead)
+  2. govkit doctor    read-only map: what is configured, what is governed, what to do next
+  3. govkit check     the no-API-key CI gate — verify + eval in one pass
 
-Commands:
-  init         Scaffold govkit governance into a repo (govkit.yml, the PreToolUse
-               hook, and docs/{product,rfc,adr,issues}/INDEX.md). Idempotent.
-               With --adopt: instead of scaffolding, migrate EXISTING docs that lack
-               front-matter — extract declared prose metadata (e.g. **Status**: X)
-               into a YAML block, sentinel anything not found so it still fails the
-               gate (never asserts unverified metadata), and report status values
-               outside your enum as a suggested govkit.yml patch. Dry-run unless --apply.
-  check        Run verify then eval — the single no-API-key gate a CI calls. Exits
-               non-zero if either the structural gate or the eval floor fails.
-  verify       Structural GATE: front-matter, status enum, id convention, INDEX
-               sync, unique ids, no placeholders. Binary pass/fail (quality control).
-  eval         Quality signal: a required structural FLOOR (blocks) + an advisory
-               0–100 score against the deterministic rubric in govkit.yml.
-  calibrate    The eval's own regression harness: grade a LABELED corpus (good/ must
-               pass the required floor, weak/ must fail it) and report the floor's
-               confusion matrix + precision/recall/f1. Exits 1 on ANY false positive
-               (a good doc blocked — the zero-FP hard invariant) or, with --baseline,
-               on a recall/f1 drop vs the committed baseline.
-  report       Advisory lifecycle view: per-type status histogram with the ids in
-               each bucket, marking which statuses are terminal (decided/shipped per
-               terminalStatuses). Answers "what is done / in-flight / cleanup". Never
-               blocks — read-only, always exits 0. (RFC-0008) With --pr-body: the same
-               view as GitHub markdown fenced by stable HTML comment markers, for
-               idempotent replace-not-append injection into a PR body. (RFC-0021)
-  stale        Advisory staleness (RFC-0009): for every doc that declares a
-               'governs: [glob]' front-matter key, compare the doc's last-commit
-               time against the newest commit of the code it governs and warn when
-               the code moved on. A PROXY ('code changed'), never 'doc wrong' — so it
-               NEVER blocks (always exits 0) and check never calls it. Needs git.
-  drift        Deterministic spec↔code GATE (RFC-0015, as amended): a doc opts in by
-               carrying BOTH 'governs:' and 'reconciled: sha256:<hex>' (the author's
-               recorded claim "this doc is true as of this content state" — a hash over
-               the governed files' git blob OIDs, stable across squash/rebase); it fails
-               (exit 1) when the governed content no longer matches that claim. The honest
-               exits are updating the doc or an explicit --ack — the gate never acks
-               itself. Every governed doc (opted in or not) is also checked per-pathspec
-               for governs existence (RFC-0018): a spec matching no tracked file is a
-               violation naming it — ghost paths silently shrink drift/stale coverage.
-               Git absent degrades to a note + exit 0; check never calls it.
-  ledger       Feature-ledger GATE (RFC-0016): gates the committed JSON ledger
-               ({ entries: [{ id, title, spec, passes, check? }] }, docs/ledger.json or
-               ledger.path) — parse/schema, unique ids, every spec resolves to a governed
-               doc id, and append-only vs the committed HEAD version (a removed entry or
-               removed check provenance is a violation; 'passes' flips both ways are
-               legal). The N/M passing summary is advisory and never affects the exit.
-  audit-write  PreToolUse hook gate: block a Write to a governed doc that lacks
-               complete front-matter. On a write that marks a doc shipped/terminal
-               while it has a parent, emits a non-blocking reconciliation reminder.
-               Acts on Write only — an Edit defers (its partial content can't be
-               parsed), so an Edit-based status flip is caught by the CI verify gate.
+Commands (run \`govkit <command> --help\` for flags and worked examples):
+  doctor       Where am I: config, doc types + counts, hook, ONE next action. Always exits 0.
+  init         Scaffold governance into a repo; --adopt migrates an existing corpus.
+  check        verify + eval — the single gate a CI calls.
+  verify       Structural GATE: front-matter, status enum, id convention, INDEX sync, refs.
+  eval         Quality: a blocking structural floor + an advisory 0–100 rubric score.
+  calibrate    The eval's own regression harness over a labeled good/ + weak/ corpus.
+  report       Advisory lifecycle histogram — done / in-flight / cleanup. Never blocks.
+  stale        Advisory: governed code has newer commits than its doc. Needs git.
+  drift        GATE: governed content vs the doc's recorded \`reconciled:\` hash. Needs git.
+  ledger       GATE: the committed feature ledger — append-only, every spec resolves. Needs git.
+  audit-write  PreToolUse hook gate: reads a hook payload on stdin, blocks an ungoverned write.
 
-Options:
-  --root       Repo root containing govkit.yml (default: cwd, or the hook's cwd).
-  --json       Machine-readable output (verify, eval, report, stale, drift, ledger).
-  --pr-body    (report) Emit the lifecycle view as a markdown block fenced by
-               <!-- govkit:report:begin/end --> markers, deterministic on unchanged state
-               (sorted, timestamp-free) so an injector splices with zero diff noise. govkit
-               only emits — writing it into a PR body is the caller's job (gh pr edit).
-               Mutually exclusive with --json.
-  --changed    Adoption mode (verify, eval, check): restrict to docs that are
-               new-or-modified vs --base. verify still scans the whole repo for cross-doc
-               checks (only the report is scoped, so a new duplicate id / dangling ref is
-               still caught); eval scores only the changed docs. Requires git.
-  --base       Base ref for --changed (default: origin/main, else HEAD).
-  --journal    Sensor mode (verify, eval, check, drift, ledger): append one JSON line per
-               run to the journal (.govkit/journal.jsonl, or journal.path in govkit.yml).
-               Purely observational — a journal write failure warns on stderr and NEVER
-               changes the command's exit code.
-  --hook       Blocking-hook mode (verify, eval, check, drift, ledger — check-mode runs
-               only, never drift --ack): map gate failure to exit 2 + report on stderr —
-               wire as a blocking hook. Fail-closed: an operational error (broken config)
-               also exits 2, so a broken guardrail blocks.
-  --ack        (drift) Reconcile: rewrite 'reconciled:' to the current governed content
-               hash for the doc named by the positional path after the command, or for
-               ALL opted-in docs when no path is given. Runs the drift check first and
-               writes only where drifted (a no-op ack says so); the rewrite is surgical —
-               only the claim value changes, every other byte (a trailing comment
-               included) is preserved for the reviewed diff. Combines with --journal (the
-               record is marked ack: true) but never with --hook — hooks gate, they don't ack.
-  --corpus     (calibrate) Labeled corpus dir containing good/ and weak/ subtrees.
-  --baseline   (calibrate) Baseline JSON to compare the floor matrix against. A missing
-               file is an error unless --update-baseline creates it (bootstrap).
-  --update-baseline
-               (calibrate) Rewrite --baseline from the current run. Refused (exit 1,
-               nothing written) when the run has false positives or regressed.
-  --adopt      Migration mode for init (see above). Dry-run unless --apply.
-  --apply      Write the proposed front-matter to disk (init --adopt only).
-  --docs-root  (init only, RFC-0007) Parent dir for kit-managed docs, e.g. .govkit —
-               writes docs.root into govkit.yml and scaffolds under it. Default: current dir.
-  --force      Overwrite existing files (init only).
-  -h, --help   Show this help.
+Options shared by several commands (a command's page lists the rest):
+  --root <dir>  Repo root containing govkit.yml (default: cwd, or the hook's cwd).
+  --json        Machine-readable output (doctor, verify, eval, report, stale, drift, ledger).
+  --changed     (verify, eval, check) Scope the report to docs new-or-modified vs --base.
+  --base <ref>  Base ref for --changed (default: origin/main, else HEAD).
+  --journal     (verify, eval, check, drift, ledger) Append one JSON line per run to the journal.
+  --hook        (same commands) Map a gate failure to exit 2 — wire as a blocking hook.
+  -h, --help    This index; \`govkit <command> --help\` for one command's page.
 `;
+
+/** The commands the dispatcher accepts. One closed list so `isCommand`, the per-command help
+ *  table and the switch below can never disagree about what exists. */
+const COMMANDS = [
+  "doctor",
+  "init",
+  "check",
+  "verify",
+  "eval",
+  "calibrate",
+  "report",
+  "stale",
+  "drift",
+  "ledger",
+  "audit-write",
+] as const;
+type Command = (typeof COMMANDS)[number];
+
+function isCommand(value: string): value is Command {
+  return (COMMANDS as readonly string[]).includes(value);
+}
+
+/**
+ * One page per command: synopsis, flags, worked examples, and the next command. `Record<Command,
+ * string>` on purpose — adding a command without writing its page is a type error, which is the
+ * only reliable way a help system stays complete.
+ */
+const HELP_PAGES: Record<Command, string> = {
+  doctor: `govkit doctor — where am I, and what do I run next
+
+Usage:
+  govkit doctor [--root <dir>] [--json]
+
+Read-only orientation, in ONE call: whether govkit.yml loads, which doc types it
+configures and how many docs each holds, how many of those lack front-matter,
+whether the write-time hook is installed, which markdown dirs sit beside your
+governed dirs without being governed, and exactly ONE recommended next action.
+
+A map, not a gate: it never writes, never runs verify or eval, and ALWAYS exits 0.
+Gate on \`govkit check\` — a report that could fail CI would get gated on.
+
+Flags:
+  --root <dir>  Repo to inspect (default: cwd).
+  --json        Emit DoctorResult as JSON on stdout; no human report.
+
+Examples:
+  govkit doctor                      # orient before touching anything
+  govkit doctor --json               # same map, for a script or an agent
+
+The last line is always \`Next: …\` — the one action this repo needs.
+`,
+
+  init: `govkit init — scaffold governance into a repo, or adopt an existing corpus
+
+Usage:
+  govkit init         [--root <dir>] [--docs-root <dir>] [--force]
+  govkit init --adopt [--root <dir>] [--apply]
+
+Scaffold mode writes govkit.yml (the schema govkit itself ships), .claude/settings.json
+(the PreToolUse write-time hook) and one INDEX.md stub per doc type. Idempotent — an
+existing file is skipped, never clobbered, unless --force.
+
+--adopt is the brownfield mode instead: for docs that LACK front-matter it lifts DECLARED
+prose metadata (\`**Status**: accepted\`) into a YAML block and writes \`<MISSING — fill in>\`
+where nothing was found, so the gate still flags it — it never asserts metadata nobody
+approved. Docs that already have a block are untouched; status values outside your enum
+print as a SUGGESTED govkit.yml patch, never applied. Dry run unless --apply.
+
+Flags:
+  --root <dir>       Repo root to write into (default: cwd).
+  --docs-root <dir>  Parent dir for kit-managed docs, e.g. .govkit (sets docs.root).
+  --force            Overwrite existing files (scaffold mode only).
+  --adopt            Migrate an existing corpus instead of scaffolding.
+  --apply            Write the proposed front-matter to disk (--adopt only).
+
+Examples:
+  govkit init                   # greenfield: config, hook and INDEX stubs
+  govkit init --adopt --apply   # brownfield: write front-matter for legacy docs
+
+init ends by naming the next command for YOUR repo; \`govkit doctor\` recomputes it.
+`,
+
+  verify: `govkit verify — the structural gate over every governed doc
+
+Usage:
+  govkit verify [--root <dir>] [--json] [--changed [--base <ref>]]
+                [--check-citations] [--journal] [--hook]
+
+Checks every governed doc for: a parseable leading \`---\` block carrying each required
+key, a status inside the type's enum, the id/filename convention, a matching INDEX.md
+row, globally unique ids, no unresolved placeholder, chain-status coherence, the
+sections a status requires, and well-formed waivers. Binary — exit 0 clean, exit 1 on
+any BLOCKING violation. Advisory kinds and waived findings are reported by name and
+never flip the verdict. Every violation names its file, what disagreed, and the fix.
+
+Flags:
+  --root <dir>  Repo root containing govkit.yml (default: cwd).
+  --json        Emit VerifyResult as JSON on stdout; no human report.
+  --changed     Scope the REPORT to docs new-or-modified vs --base; cross-doc checks
+                still scan everything, so a new duplicate id is still caught. Needs git.
+  --base <ref>  Base ref for --changed (default: origin/main, else HEAD).
+  --check-citations   OPT-IN, ANCHORED: every \`path:line\` the tree cites must still NAME the
+                code it claims — a moved block fails though its old line exists. verify only.
+  --journal     Append one JSON line for this run to .govkit/journal.jsonl.
+  --hook        Map a FAIL to exit 2 and route the report to stderr (blocking hook).
+
+Examples:
+  govkit verify                          # gate the whole corpus
+  govkit verify --changed --base main    # gate only this branch's docs
+
+Next: govkit eval   (or \`govkit check\` to run both in one pass)
+`,
+
+  eval: `govkit eval — the graded quality layer on top of a passing gate
+
+Usage:
+  govkit eval [--root <dir>] [--json] [--changed [--base <ref>]] [--journal] [--hook]
+
+Two layers over the rubric in govkit.yml (\`eval.rubrics.<type>\`). The REQUIRED floor is
+a small set of rules every legitimate doc of the type carries; missing one BLOCKS (exit 1).
+Everything else contributes weight to an advisory 0–100 score compared against
+\`eval.threshold\` — reported, never blocking. It is a STRUCTURAL floor, not a substance
+judge: it proves a doc has the canonical sections and is not a stub. No API key, ever.
+No \`eval:\` block in govkit.yml ⇒ one note and exit 0.
+
+Flags:
+  --root <dir>  Repo root containing govkit.yml (default: cwd).
+  --json        Emit EvalResult as JSON on stdout; no human report.
+  --changed     Score ONLY the docs new-or-modified vs --base. Needs git.
+  --base <ref>  Base ref for --changed (default: origin/main, else HEAD).
+  --journal     Append one JSON line for this run to .govkit/journal.jsonl.
+  --hook        Map a FAIL to exit 2 and route the report to stderr (blocking hook).
+
+Examples:
+  govkit eval                     # floor + advisory score for the whole corpus
+  govkit eval --json              # the per-artifact breakdown, machine-readable
+
+Next: govkit check   (verify + eval, the gate CI runs)
+`,
+
+  check: `govkit check — the single no-API-key gate a CI calls
+
+Usage:
+  govkit check [--root <dir>] [--changed [--base <ref>]] [--journal] [--hook]
+
+Runs verify then eval. BOTH always run, so one invocation surfaces every failure —
+a structural violation does not hide an eval floor miss. Exits non-zero when either
+half fails. Deliberately does NOT run drift, stale or ledger: those need git and are
+opt-in gates of their own.
+
+Flags:
+  --root <dir>  Repo root containing govkit.yml (default: cwd).
+  --changed     Scope both halves to docs new-or-modified vs --base. Needs git.
+  --base <ref>  Base ref for --changed (default: origin/main, else HEAD).
+  --journal     Append one JSON line for this run to .govkit/journal.jsonl.
+  --hook        Map a FAIL to exit 2 and route both reports to stderr.
+
+Examples:
+  govkit check                              # the CI gate
+  govkit check --changed --base origin/main # adoption mode: only this branch's docs
+
+Next: govkit drift   (the spec↔code claim gate — the one gate check does not run)
+`,
+
+  calibrate: `govkit calibrate — the eval's own regression harness
+
+Usage:
+  govkit calibrate --corpus <dir> [--root <dir>] [--json]
+                   [--baseline <file> [--update-baseline]]
+
+Grades a LABELED corpus: everything under <corpus>/good/ must clear the required floor,
+everything under <corpus>/weak/ must fail it. Reports the floor's confusion matrix plus
+precision / recall / f1. Exits 1 on ANY false positive — a good doc blocked is the
+zero-FP hard invariant, because that is what gets a gate switched off — and, with
+--baseline, on a recall or f1 drop against the committed numbers.
+
+Flags:
+  --root <dir>       Repo whose govkit.yml supplies the rubric (default: cwd).
+  --corpus <dir>     REQUIRED. Labeled corpus containing good/ and weak/ subtrees.
+  --baseline <file>  Baseline JSON to compare against. A missing file is an error
+                     unless --update-baseline creates it (bootstrap).
+  --update-baseline  Rewrite --baseline from this run. Refused (exit 1, nothing
+                     written) when the run has a false positive or a regression.
+  --json             Emit CalibrateResult as JSON on stdout.
+
+Examples:
+  govkit calibrate --corpus eval/fixtures --baseline eval/baseline.json
+  govkit calibrate --corpus eval/fixtures --baseline eval/baseline.json --update-baseline
+
+Next: govkit check   (calibrate proves the gate; check runs it)
+`,
+
+  report: `govkit report — the advisory lifecycle view
+
+Usage:
+  govkit report [--root <dir>] [--json | --pr-body]
+
+Per-type status histogram with the ids in each bucket, marking which statuses are
+terminal (decided / shipped, per \`terminalStatuses\`). Answers "what is done, what is
+in flight, what needs cleanup". Read-only and ALWAYS exits 0 — a lifecycle view that
+could fail CI would be gated on, and presence is not currency: it cannot judge prose.
+
+Flags:
+  --root <dir>  Repo root containing govkit.yml (default: cwd).
+  --json        Emit ReportResult as JSON on stdout.
+  --pr-body     Emit the same view as GitHub markdown fenced by stable
+                <!-- govkit:report:begin/end --> markers — deterministic on unchanged
+                state, so an injector splices it with zero diff noise. govkit only
+                emits; writing it into a PR body is the caller's job (gh pr edit).
+                Mutually exclusive with --json.
+
+Examples:
+  govkit report
+  govkit report --pr-body >> "$GITHUB_STEP_SUMMARY"
+
+Next: govkit stale   (which of those in-flight docs the code has moved past)
+`,
+
+  stale: `govkit stale — advisory recency for docs that claim to govern code
+
+Usage:
+  govkit stale [--root <dir>] [--json]
+
+For every doc carrying \`governs: [glob]\`, compares the doc's last-commit time against
+the newest commit of the code it governs and warns when the code moved on. A PROXY:
+"code changed" is not "doc wrong" (a rename or a lint fix trips it), and a fresh result
+does not certify the prose. So it NEVER blocks — always exits 0 — and \`check\` never
+calls it. Needs git; without it, one note and exit 0.
+
+Flags:
+  --root <dir>  Repo root containing govkit.yml (default: cwd).
+  --json        Emit StaleResult as JSON on stdout.
+
+Examples:
+  govkit stale
+  govkit stale --json
+
+Next: govkit drift   (the deterministic version — a recorded claim, not a timestamp)
+`,
+
+  drift: `govkit drift — the deterministic spec↔code gate
+
+Usage:
+  govkit drift        [--root <dir>] [--json] [--journal] [--hook]
+  govkit drift --ack  [docPath] [--root <dir>] [--json] [--journal]
+
+A doc opts in by carrying BOTH \`governs:\` and \`reconciled: sha256:<hex>\` — the author's
+recorded claim "this doc is true as of this content state", hashed over the governed
+files' git blob OIDs so it survives squash and rebase. The gate fails (exit 1) when the
+governed content no longer matches that claim. Every governed doc, opted in or not, is
+also checked for governs EXISTENCE: a pathspec matching no tracked file is a violation,
+because a ghost path silently shrinks drift and stale coverage.
+
+The two honest exits are updating the doc or an explicit \`--ack\`. The gate never acks
+itself. Git absent degrades to a note + exit 0; \`check\` never calls it.
+
+Flags:
+  --root <dir>  Repo root containing govkit.yml (default: cwd).
+  --ack         Rewrite \`reconciled:\` to the current hash — for the doc named by the
+                positional path, or ALL opted-in docs when none is given. Surgical:
+                only the claim value changes. Never combines with --hook.
+  --json        Emit the result as JSON on stdout.
+  --journal     Append one JSON line for this run (an ack is marked \`ack: true\`).
+  --hook        Map a FAIL to exit 2 and route the report to stderr.
+
+Examples:
+  govkit drift                                 # gate
+  govkit drift --ack docs/rfc/RFC-0015.md      # reconcile one doc after updating it
+
+Next: govkit ledger   (the other git-backed gate)
+`,
+
+  ledger: `govkit ledger — the committed feature-ledger gate
+
+Usage:
+  govkit ledger [--root <dir>] [--json] [--journal] [--hook]
+
+Gates the committed JSON ledger — \`{ entries: [{ id, title, spec, passes, check? }] }\` at
+docs/ledger.json, or \`ledger.path\` in govkit.yml — on four properties: it parses and
+matches the schema, ids are unique, every \`spec\` resolves to a real governed doc id, and
+the file is APPEND-ONLY versus the committed HEAD version (a removed entry or removed
+\`check\` provenance is a violation; flipping \`passes\` either way is legal). The N/M
+passing summary is advisory and never moves the exit code. A missing or malformed ledger
+is an operational error, not a pass — an opt-in gate pointed at nothing must never be green.
+
+Flags:
+  --root <dir>  Repo root containing govkit.yml (default: cwd).
+  --json        Emit LedgerResult as JSON on stdout.
+  --journal     Append one JSON line for this run to .govkit/journal.jsonl.
+  --hook        Map a FAIL to exit 2 and route the report to stderr.
+
+Examples:
+  govkit ledger
+  govkit ledger --json
+
+Next: govkit check   (the no-key gate over the docs those entries cite)
+`,
+
+  "audit-write": `govkit audit-write — the per-write twin of the verify gate
+
+Usage:
+  govkit audit-write [--root <dir>]        # reads a PreToolUse hook payload on stdin
+
+Blocks a Write to a governed doc that lacks complete front-matter, before the file lands
+— the same rule CI enforces, one write earlier. On a write that marks a doc terminal
+while it has a parent, it emits a NON-blocking reconciliation reminder instead.
+
+Acts on Write only: an Edit DEFERS, because partial content cannot be parsed, so an
+Edit-based status flip is caught later by the CI verify gate. Robust by construction —
+any internal failure defers rather than crash-blocking the author's write.
+
+\`govkit init\` wires this into .claude/settings.json for you; you rarely run it by hand.
+
+Flags:
+  --root <dir>  Repo root containing govkit.yml (default: the hook's cwd).
+
+Examples:
+  echo '{"tool_name":"Write","tool_input":{"file_path":"docs/adr/ADR-0001.md","content":"..."}}' \\
+    | govkit audit-write --root .
+
+Next: govkit doctor   (confirm the hook is the one this repo has installed)
+`,
+};
+
+/**
+ * One remedy per violation kind. `Record<ViolationKind, string>` so a NEW kind cannot ship
+ * without one — an agent recovers from a gate failure by pattern-matching text to an action, and
+ * a kind with no remedy is a kind it has to guess at. Each line names the repair AND, where the
+ * answer lives in config, the exact govkit.yml key — "unknown status" is only actionable if you
+ * are told where the enum is.
+ */
+const VIOLATION_REMEDY: Record<ViolationKind, string> = {
+  citation:
+    "a `path:line` reference no longer describes what the sentence claims — re-read the cited file and update the line (path-missing: the file moved or was renamed; line-beyond-eof: the file shrank; anchor-not-found: the cited block moved, so re-cite it or name its symbol in the sentence)",
+  coherence:
+    "a decided doc points at a parent that is not decided — advance the parent's status, or repoint `parent:` (the decided set is docs.types.<type>.terminalStatuses)",
+  duplicate:
+    "two docs claim one id — renumber the newer doc AND its filename; ids are unique across every type, not just within one",
+  frontmatter:
+    "add the missing key(s) to the leading `---` block, or repair the block if the parser rejected it (required keys: docs.base.required ∪ docs.types.<type>.required)",
+  id: "the id must carry the type's prefix and match the filename (`<id>.md` or `<id>-*.md`) — see docs.types.<type>.idPrefix, or set idFilenameConvention: false for a named-file layout",
+  index:
+    "add or correct this doc's row in the type dir's INDEX.md — the columns that must agree are docs.types.<type>.index.sync (default: status)",
+  placeholder:
+    "replace the scaffolded value with a real one; `owner: TBD` is the ONE legal sentinel (an agent must never self-assign an owner)",
+  reference:
+    "this doc's ref names an id no governed doc carries — fix the value or author the doc it points at; the keys checked are docs.types.<type>.refs",
+  section:
+    "add the heading this status requires — the patterns live at docs.types.<type>.requiredSectionsByStatus.<status>",
+  status: "use a value from the type's enum — it lives at docs.types.<type>.statuses in govkit.yml",
+  waiver:
+    "repair the `waivers:` entry in govkit.yml — rule, scope, reason, authorized_by and expires are ALL mandatory, expires is ISO, and `rule` must name a real verify kind or rubric rule id",
+};
+
+/** True when at least one finding is "this doc has no `---` block at all" — the ONE condition
+ *  `govkit init --adopt` can act on. verify reports that and "the block is present but broken"
+ *  under the SAME kind (`frontmatter`), while adopt treats them oppositely: it scaffolds a block
+ *  where there is none and refuses to touch one that exists, because it must never prepend a
+ *  second. Anything that suggests adopt has to test for this, not for the kind. */
+function hasUnmigratedDocs(violations: readonly Violation[]): boolean {
+  return violations.some(
+    (v) => v.kind === "frontmatter" && v.problems.some((p) => p.startsWith("missing YAML")),
+  );
+}
+
+/** `frontmatter` is the one kind whose remedy depends on WHICH of its two failures fired, so the
+ *  migration is offered only where it would actually do something. Every other kind is a constant
+ *  — the table stays `Record<ViolationKind, string>`, which is what makes completeness a compile
+ *  error rather than a review note. */
+function remedyFor(kind: ViolationKind, violations: readonly Violation[]): string {
+  const base = VIOLATION_REMEDY[kind];
+  if (kind !== "frontmatter" || !hasUnmigratedDocs(violations)) return base;
+  return `${base}; for a doc with NO block at all, \`govkit init --adopt\` drafts one from its own prose`;
+}
+
+/** The eval floor has one shape of failure, so it gets one remedy rather than a table. */
+const EVAL_FLOOR_REMEDY =
+  "each `missing required:` above is a rubric rule id — its heading/pattern is at eval.rubrics.<type> in govkit.yml; add the section it asks for";
+
+/**
+ * The next-step footer. Every command ends by naming what to run next, computed from the ACTUAL
+ * result — a static string would point a failing repo at an imagined happy path, which is worse
+ * than silence because an agent follows it. Blank line first so the footer is greppable and never
+ * runs into the report above it.
+ */
+function writeNext(stream: NodeJS.WritableStream, line: string): void {
+  stream.write(`\nNext: ${line}\n`);
+}
+
+/** verify's next step: on FAIL the fix, on OK the next gate. A corpus whose docs have no
+ *  front-matter at all has a MIGRATION available, which is a different action from repairing
+ *  a key by hand — so it is detected and named rather than folded into "fix the files above". */
+function verifyNext(result: VerifyResult): string {
+  if (result.ok) {
+    const reported = result.violations.length;
+    return reported > 0
+      ? `govkit eval   (${reported} finding(s) above were advisory or waived — reported, not blocking)`
+      : "govkit eval   (or `govkit check` to run verify + eval in one pass)";
+  }
+  if (hasUnmigratedDocs(result.violations)) {
+    const unmigrated = result.violations.filter(
+      (v) => v.kind === "frontmatter" && v.problems.some((p) => p.startsWith("missing YAML")),
+    ).length;
+    return `govkit init --adopt   (${unmigrated} doc(s) have no front-matter block at all; add --apply to write, then re-run \`govkit verify\`)`;
+  }
+  return "fix the doc(s) above — each violation's `fix:` line names the repair — then re-run `govkit verify`";
+}
+
+/** eval's next step. The `note` path (no rubric configured) is its own case: there is nothing
+ *  to fix, the feature is simply unconfigured, and saying "fix the docs" there would be a lie. */
+function evalNext(result: EvalResult): string {
+  if (result.note) {
+    return "add an `eval:` rubric to govkit.yml to turn this layer on — `govkit verify` is the structural gate meanwhile";
+  }
+  if (!result.ok) {
+    const blocked = result.artifacts.filter((a) => !a.floorOk).length;
+    return `fix the ${blocked} BLOCK artifact(s) above — ${EVAL_FLOOR_REMEDY} — then re-run \`govkit eval\``;
+  }
+  return "govkit check   (verify + eval together, the gate CI runs)";
+}
+
+/** drift's next step. The `note` path means nothing was evaluable (no git, or no doc opted in),
+ *  which is an OPT-IN gap, not a failure — pointing it at `--ack` would be nonsense. */
+function driftNext(result: DriftResult): string {
+  if (result.note) {
+    return "add `governs:` + `reconciled: sha256:<hex>` to a doc to opt it into the claim gate (`govkit drift --ack <doc>` writes the hash)";
+  }
+  if (!result.ok) {
+    return `update the doc(s) above, then \`govkit drift --ack <doc>\`   (${result.drifted.length} in violation; the gate never acks itself)`;
+  }
+  return "govkit ledger   (the other git-backed gate) — or `govkit stale` for the advisory recency view";
+}
+
+/** check's next step: whichever half failed owns the footer, so the agent is pointed at the
+ *  first thing standing between it and green — never at the happy path while a gate is red. */
+function checkNext(verify: VerifyResult, evaluation: EvalResult): string {
+  if (!verify.ok) return verifyNext(verify);
+  if (!evaluation.ok) return evalNext(evaluation);
+  return "govkit drift   (the spec↔code claim gate — the one gate `check` does not run; needs git)";
+}
 
 function readStdin(): Promise<string> {
   return new Promise((resolveStdin) => {
@@ -143,24 +518,43 @@ function printVerify(result: VerifyResult, toStderr = false): void {
   const scope = result.scoped
     ? ` (changed-set vs ${result.scoped.ref}: ${result.scoped.changedDocs} doc(s); cross-doc checks scanned all ${result.checked})`
     : "";
-  // Advisory-tier violations (RFC-0014) never flip the OK/FAIL header, but they are never
-  // silent either: they get their own summary count and a `warn` prefix per entry.
-  const advisories = result.violations.filter((v) => v.tier === "advisory").length;
-  const blocking = result.violations.length - advisories;
-  const advTail = advisories > 0 ? `, ${advisories} advisor${advisories === 1 ? "y" : "ies"}` : "";
+  // ONE summary for both verdicts, computed in verify.ts beside the counting rule. Neither an
+  // advisory (RFC-0014) nor a waived finding flips the OK/FAIL header, and neither is silent in
+  // it either: both are counted by name, so the header can never claim "0 violations" over a body
+  // that lists one. On a clean report the line degrades to exactly `0 violations`.
+  const summary = verifySummaryLine(result);
   // --hook routes the whole human report to stderr — the channel a blocking-hook harness
   // feeds back to the model; otherwise OK → stdout, FAIL → stderr as before.
   const stream = toStderr || !result.ok ? process.stderr : process.stdout;
-  if (result.ok) {
-    stream.write(
-      `govkit verify: OK — ${result.checked} doc(s) checked, 0 violations${advTail}${scope}.\n`,
-    );
-  } else {
-    stream.write(`govkit verify: FAIL — ${blocking} doc(s) with violations${advTail}${scope}:\n`);
-  }
+  const header = result.ok ? "OK" : "FAIL";
+  const tail = result.ok ? "." : ":";
+  stream.write(
+    `govkit verify: ${header} — ${result.checked} doc(s) checked, ${summary}${scope}${tail}\n`,
+  );
+  // One prefix per entry, so the reason an entry is not blocking is visible without reading its
+  // problems: `waived` (a human signed for THIS finding) outranks `warn` (the KIND is advisory
+  // everywhere) — a waived advisory is still, first, someone's signed exception.
+  const kinds = new Set<ViolationKind>();
   for (const v of result.violations) {
-    stream.write(`  ${v.tier === "advisory" ? "warn " : ""}${v.file} [${v.type}]\n`);
+    const mark = v.waivedBy !== undefined ? "waived " : v.tier === "advisory" ? "warn " : "";
+    stream.write(`  ${mark}${v.file} [${v.type}]\n`);
     for (const problem of v.problems) stream.write(`    - ${problem}\n`);
+    kinds.add(v.kind);
+  }
+  // The remedy block is grouped by KIND, not repeated per entry: the fix for `status` is the
+  // same sentence on all forty docs that got it wrong, and a report that repeats it forty times
+  // costs the reader the one thing this output is for. Printed only for the kinds actually
+  // present, so a clean run is byte-identical to before.
+  //
+  // Indented FOUR spaces, deliberately. Two-space-then-non-space is this printer's grammar for
+  // "one violation entry", and the counting invariant beside `verifySummaryLine` — the header
+  // may never claim fewer findings than the body lists — is checked on exactly that shape. A
+  // remedy is commentary on the entries above, not a new one, so it sits at the problem level.
+  if (kinds.size > 0) {
+    stream.write("\nFixes:\n");
+    for (const kind of kinds) {
+      stream.write(`    fix: [${kind}] ${remedyFor(kind, result.violations)}\n`);
+    }
   }
 }
 
@@ -175,15 +569,38 @@ function printEval(result: EvalResult, toStderr = false): void {
   const advPct = Math.round(result.advisoryPassRate * 100);
   // Never silently scope: when --changed narrowed the scored set, say so explicitly.
   const scope = result.scoped ? ` (changed-set vs ${result.scoped.ref})` : "";
+  // `floorPassRate` stays waiver-BLIND on purpose (a waiver must never move the number
+  // calibrate reads), so an all-waived run reads "0% passed" under an OK header. Without the
+  // waived count that pair is unreadable — the same header-vs-body contradiction printVerify
+  // just lost. Counted in eval.ts beside the data, in BOTH units, so the header can only ever
+  // describe the lines printed under it.
   stream.write(
-    `govkit eval: ${header} — ${result.scored} artifact(s)${scope}; required floor: ` +
-      `${Math.round(result.floorPassRate * 100)}% passed; ` +
+    `govkit eval: ${header} — ${result.scored} artifact(s)${scope}; ${evalFloorLine(result)}; ` +
       `advisory score: avg ${result.averageScore}/100, ${advPct}% ≥ ${result.threshold}.\n`,
   );
+  // Who signed for this artifact's missed required rules, and until when. Printed on EVERY line
+  // that has one — the blocking line too: an artifact can be partly signed (one missed required
+  // rule waived, one not), it still blocks, and dropping the signature there is what makes a
+  // human-signed exception indistinguishable from a bug. It is also what left the header's waived
+  // count with no line beneath it to account for.
+  const signature = (a: ArtifactScore): string =>
+    a.waived.length === 0
+      ? ""
+      : ` (signed: ${a.waived
+          .map((w) => `${w.rule} by ${w.waiver.authorized_by} until ${w.waiver.expires}`)
+          .join("; ")})`;
   for (const a of result.artifacts) {
-    if (!a.requiredOk) {
+    // Branch on what the GATE read (`floorOk`), not on the literal `requiredOk`: an artifact
+    // whose every missed required rule is signed for printed `BLOCK` under an `OK` header and
+    // never named the signature. The gap is still shown — marking, never filtering — but it is
+    // shown as what it is.
+    if (!a.floorOk) {
       stream.write(
-        `  BLOCK ${a.score}/100  ${a.file} [${a.type}] — missing required: ${a.missedRequired.join("; ")}\n`,
+        `  BLOCK ${a.score}/100  ${a.file} [${a.type}] — missing required: ${a.missedRequired.join("; ")}${signature(a)}\n`,
+      );
+    } else if (!a.requiredOk) {
+      stream.write(
+        `  waived ${a.score}/100  ${a.file} [${a.type}] — missing required: ${a.missedRequired.join("; ")}${signature(a)}\n`,
       );
     } else {
       const mark = a.passedAdvisory ? "ok   " : "warn ";
@@ -191,6 +608,13 @@ function printEval(result: EvalResult, toStderr = false): void {
       stream.write(`  ${mark} ${a.score}/100  ${a.file} [${a.type}]${tail}\n`);
       if (!a.passedAdvisory) for (const m of a.missed) stream.write(`         - ${m}\n`);
     }
+  }
+  // Same discipline as printVerify: a blocked artifact names a rule id, and a rule id is only
+  // actionable once you are told where its pattern is defined. One line, only when it blocks.
+  // Four-space indent for the same reason as printVerify's: two-space entries are this
+  // printer's per-artifact rows, and a remedy must not read as one more artifact.
+  if (result.artifacts.some((a) => !a.floorOk)) {
+    stream.write(`\nFixes:\n    fix: [required floor] ${EVAL_FLOOR_REMEDY}\n`);
   }
 }
 
@@ -233,6 +657,76 @@ function printInit(result: InitResult): void {
   process.stdout.write(
     `govkit init: ${result.created.length} created, ${result.skipped.length} skipped.\n`,
   );
+}
+
+/** Render one NextAction as the single `Next:` line. The command and the reason are joined
+ *  HERE, never in the action, so doctor and init cannot phrase the same recommendation two
+ *  different ways — that divergence is what makes a next-step untrustworthy. */
+function nextActionLine(action: NextAction): string {
+  return action.command ? `${action.command}   (${action.detail})` : action.detail;
+}
+
+function printDoctor(result: DoctorResult): void {
+  const out = process.stdout;
+  out.write(`govkit doctor — ${result.root}\n\n`);
+  switch (result.config.kind) {
+    case "missing":
+      out.write("  config    NOT FOUND — no govkit.yml at this root\n");
+      break;
+    case "invalid":
+      out.write(`  config    UNREADABLE — ${result.config.problem}\n`);
+      break;
+    case "loaded":
+      out.write(
+        `  config    govkit.yml loaded${result.docsRoot === "." ? "" : ` (docs.root: ${result.docsRoot})`}\n`,
+      );
+      break;
+  }
+  out.write(
+    `  hook      ${result.hook.installed ? "installed" : "NOT installed"} — ${result.hook.path}\n`,
+  );
+  if (result.config.kind === "loaded") {
+    // The two front-matter counts are named apart, because the ACTION differs: no block at all
+    // is a migration `init --adopt` can do, a broken block is a hand repair adopt refuses.
+    const malformed =
+      result.malformedFrontMatter > 0 ? `, ${result.malformedFrontMatter} malformed` : "";
+    out.write(
+      `  governed  ${result.totalDocs} doc(s) across ${result.types.length} type(s), ` +
+        `${result.missingFrontMatter} without a front-matter block${malformed}\n`,
+    );
+    if (result.types.length > 0) {
+      // Padded columns so a type's dir and count are scannable in one pass; the status enum is
+      // printed in full because "which values are legal here" is otherwise a second tool call.
+      const nameWidth = Math.max(4, ...result.types.map((t) => t.name.length));
+      const dirWidth = Math.max(3, ...result.types.map((t) => t.dir.length));
+      const startWidth = Math.max(0, ...result.types.map((t) => (t.startStatus ?? "").length));
+      out.write("\n");
+      for (const t of result.types) {
+        const flags = [
+          t.missingFrontMatter > 0 ? `${t.missingFrontMatter} need adopt` : "",
+          t.malformedFrontMatter > 0 ? `${t.malformedFrontMatter} malformed block` : "",
+        ].filter((f) => f !== "");
+        const missing = flags.length > 0 ? `  ← ${flags.join(", ")}` : "";
+        const statuses = t.statuses ? `statuses: ${t.statuses.join(", ")}` : "";
+        const start = `start: ${(t.startStatus ?? "—").padEnd(startWidth)}`;
+        out.write(
+          `  ${t.name.padEnd(nameWidth)}  ${t.dir.padEnd(dirWidth)}  ` +
+            `${String(t.docs).padStart(4)} doc(s)  ${start}  ${statuses}${missing}\n`,
+        );
+      }
+    }
+    if (result.ungoverned.length > 0) {
+      // Reported, never recommended: "markdown beside your doc dirs" is a guess, and the
+      // recommendation ladder deliberately refuses to act on a guess (see doctor.ts).
+      out.write("\n  ungoverned markdown beside your doc dirs (no docs.types entry claims it):\n");
+      for (const u of result.ungoverned) {
+        out.write(`    ${u.dir}  ${u.markdown}${u.capped ? "+" : ""} file(s)\n`);
+      }
+    }
+  }
+  // Always exits 0 — a map, not a gate. Said out loud so nobody wires it into CI as one.
+  out.write("\n(read-only: doctor never writes, never gates, always exits 0.)\n");
+  writeNext(out, nextActionLine(result.next));
 }
 
 function printAdopt(result: AdoptResult): void {
@@ -460,17 +954,31 @@ async function main(argv: string[]): Promise<number> {
       ack: { type: "boolean", default: false },
       "pr-body": { type: "boolean", default: false },
       "docs-root": { type: "string" },
+      "check-citations": { type: "boolean", default: false },
       force: { type: "boolean", default: false },
       help: { type: "boolean", short: "h", default: false },
     },
   });
 
+  const command = positionals[0];
+
+  // `--help` short-circuits BEFORE flag validation: asking a command how it works must never
+  // fail because of another flag on the line. With a command it prints that command's page and
+  // nothing else; bare, it prints the index. An unknown command is still an error — silently
+  // showing the index would let `govkit verfiy --help` read as success.
   if (values.help) {
-    process.stdout.write(HELP);
-    return 0;
+    if (command === undefined) {
+      process.stdout.write(HELP);
+      return 0;
+    }
+    if (isCommand(command)) {
+      process.stdout.write(HELP_PAGES[command]);
+      return 0;
+    }
+    process.stderr.write(`govkit: unknown command '${command}'\n\n${HELP}`);
+    return 2;
   }
 
-  const command = positionals[0];
   if (!command) {
     process.stderr.write(HELP);
     return 1;
@@ -495,6 +1003,10 @@ async function main(argv: string[]): Promise<number> {
     { set: values.corpus !== undefined, flag: "--corpus", allowed: ["calibrate"] },
     { set: values.baseline !== undefined, flag: "--baseline", allowed: ["calibrate"] },
     { set: values["update-baseline"], flag: "--update-baseline", allowed: ["calibrate"] },
+    // `verify` only, deliberately NOT `check`: `check` is the no-API-key CI gate, and a rule with
+    // no calibration history may not be reachable from the command CI runs. It earns its way in
+    // with evidence, not by being wired everywhere on day one.
+    { set: values["check-citations"], flag: "--check-citations", allowed: ["verify"] },
     { set: values.changed, flag: "--changed", allowed: gateCommands },
   ];
   for (const { set, flag, allowed } of scopedFlags) {
@@ -521,6 +1033,17 @@ async function main(argv: string[]): Promise<number> {
   if (values["pr-body"] && values.json) {
     process.stderr.write(
       "govkit: --pr-body cannot be combined with --json — one stdout, one machine channel\n",
+    );
+    return 2;
+  }
+  // The citation pass reads the governed TREE (a design tree's `model.yaml` carries most of this
+  // repo's own citations), while `--changed` resolves its scope from git with an `.md`-only
+  // filter. Combined, every non-markdown citing file would silently fall out of the report — the
+  // "looks-checked-but-isn't" leak this whole check exists to close. Refuse loudly instead.
+  if (values["check-citations"] && values.changed) {
+    process.stderr.write(
+      "govkit: --check-citations cannot be combined with --changed — the changed set is " +
+        "resolved for `.md` docs only, so non-markdown citing files would drop out unreported\n",
     );
     return 2;
   }
@@ -601,10 +1124,14 @@ async function main(argv: string[]): Promise<number> {
             ? {
                 verify: {
                   docs: parts.verify.checked,
+                  // Marking, never filtering, holds all the way to the sensor: a waived finding
+                  // is journalled like any other AND carries `waived: true`, so a consumer can
+                  // tell a signed-for exception from the broken gate it otherwise looks like.
                   violations: parts.verify.violations.map((v) => ({
                     path: v.file,
                     kind: v.kind,
                     tier: v.tier,
+                    ...(v.waivedBy !== undefined ? { waived: true as const } : {}),
                   })),
                 },
               }
@@ -616,6 +1143,15 @@ async function main(argv: string[]): Promise<number> {
                   floorPassRate: parts.eval.floorPassRate,
                   advisoryPassRate: parts.eval.advisoryPassRate,
                   averageScore: parts.eval.averageScore,
+                  // The same marker the verify entries carry, one layer up: eval journals
+                  // aggregates, so the mark is the COUNT of artifacts a waiver cleared the floor
+                  // for. Omitted when zero (never 0), so lines written before it stay readable.
+                  // Without it `floorPassRate: 0` on an `ok: true` line is a gate failing open as
+                  // far as any consumer can tell — RFC-0017's distiller would learn from an
+                  // incident nobody had.
+                  ...(waiverClearedArtifacts(parts.eval) > 0
+                    ? { waived: waiverClearedArtifacts(parts.eval) }
+                    : {}),
                 },
               }
             : {}),
@@ -658,27 +1194,69 @@ async function main(argv: string[]): Promise<number> {
       // --apply is adopt-only. Dry-run unless --apply, and the exit code reflects whether any
       // migrated doc would still fail the gate (a missing-field sentinel) so CI can't mistake
       // a preview for a clean migration.
+      const root = values.root ?? process.cwd();
       if (values.adopt) {
-        const result = runAdopt({ root: values.root ?? process.cwd(), apply: values.apply });
+        const result = runAdopt({ root, apply: values.apply });
         printAdopt(result);
+        const needHuman = result.planned.filter((p) => p.hasMissing).length;
+        // Four outcomes, four different next steps — a preview, a written migration with holes,
+        // a clean written migration, and nothing to do are not the same situation.
+        if (result.planned.length === 0) {
+          writeNext(process.stdout, "govkit verify   (nothing to migrate — run the gate)");
+        } else if (!result.applied) {
+          writeNext(
+            process.stdout,
+            `govkit init --adopt --apply   (writes the ${result.planned.length} block(s) previewed above)`,
+          );
+        } else if (needHuman > 0) {
+          writeNext(
+            process.stdout,
+            `fill the \`<MISSING — fill in>\` fields in the ${needHuman} doc(s) above, then run \`govkit verify\``,
+          );
+        } else {
+          writeNext(process.stdout, "govkit verify   (confirm the migrated docs pass the gate)");
+        }
         return result.planned.some((p) => p.hasMissing) ? 1 : 0;
       }
-      const result = runInit({
-        root: values.root ?? process.cwd(),
-        force: values.force,
-        docsRoot: values["docs-root"],
-      });
+      const result = runInit({ root, force: values.force, docsRoot: values["docs-root"] });
       printInit(result);
+      // The footer is DERIVED, not written: re-survey the repo init just scaffolded and print
+      // doctor's own recommendation. A repo that already had docs lands on `init --adopt`; a
+      // blank one lands on authoring the first doc — and neither answer can drift from
+      // `govkit doctor`, because it is literally the same function.
+      writeNext(process.stdout, nextActionLine(runDoctor({ root }).next));
+      return 0;
+    }
+    case "doctor": {
+      // A map, not a gate: read-only, never throws (a broken govkit.yml is the most useful
+      // thing it can report), and ALWAYS exits 0 — see the printer's closing line.
+      const result = runDoctor({ root: values.root ?? process.cwd() });
+      if (values.json) process.stdout.write(`${JSON.stringify(result, null, 2)}\n`);
+      else printDoctor(result);
       return 0;
     }
     case "verify": {
       const root = values.root ?? process.cwd();
       const { ok } = runGate("verify", root, (config) => {
-        const result = runVerify({ root, config, changed });
+        const result = runVerify({
+          root,
+          config,
+          changed,
+          checkCitations: values["check-citations"],
+        });
         // --json keeps stdout the pure machine channel even under --hook; the human
         // report otherwise follows the hook's stderr routing.
         if (values.json) process.stdout.write(`${JSON.stringify(result, null, 2)}\n`);
-        else printVerify(result, values.hook);
+        else {
+          printVerify(result, values.hook);
+          // The footer follows the REPORT's stream, so a hook harness feeding stderr back to a
+          // model gets the fix on the same channel as the failure. Never under --json: stdout
+          // stays one machine channel.
+          writeNext(
+            values.hook || !result.ok ? process.stderr : process.stdout,
+            verifyNext(result),
+          );
+        }
         return { verify: result, ok: result.ok };
       });
       return gateExit(ok);
@@ -688,7 +1266,10 @@ async function main(argv: string[]): Promise<number> {
       const { ok } = runGate("eval", root, (config) => {
         const result = runEval({ root, config, changed });
         if (values.json) process.stdout.write(`${JSON.stringify(result, null, 2)}\n`);
-        else printEval(result, values.hook);
+        else {
+          printEval(result, values.hook);
+          writeNext(values.hook || !result.ok ? process.stderr : process.stdout, evalNext(result));
+        }
         return { eval: result, ok: result.ok };
       });
       return gateExit(ok);
@@ -705,7 +1286,14 @@ async function main(argv: string[]): Promise<number> {
         printVerify(verify, values.hook);
         const evaluation = runEval({ root, config, changed });
         printEval(evaluation, values.hook);
-        return { verify, eval: evaluation, ok: verify.ok && evaluation.ok };
+        // ONE footer for the composite run — printVerify/printEval carry the remedies, but two
+        // competing "Next:" lines would make an agent pick, and the failing half owns the answer.
+        const ok = verify.ok && evaluation.ok;
+        writeNext(
+          values.hook || !ok ? process.stderr : process.stdout,
+          checkNext(verify, evaluation),
+        );
+        return { verify, eval: evaluation, ok };
       });
       return gateExit(ok);
     }
@@ -813,7 +1401,10 @@ async function main(argv: string[]): Promise<number> {
         }
         const result = runDrift({ root, config });
         if (values.json) process.stdout.write(`${JSON.stringify(result, null, 2)}\n`);
-        else printDrift(result, values.hook);
+        else {
+          printDrift(result, values.hook);
+          writeNext(values.hook || !result.ok ? process.stderr : process.stdout, driftNext(result));
+        }
         return {
           drift: {
             checked: result.checked,

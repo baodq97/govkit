@@ -1,0 +1,75 @@
+# Ruleset for the api-designer skill.
+#
+# This pins, as an enforced gate, what references/*.md used to argue in prose:
+# problem+json error shape, pagination on collections, no verbs in URIs, and
+# required operationId/description on every operation. A linter that fails is
+# worth more than a paragraph that asks — see references/ for the judgement
+# this ruleset does NOT try to replace (aggregate -> resource mapping,
+# relationship-role -> contract decisions, operation-responsibility taxonomy).
+#
+# Usage: npx @redocly/cli lint --config plugins/swe-flow/skills/api-designer/redocly.yaml <spec>.yaml
+
+extends:
+  - recommended
+
+rules:
+  # No verbs in URIs (was: references/rest-patterns.md prose).
+  no-http-verbs-in-paths: error
+
+  # Required operation ids/descriptions (was: references/openapi.md "Best Practices" list).
+  operation-operationId: error
+  operation-description: error
+  operation-summary: error
+
+  # Every error is RFC 9457 application/problem+json (was: references/error-handling.md,
+  # which restated the pre-2023 Problem Details RFC, now obsoleted; media type unchanged).
+  rule/error-is-problem-json:
+    subject:
+      type: MediaTypesMap
+    where:
+      - subject:
+          type: Response
+          filterInParentKeys:
+            - '400'
+            - '401'
+            - '403'
+            - '404'
+            - '409'
+            - '422'
+            - '429'
+            - '500'
+            - '502'
+            - '503'
+        assertions:
+          defined: true
+    assertions:
+      required:
+        - application/problem+json
+    message: >-
+      Error responses must serve application/problem+json (RFC 9457 Problem Details) —
+      see assets/problem-details.yaml.
+    severity: error
+
+  # Every collection endpoint has pagination (was: references/pagination.md strategy survey).
+  # A GET whose path does not end in a path-param segment is a collection: it must declare
+  # at least one query parameter. The skeleton fixes the actual param names (cursor/limit) —
+  # this rule only catches an endpoint that skipped pagination entirely.
+  rule/collection-get-needs-pagination:
+    subject:
+      type: Operation
+      matchParentKeys: '^get$'
+    where:
+      - subject:
+          type: PathItem
+          matchParentKeys: '[^}]$'
+        assertions:
+          defined: true
+    assertions:
+      required:
+        - parameters
+    message: A GET on a collection path must declare pagination query parameters.
+    severity: error
+
+  # Every 4xx/5xx documented, every operation reachable — recommended already carries
+  # operation-4xx-response and no-unused-components at warn; leave as warn (advisory,
+  # doesn't block the mock-and-verify step).

@@ -82,7 +82,12 @@ export function runReport(opts: ReportOptions): ReportResult {
     const byStatus = new Map<string, string[]>();
     let typeTotal = 0;
 
-    for (const file of listMarkdown(typeDir(opts.root, docsRoot, def.dir), ignore)) {
+    // The type's `recursive` layout switch, passed here for the same reason verify, eval and the
+    // shared id collector pass it (verify.ts, eval.ts, util.ts scanParsedDocs): a lifecycle view
+    // that walks a NARROWER corpus than the gate reports "1 governed doc" for a tree the gate is
+    // checking two of — the nested doc is gated and graded yet invisible in its own lifecycle,
+    // which is the "looks-governed-but-isn't" leak stated at util.ts typeDir.
+    for (const file of listMarkdown(typeDir(opts.root, docsRoot, def.dir), ignore, def.recursive)) {
       const fm = parseFrontMatter(readFileSync(file, "utf8"));
       // Unparseable docs are verify's problem to report; here they simply have no lifecycle to
       // show, so they are excluded from the histogram (counted by verify, not double-counted).

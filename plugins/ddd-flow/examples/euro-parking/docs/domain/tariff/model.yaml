@@ -17,5 +17,17 @@ notes: >-
   would force a real aggregate: which rate applies to a stay already in progress, and to one crossing
   a night/weekend boundary. VAT is a field of the fiscal record; nobody said how it is derived.
 relationships:
-  - { to: ParkingVisit, type: customer-supplier }
-  - { to: TerminalOperations, type: upstream }
+  - to: ParkingVisit
+    direction: upstream
+    our_roles: [supplier]
+    their_roles: [customer]
+    note: >-
+      "We supply" — `PriceOfStay?` and `TariffChanged`. ParkingVisit's needs enter this context's
+      backlog by agreement; H15 (which rate applies to a stay in progress) is unanswered on our side.
+  - to: TerminalOperations
+    direction: upstream
+    our_roles: [supplier]
+    their_roles: [customer]
+    note: >-
+      `TariffChanged` must be live at that site's machines the same evening. The liveness SLO is the
+      whole dependency — no model crosses this edge.

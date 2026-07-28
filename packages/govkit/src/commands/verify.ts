@@ -1,11 +1,18 @@
 import { existsSync, readFileSync } from "node:fs";
 import { basename, join } from "node:path";
+import { type CitationSummary, runCitations } from "../citations";
 import {
+  classifyWaivers,
   type DocType,
   type GovkitConfig,
   loadConfig,
+  summarizeWaivers,
   type ViolationKind,
   type ViolationTier,
+  type Waiver,
+  type WaiverState,
+  type WaiverSummary,
+  waiverCovers,
 } from "../config";
 import { isParseError, parseFrontMatter } from "../frontmatter";
 import {
@@ -15,6 +22,7 @@ import {
   matches,
   str,
   stripNonProse,
+  toPathspec,
   typeDir,
 } from "../util";
 
@@ -31,6 +39,14 @@ export interface Violation {
   /** Risk tier (RFC-0014), assigned once in runVerify from `config.tiers` (default
    *  blocking). Advisory violations are reported but never fail the gate. */
   tier: ViolationTier;
+  /**
+   * Set when an ACTIVE waiver covered this finding: it is still REPORTED (this object is still in
+   * `violations`, and a human-readable waiver line is appended to `problems` so any printer shows
+   * it) but it does not fail the gate. Absent ⇒ the violation counts toward the verdict as before.
+   * A `waiver`-kind violation can never carry this — a waiver may not waive the report of a
+   * broken waiver, which would make the mechanism self-concealing.
+   */
+  waivedBy?: Waiver;
 }
 
 /** A violation as the individual checks emit it — the tier is not theirs to decide;
@@ -41,6 +57,13 @@ export interface VerifyResult {
   ok: boolean;
   checked: number;
   violations: Violation[];
+  /** Waiver accounting for this run — `waived` is `waivers.applied`. Always present (all-zero
+   *  when nothing is configured) so a consumer never has to special-case its absence. */
+  waivers: WaiverSummary;
+  /** Set only when `checkCitations` was requested (RFC-pending, opt-in). Carries the resolved /
+   *  skipped / failed accounting for the whole run, so the report can never state a citation
+   *  verdict without the denominator it was measured against. Absent ⇒ the pass did not run. */
+  citations?: CitationSummary;
   /** Set only when `changed` scoping was applied — names the base ref and how many
    *  governed docs fell in the changed set, so output is never silently scoped. */
   scoped?: { ref: string; changedDocs: number };
@@ -53,6 +76,17 @@ export interface VerifyOptions {
    *  docs. When provided, the full scan still runs (so cross-doc checks stay correct),
    *  but the REPORT is scoped — see scopeToChanged. `ref` is recorded for output only. */
   changed?: { files: Set<string>; ref: string };
+  /** The instant waiver expiry is judged against. Injected so a test can prove the boundary
+   *  without waiting for it; defaults to now. Nothing else in verify reads a clock. */
+  now?: Date;
+  /**
+   * OPT-IN (`--check-citations`): resolve every `path:line` reference the governed tree makes
+   * into the code it claims to describe. Deliberately not default and deliberately OUT of the
+   * no-key CI gate: it is a brand-new rule with no calibration history, and the repo rule is
+   * that a rule earns its severity with evidence before it blocks anyone. Off ⇒ the pass does
+   * not run at all and `citations` is absent, so an unflagged run is byte-identical to before.
+   */
+  checkCitations?: boolean;
 }
 
 interface Doc {
@@ -123,6 +157,11 @@ function checkIdConvention(file: string, data: Record<string, unknown>, def: Doc
   if (!id.startsWith(`${def.idPrefix}-`)) {
     problems.push(`id '${id}' must start with '${def.idPrefix}-'`);
   }
+  // The filename half is opt-out per type (`idFilenameConvention: false`): a design tree names
+  // its files after the concept (`context-map.md`, a per-context `README.md`) while the id stays
+  // a numbered handle, and there the convention would reject every legitimate file. The prefix
+  // check above still runs, and ids stay globally unique — the doc is still addressable by id.
+  if (def.idFilenameConvention === false) return problems;
   const name = basename(file);
   if (name !== `${id}.md` && !name.startsWith(`${id}-`)) {
     problems.push(`filename '${name}' must be '${id}.md' or start with '${id}-'`);
@@ -357,6 +396,145 @@ function checkRequiredSections(docs: Doc[], types: Record<string, DocType>): Fin
   return violations;
 }
 
+// ANCHORED citation resolution (opt-in, `--check-citations`). A governed doc that cites
+// `verify.ts:645` is asserting something about code, and that assertion rots silently: the
+// measured incident this exists for is a citation that went stale inside the round that wrote
+// it, because a +34-line edit pushed the cited block down while SOMETHING still occupied the old
+// line. Resolution therefore anchors on a token from the citing sentence rather than on the line
+// number alone (see citations.ts for the three-step rule and the three failure names).
+// ONE violation per citing FILE carrying one problem per failure — the same grouping checkIndex
+// uses, and for the same reason: a doc with nine moved citations is one repair, not nine reports.
+// Reported on the citing file, so `--changed` scopes it like any other per-doc check.
+function checkCitations(
+  root: string,
+  config: GovkitConfig,
+): { findings: Finding[]; summary: CitationSummary } {
+  const { summary, reports } = runCitations(root, config);
+  const findings = reports.map((report) => ({
+    file: report.file,
+    type: report.type,
+    kind: "citation" as const,
+    problems: report.failures.map(
+      (f) => `line ${f.citation.fromLine} cites \`${f.citation.raw}\` — ${f.reason}: ${f.detail}`,
+    ),
+  }));
+  return { findings, summary };
+}
+
+// The waiver config is itself governed. Every waiver that is NOT in force gets said out loud, on
+// `govkit.yml`, as one `waiver`-kind violation carrying one problem per broken entry:
+//   • MALFORMED (missing a mandatory field, or naming a rule the gate never emits) — it suppresses
+//     nothing. A waiver that silently fails to parse would be the worst of both worlds: the author
+//     believes the finding is excused, the gate believes nothing was ever asked.
+//   • EXPIRED — it suppresses nothing either, and it is named so the output SAYS the waiver
+//     expired rather than letting the finding reappear as if from nowhere. If the underlying
+//     finding was fixed in the meantime this entry is the only thing left, and deleting two lines
+//     of YAML clears it — that is the intended forcing function against dead accepted debt.
+// Blocking like every other kind, and demotable the same way (`tiers: { waiver: advisory }`) for a
+// repo that wants the reminder without the red.
+function checkWaivers(root: string, states: WaiverState[]): Finding[] {
+  const problems: string[] = [];
+  for (const state of states) {
+    if (state.state === "malformed") {
+      problems.push(...state.problems);
+    } else if (state.state === "expired") {
+      const { rule, scope, expires, authorized_by } = state.waiver;
+      problems.push(
+        `waivers[${state.index}] for rule '${rule}' on '${scope}' EXPIRED on ${expires} ` +
+          `(authorized_by ${authorized_by}) — it no longer suppresses anything; fix the finding, ` +
+          `or record a fresh authorization with a new expires date`,
+      );
+    }
+  }
+  if (problems.length === 0) return [];
+  return [{ file: join(root, "govkit.yml"), type: "waivers", kind: "waiver", problems }];
+}
+
+// Apply the ACTIVE waivers to an already-tiered violation list. Marking, never filtering: a waived
+// violation stays in `violations` (so every printer, `--json` consumer and the journal still see
+// it) and gains a human-readable line explaining who signed it and when it dies — visibility is
+// the whole price of the escape hatch. Only `passes` changes its mind about it. Two guards:
+//   • a `waiver`-kind violation is never waivable — no self-concealing waivers.
+//   • matching is rule×scope, on the repo-relative forward-slash path, so a scope means the same
+//     thing on every OS and in every clone.
+function applyWaivers(root: string, violations: Violation[], states: WaiverState[]): Violation[] {
+  const active = states.flatMap((s) => (s.state === "active" ? [s.waiver] : []));
+  if (active.length === 0) return violations;
+  return violations.map((v) => {
+    if (v.kind === "waiver") return v;
+    const rel = toPathspec(root, v.file);
+    const waiver = active.find((w) => waiverCovers(w, v.kind, rel));
+    if (!waiver) return v;
+    return {
+      ...v,
+      waivedBy: waiver,
+      problems: [
+        ...v.problems,
+        `waived by ${waiver.authorized_by} until ${waiver.expires} — ${waiver.reason} ` +
+          `(reported, not blocking; the finding returns the day the waiver expires)`,
+      ],
+    };
+  });
+}
+
+/** The human summary of a report: `3 violations, 1 blocking, 1 waived, 1 advisory, 1 waiver
+ *  expiring within 14 days`. Lives beside the counting rule rather than in the CLI printer, so the
+ *  numbers have ONE home and can be asserted without spawning a process.
+ *
+ *  The head term counts what the printer is about to LIST, and the breakdown says why the verdict
+ *  came out the way it did. A report that lists a violation may never head itself "0 violations":
+ *  the header contradicting its own body is exactly how a signed-for finding read as a clean run.
+ *  The three buckets partition `violations` — `waived` is taken from the printed list rather than
+ *  from `waivers.applied` (identical by construction, see runVerify's `applied` counting rule) so
+ *  the line can only ever describe the entries beneath it. */
+export function verifySummaryLine(result: VerifyResult): string {
+  const plural = (n: number, word: string): string => `${n} ${word}${n === 1 ? "" : "s"}`;
+  const { expired, expiringSoon, malformed, horizonDays } = result.waivers;
+  const waived = result.violations.filter((v) => v.waivedBy !== undefined).length;
+  const advisory = result.violations.filter(
+    (v) => v.tier === "advisory" && v.waivedBy === undefined,
+  ).length;
+  const parts = [plural(result.violations.length, "violation")];
+  if (result.violations.length > 0) {
+    // `blocking` is the residue of the partition, and it is exactly what flips `ok` — so a reader
+    // can check the arithmetic against the entries printed below.
+    parts.push(`${result.violations.length - waived - advisory} blocking`);
+    if (waived > 0) parts.push(`${waived} waived`);
+    if (advisory > 0) parts.push(`${advisory} advisor${advisory === 1 ? "y" : "ies"}`);
+  }
+  if (expired > 0) parts.push(`${plural(expired, "waiver")} expired`);
+  if (malformed > 0) parts.push(`${plural(malformed, "waiver")} malformed`);
+  if (expiringSoon > 0) {
+    // Not a violation of its own — the one count here that has no entry below it, so it is stated
+    // even on a clean report: an exception about to die is news before the finding returns.
+    parts.push(`${plural(expiringSoon, "waiver")} expiring within ${horizonDays} days`);
+  }
+  if (result.citations) parts.push(citationLine(result.citations));
+  return parts.join(", ");
+}
+
+/** The citation pass's own accounting, appended to the summary ONLY when the pass ran (so an
+ *  unflagged run's line is byte-identical to before it existed).
+ *
+ *  All four totals are always stated — found, resolved, skipped, failed — because the whole point
+ *  of this check is that a number without its denominator lies: the positional checker it replaces
+ *  reported "0 errors" over a corpus that already carried a stale citation. `found = resolved +
+ *  skipped + failed` holds by construction, so a reader can audit the line against itself, and the
+ *  skipped/failed breakdowns name WHICH form was skipped and WHICH way it failed — a silent skip
+ *  reads as coverage, and one generic failure name sends the reader to the wrong repair. */
+function citationLine(c: CitationSummary): string {
+  const breakdown = (by: Record<string, number>): string => {
+    const named = Object.entries(by)
+      .filter(([, n]) => n > 0)
+      .map(([name, n]) => `${name} ${n}`);
+    return named.length > 0 ? ` (${named.join(", ")})` : "";
+  };
+  return (
+    `citations: ${c.found} found in ${c.files} file(s), ${c.resolved} resolved, ` +
+    `${c.skipped} skipped${breakdown(c.skippedBy)}, ${c.failed} failed${breakdown(c.failedBy)}`
+  );
+}
+
 // RFC-0004 adoption scoping: keep ONLY the violations a changed set is responsible for,
 // so an existing repo can adopt govkit without retrofitting its whole backlog first. The
 // load-bearing rule is "scope the REPORT, never the SCAN" — runVerify already scanned ALL
@@ -392,8 +570,17 @@ function scopeToChanged(
   }
   const scoped: Violation[] = [];
   for (const v of violations) {
-    if (v.kind === "duplicate" || v.kind === "reference" || v.kind === "coherence") {
-      scoped.push(v); // global integrity — always reported, never masked
+    if (
+      v.kind === "duplicate" ||
+      v.kind === "reference" ||
+      v.kind === "coherence" ||
+      v.kind === "waiver"
+    ) {
+      // Global integrity — always reported, never masked. `waiver` joins them because it is
+      // reported on `govkit.yml`, which is never a governed `.md` and so could never be in the
+      // changed set: scoped by file it would vanish on every `--changed` run, quietly hiding a
+      // broken or expired exception — the one thing this mechanism may never do.
+      scoped.push(v);
     } else if (v.kind === "index") {
       // An INDEX check emits ONE violation per type listing EVERY doc missing/stale, so
       // keeping it whole would flood untouched legacy docs' rows through --changed (the
@@ -441,7 +628,10 @@ export function runVerify(opts: VerifyOptions): VerifyResult {
     const typeDocs: Doc[] = [];
     const dir = typeDir(opts.root, docsRoot, def.dir);
 
-    for (const file of listMarkdown(dir, ignore)) {
+    // `def.recursive` (default false) is the type's layout switch — a named design tree is
+    // governed to its leaves, a flat numbered corpus scans exactly as before. `eval` and the
+    // shared id collector read the same flag, so no reader governs a different corpus.
+    for (const file of listMarkdown(dir, ignore, def.recursive)) {
       checked++;
       scannedFiles.push({ file, type: typeName });
       const fm = parseFrontMatter(readFileSync(file, "utf8"));
@@ -500,6 +690,19 @@ export function runVerify(opts: VerifyOptions): VerifyResult {
   violations.push(...checkCoherence(allDocs, types));
   violations.push(...checkRequiredSections(allDocs, types));
 
+  // Opt-in and last among the checks: it is the only one that reads files OUTSIDE the governed
+  // corpus (the code a doc cites), and the only one whose severity is not yet calibrated. Off by
+  // default, so `citations` stays absent and an unflagged run is byte-identical to before.
+  const citations = opts.checkCitations ? checkCitations(opts.root, config) : undefined;
+  if (citations) violations.push(...citations.findings);
+
+  // Waivers are classified ONCE, against ONE instant, before anything is judged: a run that
+  // read the clock per-violation could put the same waiver in force for one finding and expired
+  // for the next. `checkWaivers` then reports every entry that is NOT in force as a normal
+  // violation, so a broken or dead exception is loud in exactly the output it was meant to quiet.
+  const waiverStates = classifyWaivers(config, opts.now ?? new Date());
+  violations.push(...checkWaivers(opts.root, waiverStates));
+
   // Risk tiers (RFC-0014): the tier is assigned ONCE here — kind → config.tiers, default
   // blocking, so a config without `tiers:` behaves exactly as before. One list with a tier
   // field, deliberately NOT two arrays: every consumer (print, --json, journal, --changed
@@ -507,19 +710,42 @@ export function runVerify(opts: VerifyOptions): VerifyResult {
   // advisories are reported, never verdict-flipping.
   const tiers = config.tiers ?? {};
   const tiered: Violation[] = violations.map((v) => ({ ...v, tier: tiers[v.kind] ?? "blocking" }));
-  const passes = (vs: Violation[]): boolean => !vs.some((v) => v.tier === "blocking");
+  // Waiving is the SECOND, independent way a blocking violation stops flipping the verdict, and
+  // it composes with tiers rather than competing: `tier` says how the RULE is treated everywhere,
+  // `waivedBy` says this one finding was signed for. Both leave the violation in the list.
+  const marked = applyWaivers(opts.root, tiered, waiverStates);
+  const passes = (vs: Violation[]): boolean =>
+    !vs.some((v) => v.tier === "blocking" && v.waivedBy === undefined);
+
+  // `applied` is counted on what is REPORTED, not on what was scanned: under `--changed` a waiver
+  // covering an out-of-scope doc excused nothing in this run, and saying "2 waived" over a report
+  // that shows neither would be the summary lying about its own body.
+  const reported = opts.changed
+    ? scopeToChanged(marked, scannedFiles, allDocs, opts.changed.files)
+    : marked;
+  const waivers = summarizeWaivers(
+    waiverStates,
+    reported.filter((v) => v.waivedBy !== undefined).length,
+  );
 
   if (opts.changed) {
-    const scoped = scopeToChanged(tiered, scannedFiles, allDocs, opts.changed.files);
     return {
-      ok: passes(scoped),
+      ok: passes(reported),
       checked,
-      violations: scoped,
+      violations: reported,
+      waivers,
+      ...(citations ? { citations: citations.summary } : {}),
       scoped: {
         ref: opts.changed.ref,
         changedDocs: scannedFiles.filter((s) => opts.changed?.files.has(s.file)).length,
       },
     };
   }
-  return { ok: passes(tiered), checked, violations: tiered };
+  return {
+    ok: passes(reported),
+    checked,
+    violations: reported,
+    waivers,
+    ...(citations ? { citations: citations.summary } : {}),
+  };
 }

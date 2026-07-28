@@ -1,0 +1,80 @@
+context: GovernanceSchema
+subdomain_type: master-data
+tactical_pattern: crud
+ubiquitous_language:
+  - term: Schema
+    definition: govkit.yml — "the single pluggable interface the engine reads". Doc dirs, required keys, lifecycle states and the rubric are CONFIG, not hardcoded (govkit.yml:1-4).
+  - term: Doc type
+    definition: One governed artifact family — dir, required keys, idPrefix, startStatus, statuses, terminalStatuses, refs, requiredSectionsByStatus, index, excludeBase (config.ts:38 DocType).
+  - term: Docs root
+    definition: The parent dir prepended to every type dir, default "." (config.ts:148-157, RFC-0007).
+  - term: Tier map
+    definition: An optional violation-kind to blocking/advisory map, validated at load (config.ts:178-186).
+aggregates: []
+invariants:
+  - A missing govkit.yml is an explicit, actionable error naming the path and the fix — never a silent default that would let an unconfigured repo pass. — packages/govkit/src/config.ts:417-426 (loadConfig)
+  - A docs.root that resolves outside the repo root fails LOUD at load; a typo must error, not pass as "0 docs checked". — packages/govkit/src/config.ts:432-439
+  - excludeBase may not drop id or title — they anchor duplicate detection, ref resolution and INDEX row lookup, so dropping them would silently disable every cross-doc check. — packages/govkit/src/config.ts:442-448
+  - The tiers map fails LOUD on a non-map value, an unknown violation kind, or a tier value other than blocking/advisory — a typo'd kind would leave the real check blocking while the user believed it demoted. — packages/govkit/src/config.ts:466-488
+  - journal.path and ledger.path are TOLERANT passthroughs, validated at use time — an unused bad key must not break the gate commands that never touch it. — packages/govkit/src/config.ts:509-516
+  - An absent `index` key means status-only sync, so the field is purely additive and a pre-RFC-0011 config behaves exactly as before. — packages/govkit/src/config.ts:5-11 (IndexConfig); packages/govkit/src/commands/verify.ts:223
+  - A type without terminalStatuses is EXEMPT from chain coherence — the gate is non-breaking and dark until configured. — packages/govkit/src/config.ts:66-75
+  - A type without requiredSectionsByStatus is EXEMPT from the as-built forcing function, and the map is keyed to a post-implementation status rather than to terminalStatuses precisely so it cannot fire before divergence can exist. — packages/govkit/src/config.ts:76-88; govkit.yml:34-40
+  - refs are resolve-only — a single scalar id per key, `type` recorded but not enforced, empty values skipped, no transitive or cycle walking. — packages/govkit/src/config.ts:91-99
+  - Doc dirs, required keys, lifecycle statuses, id conventions and the quality rubric are all config, so any repo with any doc layout adopts govkit by editing this one file and never by forking the engine. — govkit.yml:1-4; README.md:98
+notes: >-
+  Reference data with real load-time validation, and nothing else — no lifecycle, no identity, no
+  writes at runtime, so `aggregates: []`, no repository and no domain event, deliberately. The one
+  judgement worth recording is WHICH keys fail loud and which degrade: docs.root, excludeBase and
+  tiers error at load because a typo there silently un-governs something; journal.path and
+  ledger.path stay tolerant because an unused bad key must not break an unrelated gate. That
+  asymmetry is the whole model.
+relationships:
+  - to: StructuralGate
+    direction: upstream
+    our_roles: [published-language, open-host]
+    their_roles: [conformist]
+    note: One reader for the whole engine (config.ts:417), so no consumer can hold a divergent view of the schema.
+  - to: QualityEval
+    direction: upstream
+    our_roles: [published-language, open-host]
+    their_roles: [conformist]
+  - to: Reconciliation
+    direction: upstream
+    our_roles: [published-language, open-host]
+    their_roles: [conformist]
+  - to: FeatureLedger
+    direction: upstream
+    our_roles: [published-language, open-host]
+    their_roles: [conformist]
+  - to: WriteTimeAudit
+    direction: upstream
+    our_roles: [published-language, open-host]
+    their_roles: [conformist]
+  - to: GateJournal
+    direction: upstream
+    our_roles: [published-language, open-host]
+    their_roles: [conformist]
+  - to: LifecycleReport
+    direction: upstream
+    our_roles: [published-language, open-host]
+    their_roles: [conformist]
+  - to: Calibration
+    direction: upstream
+    our_roles: [published-language]
+    their_roles: [acl]
+    note: The only downstream that translates rather than conforms — it overrides docs.root to "." (calibrate.ts:123).
+  - to: WaiverPolicy
+    direction: upstream
+    our_roles: [published-language, open-host]
+    their_roles: [conformist]
+    note: >-
+      Mirror of WaiverPolicy's edge, and the one consumer this schema deliberately under-validates:
+      `waivers` is typed `unknown[]` and only its LIST shape is checked at load (config.ts:187-194,
+      :489-499). Every other key is validated here; this one is validated at GATE time, so a
+      malformed waiver reaches the gate and is REPORTED rather than throwing the whole load.
+  - to: Adoption
+    direction: peer
+    our_roles: [partnership]
+    their_roles: [partnership]
+    note: "Genuinely two-way: `init` WRITES this schema from the shipped template (init.ts:27,77) while `init --adopt` READS it to know required keys (adopt.ts:132-138). Neither side is purely upstream."

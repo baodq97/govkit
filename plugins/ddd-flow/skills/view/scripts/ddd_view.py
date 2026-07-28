@@ -219,10 +219,32 @@ def build_domain(docs: Path) -> dict:
         })
         for r in (c.get("relationships") or []):
             if isinstance(r, dict) and r.get("to"):
-                kind = str(r.get("type", "")).strip().lower()
-                rels.append({"from": name, "to": r["to"], "type": kind,
-                             "teamRelation": TEAM_RELATION.get(kind, "unclassified"),
-                             "sourced": kind in STATED_BY_DDD_CREW})
+                # `type` used to carry a direction and a governing pattern at once. 3-decompose
+                # split it into `direction` plus a role list per side, because a side can hold
+                # several roles (Open Host and Published Language co-occur constantly) and the two
+                # ends hold different ones. Both shapes are read: a repo that has not migrated still
+                # renders, and its single value lands in whichever axis it actually belonged to.
+                direction = str(r.get("direction", "")).strip().lower()
+                ours = check._roles(r.get("our_roles"))
+                theirs = check._roles(r.get("their_roles"))
+                legacy = str(r.get("type", "")).strip().lower()
+                if legacy and not direction and not ours:
+                    direction, ours = (legacy, []) if legacy in DIRECTIONS else ("", [legacy])
+                # `type` stays in the payload — it is the shell's documented edge key — but it is
+                # now derived: the first role this side names that says something, else the
+                # direction. `other` is a real value and never wins, or every edge would read alike.
+                kind = next((x for x in ours if x != "other"), "") or direction
+                rels.append({"from": name, "to": r["to"],
+                             "type": PATTERN_ALIAS.get(kind, kind),
+                             "direction": direction, "ourRoles": ours, "theirRoles": theirs,
+                             "note": _plain(str(r.get("note", "")))[:240],
+                             "teamRelation": _team_relation(direction, ours + theirs),
+                             # What "sourced" claims is that ddd-crew states this team-relation
+                             # classification, not that it states the pattern name. Their own
+                             # grouping IS the direction axis — Mutually Dependent, Upstream/
+                             # Downstream, Free — so a declared direction is sourced by
+                             # construction, and only a pattern-only edge falls back to the table.
+                             "sourced": bool(direction) or kind in STATED_BY_DDD_CREW})
 
     # "Free" is the one team relationship you cannot see on a pattern map, because it is drawn by
     # an absence: a context nothing points at and that points at nothing.
@@ -467,6 +489,8 @@ TEAM_RELATION = {
     "partnership": "mutually-dependent",
     "shared-kernel": "mutually-dependent",
     "customer-supplier": "upstream-downstream",
+    "customer": "upstream-downstream",
+    "supplier": "upstream-downstream",
     "upstream": "upstream-downstream",
     "downstream": "upstream-downstream",
     "conformist": "upstream-downstream",
@@ -475,7 +499,29 @@ TEAM_RELATION = {
     "published-language": "upstream-downstream",
     "separate-ways": "free",
 }
-STATED_BY_DDD_CREW = {"partnership", "customer-supplier", "upstream", "downstream", "separate-ways"}
+STATED_BY_DDD_CREW = {"partnership", "customer-supplier", "customer", "supplier",
+                      "upstream", "downstream", "separate-ways"}
+DIRECTIONS = ("upstream", "downstream", "peer")
+# Customer/Supplier is one pattern worn from two ends. The roles are per side, so the edge key the
+# shell renders is the pattern both ends belong to.
+PATTERN_ALIAS = {"customer": "customer-supplier", "supplier": "customer-supplier"}
+
+
+def _team_relation(direction: str, roles: list[str]) -> str:
+    """Which of ddd-crew's three team positions an edge sits in.
+
+    `direction` decides it whenever it is stated, because that axis is ddd-crew's own grouping:
+    `peer` is Mutually Dependent, up/down is Upstream/Downstream. Separate Ways is the exception —
+    it is an absence of dependency, which no direction can express — so a role still overrides.
+    Falls back to the pattern table for a repo whose relationships carry no direction yet.
+    """
+    if "separate-ways" in roles:
+        return "free"
+    if direction == "peer":
+        return "mutually-dependent"
+    if direction in DIRECTIONS:
+        return "upstream-downstream"
+    return TEAM_RELATION.get(next((r for r in roles if r in TEAM_RELATION), ""), "unclassified")
 
 
 def build_teams(docs: Path, text: str | None = None) -> dict | None:

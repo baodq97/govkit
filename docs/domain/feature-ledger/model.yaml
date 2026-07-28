@@ -1,0 +1,65 @@
+context: FeatureLedger
+subdomain_type: supporting
+tactical_pattern: full-domain-model
+ubiquitous_language:
+  - term: Ledger
+    definition: "A committed JSON document whose root object carries an `entries` array, at docs/ledger.json or ledger.path (ledger.ts:59, :81)."
+  - term: Entry
+    definition: One done-ness claim — id, title, spec, passes, and optionally check (ledger.ts:18 LedgerEntry).
+  - term: Spec
+    definition: The governed doc id (US/RFC) a claim is specified by. It MUST resolve into the chain (ledger.ts:183).
+  - term: Check
+    definition: The human-readable command that earned `passes` — provenance, not a gate input (ledger.ts:25).
+  - term: Append-only
+    definition: Claims may move honestly, evidence may not vanish. An id in HEAD must survive; a check in HEAD may not be dropped (ledger.ts:236, :245).
+  - term: Baseline
+    definition: The last committed version of the ledger, read via `git show HEAD:./<path>` (util.ts:223 gitShowHead).
+aggregates:
+  - name: Ledger
+    root: Ledger
+    exposed_to_api: true      # the committed JSON document IS the contract consumers read — ledger.ts:81 (parseLedger)
+    entities:
+      - name: Ledger
+        attributes: [path, entries, passing, violations, headNote]
+      - name: LedgerEntry
+        attributes: [id, title, spec, passes, check]
+    value_objects:
+      - { name: LedgerViolation, attributes: [id, kind, message], exposed_to_api: true }
+      - { name: LedgerViolationKind, attributes: [name], exposed_to_api: true }   # schema | duplicate | spec | entry-removed | check-removed | path-moved
+      - { name: CommittedBaseline, attributes: [path, entries], exposed_to_api: false }
+    domain_events: []
+    invariants:
+      - The ledger path is resolved from config and CONFINED under the repo root; a path escaping it errors loudly rather than gating a file outside the repo. — packages/govkit/src/commands/ledger.ts:64 (resolveLedgerPath); packages/govkit/src/util.ts:11 (isInside)
+      - A missing ledger file is an operational error naming the expected path, never silence — an opt-in gate pointed at nothing must not pass. — packages/govkit/src/commands/ledger.ts:146 (runLedger)
+      - Malformed JSON, a non-object root, or a missing `entries` array fails closed, naming which document (working copy vs HEAD baseline) is broken. — packages/govkit/src/commands/ledger.ts:81 (parseLedger)
+      - "Every entry must be an object carrying non-empty string id, title and spec, a boolean passes, and a non-empty string check when present. — packages/govkit/src/commands/ledger.ts:101 (entryProblems)"
+      - Entry ids are unique; a duplicate makes both the spec link and the append-only diff ambiguous, so it is flagged once per colliding id. — packages/govkit/src/commands/ledger.ts:171 (runLedger)
+      - Every spec must resolve to a real governed doc id, resolved through the SAME collector verify's reference check uses, so the two can never disagree on which ids exist. — packages/govkit/src/commands/ledger.ts:183; packages/govkit/src/util.ts:156 (collectGovernedIds)
+      - An entry id present in the committed baseline must survive — a removed entry is a violation. — packages/govkit/src/commands/ledger.ts:236 (runLedger)
+      - A `check` recorded in the committed baseline may not be dropped from a surviving entry — provenance may not vanish. — packages/govkit/src/commands/ledger.ts:245 (runLedger)
+      - "`passes` may flip in BOTH directions and new entries are always legal: false-to-true is done, true-to-false is an honest regression. Nothing in the code judges completeness. — packages/govkit/src/commands/ledger.ts:194-197, :255-261 (runLedger)"
+      - Pointing ledger.path at a fresh file while the committed config's path still has a baseline is `path-moved`, not a bootstrap skip — the rename bypass is closed explicitly. — packages/govkit/src/commands/ledger.ts:124 (committedLedgerRel), :207-218
+      - A genuinely missing or unparseable baseline degrades to a SURFACED skip note printed on stderr in both output modes; layers 1-3 still gate the file. — packages/govkit/src/commands/ledger.ts:219-231; packages/govkit/src/cli.ts:836-837
+      - The `N/M passing` summary is advisory and never moves the exit code — integrity gates, completeness informs. — packages/govkit/src/commands/ledger.ts:255-261; packages/govkit/src/cli.ts:390-393 (printLedger)
+notes: >-
+  Four layers in order — schema, unique ids, spec resolution, append-only vs HEAD — and only the
+  fourth needs git, which is why this command lives outside the no-key floor and `check` never
+  calls it (ledger.ts:12-16). The aggregate is the WHOLE ledger, not the entry: append-only is a
+  document-level invariant that needs the committed baseline to decide. `domain_events: []` — the
+  gate returns a LedgerResult; nothing is published.
+relationships:
+  - to: GovernanceSchema
+    direction: downstream
+    our_roles: [conformist]
+    their_roles: [published-language]
+    note: "`ledger.path` is a tolerant passthrough in the config and validated at USE time here (config.ts:513-516, ledger.ts:64) — an unused bad key must not break the gate commands that never touch it."
+  - to: StructuralGate
+    direction: peer
+    our_roles: [shared-kernel]
+    their_roles: [shared-kernel]
+    note: collectGovernedIds (util.ts:156) resolves `spec` here and `refs` there, deliberately from one collector.
+  - to: GateJournal
+    direction: upstream
+    our_roles: [supplier]
+    their_roles: [customer, published-language]
+    note: Records entries/passing/violations counts only — the full result carries per-entry prose the sensor does not need (cli.ts:840-847).

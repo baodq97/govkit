@@ -22,13 +22,31 @@ export interface JournalRecord {
    *  journal consumer can tell a full-corpus verdict from a changed-set one. */
   changed?: string;
   /** `tier` joined the violation entries with RFC-0014 risk tiers — additive, so lines
-   *  written before it simply lack the field (a consumer treats absent as blocking). */
-  verify?: { docs: number; violations: Array<{ path: string; kind: string; tier: string }> };
+   *  written before it simply lack the field (a consumer treats absent as blocking).
+   *  `waived: true` (omitted, never false — the same shape as `ack` below) marks a finding an
+   *  ACTIVE waiver covered: it is still reported, and still carries its own `tier`, but it did
+   *  NOT fail the gate. Without the marker a human-signed exception is indistinguishable from a
+   *  broken gate — a `blocking` entry on an `ok: true` line — and every consumer reading
+   *  "blocking ⇒ the gate broke" (RFC-0017's distiller among them) learns from an incident that
+   *  never happened. */
+  verify?: {
+    docs: number;
+    violations: Array<{ path: string; kind: string; tier: string; waived?: true }>;
+  };
+  /** `waived` is the SAME marker as on a verify violation, one layer up: eval's record carries
+   *  aggregates, not per-finding entries, so the marker is the COUNT of artifacts whose required
+   *  floor was cleared only by an active waiver — the same unit `floorPassRate` is computed in,
+   *  so a consumer can reconcile `floorPassRate × artifacts + waived + blocked = artifacts`.
+   *  Omitted when zero, never 0, exactly like `waived` above and `ack` below. Without it a
+   *  fully-waived corpus journals `floorPassRate: 0` on an `ok: true` line — the same
+   *  signed-exception-reads-as-broken-gate confusion, with no violation entry to carry the mark.
+   *  `check` writes BOTH records, so a chained run is marked on both halves. */
   eval?: {
     artifacts: number;
     floorPassRate: number;
     advisoryPassRate: number;
     averageScore: number;
+    waived?: number;
   };
   /** Drift gate (RFC-0015) counts — additive, only `drift` runs write it. `ack: true`
    *  (omitted on check runs, never false) marks a `drift --ack` run: an ack REWRITES the

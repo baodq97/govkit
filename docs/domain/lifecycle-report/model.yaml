@@ -1,0 +1,46 @@
+context: LifecycleReport
+subdomain_type: supporting
+tactical_pattern: crud
+ubiquitous_language:
+  - term: Bucket
+    definition: One status and the sorted ids sitting in it, per doc type (report.ts:14 ReportStatusBucket).
+  - term: Decided
+    definition: The one judgement this context makes, and it is config-grounded — a status is decided iff it is in the type's terminalStatuses (report.ts:11-12, :81).
+  - term: No status
+    definition: The visible bucket for a governed doc with no usable status — kept rather than dropped, so it is never silently absent from its own lifecycle view (report.ts:40-42).
+  - term: PR-body span
+    definition: The `govkit:report:begin` / `:end` marker pair — the stable idempotency contract an injector replaces between (report.ts:44-49).
+aggregates: []
+invariants:
+  - The one judgement made here is config-grounded — a status is "decided" iff it appears in that type's configured terminalStatuses; no retired or stale axis is invented, because a presence-only layer cannot judge whether a doc is trash. — packages/govkit/src/commands/report.ts:6-12, :81 (runReport)
+  - A governed doc with no usable status is bucketed under a visible `(no status)` label rather than dropped — it must not be silently absent from its own lifecycle view. — packages/govkit/src/commands/report.ts:40-42, :92 (runReport)
+  - A doc with absent or unparseable front-matter is excluded from the histogram; the gate already counts it, and counting it twice would misreport the corpus. — packages/govkit/src/commands/report.ts:86-89 (runReport)
+  - The report is read-only and has NO effect on any exit code. — packages/govkit/src/commands/report.ts:6-12; packages/govkit/src/cli.ts:764-775
+  - Determinism IS the idempotency guarantee for the PR-body block — no timestamps, no run ids, no absolute paths, and ids and statuses arrive pre-sorted, so unchanged repo state renders identical bytes and a re-run splice is a zero-diff no-op. — packages/govkit/src/commands/report.ts:51-56, :57-72 (renderReportPrBody), :99-106 (runReport)
+  - The begin/end markers are the API; the block content between them may evolve without breaking an injector. — packages/govkit/src/commands/report.ts:44-49 (PR_BODY_BEGIN, PR_BODY_END)
+  - Blank lines separate tables but never hug the markers — adjacent GFM tables merge without one, so the spacing is a rendering invariant, not formatting taste. — packages/govkit/src/commands/report.ts:64-71 (renderReportPrBody)
+  - Whether "decided" is meaningful at all is surfaced per type via `hasTerminal`, so a type that never opted into terminalStatuses is not read as "nothing is decided here". — packages/govkit/src/commands/report.ts:22-27, :108-113 (runReport)
+notes: >-
+  A read-only projection over the corpus the gate already governs — no state, no identity, no
+  writes, so `aggregates: []` is complete and `invariants:` sits at context level. It survives the
+  capability-vs-context test on exactly one rule and its stated refusal: it decides "decided" from
+  config, and it explicitly declines to invent a retired/stale axis a presence-only layer cannot
+  justify (report.ts:6-12). That refusal is the model. It is deliberately the THINNEST context here
+  and is a candidate to fold into StructuralGate — see context-map.md, Declined context candidates.
+relationships:
+  - to: GovernanceSchema
+    direction: downstream
+    our_roles: [conformist]
+    their_roles: [published-language]
+    note: terminalStatuses is the only config key this context judges anything by (report.ts:81); everything else it reports verbatim.
+  - to: StructuralGate
+    direction: downstream
+    our_roles: [conformist]
+    their_roles: [supplier]
+    note: >-
+      Reads the same type dirs through the same typeDir helper AND passes the same per-type
+      `recursive` flag the gate and eval pass (report.ts:90, verify.ts:573, eval.ts:252), so the
+      two walk one corpus. The prior pass of this file recorded the opposite — the report skipping
+      the flag, under-counting a nested design tree that the gate was already checking. That was
+      true when it was written and is not true now; every reader passes it today (util.ts:166,
+      adopt.ts:144, doctor.ts:286).

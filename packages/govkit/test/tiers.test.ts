@@ -131,7 +131,9 @@ docs:
     const r = cli(["verify", "--root", root]);
     expect(r.status).toBe(0);
     expect(r.stdout).toContain("govkit verify: OK");
-    expect(r.stdout).toContain("0 violations, 1 advisory"); // both counts in the summary
+    // The summary counts the entry it is about to print, then says why it did not block. It used
+    // to head this "0 violations, 1 advisory" — a header contradicting its own body.
+    expect(r.stdout).toContain("1 violation, 0 blocking, 1 advisory");
     expect(r.stdout).toContain("warn "); // the demoted finding is prefixed, not hidden
     expect(r.stdout).toContain("INDEX row status is stale");
   });

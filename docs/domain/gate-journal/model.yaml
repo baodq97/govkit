@@ -1,0 +1,86 @@
+context: GateJournal
+subdomain_type: supporting
+tactical_pattern: transaction-script
+ubiquitous_language:
+  - term: Journal
+    definition: An append-only JSONL file, one run record per line, at .govkit/journal.jsonl or journal.path (journal.ts:48-53).
+  - term: Record
+    definition: One gate run — at, cmd, root, optional gitSha/changed, per-command counts, ok, optional error, durationMs (journal.ts:14 JournalRecord).
+  - term: Sensor
+    definition: "The stance: it observes the gate, it is never part of it (journal.ts:6-9)."
+  - term: Ack marker
+    definition: "`ack: true`, present only on a `drift --ack` run, so `drifted > 0 with ok: true` is legal there and only there (journal.ts:33-38)."
+  - term: Waived marker
+    definition: >-
+      The one word that tells a signed exception from a broken gate. Per FINDING on the verify
+      record (`waived: true`, journal.ts:34) and per RUN on the eval record, where it is the COUNT
+      of artifacts a waiver cleared the floor for (`waived: 1`, journal.ts:36-49). Omitted, never
+      false and never 0.
+aggregates: []
+invariants:
+  - The journal observes the gate and is never part of it — a journal write failure warns on stderr and NEVER changes the command's exit code. — packages/govkit/src/journal.ts:6-9; packages/govkit/src/cli.ts:584 (runGate), the journal catch at :636-639
+  - The journal destination is confined under the repo root; a path escaping it errors loudly rather than writing outside the repo the user pointed govkit at. — packages/govkit/src/journal.ts:52 (resolveJournalPath); packages/govkit/src/util.ts:11 (isInside)
+  - One JSON object per line, appended, with the parent directory created on first write — so a consumer can tail and parse incrementally. — packages/govkit/src/journal.ts:64 (appendJournal)
+  - Optional fields are OMITTED, never null, so every line stays minimal and lines written before a field existed remain readable. — packages/govkit/src/journal.ts:11-13, :26
+  - Exactly one record is written per run, INCLUDING a run that threw — an error path with no journal line would blind the sensor precisely when the gate fails hardest. — packages/govkit/src/cli.ts:584 (runGate), the try/catch at :641-651
+  - A run whose config failed to load records to the DEFAULT journal location, because a broken config cannot name an override. — packages/govkit/src/cli.ts:629-635
+  - "An ack run is marked `ack: true`; without the marker an ack record is indistinguishable from a check run and corrupts a consumer's drifted-implies-not-ok reading. — packages/govkit/src/journal.ts:33-38; packages/govkit/src/cli.ts:809-812"
+  - "A finding an active waiver covered is marked `waived: true` on its violation entry; without it a human-signed exception is a `tier: blocking` entry on an `ok: true` line, which every consumer reads as a gate that broke. — packages/govkit/src/journal.ts:24-34; packages/govkit/src/cli.ts:1110-1115"
+  - "The eval record carries the SAME marker as a COUNT of artifacts (`waived: 1`), because eval journals aggregates and has no per-finding entry to hang a boolean on — it is what explains `floorPassRate: 0` on an `ok: true` line, and it reconciles: floorPassRate x artifacts + waived + blocked = artifacts. — packages/govkit/src/journal.ts:36-49; packages/govkit/src/commands/eval.ts:109-111 (waiverClearedArtifacts); packages/govkit/src/cli.ts:1128-1135"
+  - "`check` chains both suppliers into ONE record, so a fully-waived corpus is marked on BOTH halves or on neither — a record marked on one half only would be worse than an unmarked one, because a consumer would trust the half that lies. — packages/govkit/src/cli.ts:1105-1136; packages/govkit/test/waivers.test.ts (`check marks BOTH halves of a fully-waived corpus`)"
+  - The record is written AFTER the command has printed its report, so the sensor can never delay or suppress the human output. — packages/govkit/src/cli.ts:568-573, :644-645
+  - A --changed run records its base ref, so a scoped verdict is never mistaken for a full-corpus one. — packages/govkit/src/journal.ts:20-23; packages/govkit/src/cli.ts:599
+  - Only five commands may journal — verify, eval, check, drift, ledger — and --journal on any other command is rejected loudly rather than silently ignored. — packages/govkit/src/journal.ts:17; packages/govkit/src/cli.ts:487-508 (scopedFlags)
+notes: >-
+  An append-only log with one record shape and no reads — no identity, no consistency boundary
+  beyond the line, so `aggregates: []` is complete. This is the ONE context that produces a real
+  past-tense fact (`GateRunRecorded`), and it has NO in-process consumer: RFC-0017's distiller
+  reads `.govkit/journal.jsonl` out of band, and nothing in packages/govkit/src reads a line back.
+  The record's own name is deliberately absent from the code — the type is `JournalRecord`, not an
+  event class; the event name here is this model's, and is flagged as such.
+relationships:
+  - to: GovernanceSchema
+    direction: downstream
+    our_roles: [conformist]
+    their_roles: [published-language]
+    note: "`journal.path` is a tolerant config passthrough validated at USE time (config.ts:509-512, journal.ts:52) — an unused bad key must not break gates that never touch it."
+  - to: StructuralGate
+    direction: downstream
+    our_roles: [customer, published-language]
+    their_roles: [supplier]
+    note: This context owns the line shape; the gate supplies docs + violations{path,kind,tier} (cli.ts:600-611).
+  - to: QualityEval
+    direction: downstream
+    our_roles: [customer, published-language]
+    their_roles: [supplier]
+    note: >-
+      Supplies artifacts / floorPassRate / advisoryPassRate / averageScore, plus the optional
+      `waived` count when a waiver cleared an artifact's floor (cli.ts:1121-1136). The floor rate
+      is deliberately waiver-BLIND at the supplier (eval.ts:34-40), so the marker is the ONLY thing
+      on this record that distinguishes a signed exception from a floor that broke.
+  - to: Reconciliation
+    direction: downstream
+    our_roles: [customer, published-language]
+    their_roles: [supplier]
+    note: Supplies pre-summarised counts only — the full DriftResult carries absolute paths the sensor does not need (cli.ts:576-582).
+  - to: FeatureLedger
+    direction: downstream
+    our_roles: [customer, published-language]
+    their_roles: [supplier]
+    note: Supplies entries / passing / violations counts (cli.ts:840-847).
+  - to: WaiverPolicy
+    direction: downstream
+    our_roles: [customer, published-language]
+    their_roles: [supplier]
+    note: >-
+      The sixth supplier, and the mirror this file owed — WaiverPolicy's own edge says so in as
+      many words. It supplies the `waived` marker on BOTH halves of the record, omitted and never
+      false/zero like `ack`: per finding on the verify entries (`true`, journal.ts:24-34, written
+      at cli.ts:1110-1115) and per run on the eval aggregate (a COUNT of artifacts,
+      journal.ts:36-49, written at cli.ts:1128-1135). This context still owns the line shape — it
+      chose the count, because eval journals aggregates and has no entry to hang a boolean on.
+      Without the marker a human-signed exception is a `tier: blocking` entry, or a
+      `floorPassRate: 0`, on an `ok: true` line — indistinguishable from a broken gate to every
+      consumer, RFC-0017's distiller included. Both halves are now written and asserted end-to-end
+      on a fully-waived corpus (packages/govkit/test/waivers.test.ts, the `check marks BOTH halves`
+      case); the eval half was the one this file previously recorded as declared-but-unpopulated.

@@ -1,0 +1,118 @@
+context: StructuralGate
+subdomain_type: core
+tactical_pattern: full-domain-model
+ubiquitous_language:
+  - term: Governed doc
+    definition: A markdown file under a configured type dir, minus the ignore list — the unit the gate judges (verify.ts:554, util.ts:33 listMarkdown).
+  - term: Gate
+    definition: The binary structural verdict. Blocks a merge; it is quality CONTROL, not a quality signal (README.md:19-27).
+  - term: Violation
+    definition: One finding against one file, carrying a kind and a risk tier (verify.ts:33 Violation).
+  - term: Violation kind
+    definition: One of eleven — citation, coherence, duplicate, frontmatter, id, index, placeholder, reference, section, status, waiver (config.ts:19 VIOLATION_KINDS). Nine at first; `waiver` and `citation` joined as those checks landed.
+  - term: Tier
+    definition: blocking or advisory. Assigned once, centrally, so no check can forget the mapping (verify.ts:618, config.ts:36).
+  - term: Terminal status
+    definition: The decided/shipped subset of a type's statuses — a SET, so accepted and superseded both qualify (config.ts:75, govkit.yml:33).
+  - term: Changed set
+    definition: The new-or-modified governed docs vs a base ref. It scopes the REPORT, never the SCAN (verify.ts:472 scopeToChanged).
+  - term: Placeholder
+    definition: An angle-bracket stub or a known template token in a required value. `TBD` is deliberately NOT one (verify.ts:87-100).
+aggregates:
+  - name: GovernedCorpus
+    root: GovernedCorpus
+    exposed_to_api: true      # the VerifyResult shape is a committed machine channel — cli.ts:680 (--json), journal.ts:26
+    entities:
+      - name: GovernedCorpus
+        attributes: [docs, scannedFiles, checked, violations, scoped]
+      - name: GovernedDoc
+        attributes: [file, type, data, body]
+      - name: DocIndex
+        attributes: [indexPath, type, rows]
+    value_objects:
+      - { name: DocId, attributes: [prefix, number], exposed_to_api: false }
+      - { name: StatusValue, attributes: [value], exposed_to_api: false }
+      - { name: Violation, attributes: [file, type, kind, problems, tier], exposed_to_api: true }
+      - { name: ViolationKind, attributes: [name], exposed_to_api: true }      # closed set of 9 — config.ts:19
+      - { name: ViolationTier, attributes: [name], exposed_to_api: true }      # blocking | advisory — config.ts:35
+      - { name: RequiredKeySet, attributes: [keys], exposed_to_api: false }    # (base.required - excludeBase) u type.required — verify.ts:541-547
+      - { name: ChangedSet, attributes: [files, ref], exposed_to_api: false }
+    domain_events: []
+    invariants:
+      - Every key in (base.required minus excludeBase) union the type's own required list must be present and non-empty on every governed doc. — packages/govkit/src/commands/verify.ts:102 (checkFrontMatter); govkit.yml:12-13
+      - "`owner: TBD` is a legal value and never a placeholder violation: ownership is a human act, so the sentinel must survive the gate. — packages/govkit/src/commands/verify.ts:87-100 (PLACEHOLDER_TOKENS)"
+      - A required value that is an angle-bracket stub or a known template token is an unresolved-placeholder violation. — packages/govkit/src/commands/verify.ts:117 (checkPlaceholder)
+      - A non-empty status must belong to its type's configured statuses set; an empty status is the front-matter check's concern, not this one. — packages/govkit/src/commands/verify.ts:132 (checkStatus); govkit.yml:20,29,46,56,67
+      - A non-empty id must start with its type's idPrefix, and the filename must be `<id>.md` or start with `<id>-`. — packages/govkit/src/commands/verify.ts:139 (checkIdConvention)
+      - Every doc must own a row in its type dir's INDEX.md, matched on the id as a bounded token, and every configured sync key's value must occupy its own table cell after trimming and one quote-strip. — packages/govkit/src/commands/verify.ts:186 (checkIndex), :162 (rowHasId), :178 (rowHasCell)
+      - A type declaring `index: false` keeps no INDEX and is exempt from every index check. — packages/govkit/src/commands/verify.ts:187; packages/govkit/src/config.ts:108 (DocType.index)
+      - Doc ids are globally unique across every governed type; a collision is flagged once per colliding id. — packages/govkit/src/commands/verify.ts:240 (checkDuplicateIds)
+      - A non-empty refs value must resolve to an id in the shared governed-id universe; an empty or absent value is an optional link, not a dangling one. — packages/govkit/src/commands/verify.ts:275 (checkReferences); packages/govkit/src/util.ts:156 (collectGovernedIds)
+      - A doc in a terminal status may not carry a refs link to a doc whose type defines terminal states and whose status is not among them. Terminal is a SET, so done-under-superseded passes. — packages/govkit/src/commands/verify.ts:309 (checkCoherence); govkit.yml:33,47,59,68
+      - A doc at a status keyed in requiredSectionsByStatus must carry a heading matching every pattern for that status, matched only after fenced code is stripped. — packages/govkit/src/commands/verify.ts:361 (checkRequiredSections); packages/govkit/src/util.ts:60 (stripNonProse); govkit.yml:39-40,72-73
+      - "The verdict is exactly `zero blocking violations`: an advisory-tier violation is reported, counted and journalled but never flips ok. — packages/govkit/src/commands/verify.ts:618-620 (runVerify)"
+      - Under --changed the scan stays full and only the report is scoped; duplicate, reference and coherence violations are never masked, because masking a real new violation is the leak the gate exists to prevent. — packages/govkit/src/commands/verify.ts:472 (scopeToChanged)
+      - A doc whose front-matter block is absent or unparseable is one reported violation and the scan continues — never a crash on the first malformed doc. — packages/govkit/src/commands/verify.ts:557-577 (runVerify)
+notes: >-
+  The aggregate root is the CORPUS, not the doc. Four of the fourteen invariants (unique ids, ref
+  resolution, chain coherence, INDEX sync) cannot be decided from one file, which is why runVerify
+  holds allDocs and why --changed scopes the report rather than the scan (verify.ts:472).
+  `domain_events: []` is not a gap: the gate returns a VerifyResult to its caller synchronously and
+  publishes nothing. The only durable past-tense fact in the whole system is GateJournal's record —
+  see context-map.md, Event-flow continuity check.
+relationships:
+  - to: GovernanceSchema
+    direction: downstream
+    our_roles: [conformist]
+    their_roles: [published-language, open-host]
+    note: One reader for the whole engine (config.ts:417 loadConfig); the gate conforms to govkit.yml verbatim and validates nothing of its own.
+  - to: FeatureLedger
+    direction: peer
+    our_roles: [shared-kernel]
+    their_roles: [shared-kernel]
+    note: "collectGovernedIds (util.ts:156) is shared on purpose — \"so the two can never disagree on which ids exist\". Mutual-consent change; widening what counts as a governed id moves both gates at once."
+  - to: QualityEval
+    direction: peer
+    our_roles: [separate-ways]
+    their_roles: [separate-ways]
+    note: Neither calls the other. They share only the stripNonProse/headingLines building blocks (util.ts:60,70) so both judge "a section" identically; `check` runs them side by side (cli.ts:696-711).
+  - to: WriteTimeAudit
+    direction: peer
+    our_roles: [partnership]
+    their_roles: [partnership]
+    note: "The per-write twin (verify.ts:523-528). It re-implements required-key checking on a single file (audit-write.ts:77) instead of calling runVerify — a duplicated rule with real drift risk, partly mitigated by routing type-dir resolution through the same typeDir helper (audit-write.ts:57)."
+  - to: GateJournal
+    direction: upstream
+    our_roles: [supplier]
+    their_roles: [customer, published-language]
+    note: The gate supplies counts; the sensor owns the JournalRecord line shape (journal.ts:14).
+  - to: Adoption
+    direction: upstream
+    our_roles: [supplier, published-language]
+    their_roles: [conformist]
+    note: Adoption's sentinel is chosen so THIS gate's placeholder check flags it (adopt.ts:9-12) — conformity by construction.
+  - to: Ratification
+    direction: upstream
+    our_roles: [supplier]
+    their_roles: [conformist]
+    note: Honor-system edge. R1's "full gate green" condition names this gate (govkit.yml:148) but no code reads the policy (govkit.yml:128-134).
+  - to: WaiverPolicy
+    direction: peer
+    our_roles: [shared-kernel]
+    their_roles: [shared-kernel]
+    note: >-
+      Mirror of WaiverPolicy's edge. This gate's 11 violation kinds (config.ts:19 VIOLATION_KINDS)
+      are half of the one vocabulary a waiver's `rule` is drawn from (config.ts:291-302
+      knownRuleKeys), so adding a kind widens what a waiver may name — mutual consent, in a third
+      file. The gate keeps deciding what a violation IS; this peer decides which of them still
+      block, and marks rather than filters, so the report never shrinks (verify.ts:415-440).
+  - to: LifecycleReport
+    direction: upstream
+    our_roles: [supplier]
+    their_roles: [conformist]
+    note: >-
+      Mirror of LifecycleReport's edge. Supplies the governed corpus and the type dirs it counts,
+      nothing else — the report is read-only with no exit-code effect (cli.ts:1327-1338) and states
+      no rule of its own. The two walk the SAME corpus: both pass the per-type `recursive` flag
+      (verify.ts:573, report.ts:90), so the under-counting the counterpart file recorded is closed
+      in live code.

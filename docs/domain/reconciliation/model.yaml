@@ -1,0 +1,77 @@
+context: Reconciliation
+subdomain_type: core
+tactical_pattern: full-domain-model
+ubiquitous_language:
+  - term: Governs
+    definition: A front-matter glob (or list) naming the code a doc claims to describe. The opt-in for both readings (util.ts:91 normalizeGoverns, :147 scanGoverned).
+  - term: Reconciled claim
+    definition: "`reconciled: sha256:<8-64 hex>` — the author's recorded statement that the doc is true as of this content state (drift.ts:28 CLAIM_RE)."
+  - term: Drift
+    definition: The governed CONTENT no longer matches the recorded claim (drift.ts:176). NOT the same word as Adoption's status-vocabulary drift.
+  - term: Ack
+    definition: The ritual that rewrites the claim to the current content hash. The gate never acks itself (cli.ts:361-364).
+  - term: Ghost path
+    definition: A governs pathspec matching no tracked file — a broken declaration that silently shrinks coverage (drift.ts:207-225, RFC-0018).
+  - term: Unevaluable pathspec
+    definition: A pathspec git itself refuses (invalid magic). Its own violation class, never misdiagnosed as a ghost (util.ts:246 gitMatchCount returns null).
+  - term: Stale
+    definition: The recency verdict — the governed code has newer commits than the doc. A PROXY, never "doc wrong" (stale.ts:7, :82).
+  - term: Dangling
+    definition: The governs glob cannot be evaluated for recency. Surfaced as its own status, never read as "fresh" (stale.ts:74).
+aggregates:
+  - name: ReconciliationClaim
+    root: GovernedDocClaim
+    exposed_to_api: true      # the claim is written INTO the governed doc's front-matter — the most published artifact in the model (drift.ts:285)
+    entities:
+      - name: GovernedDocClaim
+        attributes: [file, path, type, governs, hasReconciled, reconciled]
+    value_objects:
+      - { name: ContentHashClaim, attributes: [algorithm, hex], exposed_to_api: true }
+      - { name: GovernedPathspecs, attributes: [globs, selfExclusion], exposed_to_api: false }
+      - { name: IndexManifest, attributes: [records], exposed_to_api: false }
+      - { name: ReconciledToken, attributes: [start, end, value], exposed_to_api: false }
+      - { name: DriftEntry, attributes: [path, type, governs, reconciled, currentSha, ghost, problem], exposed_to_api: true }
+      - { name: StaleEntry, attributes: [file, type, governs, status, docTime, codeTime], exposed_to_api: true }
+    domain_events: []
+    invariants:
+      - "A doc opts into the claim gate only by carrying BOTH `governs:` and a `reconciled:` key; key PRESENCE is the opt-in, so an empty value is a violation while absence is merely not-opted-in. — packages/govkit/src/commands/drift.ts:70-79 (DriftDoc), :185, :238 (runDrift)"
+      - The claim is a content hash over the governed files' git index manifest (blob OIDs), never a commit sha — squash merges rewrite commit shas without changing a byte. — packages/govkit/src/commands/drift.ts:138 (judge); packages/govkit/src/util.ts:204 (gitIndexManifest)
+      - A doc can never drift itself — its own path is always excluded from its governed pathspecs, or the ack ritual could never converge. — packages/govkit/src/commands/drift.ts:131 (governedPathspecs)
+      - An empty or malformed reconciled value is a violation naming the doc, never a crash. — packages/govkit/src/commands/drift.ts:153 (judge)
+      - A pre-amendment bare commit-sha claim is recognised only to name its migration; it is never checked. — packages/govkit/src/commands/drift.ts:31 (LEGACY_SHA_RE), :159
+      - A well-formed claim whose governs paths match no tracked file fails loud — an unverifiable claim is never silently green. — packages/govkit/src/commands/drift.ts:166 (judge)
+      - A short claim matches when the full 64-hex digest starts with its hex; the canonical write is the first 16. — packages/govkit/src/commands/drift.ts:28 (CLAIM_RE), :141, :173
+      - Every governed doc is checked for governs existence, opted in or not — a ghost pathspec is a violation on its own, because it silently shrinks both drift and stale coverage. — packages/govkit/src/commands/drift.ts:200-237 (runDrift)
+      - A pathspec git refuses to evaluate is reported as its own violation class, never misdiagnosed as a ghost. — packages/govkit/src/commands/drift.ts:209-219; packages/govkit/src/util.ts:246 (gitMatchCount)
+      - The gate never acks itself — the only exits are updating the doc or an explicit --ack. — packages/govkit/src/commands/drift.ts:16-18; packages/govkit/src/cli.ts:361-364 (printDrift)
+      - An ack rewrites ONLY the reconciled value token inside the leading front-matter block; every other byte, including a trailing same-line comment, survives. — packages/govkit/src/commands/drift.ts:285 (rewriteReconciled), :92 (locateReconciled)
+      - An ack refuses to write when the claim line carries no same-line value token, failing loud rather than corrupting the doc into a two-line scalar. — packages/govkit/src/commands/drift.ts:342-349 (runDriftAck)
+      - "--ack may never combine with --hook: an ack rewrites docs and a blocking hook must never mutate. — packages/govkit/src/cli.ts:528-533"
+      - An ack cannot report success while any doc stays unackable, so ack-all is "green afterwards, or told why not". — packages/govkit/src/commands/drift.ts:353-367 (runDriftAck)
+      - git absence degrades both readings to a surfaced note with exit 0 — a gate you cannot run is reported, never failed. — packages/govkit/src/commands/drift.ts:187-198; packages/govkit/src/commands/stale.ts:46-53
+      - "Staleness is advisory and never affects an exit code; `check` never calls it. — packages/govkit/src/commands/stale.ts:35-43; packages/govkit/src/cli.ts:776-784"
+      - '"Cannot evaluate the governed code" is surfaced as `dangling`, and a doc with no commit of its own as `uncommitted` — neither is ever silently read as `fresh`. — packages/govkit/src/commands/stale.ts:61-77 (runStale)'
+      - Recency compares COMMIT time, never filesystem mtime, because mtime is the checkout instant on a fresh CI clone. — packages/govkit/src/util.ts:182 (gitCommitTime)
+notes: >-
+  Two readings of ONE declaration. `drift` is the blocking claim gate (RFC-0015) and `stale` is the
+  advisory recency proxy (RFC-0009); they are one context because they read the same `governs:` key
+  through one deliberately shared scanner — util.ts:147 states the reason as a correctness property
+  ("ONE scanner so the two governs-readers can never disagree"). Both live OUTSIDE the no-key
+  pure-fs floor by construction, so `govkit check` calls neither (cli.ts:696-711).
+  `domain_events: []` — the ack rewrites a file and returns a result; nothing is published.
+relationships:
+  - to: GovernanceSchema
+    direction: downstream
+    our_roles: [conformist]
+    their_roles: [published-language]
+    note: Reads type dirs + docs.root through the same loadConfig/typeDir path as every other reader (util.ts:126 scanParsedDocs).
+  - to: GateJournal
+    direction: upstream
+    our_roles: [supplier]
+    their_roles: [customer, published-language]
+    note: "An ack run is marked `ack: true` so a consumer never mistakes `drifted > 0 with ok: true` for a corrupt check record (journal.ts:33-38, cli.ts:809-812)."
+  - to: Ratification
+    direction: upstream
+    our_roles: [supplier]
+    their_roles: [conformist]
+    note: "`drift --ack` is listed as an R1 transition (govkit.yml:146) — so an ack is supposed to carry the packet + policy citation. Nothing in drift.ts checks that; honor-system."
