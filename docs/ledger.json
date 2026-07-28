@@ -5,7 +5,7 @@
       "title": "working-discipline skill shipped + A/B benchmarked across Fable/Opus/Sonnet",
       "spec": "RFC-0011",
       "passes": true,
-      "check": "plugins/swe-flow/skills/working-discipline/references/eval-scenarios.md \u2014 15/15 with-skill runs pass, 6 baselines calibrate the delta"
+      "check": "docs/research/working-discipline-eval/eval-scenarios.md \u2014 15/15 with-skill runs pass, 6 baselines calibrate the delta"
     },
     {
       "id": "F-R7-SENSE",

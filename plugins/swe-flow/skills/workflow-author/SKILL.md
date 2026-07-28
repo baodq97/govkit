@@ -1,5 +1,6 @@
 ---
 name: workflow-author
+disable-model-invocation: true
 description: >-
   Author a reusable, deterministic DYNAMIC WORKFLOW — a `.claude/workflows/<name>.js`
   orchestration script — from a plain description of a repeatable, multi-step process.

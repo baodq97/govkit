@@ -2,12 +2,10 @@
 name: gate-close
 description: >-
   Close a landed change into ONE owner-decision packet before any governed-doc status advances.
-  Use whenever code has landed and a PRD, RFC, ADR, or user story is a candidate to move status,
-  or when the user says "close this slice", "prep the flips", "ready to flip", "verify and
-  reconcile before I accept". It runs the gate-loop workflow — an independent gate re-run, a
-  drift reconcile, and one red team per flip candidate — so the owner ratifies once from a
-  single packet instead of being interrupted per document. Skipping it risks advancing a doc
-  whose criteria the code no longer matches.
+  Use whenever CODE HAS LANDED and one or more PRD/RFC/ADR/US docs are candidates to move
+  status, or when the user says "close this slice", "prep the flips", "ready to flip". For a
+  single doc with NO code landed yet (a draft heading to proposed/accepted), use spec-red-team
+  instead — gate-close already contains a red team per flip.
 ---
 
 # Gate Close

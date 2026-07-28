@@ -1,5 +1,6 @@
 ---
 name: spec-red-team
+disable-model-invocation: true
 description: >-
   Runs the keyed adversarial pass over ONE governed PRD/RFC/ADR before its status advances:
   steelman first, then attack; phrase every weakness as a falsifiable "Fails if ___";

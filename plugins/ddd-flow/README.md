@@ -69,17 +69,17 @@ measures complexity from the model's own mass, and message flows are what expose
 map hides. The plugin's own readiness heuristic already says so — *"is differentiation sourced from
 business evidence?"* — and the answer improves once the flows exist.
 
-The order is a prior, not a constraint: `references/steps.yml` declares staleness per step rather
+The order is a prior, not a constraint: `skills/design/references/steps.yml` declares staleness per step rather
 than deriving it from position, so running strategize before connect costs nothing but the caveat.
 
 ## Skills
 
 **Orchestrator**
 
-- **`design`** — reads repo state with `scripts/ddd_state.py` (deterministic, no API key): per step
+- **`design`** — reads repo state with `skills/design/scripts/ddd_state.py` (deterministic, no API key): per step
   `done` / `partial` / `missing` / `STALE`, the evidence behind each verdict, the journal's open
   items, and **candidate actions with reasons** — a list, not a next step, because which one is
-  right depends on the goal. What counts as evidence is **configuration** (`references/steps.yml`:
+  right depends on the goal. What counts as evidence is **configuration** (`skills/design/references/steps.yml`:
   artifact globs, markers, and which upstream step invalidates which), so a repo with different doc
   conventions overrides a file, not the code. Right-sizes the path and states what each skip costs,
   handles a change arriving mid-loop by scope rather than by restart, and records every step,
@@ -211,7 +211,7 @@ Plöd's context-map and Quality Storming material, and Wardley Mapping. Each ski
 cites its own sources.
 
 Five techniques ddd-crew lists are **chosen against, not missed**: BPMN and sequence diagrams (the
-message-flow notation has no time axis on purpose — `4-connect/references/message-flow-notation.md`
+message-flow notation has no time axis on purpose — `skills/4-connect/references/message-flow-notation.md`
 argues it), C4 component diagrams (the aggregate canvas and the layering contract carry the same
 information closer to the decision), Dynamic Reteaming and Mob Programming (practices for a room,
 with no artifact for a skill to write or check).

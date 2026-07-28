@@ -1,18 +1,14 @@
 ---
 name: data-model
 description: >
-  Design or audit a relational data model. Two modes. FORWARD: turn a domain model
-  (docs/domain/ from the ddd-flow plugin, or a prose description) into a logical schema —
-  tables, keys, relationships, constraints, ERD — plus a PostgreSQL projection. AUDIT: review an
-  EXISTING database (migrations, DDL, or ORM models — Alembic, SQLAlchemy, Django, Prisma,
-  TypeORM, EF) and flag data-model issues with severity, then diff against docs/domain/ for drift.
-  Use FORWARD when the user says "design the database", "data model", "schema from the domain",
-  "turn aggregates into tables", "ERD", "design tables". Use AUDIT when the user says "audit my
-  schema", "review the database", "check our data model", "is my schema healthy", "find schema
-  problems", "data model review", or points at an existing schema/migrations folder. This is the
-  persistence step of the chain (goal-define → ddd-flow decompose → data-model), and the
-  go-to skill for reviewing the data layer of an existing/legacy project.
-license: MIT
+  Design or audit a relational data model. FORWARD mode turns a domain model (docs/domain/
+  from the ddd-flow plugin, or a prose description) into a logical schema and ERD; AUDIT mode
+  reviews an EXISTING database (migrations, DDL, or ORM models) and flags issues with
+  severity. Use FORWARD for "design the database", "data model", "schema from the domain",
+  "turn aggregates into tables", "ERD", "design tables". Use AUDIT for "audit my schema",
+  "review the database", "is my schema healthy", "data model review", or when the user points
+  at an existing schema/migrations folder. The persistence step of the chain and the go-to
+  skill for reviewing the data layer of a legacy project.
 ---
 
 # Data Model

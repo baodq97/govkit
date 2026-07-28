@@ -5,13 +5,9 @@ description: >
   API architecture — resource modeling, versioning strategies, pagination patterns, and error
   handling standards. Trigger when the user says "design an API", "create OpenAPI spec", "REST
   API design", "GraphQL schema", "API versioning", "pagination patterns", or asks about HTTP
-  resource modeling, API contracts, or error response structure. This is also the API-design
-  step of the swe-flow chain: when a domain model already exists in `docs/domain/` (from
-  the ddd-flow plugin), use this skill to turn those bounded contexts and aggregates into API
-  surfaces and contracts — trigger on "design the API for this domain", "turn the domain model
-  into an API", or "now build the API" after a decomposition. Works standalone from a prose
-  description too.
-license: MIT
+  resource modeling, API contracts, or error response structure. Also trigger on "design the
+  API for this domain", "turn the domain model into an API", or "now build the API" when a
+  domain model exists in `docs/domain/`. Works standalone from a prose description too.
 ---
 
 # API Designer

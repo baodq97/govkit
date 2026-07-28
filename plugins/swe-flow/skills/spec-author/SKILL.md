@@ -6,12 +6,9 @@ description: >
   correct front-matter, then self-validate with `npx govkit verify`. Use whenever the user
   wants to write/draft/create a PRD, RFC, ADR, or user story, turn a domain model or API/data
   design into a lifecycle doc, "spec this out", record an architecture decision, or open a
-  governed doc that has to pass govkit. The user picks which artifact type. The skill
-  discovers the doc dirs and required front-matter from the consumer's govkit.yml (never
-  hardcoded), writes with owner: TBD and the correct START status (PRD draft, RFC draft, ADR
-  proposed, US open), updates the matching INDEX.md row, and runs govkit verify to confirm.
-  Trigger even when the user names only the artifact ("write the ADR", "draft a US for this")
-  as long as the output is a governed PRD/RFC/ADR/US doc.
+  governed doc that has to pass govkit. The user picks which artifact type. Trigger even when
+  the user names only the artifact ("write the ADR", "draft a US for this") as long as the
+  output is a governed PRD/RFC/ADR/US doc.
 allowed-tools: Read, Grep, Glob, Bash, Edit, Write
 ---
 

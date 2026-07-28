@@ -1,5 +1,6 @@
 ---
 name: govkit-adopt
+disable-model-invocation: true
 description: >
   Get govkit governance INTO a repo — from nothing (greenfield: `govkit init` scaffolds
   govkit.yml, the PreToolUse write-time hook, and docs/{product,rfc,adr,issues}/INDEX.md,

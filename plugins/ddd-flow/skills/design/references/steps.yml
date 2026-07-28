@@ -102,7 +102,7 @@ steps:
     loop: 3
     skill: 7-define
     question: What is each context responsible for, and what is it assuming?
-    # domain-decompose writes a first-pass canvas to the same file; the markers are what
+    # 3-decompose writes a first-pass canvas to the same file; the markers are what
     # distinguish a defined context from a sketched one.
     artifacts: ["*/README.md"]
     # `*/` also catches this plugin's own non-context directories. Their index files are not

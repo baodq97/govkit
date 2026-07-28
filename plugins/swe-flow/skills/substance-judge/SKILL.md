@@ -1,5 +1,6 @@
 ---
 name: substance-judge
+disable-model-invocation: true
 description: >
   Runs the keyed Layer-3 substance evaluation (RFC-0019, PRD-0001 R2) over a repo's governed
   docs: discovers the corpus from govkit.yml, gates on the deterministic floor first

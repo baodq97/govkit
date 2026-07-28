@@ -1,5 +1,6 @@
 ---
 name: distill-learnings
+disable-model-invocation: true
 description: >
   Runs the DISTILL step of the R7 learning flywheel (RFC-0017): reads the gate journal
   (.govkit/journal.jsonl), the escape log (LEARNING-LOOP.md), and the git delta since the

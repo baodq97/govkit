@@ -13,7 +13,7 @@ What counts as evidence for each step is configuration (references/steps.yml), n
     python ddd_state.py --root .                    # human-readable report
     python ddd_state.py --root . --json             # machine-readable
     python ddd_state.py --root . --config other.yml # a repo with different conventions
-    python ddd_state.py --root . --record --step connect --skill domain-connect \
+    python ddd_state.py --root . --record --step connect --skill 4-connect \
         --note "traced 3 use cases" --open "invariant spans Booking/Consolidation" \
         --deviation "skipped organise — single team"
     python ddd_state.py --root . --render-log        # regenerate MODELLING-LOG.md from the journal

@@ -3,15 +3,11 @@ name: working-discipline
 description: >
   Thinking-checkpoint discipline for substantive implementation, debugging, or autonomous
   work — 21 trigger-gated items (trigger → mandatory question → evidence to produce) that
-  cut agent error and human escalation. Covers epistemic discipline (competing hypotheses,
-  sufficient-condition "done", refute-your-own-fix), risk-scaled autonomy (one-way/two-way
-  doors, calibration, pre-mortem, loop detection, stop rules, constraints-first), and
-  blind spots (the goal behind the request, Chesterton's fence, negative space, provenance
-  labeling, independent ensemble). Use at the START of any non-trivial coding/debugging
-  task, before an autonomous or long-running run, when asked to "work carefully",
-  "double-check", "làm cẩn thận", "reduce errors", "be more autonomous", or after looping
-  on the same failing fix. NOT a procedure — checkpoints fire on their triggers and demand
-  evidence, with an N/A escape valve so a strong model pays near-zero overhead.
+  cut agent error and human escalation. Use before an autonomous or long-running run, when
+  asked to "work carefully", "double-check", "làm cẩn thận", "reduce errors", "be more
+  autonomous", or after looping twice on the same failing fix. NOT a procedure — checkpoints
+  fire on their triggers and demand evidence, with an N/A escape valve so a strong model pays
+  near-zero overhead.
 allowed-tools: Read, Grep, Glob, Bash, Write, Edit
 ---
 

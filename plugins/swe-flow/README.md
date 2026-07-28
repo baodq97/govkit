@@ -7,7 +7,7 @@ Everything **calls** `npx govkit verify` to validate — nothing embeds the dete
 
 ## Components
 
-**Skills — the SDLC chain** (`slice → goal → domain → API → data → governed artifact`):
+**Skills — the SDLC chain** (`slice → goal → API → data → governed artifact`; domain modelling ships in the sibling `ddd-flow` plugin):
 
 - **`skills/govkit-adopt`** — get govkit governing a repo in the first place: `init` for a
   greenfield tree, `init --adopt` (dry-run first) to migrate docs that already carry prose

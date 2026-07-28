@@ -4,11 +4,11 @@ title: Working-discipline — a trigger-gated thinking-checkpoint skill that red
 status: implemented
 owner: baodq97
 date: 2026-07-07
-reconciled: sha256:35f6b008fab9c55d
+reconciled: sha256:866ec6909775517a
 governs:
   - plugins/swe-flow/skills/working-discipline/SKILL.md
   - plugins/swe-flow/skills/working-discipline/references/discipline-items.md
-  - plugins/swe-flow/skills/working-discipline/references/eval-scenarios.md
+  - docs/research/working-discipline-eval/eval-scenarios.md
 ---
 
 > Proposes a new public, LLM-facing surface (root `AGENTS.md` § Lifecycle: a new skill is a
@@ -103,7 +103,7 @@ mitigated by the evidence-artifact contract and the explicit N/A escape valve.
 - **Item-set versioning.** If real use shows an item never fires or always returns N/A, it
   should be cut; the item catalog is expected to shrink before it grows. The eval signal for
   this is the escape log itself, plus the pinned behavioral benchmark
-  (`references/eval-scenarios.md` — five blind scenarios with pre-registered expected
+  (`docs/research/working-discipline-eval/eval-scenarios.md` — five blind scenarios with pre-registered expected
   outcomes, run A/B on Fable/Opus/Sonnet at authoring time; re-run on any new target model
   before trusting the skill there).
 
@@ -111,7 +111,7 @@ mitigated by the evidence-artifact contract and the explicit N/A escape valve.
 
 Shipped as recorded, plus one benchmark surface the eval demanded: one skill
 (`SKILL.md`) + two references (`discipline-items.md` — the 21-item catalog, escalation
-protocol, escape-log format; `eval-scenarios.md` — five pre-registered blind scenarios
+protocol, escape-log format; `docs/research/working-discipline-eval/eval-scenarios.md` — five pre-registered blind scenarios
 with expected-outcome keys and recorded results). Validated with a skill-creator-style
 harness: structural checklist plus 15 with-skill scenario runs across three model tiers
 (Fable / Opus / Sonnet — all pass) and 6 no-skill baselines (Opus / Sonnet) that
@@ -123,7 +123,7 @@ which baselines already had. No engine change; manifests bumped 0.3.0 → 0.4.0.
 ## Deviations from design
 
 - **A third governed file.** The design said "one skill, one reference"; the behavioral
-  benchmark (`references/eval-scenarios.md`) was added after the A/B runs so any new
+  benchmark (`docs/research/working-discipline-eval/eval-scenarios.md`) was added after the A/B runs so any new
   target model can be re-tested before the skill is trusted there — same corpus-pinning
   posture as `packages/govkit/eval/`. `governs:` updated accordingly.
 - **Proportionality clause added to the contract.** The A/B run surfaced that weaker

@@ -7,7 +7,8 @@ description: >
   or when you detect the user has a vague multi-step objective that would benefit from structured
   goal definition. Also trigger when the user pastes a wall of requirements and needs them organized
   into a runnable goal. Covers all task types: implementation, exploration/research, audit/review,
-  and refactoring.
+  and refactoring. Output is ONE runnable goal with a control core — to split work into N
+  shippable slices instead, use work-breakdown.
 ---
 
 # Goal Define
