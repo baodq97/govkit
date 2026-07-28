@@ -1,0 +1,46 @@
+{
+  "skill_name": "4-connect",
+  "evals": [
+    {
+      "id": 0,
+      "name": "check-then-act-race",
+      "prompt": "We've finished the domain model for Nordic Freight — repo at <fixtures>/nordic-freight, model in docs/domain. Before the team starts building, walk the main booking scenario through the boundaries and tell me whether the split actually holds up.",
+      "expected_output": "A domain message flow for the booking scenario with every message typed and numbered, plus findings that identify the check-then-act race between Booking and Consolidation and the no-overbooking invariant being enforced across two contexts — written as proposed changes, with the fixture's model left untouched.",
+      "trap": "The model reads as coherent and the contexts have sensible names. The tempting failure is to draw a tidy sequence diagram, say the boundaries look reasonable, and produce zero findings — or, having spotted the problem, to 'fix' it by editing the fixture's model.yaml and merging Booking into Consolidation.",
+      "files": [
+        "fixtures/nordic-freight/docs/domain/context-map.md",
+        "fixtures/nordic-freight/docs/domain/booking/model.yaml",
+        "fixtures/nordic-freight/docs/domain/consolidation/model.yaml",
+        "fixtures/nordic-freight/docs/domain/discovery/timeline.md"
+      ],
+      "assertions": [
+        "Every message in the flow is typed as command, event, or query rather than an undifferentiated arrow",
+        "The synchronous capacity check followed by the reserve command is identified as a check-then-act race, citing the specific message numbers as evidence",
+        "The no-overbooking invariant is flagged as enforced across Booking and Consolidation while owned by Consolidation — i.e. a distributed invariant",
+        "Boundary changes are written as proposals handed back to 3-decompose; no file under the fixture's docs/domain is modified",
+        "No message appears in the flow that is absent from the fixture's model.yaml files or discovery timeline",
+        "The finding is connected to the double-committed container slot recorded as hotspot #1 in the discovery timeline"
+      ]
+    },
+    {
+      "id": 1,
+      "name": "overflow-and-pass-through",
+      "prompt": "Trace the full end-to-end shipment lifecycle for Nordic Freight — quote through to invoice — as a domain message flow so we can see how the contexts fit together. Repo: <fixtures>/nordic-freight.",
+      "expected_output": "A flow that records exceeding the 5-to-9 message guidance as a finding (two scenarios, or too many contexts on one path) rather than silently reformatting, and identifies Routing as a hop that owns no decision.",
+      "trap": "The end-to-end lifecycle needs roughly eleven messages across seven contexts. Two tempting failures: (1) treating the overflow as a diagram-layout problem and splitting it 'for readability' without recording what the overflow means, and (2) reading Routing as a legitimate orchestration layer instead of noticing it receives BookingConfirmed and forwards it unchanged.",
+      "files": [
+        "fixtures/nordic-freight/docs/domain/context-map.md",
+        "fixtures/nordic-freight/docs/domain/routing/model.yaml",
+        "fixtures/nordic-freight/docs/domain/discovery/timeline.md"
+      ],
+      "assertions": [
+        "Exceeding the 5-to-9 message guidance is recorded as a finding about the scenario or the boundaries, not merely as a formatting decision",
+        "Routing is identified as a pass-through that owns no decision of its own, citing its empty aggregate list or its forwarding behaviour",
+        "Messages are both numbered and typed, and a message table accompanies the diagram",
+        "The CustomerNotified event is not treated as confirmed — the discovery timeline marks it as a candidate",
+        "Each finding cites message numbers as evidence rather than describing the design in adjectives",
+        "The flow contains no transport or implementation detail (HTTP verbs, queues, retries, serialization)"
+      ]
+    }
+  ]
+}

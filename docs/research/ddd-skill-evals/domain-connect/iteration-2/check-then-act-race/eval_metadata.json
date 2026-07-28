@@ -1,0 +1,28 @@
+{
+  "eval_id": 0,
+  "eval_name": "check-then-act-race",
+  "skill_name": "domain-connect",
+  "prompt": "We've finished the domain model for Nordic Freight \u2014 repo at <fixtures>/nordic-freight, model in docs/domain. Before the team starts building, walk the main booking scenario through the boundaries and tell me whether the split actually holds up.",
+  "trap": "The model reads as coherent and the contexts have sensible names. The tempting failure is to draw a tidy sequence diagram, say the boundaries look reasonable, and produce zero findings \u2014 or, having spotted the problem, to 'fix' it by editing the fixture's model.yaml and merging Booking into Consolidation.",
+  "expected_output": "A domain message flow for the booking scenario with every message typed and numbered, plus findings that identify the check-then-act race between Booking and Consolidation and the no-overbooking invariant being enforced across two contexts \u2014 written as proposed changes, with the fixture's model left untouched.",
+  "assertions": [
+    {
+      "text": "Every message in the flow is typed as command, event, or query rather than an undifferentiated arrow"
+    },
+    {
+      "text": "The synchronous capacity check followed by the reserve command is identified as a check-then-act race, citing the specific message numbers as evidence"
+    },
+    {
+      "text": "The no-overbooking invariant is flagged as enforced across Booking and Consolidation while owned by Consolidation \u2014 i.e. a distributed invariant"
+    },
+    {
+      "text": "Boundary changes are written as proposals handed back to domain-decompose; no file under the fixture's docs/domain is modified"
+    },
+    {
+      "text": "No message appears in the flow that is absent from the fixture's model.yaml files or discovery timeline"
+    },
+    {
+      "text": "The finding is connected to the double-committed container slot recorded as hotspot #1 in the discovery timeline"
+    }
+  ]
+}

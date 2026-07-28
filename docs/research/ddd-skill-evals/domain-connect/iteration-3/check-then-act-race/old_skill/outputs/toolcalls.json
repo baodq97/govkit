@@ -1,0 +1,5 @@
+{
+  "file_reads": 6,
+  "bash_calls": 6,
+  "notes": "3 Reads of the skill+references, 3 Reads of the repo's context-map/business-model/timeline, one Bash cat of all 7 model.yaml files; the rest of the time went into building the three flows and cross-checking invariants against the discovery timeline ordering."
+}

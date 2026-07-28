@@ -1,0 +1,1 @@
+{"context": "Customs", "file_reads": 6, "bash_calls": 10, "notes": "header + slice + --json first; only customs/model.yaml, discovery/timeline.md, context-map.md opened, each to quote; extra bash calls were line-budget trims to fit the 180-line core cap."}

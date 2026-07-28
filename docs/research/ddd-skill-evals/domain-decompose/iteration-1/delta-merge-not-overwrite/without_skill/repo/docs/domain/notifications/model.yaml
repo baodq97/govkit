@@ -1,0 +1,29 @@
+context: Notifications
+subdomain_type: generic
+tactical_pattern: bought-adapter
+mass: { tables: 2, attributes: 11, densest_entity_attrs: 7 }
+aggregates: []
+aggregates_rationale: Thin adapter over a bought email/SMS provider; no domain model.
+domain_events:
+  - { name: CustomerNotified, payload: [customerId, templateId, correlationRef, sentAt, acknowledgedAt] }
+relationships:
+  - { to: Invoicing, type: downstream }
+  - { to: ColdChain, type: downstream, note: "TemperatureBreachRecorded — contractual, deadlined, must be acknowledged" }
+classification_at_risk: >
+  This is the one classification cold chain actually threatens, and it is worth deciding rather than
+  drifting into. Every notification this context sends today is courtesy traffic — fire and forget
+  is fine, a lost invoice email is an annoyance. A breach notification is a contractual obligation
+  with a deadline, and ColdChain cannot close a breach case without an acknowledgement. That needs
+  delivery receipts, retry with escalation, and an auditable send record, which a bought adapter
+  with no domain model does not give us.
+  Three options, in preference order:
+  1. Keep Notifications generic; ColdChain owns the obligation and treats sends as attempts, driving
+     retry and escalation itself. Smallest change, the obligation sits with the context that carries
+     the liability. Costs ColdChain a delivery-tracking concern.
+  2. Split a small ObligatedNotice capability out of Notifications for deadlined, acknowledged
+     sends. Honest boundary, but a new context for one message type.
+  3. Promote the whole context to supporting and build guaranteed delivery into it. Highest cost,
+     and it upgrades commodity traffic nobody asked to upgrade.
+  Recommend (1) until a second deadlined notification type appears; that second type is the signal
+  for (2). Do not silently leave the context marked generic while ColdChain quietly depends on
+  delivery guarantees it does not provide.

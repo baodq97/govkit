@@ -1,0 +1,18 @@
+context: FiscalRecord
+subdomain_type: supporting
+tactical_pattern: transaction-script
+ubiquitous_language:
+  - term: Fiscal record
+    definition: Site, entry time, exit time, amount, VAT, payment method, machine paid at — not the plate.
+  - term: Retention period
+    definition: Per country — DE 10 years (GoBD), AT 10, NL 7, FR unknown.
+aggregates: []
+notes: >-
+  Deliberately light — an append-only record with one writer plus a per-country retention parameter.
+  Kept as its own context rather than declined as cross-cutting audit because its invariants are real
+  and legal (fixed content, country-specific retention, must outlive the visit and the card). Open:
+  H8 (France and beyond; disposal when a site or operator leaves), H13 (nothing identifies the visit
+  the record belongs to). Escalation: legal hold or chain-of-evidence would earn this an aggregate.
+relationships:
+  - { to: ParkingVisit, type: downstream }
+  - { to: PaymentCapture, type: downstream }

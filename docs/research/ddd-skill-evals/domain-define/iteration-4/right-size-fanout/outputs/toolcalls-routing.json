@@ -1,0 +1,1 @@
+{"context": "Routing", "file_reads": 3, "bash_calls": 10, "notes": "Header+slice were the whole input; only raw artifact opened was routing/model.yaml, to quote its single event (plus SKILL.md and the canvas reference). Most bash calls were line-budget trimming to 89 <= 90."}

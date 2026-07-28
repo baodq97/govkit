@@ -1,0 +1,10 @@
+context: Notifications
+subdomain_type: generic
+tactical_pattern: bought-adapter
+mass: { tables: 2, attributes: 11, densest_entity_attrs: 7 }
+aggregates: []
+aggregates_rationale: Thin adapter over a bought email/SMS provider; no domain model.
+domain_events:
+  - { name: CustomerNotified, payload: [customerId, templateId] }
+relationships:
+  - { to: Invoicing, type: downstream }

@@ -1,0 +1,1 @@
+{"file_reads":4,"bash_calls":5,"notes":"Read context-map, business-model, discovery timeline and routing model directly; batched the other 6 context model.yaml files through one bash cat loop."}

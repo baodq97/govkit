@@ -1,0 +1,5 @@
+{
+  "file_reads": 5,
+  "bash_calls": 8,
+  "notes": "One ddd_context pack up front, then 4 targeted reads (timeline, context-map, business-model, all model.yaml via one bash cat) to get message names the pack does not carry; most time went into drawing the four flows and trimming FLOW-0001 to the 90-line budget."
+}

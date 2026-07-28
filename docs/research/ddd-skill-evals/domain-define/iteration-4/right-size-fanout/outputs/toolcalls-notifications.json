@@ -1,0 +1,1 @@
+{"context": "Notifications", "file_reads": 3, "bash_calls": 5, "notes": "Generic/bought context: header + slice + one raw model.yaml were enough; stub written at 35 lines, no other context files touched."}

@@ -1,0 +1,686 @@
+{
+ "schemaVersion": 2,
+ "kind": "workspace",
+ "source": {
+  "docsRoot": "/home/bd/personal-projects/govkit/docs/research/ddd-skill-evals/domain-view/iteration-1/lens-for-an-approval/with_skill/repo/docs/domain",
+  "documents": 4
+ },
+ "documents": [
+  {
+   "id": "review",
+   "title": "Review — state & findings",
+   "kind": "review",
+   "step": "design",
+   "payload": {
+    "schemaVersion": 1,
+    "kind": "review",
+    "source": {
+     "mode": "review",
+     "docsRoot": "docs/domain"
+    },
+    "steps": [
+     {
+      "step": "understand",
+      "loop": 1,
+      "skill": "1-understand",
+      "question": "What does the business sell, to whom, and what differentiates it?",
+      "status": "done",
+      "evidence": [
+       "docs/domain/business-model.md"
+      ],
+      "stale_against": [],
+      "note": ""
+     },
+     {
+      "step": "discover",
+      "loop": 1,
+      "skill": "2-discover",
+      "question": "What actually happens in this domain, in the words of the people who do it?",
+      "status": "done",
+      "evidence": [
+       "docs/domain/discovery/timeline.md"
+      ],
+      "stale_against": [],
+      "note": ""
+     },
+     {
+      "step": "decompose",
+      "loop": 2,
+      "skill": "3-decompose",
+      "question": "Where are the boundaries, and what does each context own?",
+      "status": "done",
+      "evidence": [
+       "docs/domain/booking/model.yaml",
+       "docs/domain/consolidation/model.yaml",
+       "docs/domain/context-map.md",
+       "docs/domain/customs/model.yaml",
+       "docs/domain/invoicing/model.yaml",
+       "docs/domain/notifications/model.yaml",
+       "docs/domain/quoting/model.yaml",
+       "docs/domain/routing/model.yaml"
+      ],
+      "stale_against": [
+       "discover"
+      ],
+      "note": ""
+     },
+     {
+      "step": "connect",
+      "loop": 2,
+      "skill": "4-connect",
+      "question": "Do real use cases flow across these boundaries without hidden coupling?",
+      "status": "missing",
+      "evidence": [],
+      "stale_against": [],
+      "note": ""
+     },
+     {
+      "step": "strategize",
+      "loop": 2,
+      "skill": "5-strategize",
+      "question": "Which parts deserve the investment, and what do we buy instead of build?",
+      "status": "missing",
+      "evidence": [],
+      "stale_against": [],
+      "note": ""
+     },
+     {
+      "step": "organise",
+      "loop": 2,
+      "skill": "6-organise",
+      "question": "Which team owns which context, and at what cognitive load?",
+      "status": "missing",
+      "evidence": [],
+      "stale_against": [],
+      "note": ""
+     },
+     {
+      "step": "define",
+      "loop": 3,
+      "skill": "7-define",
+      "question": "What is each context responsible for, and what is it assuming?",
+      "status": "missing",
+      "evidence": [],
+      "stale_against": [],
+      "note": ""
+     },
+     {
+      "step": "code",
+      "loop": 3,
+      "skill": "8-code",
+      "question": "What stays consistent in one transaction, and what gets repaired afterwards?",
+      "status": "missing",
+      "evidence": [],
+      "stale_against": [],
+      "note": ""
+     }
+    ],
+    "candidates": [
+     {
+      "kind": "revisit",
+      "step": "decompose",
+      "skill": "3-decompose",
+      "rank": 1,
+      "why": "discover changed after decompose was written — it may now describe a model that no longer exists"
+     },
+     {
+      "kind": "run",
+      "step": "connect",
+      "skill": "4-connect",
+      "rank": 3,
+      "why": "never run — answers: Do real use cases flow across these boundaries without hidden coupling?"
+     },
+     {
+      "kind": "run",
+      "step": "strategize",
+      "skill": "5-strategize",
+      "rank": 3,
+      "why": "never run — answers: Which parts deserve the investment, and what do we buy instead of build?"
+     },
+     {
+      "kind": "run",
+      "step": "organise",
+      "skill": "6-organise",
+      "rank": 3,
+      "why": "never run — answers: Which team owns which context, and at what cognitive load?"
+     },
+     {
+      "kind": "run",
+      "step": "define",
+      "skill": "7-define",
+      "rank": 3,
+      "why": "never run — answers: What is each context responsible for, and what is it assuming?"
+     },
+     {
+      "kind": "run",
+      "step": "code",
+      "skill": "8-code",
+      "rank": 3,
+      "why": "never run — answers: What stays consistent in one transaction, and what gets repaired afterwards?"
+     }
+    ],
+    "findings": [
+     {
+      "id": "classification-mismatch",
+      "severity": "high",
+      "title": "Consolidation carries the differentiation the business charges for, but is labelled `supporting`",
+      "evidence": [
+       "docs/domain/consolidation/model.yaml: subdomain_type: supporting",
+       "business-model.md: Load consolidation / container fill optimisation → differentiation: yes"
+      ],
+      "fix_owner": "5-strategize"
+     },
+     {
+      "id": "classification-mismatch",
+      "severity": "high",
+      "title": "Customs is labelled `core` but the business model says it differentiates on nothing",
+      "evidence": [
+       "docs/domain/customs/model.yaml: subdomain_type: core",
+       "business-model.md: Customs declaration → differentiation: no"
+      ],
+      "fix_owner": "5-strategize"
+     },
+     {
+      "id": "classification-mismatch",
+      "severity": "high",
+      "title": "Invoicing is labelled `core` but the business model says it differentiates on nothing",
+      "evidence": [
+       "docs/domain/invoicing/model.yaml: subdomain_type: core",
+       "business-model.md: Invoicing → differentiation: no"
+      ],
+      "fix_owner": "5-strategize"
+     },
+     {
+      "id": "investment-mismatch",
+      "severity": "high",
+      "title": "Invoicing holds 51% of the modelled mass and differentiates on nothing",
+      "evidence": [
+       "311 attributes of 608 across 7 contexts",
+       "business-model.md: differentiation: no"
+      ],
+      "fix_owner": "5-strategize"
+     },
+     {
+      "id": "shared-entity",
+      "severity": "high",
+      "title": "`ConsignmentLine` is modelled inside 2 contexts — Shared Kernel coupling unless labelled",
+      "evidence": [
+       "Booking, Consolidation"
+      ],
+      "fix_owner": "3-decompose"
+     },
+     {
+      "id": "too-many-core",
+      "severity": "high",
+      "title": "4 of 7 contexts are labelled `core` — differentiation was assumed, not assessed",
+      "evidence": [
+       "Booking, Customs, Invoicing, Quoting"
+      ],
+      "fix_owner": "5-strategize"
+     },
+     {
+      "id": "under-invested-core",
+      "severity": "high",
+      "title": "Consolidation is what the business differentiates on, and carries below-median model mass",
+      "evidence": [
+       "41 attributes vs median 54"
+      ],
+      "fix_owner": "3-decompose"
+     },
+     {
+      "id": "discovery-state-unlabelled",
+      "severity": "medium",
+      "title": "the discovery timeline never says which elements happen today — as-is, to-be and could-be are indistinguishable",
+      "evidence": [
+       "discovery/timeline.md: add a `State` column; discovery/model.json: a `state` field per element",
+       "until then a boundary drawn around future behaviour looks exactly like one drawn around a running system"
+      ],
+      "fix_owner": "2-discover"
+     }
+    ],
+    "warnings": [],
+    "journalEntries": 0
+   }
+  },
+  {
+   "id": "map",
+   "title": "Context map",
+   "kind": "domain",
+   "step": "3-decompose",
+   "payload": {
+    "contexts": [
+     {
+      "id": "booking",
+      "name": "Booking",
+      "subdomainType": "core",
+      "tacticalPattern": "full-domain-model",
+      "purpose": "",
+      "aggregates": [
+       "Booking"
+      ],
+      "ubiquitousLanguage": [
+       "Booking",
+       "Consignment"
+      ],
+      "mass": 6,
+      "attrCount": 10,
+      "counts": {
+       "aggregates": 1,
+       "entities": 2,
+       "valueObjects": 1,
+       "events": 2,
+       "invariants": 1
+      }
+     },
+     {
+      "id": "consolidation",
+      "name": "Consolidation",
+      "subdomainType": "supporting",
+      "tacticalPattern": "full-domain-model",
+      "purpose": "Load planning still happens partly on a whiteboard in the Gothenburg depot; the four senior planners resolve conflicts by hand when the optimiser proposes an infeasible stack.",
+      "aggregates": [
+       "ContainerLoad"
+      ],
+      "ubiquitousLanguage": [
+       "Container load",
+       "Fill rate"
+      ],
+      "mass": 5,
+      "attrCount": 7,
+      "counts": {
+       "aggregates": 1,
+       "entities": 2,
+       "valueObjects": 0,
+       "events": 2,
+       "invariants": 1
+      }
+     },
+     {
+      "id": "customs",
+      "name": "Customs",
+      "subdomainType": "core",
+      "tacticalPattern": "full-domain-model",
+      "purpose": "Two commercial customs platforms cover all nine ports; we integrate with neither.",
+      "aggregates": [
+       "Declaration"
+      ],
+      "ubiquitousLanguage": [],
+      "mass": 4,
+      "attrCount": 4,
+      "counts": {
+       "aggregates": 1,
+       "entities": 1,
+       "valueObjects": 0,
+       "events": 2,
+       "invariants": 1
+      }
+     },
+     {
+      "id": "invoicing",
+      "name": "Invoicing",
+      "subdomainType": "core",
+      "tacticalPattern": "full-domain-model",
+      "purpose": "Grown over eleven years. Three of the five aggregates exist to model VAT variations across the nine ports; two were added when the Finnish tax rules changed in 2024.",
+      "aggregates": [
+       "Invoice",
+       "SurchargeSchedule",
+       "CreditNote",
+       "DunningCase",
+       "PaymentAllocation"
+      ],
+      "ubiquitousLanguage": [
+       "Consignment",
+       "Surcharge"
+      ],
+      "mass": 3,
+      "attrCount": 8,
+      "counts": {
+       "aggregates": 5,
+       "entities": 2,
+       "valueObjects": 0,
+       "events": 0,
+       "invariants": 1
+      }
+     },
+     {
+      "id": "notifications",
+      "name": "Notifications",
+      "subdomainType": "generic",
+      "tacticalPattern": "bought-adapter",
+      "purpose": "",
+      "aggregates": [],
+      "ubiquitousLanguage": [],
+      "mass": 0,
+      "attrCount": 0,
+      "counts": {
+       "aggregates": 0,
+       "entities": 0,
+       "valueObjects": 0,
+       "events": 0,
+       "invariants": 0
+      }
+     },
+     {
+      "id": "quoting",
+      "name": "Quoting",
+      "subdomainType": "core",
+      "tacticalPattern": "full-domain-model",
+      "purpose": "",
+      "aggregates": [
+       "Quote"
+      ],
+      "ubiquitousLanguage": [],
+      "mass": 4,
+      "attrCount": 4,
+      "counts": {
+       "aggregates": 1,
+       "entities": 1,
+       "valueObjects": 0,
+       "events": 2,
+       "invariants": 1
+      }
+     },
+     {
+      "id": "routing",
+      "name": "Routing",
+      "subdomainType": "supporting",
+      "tacticalPattern": "transaction-script",
+      "purpose": "",
+      "aggregates": [],
+      "ubiquitousLanguage": [],
+      "mass": 0,
+      "attrCount": 0,
+      "counts": {
+       "aggregates": 0,
+       "entities": 0,
+       "valueObjects": 0,
+       "events": 0,
+       "invariants": 0
+      }
+     }
+    ],
+    "relationships": [
+     {
+      "from": "Booking",
+      "to": "Quoting",
+      "type": "downstream",
+      "teamRelation": "upstream-downstream",
+      "sourced": true
+     },
+     {
+      "from": "Booking",
+      "to": "Consolidation",
+      "type": "downstream",
+      "teamRelation": "upstream-downstream",
+      "sourced": true
+     },
+     {
+      "from": "Booking",
+      "to": "Routing",
+      "type": "upstream",
+      "teamRelation": "upstream-downstream",
+      "sourced": true
+     },
+     {
+      "from": "Consolidation",
+      "to": "Booking",
+      "type": "upstream",
+      "teamRelation": "upstream-downstream",
+      "sourced": true
+     },
+     {
+      "from": "Consolidation",
+      "to": "Customs",
+      "type": "upstream",
+      "teamRelation": "upstream-downstream",
+      "sourced": true
+     },
+     {
+      "from": "Customs",
+      "to": "Consolidation",
+      "type": "downstream",
+      "teamRelation": "upstream-downstream",
+      "sourced": true
+     },
+     {
+      "from": "Customs",
+      "to": "Invoicing",
+      "type": "upstream",
+      "teamRelation": "upstream-downstream",
+      "sourced": true
+     },
+     {
+      "from": "Invoicing",
+      "to": "Customs",
+      "type": "downstream",
+      "teamRelation": "upstream-downstream",
+      "sourced": true
+     },
+     {
+      "from": "Invoicing",
+      "to": "Notifications",
+      "type": "upstream",
+      "teamRelation": "upstream-downstream",
+      "sourced": true
+     },
+     {
+      "from": "Notifications",
+      "to": "Invoicing",
+      "type": "downstream",
+      "teamRelation": "upstream-downstream",
+      "sourced": true
+     },
+     {
+      "from": "Quoting",
+      "to": "Booking",
+      "type": "upstream",
+      "teamRelation": "upstream-downstream",
+      "sourced": true
+     },
+     {
+      "from": "Routing",
+      "to": "Booking",
+      "type": "downstream",
+      "teamRelation": "upstream-downstream",
+      "sourced": true
+     },
+     {
+      "from": "Routing",
+      "to": "PartnerNetwork",
+      "type": "downstream",
+      "teamRelation": "upstream-downstream",
+      "sourced": true
+     }
+    ],
+    "free": [],
+    "kind": "domain"
+   }
+  },
+  {
+   "id": "bmc",
+   "title": "Business model",
+   "kind": "business-model",
+   "step": "1-understand",
+   "payload": {
+    "canvas": {
+     "customerSegments": {
+      "status": "ok",
+      "items": [
+       "Small and mid-size exporters shipping part loads (too small for a full container)"
+      ],
+      "source": "investor one-pager"
+     },
+     "valuePropositions": {
+      "status": "ok",
+      "items": [
+       "\"Full-container prices on part-load shipments\" — we fill containers better than anyone else in the Nordics"
+      ],
+      "source": "commercial director, 2026-05-18"
+     },
+     "revenueStreams": {
+      "status": "ok",
+      "items": [
+       "Forwarding margin per shipment; Guaranteed Consolidation premium (+18% of forwarding fee) which promises a departure slot even on a partly-filled container"
+      ],
+      "source": "pricing page"
+     },
+     "keyResources": {
+      "status": "ok",
+      "items": [
+       "Partner depot network in 9 ports; the load-planning know-how of four senior planners"
+      ],
+      "source": "commercial director"
+     },
+     "costStructure": {
+      "status": "empty",
+      "items": [],
+      "source": "—"
+     }
+    },
+    "classification": [
+     {
+      "capability": "Load consolidation / container fill optimisation",
+      "businessRole": "revenue-generator",
+      "evolutionStage": "custom-built",
+      "differentiation": "yes — the premium customers pay for; a new entrant would need both the depot network and the planning know-how"
+     },
+     {
+      "capability": "Quoting",
+      "businessRole": "engagement-creator",
+      "evolutionStage": "product",
+      "differentiation": "partial — competitors quote in seconds too; we are no faster"
+     },
+     {
+      "capability": "Customs declaration",
+      "businessRole": "compliance-enforcer",
+      "evolutionStage": "product",
+      "differentiation": "no — required, and two vendors already do it well"
+     },
+     {
+      "capability": "Invoicing",
+      "businessRole": "compliance-enforcer",
+      "evolutionStage": "commodity",
+      "differentiation": "no — \"nobody has ever chosen us because of our invoices\""
+     },
+     {
+      "capability": "Shipment notifications",
+      "businessRole": "engagement-creator",
+      "evolutionStage": "commodity",
+      "differentiation": "no"
+     },
+     {
+      "capability": "Carrier routing",
+      "businessRole": "cost-reduction",
+      "evolutionStage": "product",
+      "differentiation": "no — the partner network is the asset, not the routing step"
+     }
+    ],
+    "goals": [
+     {
+      "horizon": "Short",
+      "goal": "Raise average container fill from 71% to 80%"
+     },
+     {
+      "horizon": "Medium",
+      "goal": "Open two more ports"
+     },
+     {
+      "horizon": "Long",
+      "goal": "Unknown"
+     }
+    ],
+    "questions": [
+     "Cost structure per shipment — would need whoever owns the P&L.",
+     "Whether customers would pay for guaranteed departure windows as a separate product — no customer"
+    ],
+    "attendance": {
+     "note": "Commercial director, two depot planners, three engineers. Missing: no customer took part — the \"what customers value\" rows below come from the commercial director speaking for them, and are marked proxy."
+    },
+    "kind": "business-model"
+   }
+  },
+  {
+   "id": "timeline",
+   "title": "Discovery timeline",
+   "kind": "timeline",
+   "step": "2-discover",
+   "payload": {
+    "elements": [
+     {
+      "#": "1",
+      "Event": "`QuoteRequested`",
+      "Emitted by": "Quoting",
+      "Confirmed by": "planner, 2026-05-25"
+     },
+     {
+      "#": "2",
+      "Event": "`QuoteIssued`",
+      "Emitted by": "Quoting",
+      "Confirmed by": "planner"
+     },
+     {
+      "#": "3",
+      "Event": "`BookingRequested`",
+      "Emitted by": "Booking",
+      "Confirmed by": "planner"
+     },
+     {
+      "#": "4",
+      "Event": "`CapacityReserved`",
+      "Emitted by": "Consolidation",
+      "Confirmed by": "planner"
+     },
+     {
+      "#": "5",
+      "Event": "`BookingConfirmed`",
+      "Emitted by": "Booking",
+      "Confirmed by": "planner"
+     },
+     {
+      "#": "6",
+      "Event": "`ShipmentHandedToCarrier`",
+      "Emitted by": "Routing",
+      "Confirmed by": "planner"
+     },
+     {
+      "#": "7",
+      "Event": "`ContainerSealed`",
+      "Emitted by": "Consolidation",
+      "Confirmed by": "planner"
+     },
+     {
+      "#": "8",
+      "Event": "`DeclarationSubmitted`",
+      "Emitted by": "Customs",
+      "Confirmed by": "customs clerk"
+     },
+     {
+      "#": "9",
+      "Event": "`DeclarationCleared`",
+      "Emitted by": "Customs",
+      "Confirmed by": "customs clerk"
+     },
+     {
+      "#": "10",
+      "Event": "`InvoiceIssued`",
+      "Emitted by": "Invoicing",
+      "Confirmed by": "finance analyst"
+     },
+     {
+      "#": "11",
+      "Event": "`CustomerNotified`",
+      "Emitted by": "Notifications",
+      "Confirmed by": "*candidate* — inferred from the notification templates, nobody confirmed when it fires"
+     }
+    ],
+    "hotspots": [],
+    "language": [],
+    "confidence": {},
+    "kind": "timeline"
+   }
+  }
+ ],
+ "gaps": [
+  "no core-domain-chart.md — 5-strategize has not run"
+ ]
+}

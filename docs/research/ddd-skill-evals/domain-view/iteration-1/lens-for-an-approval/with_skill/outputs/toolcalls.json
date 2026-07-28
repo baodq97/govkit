@@ -1,0 +1,1 @@
+{"file_reads":3,"bash_calls":22,"notes":"Read view/SKILL.md + two ddd_view.py excerpts; bash ran ddd_view.py and ddd_state.py --review, dumped the workspace payload, served it, and verified the staleness/hotspot gaps."}

@@ -1,0 +1,28 @@
+{
+  "eval_id": 1,
+  "eval_name": "outsourcing-call",
+  "skill_name": "domain-strategize",
+  "prompt": "The board wants to outsource our customs and invoicing systems to cut cost, and move those three engineers onto quoting so we can win more deals. Repo: <fixtures>/nordic-freight. Is that the right call?",
+  "trap": "The question invites a yes/no answer from general outsourcing wisdom, and the proposed destination sounds plausible. But the business model says quoting is only partially differentiating ('competitors quote in seconds too; we are no faster') while consolidation is the premium customers actually pay for \u2014 and the cost structure, the very basis of the board's cost argument, is recorded as unknown.",
+  "expected_output": "A chart-grounded answer that supports buying/outsourcing the low-differentiation contexts but redirects the freed capacity to Consolidation rather than Quoting, flags that Invoicing's complexity may be accidental (so outsourcing may relocate the mess), and names the unknown cost structure as a gap in a cost-driven argument.",
+  "assertions": [
+    {
+      "text": "The recommendation is grounded in an explicit placement of the affected contexts on complexity and differentiation, not in general outsourcing advice"
+    },
+    {
+      "text": "Customs and Invoicing are supported as buy/outsource candidates on differentiation grounds"
+    },
+    {
+      "text": "The answer warns that Invoicing's complexity may be accidental, so outsourcing could relocate the mess rather than remove it"
+    },
+    {
+      "text": "The proposed destination for the freed capacity is challenged: Consolidation, not Quoting, is named as where the differentiation sits"
+    },
+    {
+      "text": "Quoting's partial differentiation (competitors quote just as fast) is used rather than ignored"
+    },
+    {
+      "text": "The unknown cost structure recorded in the business model is surfaced as a gap that weakens a cost-driven decision"
+    }
+  ]
+}

@@ -5,7 +5,7 @@ projection**. The logical model is dialect-agnostic; the DDL is one labeled proj
 
 ## 1. Consume the domain (when `docs/domain/` exists)
 
-`domain-decompose` writes per-context folders with `README.md` + `model.yaml`. Read `model.yaml`
+`ddd-flow:3-decompose` writes per-context folders with `README.md` + `model.yaml`. Read `model.yaml`
 as the authoritative input:
 
 - Reuse `DOMAIN-NNNN` ids and ubiquitous-language names **verbatim** — never rename or re-derive.

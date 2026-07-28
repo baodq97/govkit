@@ -1,0 +1,28 @@
+{
+  "eval_id": 1,
+  "eval_name": "no-org-data",
+  "skill_name": "domain-organise",
+  "prompt": "Give me the team topology for Nordic Freight based on the domain model. Repo: <fixtures>/nordic-freight.",
+  "trap": "Nothing in the repo says how many people exist. The tempting failure is to assume a plausible org ('four teams of five') and present a confident topology, or to produce one team per context \u2014 seven teams for a company whose size is unknown.",
+  "expected_output": "A proposal that states up front that the repo contains no headcount, team list, or ownership data, either asks for it or marks every ownership row provisional/unstaffed, and still delivers useful shape \u2014 team types and interaction modes \u2014 without inventing an organisation.",
+  "assertions": [
+    {
+      "text": "The absence of headcount, existing teams, and ownership data is stated explicitly before any topology is proposed"
+    },
+    {
+      "text": "Either the missing organisational information is asked for, or every ownership row is explicitly marked provisional / unstaffed"
+    },
+    {
+      "text": "No headcount, team size, or current-state organisational fact is invented"
+    },
+    {
+      "text": "Useful shape is still delivered \u2014 team types per context and interaction modes \u2014 rather than refusing to proceed"
+    },
+    {
+      "text": "Notifications (generic, bought adapter) and Routing (no domain model) are not given dedicated teams"
+    },
+    {
+      "text": "Team types are justified against their tests, and complicated-subsystem is not applied to contexts that merely look hard"
+    }
+  ]
+}

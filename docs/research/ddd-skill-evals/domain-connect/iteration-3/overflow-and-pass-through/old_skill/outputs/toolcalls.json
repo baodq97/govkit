@@ -1,0 +1,5 @@
+{
+  "file_reads": 6,
+  "bash_calls": 3,
+  "notes": "Two batched reads of the skill+references and all 10 repo domain files (one bash cat loop covered the 7 model.yaml files); the rest of the time went into writing the four flow artefacts and the response."
+}

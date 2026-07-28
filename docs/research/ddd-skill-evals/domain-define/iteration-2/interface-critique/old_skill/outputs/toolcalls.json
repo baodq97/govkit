@@ -1,0 +1,5 @@
+{
+  "file_reads": 4,
+  "bash_calls": 6,
+  "notes": "4 Reads of repo docs (booking/model.yaml, context-map.md, business-model.md, discovery/timeline.md) + 1 bash cat of the 6 sibling model.yaml files; 3 further Reads went to SKILL.md and its two references. Time went into cross-checking the capacity flow against hotspot #1 and the classification conflict between context-map.md and business-model.md, then trimming the canvas to the 180-line core budget."
+}

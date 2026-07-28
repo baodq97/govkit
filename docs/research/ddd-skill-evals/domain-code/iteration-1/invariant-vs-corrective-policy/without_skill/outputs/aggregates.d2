@@ -1,0 +1,84 @@
+# Consolidation — aggregate boundaries and the reservation path.
+# Solid = synchronous / transactional. Dashed = eventual (corrective policy).
+# Render: d2 --layout=elk aggregates.d2 aggregates.svg
+
+direction: right
+
+booking: "Booking context" {
+  style.stroke-dash: 4
+  style.fill: transparent
+
+  cmd: "sends ReserveCapacity\n(no check-then-act)"
+}
+
+cons: "Consolidation context" {
+  style.fill: transparent
+
+  sel: "ContainerSelection «domain service»\nstateless — proposes candidate containers\nBEFORE the lock. Advice, not authority." {
+    shape: hexagon
+  }
+
+  load: "ContainerLoad «aggregate»\nconsistency boundary of the no-overbooking rule" {
+    style.stroke-width: 3
+    style.fill: "#eef6ff"
+
+    root: ContainerLoad {
+      shape: class
+      "«root» containerId": ""
+      departureId · portCode: ""
+      "cutOffAt (copied, immutable)": ""
+      capacityM3 · capacityKg: ""
+      committedM3 · committedKg: "running totals"
+      state: "Open → Sealed → Dispatched"
+    }
+
+    line: CommittedLine {
+      shape: class
+      "«entity» 0..*": ""
+      bookingId · reservationId: ""
+      volumeM3 · weightKg: ""
+      service: "Standard | Guaranteed"
+      state: "Held → Confirmed → Released"
+    }
+
+    inv: "TRANSACTIONAL INVARIANTS\nI1  committed ≤ capacity\nI2  no reserve at/after cutOffAt\nI3  only while state = Open\nI4  a Guaranteed load seals at cut-off" {
+      style.fill: "#fff3cd"
+      style.stroke: "#b8860b"
+    }
+
+    root -> line: contains
+    root -> inv: enforces {
+      style.stroke-dash: 2
+    }
+  }
+
+  dep: "Departure «aggregate»" {
+    style.stroke-width: 3
+
+    droot: Departure {
+      shape: class
+      "«root» departureId": ""
+      portCode · sailingRef: ""
+      cutOffAt · departsAt: ""
+      state: "Open → CutOff → Sailed"
+      containerIds: "set"
+    }
+  }
+}
+
+ttl: "TTL expiry / booking abandoned" {
+  shape: oval
+  style.stroke-dash: 4
+}
+
+booking.cmd -> cons.sel: "1  candidates"
+cons.sel -> cons.load: "2  reserve on ONE container\n     one short tx, no I/O, row-locked"
+cons.load -> booking.cmd: "3  CapacityReserved | CapacityRejected"
+
+cons.dep -> cons.load: "cutOffAt copied at OpenContainer;\nExtendCutOff propagates eventually\n(stale = stricter = safe)" {
+  style.stroke-dash: 4
+}
+
+ttl -> cons.load: "ReleaseReservation — corrective,\nerrs toward under-fill" {
+  style.stroke-dash: 4
+}

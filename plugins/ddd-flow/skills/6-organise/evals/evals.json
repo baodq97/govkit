@@ -1,0 +1,47 @@
+{
+  "skill_name": "6-organise",
+  "evals": [
+    {
+      "id": 0,
+      "name": "right-size-and-shared-ownership",
+      "prompt": "Nordic Freight has 9 engineers in 2 teams — 'Core Systems' (5) and 'Customer' (4). Both teams have been committing to the invoicing codebase all year and it's getting messy. Repo at <fixtures>/nordic-freight. How should we organise around these 7 bounded contexts?",
+      "expected_output": "A topology proposal that starts from the arithmetic (9 engineers, 2 teams, 7 contexts), fits within what can be staffed, flags the shared ownership of Invoicing with a single-owner recommendation, keeps Booking and Consolidation together or justifies splitting them, assigns interaction modes with end conditions for any Collaboration, and names no individuals.",
+      "trap": "Seven contexts invite seven stream-aligned teams, which nine engineers cannot staff. The team named 'Core Systems' invites being classified as a platform team on its name alone. And the shared ownership of Invoicing — the actual pain in the prompt — is easy to answer with 'better code review' instead of a boundary decision.",
+      "files": [
+        "fixtures/nordic-freight/docs/domain/context-map.md",
+        "fixtures/nordic-freight/docs/domain/booking/model.yaml",
+        "fixtures/nordic-freight/docs/domain/consolidation/model.yaml",
+        "fixtures/nordic-freight/docs/domain/invoicing/model.yaml"
+      ],
+      "assertions": [
+        "The proposal opens with the reality check numbers (9 engineers, 2 existing teams, 7 contexts) and proposes no more teams than that headcount can staff",
+        "Shared ownership of Invoicing by both teams is flagged as a finding with a single-owner recommendation",
+        "Booking and Consolidation are kept under one team, or splitting them is justified against the shared ConsignmentLine and the no-overbooking invariant",
+        "An interaction mode is assigned per team pair, and any Collaboration edge carries an end condition or date",
+        "No named individuals are assigned to teams",
+        "Cognitive load is estimated from the model's mass figures (aggregates, tables, invariants) rather than asserted",
+        "The ConsignmentLine Shared Kernel is read as an organisational cost (mutual-consent change) or resolved by placing both contexts in one team"
+      ]
+    },
+    {
+      "id": 1,
+      "name": "no-org-data",
+      "prompt": "Give me the team topology for Nordic Freight based on the domain model. Repo: <fixtures>/nordic-freight.",
+      "expected_output": "A proposal that states up front that the repo contains no headcount, team list, or ownership data, either asks for it or marks every ownership row provisional/unstaffed, and still delivers useful shape — team types and interaction modes — without inventing an organisation.",
+      "trap": "Nothing in the repo says how many people exist. The tempting failure is to assume a plausible org ('four teams of five') and present a confident topology, or to produce one team per context — seven teams for a company whose size is unknown.",
+      "files": [
+        "fixtures/nordic-freight/docs/domain/context-map.md",
+        "fixtures/nordic-freight/docs/domain/routing/model.yaml",
+        "fixtures/nordic-freight/docs/domain/notifications/model.yaml"
+      ],
+      "assertions": [
+        "The absence of headcount, existing teams, and ownership data is stated explicitly before any topology is proposed",
+        "Either the missing organisational information is asked for, or every ownership row is explicitly marked provisional / unstaffed",
+        "No headcount, team size, or current-state organisational fact is invented",
+        "Useful shape is still delivered — team types per context and interaction modes — rather than refusing to proceed",
+        "Notifications (generic, bought adapter) and Routing (no domain model) are not given dedicated teams",
+        "Team types are justified against their tests, and complicated-subsystem is not applied to contexts that merely look hard"
+      ]
+    }
+  ]
+}

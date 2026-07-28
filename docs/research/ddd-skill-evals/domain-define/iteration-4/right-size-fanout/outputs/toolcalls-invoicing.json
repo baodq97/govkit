@@ -1,0 +1,6 @@
+{
+  "context": "Invoicing",
+  "file_reads": 4,
+  "bash_calls": 6,
+  "notes": "2 slice calls + 1 ls/grep + 3 copy/verify; reads = SKILL.md, 2 references, and invoicing/model.yaml (the only raw artifact opened, and only to quote its invariant, events and notes)."
+}

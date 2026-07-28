@@ -1,0 +1,55 @@
+context: Consolidation
+subdomain_type: supporting
+tactical_pattern: full-domain-model
+mass: { tables: 5, attributes: 41, densest_entity_attrs: 18 }
+ubiquitous_language:
+  - term: Container load
+    definition: The set of consignments committed to one physical container on one departure
+  - term: Fill rate
+    definition: Committed volume divided by container capacity
+  - term: Reefer capability
+    definition: >
+      What a physical container can actually hold — the achievable temperature band and mode. A
+      property of the asset, distinct from the temperature regime, which is what the customer was
+      promised. Planning is the act of matching one to the other.
+  - term: Temperature band
+    definition: >
+      The mode a container is running at on a given departure (ambient, chilled, frozen,
+      deep-frozen). One container runs one band per departure — this is what fragments the pool.
+aggregates:
+  - name: ContainerLoad
+    root: ContainerLoad
+    entities:
+      - { name: ContainerLoad, attributes: [containerId, departureId, capacityM3, committedM3, reeferCapability, temperatureBand] }
+      - { name: ConsignmentLine, attributes: [lineId, volumeM3, stackable, temperatureRegime] }
+    value_objects:
+      - { name: ReeferCapability, attributes: [modes, minAchievableCelsius, maxAchievableCelsius] }
+    domain_events:
+      - { name: CapacityReserved, payload: [containerId, bookingId, volumeM3, temperatureBand] }
+      - { name: ContainerSealed, payload: [containerId, fillRate, temperatureBand, sealReadingCelsius, sealedAt] }
+invariants:
+  - A container's committed volume must never exceed its capacity
+  - >
+    A consignment line with a temperature regime may only be committed to a container whose reefer
+    capability envelope contains that regime.
+  - >
+    All lines committed to one container load must share a compatible temperature band. A chilled
+    line and a frozen line cannot ride the same reefer, however much volume is free — capacity is
+    now two-dimensional (space AND band), and the volume check alone no longer proves feasibility.
+  - >
+    A reefer container may not be sealed without a recorded seal reading inside the regime. The seal
+    reading is the opening evidence of the ColdChain journey; without it the journey starts already
+    unprovable.
+relationships:
+  - { to: Booking, type: upstream }
+  - { to: Customs, type: upstream }
+  - { to: ColdChain, type: upstream, note: "ContainerSealed + seal reading starts the journey" }
+fill_rate_impact: >
+  Segmenting the pool by temperature band works directly against the stated short-term goal of
+  raising average fill from 71% to 80% (business-model.md): a band-restricted container can only be
+  filled from the subset of consignments in that band. Expect measured fill to fall on reefer
+  departures before it rises. Whether the cold chain margin covers that loss is a P&L question, and
+  business-model.md records that nobody in the room owns the P&L.
+notes: >
+  Load planning still happens partly on a whiteboard in the Gothenburg depot; the four senior
+  planners resolve conflicts by hand when the optimiser proposes an infeasible stack.

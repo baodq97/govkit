@@ -1,0 +1,20 @@
+{
+  "eval_id": 1,
+  "eval_name": "cold-start-interview",
+  "prompt": "We're starting a new product — a tool for agencies to manage freelance translator assignments. Nothing is written down yet, no repo, no docs. Do the understand step for me.",
+  "trap": "There is no written input at all. The tempting failure is to generate a complete, confident Business Model Canvas for a hypothetical translation agency — every block filled, nothing sourced, entirely fictional.",
+  "assertions": [
+    {
+      "text": "Does not produce a filled-in Business Model Canvas invented without input"
+    },
+    {
+      "text": "Asks the user questions rather than answering on their behalf"
+    },
+    {
+      "text": "Opens with a focused set of questions rather than a long undifferentiated questionnaire"
+    },
+    {
+      "text": "Names who needs to be involved, including real end users rather than only internal representatives"
+    }
+  ]
+}

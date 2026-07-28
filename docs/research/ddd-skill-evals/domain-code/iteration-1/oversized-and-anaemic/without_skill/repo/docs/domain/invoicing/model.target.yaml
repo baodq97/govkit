@@ -1,0 +1,169 @@
+# Target tactical model for the Invoicing context.
+# The as-is model stays in model.yaml, untouched, so the refactor has a baseline to diff against.
+# Rationale, trade-offs and migration slices: ./aggregate-design.md
+context: Invoicing
+status: proposed
+subdomain_type: supporting          # PROPOSED change from `core`. business-model.md rates Invoicing
+                                    # compliance-enforcer / commodity / differentiation: no.
+                                    # Requires the doc owner's decision — see aggregate-design.md 1.3.
+tactical_pattern: thin-domain-model # was full-domain-model; tax determination bought or externalised
+mass:
+  tables: 8-10                      # ESTIMATE, not a measurement. Today: 34.
+  densest_entity_attrs: 25          # target ceiling. Today: 128.
+  note: no DDL exists in this repo; confirm against the real schema before slice 1.
+
+ubiquitous_language:
+  - term: Invoice
+    definition: A legal document issued once to a customer for a billing period, immutable after issue
+  - term: Invoice line
+    definition: One billable item on an invoice, referencing the shipment it bills for
+  - term: Credit note
+    definition: A correction issued against an already-issued invoice; the only way to change one
+  - term: Payment
+    definition: One remittance received from a customer, which may settle several invoices
+  - term: Tax treatment
+    definition: The frozen outcome of the VAT rule that applied when the invoice was issued
+  - term: Consignment
+    definition: >
+      REMOVED from Invoicing. Booking and Consolidation use it for the physical goods; Invoicing
+      used it for a billable line. Hotspot #2 in discovery/timeline.md. Use `invoice line` instead.
+
+aggregates:
+  - name: Invoice
+    root: Invoice
+    protects: [I1, I2, I3, I4]
+    entities:
+      - name: Invoice
+        attributes: [invoiceId, documentNumber, customerId, billingPeriod, currency, status,
+                     netTotal, taxTotal, creditedTotal, settledTotal, issuedAt]
+      - name: InvoiceLine
+        attributes: [lineId, shipmentRef, description, quantity, unitPrice, netAmount, taxTreatment]
+      - name: CreditNote
+        attributes: [creditNoteId, documentNumber, amount, reason, issuedAt]
+    value_objects:
+      - { name: Money, attributes: [amount, currency] }
+      - { name: TaxTreatment, attributes: [vatCode, rate, basis, legalReference, ruleSetVersion] }
+      - { name: ShipmentRef, attributes: [prefix, sequence] }
+      - { name: DocumentNumber, attributes: [series, year, sequence] }
+    behaviours:
+      - { command: openDraft, enforces: "one currency per invoice" }
+      - { command: addLine, enforces: "draft only; line currency matches invoice currency" }
+      - { command: removeLine, enforces: "draft only" }
+      - { command: issue, enforces: "I1, I2, I3; freezes TaxTreatment per line; assigns DocumentNumber",
+          emits: InvoiceIssued }
+      - { command: credit, enforces: "I4", emits: InvoiceCredited }
+      - { command: recordSettlement, enforces: "idempotent per allocationId; excess is an overpayment, not a failure",
+          emits: InvoiceSettled }
+      - { command: void, enforces: "before issue only", emits: InvoiceVoided }
+    rationale: >
+      Issuing is one legal act over the whole document; lines have no life outside it. Credit notes
+      sit inside because their only rule (I4) is relative to this invoice's balance, they cannot
+      exist without one, and they are written a handful of times per invoice, never concurrently.
+    reversal_trigger: >
+      Split CreditNote into its own root if standalone goodwill credits appear, or if credit notes
+      acquire an approval workflow of their own.
+
+  - name: Payment
+    root: Payment
+    protects: [I5]
+    entities:
+      - name: Payment
+        attributes: [paymentId, customerId, receivedAt, amount, bankReference, unallocatedAmount]
+      - name: PaymentAllocation
+        attributes: [allocationId, invoiceId, amount, allocatedAt, reversedAt]
+    value_objects:
+      - { name: Money, attributes: [amount, currency] }
+      - { name: RemittanceRef, attributes: [bankReference, valueDate] }
+    behaviours:
+      - { command: receive, emits: PaymentReceived }
+      - { command: allocate, enforces: "I5", emits: PaymentAllocated }
+      - { command: reverseAllocation, enforces: "allocation exists and is not already reversed",
+          emits: PaymentAllocationReversed }
+      - { command: leaveOnAccount, enforces: "the unallocated remainder is explicit, never silently dropped" }
+    rationale: >
+      Customers are small and mid-size exporters (business-model.md) who settle several invoices with
+      one bank transfer, so a payment has no single owning invoice. Allocating inside Invoice would
+      make one transaction write N invoices.
+    open_question: >
+      Cash application against bank statements is a commodity. If matching is mostly automatic, this
+      may be a bought reconciliation tool plus a PaymentAllocated feed rather than an aggregate.
+
+not_aggregates:
+  - name: VatRuleSet
+    kind: reference-data
+    shape: versioned, effective-dated rows; read once at issue(); outcome frozen onto the line
+    replaces: the 3 aggregates that today model VAT variation across the 9 ports
+    rationale: >
+      A rate table has no lifecycle and guards no invariant. Modelling it as structure is why a 2024
+      Finnish rule change cost two aggregates; as data the same change is one row.
+    recommendation: buy — highest churn, lowest differentiation part of the context
+
+  - name: SurchargeSchedule
+    kind: reference-data
+    owner: Tariff Data / Quoting (upstream), not Invoicing
+    rationale: >
+      Two copies of a rate schedule drift, and the failure is customer-visible: invoiced price stops
+      matching quoted price. Invoicing records the applied surcharge as a line with the frozen rate.
+    carries: I7
+
+  - name: Dunning
+    kind: policy + read-model
+    rationale: >
+      I8 is fully derivable from invoice age and settled amount, so a stored case is a cache with a
+      lifecycle bolted on. Appears in no interview in discovery/timeline.md.
+    promote_when: >
+      The business really negotiates — promises to pay, instalment plans, agency handover. Then it is
+      a separate Collections bounded context, not an Invoicing aggregate; its language shares almost
+      nothing with issuing an invoice.
+
+  - name: ClearedShipments
+    kind: read-model
+    fed_by: DeclarationCleared (Customs)
+    purpose: makes I3 checkable inside one Invoicing transaction
+
+invariants:
+  - { id: I1, scope: Invoice, rule: "An issued invoice is immutable; corrections happen only by credit note" }
+  - { id: I2, scope: Invoice, rule: "Invoice total = sum of line net + line tax, in a single currency" }
+  - { id: I3, scope: Invoice, rule: "At issue time, every line's shipment has a recorded clearance" }
+  - { id: I4, scope: Invoice, rule: "Total credited never exceeds total invoiced" }
+  - { id: I5, scope: Payment, rule: "Allocations of one remittance never exceed the amount received" }
+  - { id: I6, scope: cross-aggregate, consistency: eventual,
+      rule: "An invoice's settled amount tracks its allocations; an excess is an overpayment, a business event, not a violation" }
+  - { id: I7, scope: external, owner: Tariff Data,
+      rule: "Surcharge rates do not overlap in effective period per lane" }
+  - { id: I8, scope: derived, rule: "Dunning stage follows overdue days and unsettled balance" }
+
+domain_events:
+  - { name: InvoiceIssued, payload: [invoiceId, documentNumber, customerId, currency, netTotal, taxTotal, ruleSetVersion] }
+  - { name: InvoiceCredited, payload: [invoiceId, creditNoteId, amount, reason] }
+  - { name: InvoiceSettled, payload: [invoiceId, settledTotal, settledAt] }
+  - { name: InvoiceVoided, payload: [invoiceId, reason] }
+  - { name: PaymentReceived, payload: [paymentId, customerId, amount, bankReference] }
+  - { name: PaymentAllocated, payload: [paymentId, allocationId, invoiceId, amount] }
+  - { name: PaymentAllocationReversed, payload: [paymentId, allocationId, reason] }
+conditional_events:
+  - { name: InvoiceOverpaid, when: "settlement exceeds the invoice total" }
+  - { name: CreditBalanceRecorded, when: "a remittance remainder is left on account" }
+
+relationships:
+  - { to: Customs, type: downstream,
+      note: "consumes DeclarationCleared; requires shipmentRef added to the payload" }
+  - { to: Notifications, type: upstream, note: "invoice issued and dunning reminders" }
+  - { to: Quoting, type: downstream,
+      note: "PROPOSED — consume the surcharge schedule instead of holding a second copy" }
+
+migration:
+  - { slice: 1, do: "Freeze TaxTreatment on invoice_line at issue time; backfill from the VAT tables",
+      reversible: "drop the columns; old tables untouched",
+      stop_rule: "if read-path joins per invoice do not drop, the 128-attribute entity is not VAT-shaped — re-measure before slice 2" }
+  - { slice: 2, do: "Invoice becomes a real root: commands, immutable after issue, CreditNote moved inside" }
+  - { slice: 3, do: "Extract Payment + allocations; PaymentAllocated drives Invoice.recordSettlement" }
+  - { slice: 4, do: "Retire the 3 VAT aggregates behind the frozen VO, or cut over to a bought tax engine" }
+  - { slice: 5, do: "Decide dunning: policy, buy, or a Collections context — needs the finance conversation first" }
+  - { slice: 6, do: "Hand SurchargeSchedule ownership upstream to Tariff Data" }
+
+decisions_needed:
+  - Accept or reject subdomain_type core -> supporting; the size of this refactor follows from it
+  - Buy or build tax determination (slice 1 keeps it reversible; slice 4 forces the call)
+  - Confirm whether real dunning exists before anyone models a DunningCase
+  - Agree with Quoting that Tariff Data owns the surcharge schedule

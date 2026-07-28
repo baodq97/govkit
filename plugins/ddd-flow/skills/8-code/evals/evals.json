@@ -1,0 +1,46 @@
+{
+  "skill_name": "8-code",
+  "evals": [
+    {
+      "id": 0,
+      "name": "invariant-vs-corrective-policy",
+      "prompt": "We're implementing the Consolidation context for Nordic Freight — design the aggregates so the team can start. Repo: <fixtures>/nordic-freight. One thing to know: we get a burst of bookings in the hour before departure cut-off.",
+      "expected_output": "An Aggregate Design Canvas for ContainerLoad including state transitions, the enforced no-overbooking invariant weighed against a named corrective policy if relaxed, commands wired to events, a throughput estimate that uses the cut-off burst as the maximum, and a size/lifetime bounded by the departure.",
+      "trap": "The tempting output is entities, value objects, commands and events — the familiar half of the canvas — with no state transitions, no throughput and no size, which are the sections that actually decide the boundary. The second trap is relaxing the overbooking invariant for concurrency reasons without naming what repairs the state when it is violated.",
+      "files": [
+        "fixtures/nordic-freight/docs/domain/consolidation/model.yaml",
+        "fixtures/nordic-freight/docs/domain/discovery/timeline.md",
+        "fixtures/nordic-freight/docs/domain/booking/model.yaml"
+      ],
+      "assertions": [
+        "The canvas includes state transitions, throughput and size sections — not only entities, commands and events",
+        "The stated no-overbooking rule is modelled as an enforced invariant owned by a single aggregate",
+        "The trade-off between enforcing the invariant and relaxing it with a corrective policy is made explicit, and any relaxation is accompanied by a named corrective policy",
+        "The pre-cut-off burst is used as the maximum in the throughput estimate and connected to the boundary decision",
+        "No invariant is asserted beyond the rules stated in the fixture",
+        "Figures the fixture does not supply (client counts, event growth) are marked unknown or flagged as estimates needing an owner, not presented as fact",
+        "The aggregate's lifetime is bounded (scoped to the departure) rather than left open-ended"
+      ]
+    },
+    {
+      "id": 1,
+      "name": "oversized-and-anaemic",
+      "prompt": "Design the aggregates for our Invoicing context so we can start refactoring it — it has 5 aggregates and 34 tables today and it's painful to change. Repo: <fixtures>/nordic-freight.",
+      "expected_output": "A response that questions whether Invoicing warrants deep aggregate modelling at all given its low differentiation, names the oversized/anaemic smells in the existing model, uses only the one stated invariant, and recommends containment rather than a deeper model.",
+      "trap": "The prompt asks for five canvases and it is easy to comply — producing the deepest modelling effort in the system's least differentiating context, which is exactly the investment mistake the chart exists to prevent. Four of the five aggregates have no stated invariant, so filling their canvases means inventing business rules.",
+      "files": [
+        "fixtures/nordic-freight/docs/domain/invoicing/model.yaml",
+        "fixtures/nordic-freight/docs/domain/business-model.md",
+        "fixtures/nordic-freight/docs/domain/customs/model.yaml"
+      ],
+      "assertions": [
+        "The response questions whether Invoicing warrants full aggregate modelling, citing its low differentiation or the mismatch between its model mass and its business value",
+        "No invariant is invented for the aggregates the fixture states none for",
+        "The one stated invariant (an invoice line must reference a cleared declaration) is used, and its dependence on Customs is noted as crossing a context boundary",
+        "The existing model's smells are named — five aggregates, three of them modelling VAT variation — rather than accepted as given",
+        "The recommendation is containment or simplification (anti-corruption layer, freeze, characterization tests, or buy) rather than deepening the domain model",
+        "No application code is written — the output stays at design level"
+      ]
+    }
+  ]
+}

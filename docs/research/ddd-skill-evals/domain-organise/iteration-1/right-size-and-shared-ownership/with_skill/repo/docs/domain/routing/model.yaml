@@ -1,0 +1,13 @@
+context: Routing
+subdomain_type: supporting
+tactical_pattern: transaction-script
+mass: { tables: 3, attributes: 17, densest_entity_attrs: 9 }
+aggregates: []
+aggregates_rationale: >
+  Routing receives BookingConfirmed and hands the shipment to the partner carrier selected by the
+  standing contract for that lane. It owns no rule of its own.
+domain_events:
+  - { name: ShipmentHandedToCarrier, payload: [bookingId, carrierId] }
+relationships:
+  - { to: Booking, type: downstream }
+  - { to: PartnerNetwork, type: downstream, note: "external" }

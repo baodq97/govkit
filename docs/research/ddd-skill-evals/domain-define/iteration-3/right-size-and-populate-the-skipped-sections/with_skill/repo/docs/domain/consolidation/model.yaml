@@ -1,0 +1,26 @@
+context: Consolidation
+subdomain_type: supporting
+tactical_pattern: full-domain-model
+mass: { tables: 5, attributes: 41, densest_entity_attrs: 18 }
+ubiquitous_language:
+  - term: Container load
+    definition: The set of consignments committed to one physical container on one departure
+  - term: Fill rate
+    definition: Committed volume divided by container capacity
+aggregates:
+  - name: ContainerLoad
+    root: ContainerLoad
+    entities:
+      - { name: ContainerLoad, attributes: [containerId, departureId, capacityM3, committedM3] }
+      - { name: ConsignmentLine, attributes: [lineId, volumeM3, stackable] }
+    domain_events:
+      - { name: CapacityReserved, payload: [containerId, bookingId, volumeM3] }
+      - { name: ContainerSealed, payload: [containerId, fillRate] }
+invariants:
+  - A container's committed volume must never exceed its capacity
+relationships:
+  - { to: Booking, type: upstream }
+  - { to: Customs, type: upstream }
+notes: >
+  Load planning still happens partly on a whiteboard in the Gothenburg depot; the four senior
+  planners resolve conflicts by hand when the optimiser proposes an infeasible stack.

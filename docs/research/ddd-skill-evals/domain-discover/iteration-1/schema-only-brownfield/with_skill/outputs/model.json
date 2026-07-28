@@ -1,0 +1,109 @@
+{
+  "schemaVersion": 1,
+  "kind": "discovery",
+  "source": {
+    "mode": "discover",
+    "date": "2026-07-27",
+    "technique": "eventstorming-big-picture (ground pass only — no workshop held)",
+    "repo": "acme platform rebuild",
+    "artifactsRead": [
+      "docs/adr/ADR-0004-billing-schema.md",
+      "docs/adr/ADR-0005-contracts-schema.md"
+    ],
+    "artifactsReferencedButAbsent": [
+      "ADR-0001 / ADR-0002 / ADR-0003 (acme_foundation, BCs 1-2, the one-solution-per-BC rule)",
+      "scripts/phase2_billing.py, phase2_lib.py (per-attribute mapping)",
+      "solutions/legacy/Contracts/src/Workflows/ (deferred to Phase 4 — where the policies live)",
+      "optionset pass values (invoice status, dunning stage, contract status, renewal type)"
+    ],
+    "attendance": {
+      "domainExpert": false,
+      "endUser": false,
+      "productStrategy": false,
+      "developers": false
+    },
+    "warning": "No person confirmed any element. This is a document ground pass, not discovery. Ordering in `timeline` is list position, not time order — the only ordering fact recorded anywhere is that a contract precedes the invoice raised against it."
+  },
+  "confidence": {
+    "confirmed": 0,
+    "candidates": 22,
+    "hotspots": 12,
+    "actors": 0,
+    "commands": 0,
+    "policies": 0,
+    "invariants": 0,
+    "readModels": 0
+  },
+  "timeline": [
+    { "seq": 1, "name": "InvoiceRaised", "type": "event", "status": "candidate", "actor": null, "command": null, "source": "ADR-0004 §Cross-BC dependencies — 'invoices are raised against a contract' (only behavioural sentence in the repo)" },
+    { "seq": 2, "name": "CreditNoteIssued", "type": "event", "status": "candidate", "actor": null, "command": null, "source": "ADR-0004 §Decision, acme_creditnote (noun→event inference; no verb in any artifact)" },
+    { "seq": 3, "name": "PaymentAllocated", "type": "event", "status": "candidate", "actor": null, "command": null, "source": "ADR-0004 §Decision, acme_paymentallocation (noun→event inference)" },
+    { "seq": 4, "name": "DunningRunExecuted", "type": "event", "status": "candidate", "actor": null, "command": null, "source": "ADR-0004 §Decision, acme_dunningrun (noun→event inference; one event or many is unknown)" },
+    { "seq": 5, "name": "DebtWrittenOff", "type": "event", "status": "candidate", "actor": null, "command": null, "source": "ADR-0004 §Decision, acme_writeoff (noun→event inference)" },
+    { "seq": 6, "name": "ContractRenewed", "type": "event", "status": "candidate", "actor": null, "command": null, "source": "ADR-0005 §Decision, acme_renewaloption + 'renewal type' picklist (noun→event inference; meaning unsettled — hotspot 1)" },
+
+    { "seq": 7, "name": "Contract", "type": "aggregate", "status": "candidate", "actor": null, "command": null, "source": "ADR-0005 §Decision, acme_contract (41 legacy attrs)" },
+    { "seq": 8, "name": "ContractLine", "type": "aggregate", "status": "candidate", "actor": null, "command": null, "source": "ADR-0005 §Decision, acme_contractline (23 attrs)" },
+    { "seq": 9, "name": "RenewalOption", "type": "aggregate", "status": "candidate", "actor": null, "command": null, "source": "ADR-0005 §Decision, acme_renewaloption (9 attrs)" },
+    { "seq": 10, "name": "ServiceLevel", "type": "aggregate", "status": "candidate", "actor": null, "command": null, "source": "ADR-0005 §Decision, acme_servicelevel (14 attrs)" },
+    { "seq": 11, "name": "ContractParty", "type": "aggregate", "status": "candidate", "actor": null, "command": null, "source": "ADR-0005 §Decision, acme_contractparty (12 attrs)" },
+    { "seq": 12, "name": "Invoice", "type": "aggregate", "status": "candidate", "actor": null, "command": null, "source": "ADR-0004 §Decision, acme_invoice (34 attrs)" },
+    { "seq": 13, "name": "InvoiceLine", "type": "aggregate", "status": "candidate", "actor": null, "command": null, "source": "ADR-0004 §Decision, acme_invoiceline (19 attrs)" },
+    { "seq": 14, "name": "CreditNote", "type": "aggregate", "status": "candidate", "actor": null, "command": null, "source": "ADR-0004 §Decision, acme_creditnote (22 attrs)" },
+    { "seq": 15, "name": "DunningRun", "type": "aggregate", "status": "candidate", "actor": null, "command": null, "source": "ADR-0004 §Decision, acme_dunningrun (11 attrs)" },
+    { "seq": 16, "name": "PaymentAllocation", "type": "aggregate", "status": "candidate", "actor": null, "command": null, "source": "ADR-0004 §Decision, acme_paymentallocation (16 attrs)" },
+    { "seq": 17, "name": "WriteOff", "type": "aggregate", "status": "candidate", "actor": null, "command": null, "source": "ADR-0004 §Decision, acme_writeoff (8 attrs)" },
+    { "seq": 18, "name": "Company", "type": "aggregate", "status": "candidate", "actor": null, "command": null, "source": "ADR-0004/0005 §Cross-BC, acme_company (owned by acme_foundation; that ADR is absent)" },
+    { "seq": 19, "name": "Currency", "type": "aggregate", "status": "candidate", "actor": null, "command": null, "source": "ADR-0004 §Cross-BC, acme_currency (acme_foundation; ADR absent)" },
+    { "seq": 20, "name": "Country", "type": "aggregate", "status": "candidate", "actor": null, "command": null, "source": "ADR-0005 §Cross-BC, acme_country (acme_foundation; ADR absent)" },
+
+    { "seq": 21, "name": "Legacy environment (leg_* tables)", "type": "external-system", "status": "candidate", "actor": null, "command": null, "source": "ADR-0004 §Consequences — legacy tables remain the system of record until cutover" },
+    { "seq": 22, "name": "Legacy workflow engine (solutions/legacy/Contracts/src/Workflows/)", "type": "external-system", "status": "candidate", "actor": null, "command": null, "source": "ADR-0005 §Deferred — deferred to Phase 4; likely home of every policy, unread" }
+  ],
+  "ubiquitousLanguage": [
+    { "term": "Contract", "definition": "Name only — no definition in any artifact. Largest table (41 attrs); 'likely core' is inference", "heldBy": "ADR-0005 §Decision (document; no human holder)", "status": "candidate", "category": "domain" },
+    { "term": "Contract Line", "definition": "Name only. Inferred: line item within a contract", "heldBy": "ADR-0005 §Decision (document)", "status": "candidate", "category": "domain" },
+    { "term": "Renewal Option", "definition": "Name only. Inferred: governs how a contract renews", "heldBy": "ADR-0005 §Decision (document)", "status": "candidate", "category": "domain" },
+    { "term": "Service Level", "definition": "Name only. Obligation, pricing tier, or both — unknown", "heldBy": "ADR-0005 §Decision (document)", "status": "candidate", "category": "domain" },
+    { "term": "Contract Party", "definition": "Name only. Relation to acme_company unresolved (hotspot 8)", "heldBy": "ADR-0005 §Decision (document)", "status": "candidate", "category": "domain" },
+    { "term": "Contract Draft", "definition": "Referenced only as a skipped legacy table (leg_ContractDraftV2, 0 attrs). Whether the concept exists at all is open (hotspot 6)", "heldBy": "ADR-0005 §Decision (document)", "status": "candidate", "category": "domain" },
+    { "term": "Invoice", "definition": "Name only. One behavioural fact: raised against a contract", "heldBy": "ADR-0004 §Cross-BC (document)", "status": "candidate", "category": "domain" },
+    { "term": "Invoice Line", "definition": "Name only. Inferred: line item within an invoice", "heldBy": "ADR-0004 §Decision (document)", "status": "candidate", "category": "domain" },
+    { "term": "Credit Note", "definition": "Name only. Distinction from Write-Off undefined (hotspot 5)", "heldBy": "ADR-0004 §Decision (document)", "status": "candidate", "category": "domain" },
+    { "term": "Write-Off", "definition": "Name only. Distinction from Credit Note undefined (hotspot 5)", "heldBy": "ADR-0004 §Decision (document)", "status": "candidate", "category": "domain" },
+    { "term": "Dunning Run", "definition": "Name only. 'Run' hints at a batch; trigger unknown (hotspot 9)", "heldBy": "ADR-0004 §Decision + §Deferred (document)", "status": "candidate", "category": "domain" },
+    { "term": "Payment Allocation", "definition": "Name only. Sole trace of payment — no Payment or Receipt table exists (hotspot 10)", "heldBy": "ADR-0004 §Decision (document)", "status": "candidate", "category": "domain" },
+    { "term": "Company", "definition": "Name only. Overlaps Contract Party in an unresolved way (hotspot 8)", "heldBy": "ADR-0004/0005 §Cross-BC (document)", "status": "candidate", "category": "domain" },
+    { "term": "Currency", "definition": "Name only", "heldBy": "ADR-0004 §Cross-BC (document)", "status": "candidate", "category": "domain" },
+    { "term": "Country", "definition": "Name only", "heldBy": "ADR-0005 §Cross-BC (document)", "status": "candidate", "category": "domain" },
+
+    { "term": "Renewal", "definition": "a NEW contract that succeeds the old one", "heldBy": "legacy schema as characterised by ADR-0005 §Consequences (document; no human holder for this reading)", "status": "candidate", "category": "domain", "collision": "Renewal — reading 1 of 2; do not reconcile" },
+    { "term": "Renewal", "definition": "a STATE of the existing contract", "heldBy": "legacy schema as characterised by ADR-0005 §Consequences (document; no human holder for this reading)", "status": "candidate", "category": "domain", "collision": "Renewal — reading 2 of 2; do not reconcile" },
+
+    { "term": "Relationship pass", "definition": "Later stage where cross-BC lookup columns are added", "heldBy": "ADR-0004/0005 §Deferred (document)", "status": "candidate", "category": "delivery-process" },
+    { "term": "Optionset pass", "definition": "Later stage where picklist values are migrated — those transitions are candidate domain events", "heldBy": "ADR-0004/0005 §Deferred (document)", "status": "candidate", "category": "delivery-process" },
+    { "term": "Cutover", "definition": "The moment legacy leg_* tables stop being the system of record", "heldBy": "ADR-0004 §Consequences (document)", "status": "candidate", "category": "delivery-process" },
+    { "term": "Solution / BC", "definition": "One deployable solution per bounded context, per ADR-0002 (absent from the repo)", "heldBy": "ADR-0004 §Context (document)", "status": "candidate", "category": "delivery-process" },
+    { "term": "Phase 2 / Phase 4", "definition": "Rebuild stages; Phase 2 is schema migration, Phase 4 holds the legacy workflows", "heldBy": "ADR-0004 §Context, ADR-0005 §Deferred (document)", "status": "candidate", "category": "delivery-process" },
+    { "term": "Legacy / leg_", "definition": "The system being migrated from, and its table prefix", "heldBy": "both ADRs (document)", "status": "candidate", "category": "delivery-process" }
+  ],
+  "hotspots": [
+    { "id": 1, "question": "Is a renewal a new contract or a state of the existing contract? The legacy schema models it both ways", "raisedBy": "ADR-0005 §Consequences (author-acknowledged)", "blocks": "Contract aggregate boundary; ContractRenewed; possibly a context boundary", "whoCouldAnswer": "Contracts domain expert + renewals owner" },
+    { "id": 2, "question": "Who actually does anything in this domain? No artifact names a single human role", "raisedBy": "ground pass, both ADRs", "blocks": "the entire timeline — 0 actors means 0 commands", "whoCouldAnswer": "Ops lead, credit control, sales — one Big Picture workshop" },
+    { "id": 3, "question": "What are the deferred picklist values (invoice status, dunning stage, contract status, renewal type)? Those transitions are the domain events", "raisedBy": "ADR-0004 §Deferred, ADR-0005 §Deferred", "blocks": "the event timeline", "whoCouldAnswer": "@platform — optionset pass inventory" },
+    { "id": 4, "question": "What is in solutions/legacy/Contracts/src/Workflows/? The only place policies are written down", "raisedBy": "ADR-0005 §Deferred", "blocks": "every policy (0 found) and most invariants", "whoCouldAnswer": "@platform — read it before the workshop, not in Phase 4" },
+    { "id": 5, "question": "What distinguishes a Credit Note from a Write-Off? Both reduce a receivable; neither is defined", "raisedBy": "ground pass, ADR-0004 §Decision", "blocks": "billing aggregate boundaries", "whoCouldAnswer": "Finance / credit control" },
+    { "id": 6, "question": "Was leg_ContractDraftV2 skipped because the business has no draft concept, or because the migration was unfinished?", "raisedBy": "ADR-0005 §Decision (author-acknowledged skip)", "blocks": "whether Contract has a pre-signature lifecycle", "whoCouldAnswer": "Contracts domain expert + @platform" },
+    { "id": 7, "question": "Are acme_foundation / acme_billing / acme_contracts real bounded contexts, or legacy table-prefix groupings renamed?", "raisedBy": "ground pass, ADR-0004 §Context", "blocks": "domain-decompose — whether these four are given or candidates", "whoCouldAnswer": "Author of ADR-0002" },
+    { "id": 8, "question": "What is a Contract Party, and how does it relate to acme_company in foundation?", "raisedBy": "ground pass, ADR-0005 §Decision + §Cross-BC", "blocks": "contracts/foundation boundary; shared kernel vs duplicated concept", "whoCouldAnswer": "Contracts domain expert + acme_foundation owner" },
+    { "id": 9, "question": "Who or what triggers a dunning run — a scheduled policy or a person? Is a run one event or many?", "raisedBy": "ground pass, ADR-0004 §Decision", "blocks": "the first candidate policy in the domain; DunningRun aggregate vs batch job", "whoCouldAnswer": "Credit control" },
+    { "id": 10, "question": "Where do payments live? acme_paymentallocation is the only trace — no Payment or Receipt table exists", "raisedBy": "ground pass, ADR-0004 §Decision", "blocks": "billing boundary; a missing external system or an unmapped context", "whoCouldAnswer": "Finance + @platform" },
+    { "id": 11, "question": "What happens to invoices, service levels and renewal options when a contract terminates or changes mid-cycle?", "raisedBy": "ground pass — no artifact states any rule", "blocks": "the invariants (0 found)", "whoCouldAnswer": "Contracts + billing experts together" },
+    { "id": 12, "question": "What are acme_foundation and BCs 1-2? ADR-0001/0002/0003 are referenced but absent", "raisedBy": "ground pass", "blocks": "at least 2 of at least 4 contexts have no artifact at all", "whoCouldAnswer": "@platform" }
+  ],
+  "nextStep": {
+    "skill": "domain-decompose",
+    "ready": false,
+    "reason": "0 confirmed elements, 0 events, 0 actors, 0 policies, 0 invariants. Decomposing on this input yields contexts named after tables. Run one Big Picture EventStorming with a contracts expert, a billing/credit-control expert and @platform first; close hotspots 3, 4 and 12 by fetching documents beforehand; then re-run domain-discover in UPDATE mode to merge the delta."
+  }
+}

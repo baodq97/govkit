@@ -1,0 +1,5 @@
+{
+  "file_reads": 8,
+  "bash_calls": 39,
+  "notes": "Two one-shot Bash loops did the upstream join (ddd_context.py x7, then all model.yaml) so only 5 raw repo Reads were needed; most Bash calls after that were wc -l budget checks and scripted trims to land each canvas inside its right-sizing line budget (core 180 / supporting 90 / stub 35), plus ddd_check.py verification runs."
+}

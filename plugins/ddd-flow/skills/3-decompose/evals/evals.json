@@ -1,0 +1,35 @@
+{
+  "skill_name": "3-decompose",
+  "fixture": "docs/research/ddd-skill-evals/fixtures/nordic-freight",
+  "notes": "Both evals run against a model that ALREADY EXISTS. That is deliberate: the failure mode this skill is most likely to have in the field is not producing a bad first cut, it is destroying a good one on the second run. The fixture carries four traps a careful reader can reach and one — the delta-merge — that only shows up under a re-run.",
+  "evals": [
+    {
+      "id": 0,
+      "name": "capability-vs-context",
+      "prompt": "Our architect is pushing to give Routing its own service and its own team. Before we commit, is Routing actually a bounded context? Repo: <fixture>, model in docs/domain.",
+      "expected_output": "The capability-vs-context test applied to Routing with evidence from the model, and a proposal — not an applied change.",
+      "assertions": [
+        "The capability-vs-context test is actually applied, not just referenced",
+        "Routing's empty aggregate list and its own note ('owns no rule of its own') are cited as the evidence",
+        "The verdict is that Routing decides nothing of its own, so it is a capability or a pass-through rather than a boundary",
+        "The one rule that lands on Routing's moment — no hand-over before the declaration is submitted — is identified as belonging to a context that can enforce it",
+        "The change is written as a proposal; no file under the fixture's docs/domain is modified",
+        "The team/service question is answered as a consequence of the boundary, not as an org preference"
+      ]
+    },
+    {
+      "id": 1,
+      "name": "delta-merge-not-overwrite",
+      "prompt": "We've just won a contract for temperature-controlled freight — cold chain. Reefer containers have a temperature range that has to hold from depot to depot, and a breach has to be logged and the customer told. Update our domain model for it. Repo: <fixture>, docs/domain. Note that a few of those model.yaml files have hand-written notes in them from the planner that we want kept.",
+      "expected_output": "A delta merged into the existing model — new concepts added, existing ids and human notes preserved, anything dropped flagged.",
+      "assertions": [
+        "Existing context and aggregate ids are preserved; nothing is renumbered or renamed silently",
+        "The hand-written notes in the fixture's model.yaml files survive the update verbatim",
+        "The new cold-chain concepts are added as a delta rather than by rewriting the files wholesale",
+        "Whether cold chain is a new bounded context or an extension of an existing one is argued, not assumed",
+        "Anything the update drops or supersedes is flagged explicitly rather than disappearing",
+        "The temperature-breach rule is not invented into an invariant beyond what the prompt states, and what is unknown stays unknown with the person who could answer it named"
+      ]
+    }
+  ]
+}

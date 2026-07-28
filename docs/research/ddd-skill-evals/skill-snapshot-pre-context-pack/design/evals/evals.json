@@ -1,0 +1,41 @@
+{
+  "skill_name": "design",
+  "evals": [
+    {
+      "id": 0,
+      "name": "resume-mid-flow",
+      "prompt": "We want to do domain-driven design properly for our Nordic Freight platform. The repo is at <fixtures>/nordic-freight. Where do we start?",
+      "expected_output": "A state report per step with the evidence files behind it, an entry point at connect rather than the beginning, a right-sized path that names what it would skip and why, and routing to the member skills rather than producing the artifacts inline.",
+      "trap": "The request sounds like 'start DDD', which invites starting at step one — re-running understand and discover over a repo that already has an attributed business model canvas and a discovery timeline with named hotspots. The second trap is answering with a generic eight-step programme without ever looking at what the repo already contains. The third is doing the modelling inline instead of routing.",
+      "files": [
+        "fixtures/nordic-freight/docs/domain/context-map.md",
+        "fixtures/nordic-freight/docs/domain/business-model.md",
+        "fixtures/nordic-freight/docs/domain/discovery/timeline.md"
+      ],
+      "assertions": [
+        "The repo's current state is detected and reported step by step, citing the evidence files rather than asking the user what has been done",
+        "The proposed entry point is connect — the next missing step — not understand or discover",
+        "The existing business-model.md, discovery timeline and model.yaml files are neither re-run nor overwritten",
+        "The modelling artifacts are not produced inline; each remaining step is routed to its named skill",
+        "The path is right-sized: at least one step is proposed for skipping or deferral with the cost of doing so stated",
+        "A modelling log or equivalent record of what has run and what is carried forward is proposed or written"
+      ]
+    },
+    {
+      "id": 1,
+      "name": "small-scope-right-size",
+      "prompt": "Two of us are building a side project — a tool that lets freelancers send invoices and chase payments. No code written yet. Someone told me we should do domain-driven design first. What should we actually do?",
+      "expected_output": "A deliberately reduced path: discovery kept (time-boxed), organise skipped with the reason, a thin end-to-end slice on one capability proposed instead of breadth-first modelling, and an honest statement about where design effort would exceed the value at this size.",
+      "trap": "Being asked to 'do DDD' invites prescribing the full eight-step process with workshops and canvases to two people with no code. The opposite trap is dismissing DDD entirely and skipping discovery — the one step the process says cannot be skipped, and the one that would stop this pair inventing an invoicing model out of assumptions.",
+      "files": [],
+      "assertions": [
+        "The proposed path is explicitly reduced, naming which steps are skipped and what is lost by skipping them",
+        "organise is skipped or deferred with the reason (two people — there is no organisation to align)",
+        "Discovery is kept rather than skipped, with a time-box or lightweight form rather than a full workshop",
+        "A thin end-to-end slice on one capability is proposed instead of modelling the whole domain breadth-first",
+        "The response says plainly where design effort would exceed the value at this size",
+        "It routes to the member skills rather than producing a full domain model inline"
+      ]
+    }
+  ]
+}

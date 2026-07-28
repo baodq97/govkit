@@ -1,0 +1,26 @@
+context: Booking
+subdomain_type: core
+tactical_pattern: full-domain-model
+mass: { tables: 9, attributes: 54, densest_entity_attrs: 22 }
+ubiquitous_language:
+  - term: Booking
+    definition: A customer's committed request to move a consignment on a given departure
+  - term: Consignment
+    definition: The goods a customer hands over as one unit
+aggregates:
+  - name: Booking
+    root: Booking
+    entities:
+      - { name: Booking, attributes: [bookingId, customerId, departureId, status] }
+      - { name: ConsignmentLine, attributes: [lineId, volumeM3, weightKg, hazardClass] }
+    value_objects:
+      - { name: ShipmentRef, attributes: [prefix, sequence] }
+    domain_events:
+      - { name: BookingRequested, payload: [bookingId, departureId, volumeM3] }
+      - { name: BookingConfirmed, payload: [bookingId, containerId] }
+invariants:
+  - A booking may only be confirmed once its capacity has been reserved
+relationships:
+  - { to: Quoting, type: downstream }
+  - { to: Consolidation, type: downstream, note: "synchronous remaining-capacity check before reserving" }
+  - { to: Routing, type: upstream }

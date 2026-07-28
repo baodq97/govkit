@@ -1,0 +1,28 @@
+{
+  "eval_id": 0,
+  "eval_name": "resume-mid-flow",
+  "skill_name": "ddd-design",
+  "prompt": "We want to do domain-driven design properly for our Nordic Freight platform. The repo is at <fixtures>/nordic-freight. Where do we start?",
+  "trap": "The request sounds like 'start DDD', which invites starting at step one \u2014 re-running understand and discover over a repo that already has an attributed business model canvas and a discovery timeline with named hotspots. The second trap is answering with a generic eight-step programme without ever looking at what the repo already contains. The third is doing the modelling inline instead of routing.",
+  "expected_output": "A state report per step with the evidence files behind it, an entry point at connect rather than the beginning, a right-sized path that names what it would skip and why, and routing to the member skills rather than producing the artifacts inline.",
+  "assertions": [
+    {
+      "text": "The repo's current state is detected and reported step by step, citing the evidence files rather than asking the user what has been done"
+    },
+    {
+      "text": "The proposed entry point is connect \u2014 the next missing step \u2014 not understand or discover"
+    },
+    {
+      "text": "The existing business-model.md, discovery timeline and model.yaml files are neither re-run nor overwritten"
+    },
+    {
+      "text": "The modelling artifacts are not produced inline; each remaining step is routed to its named skill"
+    },
+    {
+      "text": "The path is right-sized: at least one step is proposed for skipping or deferral with the cost of doing so stated"
+    },
+    {
+      "text": "A modelling log or equivalent record of what has run and what is carried forward is proposed or written"
+    }
+  ]
+}

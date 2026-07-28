@@ -1,0 +1,45 @@
+context: Booking
+subdomain_type: core
+tactical_pattern: full-domain-model
+mass: { tables: 9, attributes: 54, densest_entity_attrs: 22 }
+ubiquitous_language:
+  - term: Booking
+    definition: A customer's committed request to move a consignment on a given departure
+  - term: Consignment
+    definition: The goods a customer hands over as one unit
+  - term: Temperature regime
+    definition: >
+      The temperature range, setpoint and excursion tolerance the customer's goods are contractually
+      held to. Carried per consignment line, exactly like hazardClass — it is a property of the
+      goods, not of the container. Absent on ambient freight. Owned here, consumed by Consolidation
+      and ColdChain.
+aggregates:
+  - name: Booking
+    root: Booking
+    entities:
+      - { name: Booking, attributes: [bookingId, customerId, departureId, status] }
+      - { name: ConsignmentLine, attributes: [lineId, volumeM3, weightKg, hazardClass, temperatureRegime] }
+    value_objects:
+      - { name: ShipmentRef, attributes: [prefix, sequence] }
+      - { name: TemperatureRegime, attributes: [mode, setpointCelsius, range, tolerance] }
+    domain_events:
+      - { name: BookingRequested, payload: [bookingId, departureId, volumeM3, temperatureRegime] }
+      - { name: BookingConfirmed, payload: [bookingId, containerId, temperatureRegime] }
+invariants:
+  - A booking may only be confirmed once its capacity has been reserved
+  - >
+    A booking carrying a temperature regime may only be confirmed once the reserved container's
+    reefer capability envelope contains that regime. Reserving space is no longer sufficient — the
+    space has to be cold enough.
+  - >
+    A temperature regime may not be changed after confirmation by editing the booking. It is a
+    contract amendment, and it supersedes the journey ColdChain is judging breaches against.
+relationships:
+  - { to: Quoting, type: downstream }
+  - { to: Consolidation, type: downstream, note: "synchronous remaining-capacity check before reserving" }
+  - { to: Routing, type: upstream }
+  - { to: ColdChain, type: upstream, note: "publishes the committed regime; ColdChain never edits it" }
+shared_kernel_impact: >
+  ConsignmentLine gains temperatureRegime. ConsignmentLine is the Shared Kernel with Consolidation
+  (see context-map.md) — this field cannot be added by Booking alone, and Consolidation's copy has
+  to change in the same release.

@@ -1,0 +1,5 @@
+{
+  "file_reads": 3,
+  "bash_calls": 9,
+  "notes": "Read the 3 markdown docs directly; batched the 7 model.yaml files into one bash cat, then cross-checked all 10 files with a deterministic python/pyyaml audit script (run twice) that emitted model.json; no server started."
+}

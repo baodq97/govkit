@@ -1,0 +1,65 @@
+context: TerminalOperations
+subdomain_type: core
+tactical_pattern: full-domain-model
+ubiquitous_language:
+  - term: Card
+    definition: The physical plastic with a read/write stripe; collected at the exit, refilled twice a week, no stated identity (H13).
+  - term: Stripe
+    definition: The copy of the system's record carried on the card, "so the machines can be quick"; rewritable.
+  - term: Paid (on the stripe)
+    definition: The only authority an exit terminal has when the network is down.
+  - term: Terminal
+    definition: A machine at an entrance, a payment point or an exit; three named types, four described behaviours (H11).
+  - term: Offline exit
+    definition: A barrier opened on the stripe's word alone, logged at the terminal and uploaded when the link returns.
+  - term: Remote let-out
+    definition: A control-room operator opening a barrier over the intercom when a machine has eaten a card.
+aggregates:
+  - name: Terminal
+    root: Terminal
+    entities:
+      - name: Terminal
+        attributes: [terminalId, siteId, role, connectivityState, barrierState]
+    value_objects:
+      - name: CardStripeRecord
+        attributes: [assignedSpot, paidFlag]   # payment time unknown — H10
+      - name: TerminalRole
+        attributes: [code]                     # role set deliberately open — H11
+    domain_events:
+      - { name: SpotWrittenToStripe, payload: [terminalId, assignedSpot] }
+      - { name: PaidStatusWrittenToStripe, payload: [terminalId, paidFlag] }
+      - { name: EntryBarrierOpened, payload: [terminalId, siteId] }
+      - { name: ExitBarrierOpened, payload: [terminalId, siteId] }
+      - { name: ExitRefused, payload: [terminalId, reason] }
+      - { name: CardCollected, payload: [terminalId] }
+      - { name: CardsRefilled, payload: [terminalId] }
+      - { name: RemoteExitGranted, payload: [terminalId, siteId] }
+      - { name: BarrierStuckOpen, payload: [terminalId, siteId] }   # emitter unknown — H5
+    invariants:
+      - When the exit terminal cannot reach the system it reads the stripe, and if the stripe says paid the barrier opens.
+      - An unpaid card at the exit is returned, the sign says NOT PAID and the barrier stays down.
+      - On a valid exit the machine keeps the card.
+      - A tariff change is live at that site's machines the same evening.
+  - name: OfflineExitLog
+    root: OfflineExitLog
+    entities:
+      - name: OfflineExitLog
+        attributes: [terminalId, uploadedAt]
+      - name: OfflineExitEntry
+        attributes: [stripeSnapshot, exitTime]
+    value_objects: []
+    domain_events:
+      - { name: OfflineExitGranted, payload: [terminalId, stripeSnapshot, exitTime] }
+      - { name: OfflineExitLogged, payload: [terminalId, exitTime] }
+      - { name: OfflineExitLogUploaded, payload: [terminalId, entries] }
+    invariants:
+      - Every offline exit is logged at the terminal even while offline, and uploaded when the link returns.
+notes: >-
+  Split from ParkingVisit deliberately: this context acts on the stripe, which is allowed to beat the
+  system when the link is down. Card fleet management lives here but has no stated rule — no stock
+  level, no threshold — so no CardStock entity was invented. Open: H10, H18, H5, H11, H9.
+relationships:
+  - { to: ParkingVisit, type: partnership }
+  - { to: Tariff, type: downstream }
+  - { to: SiteConfiguration, type: downstream }
+  - { to: RevenueReconciliation, type: upstream }

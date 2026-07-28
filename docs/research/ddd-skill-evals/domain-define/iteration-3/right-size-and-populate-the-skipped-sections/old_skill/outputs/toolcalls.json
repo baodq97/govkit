@@ -1,0 +1,5 @@
+{
+  "file_reads": 6,
+  "bash_calls": 18,
+  "notes": "6 Reads covered the skill + both references + the 3 repo markdown inputs (model.yaml files were dumped in one bash cat); ~10 of the 18 bash calls were wc-and-trim iterations forcing each canvas under its per-subdomain line budget."
+}

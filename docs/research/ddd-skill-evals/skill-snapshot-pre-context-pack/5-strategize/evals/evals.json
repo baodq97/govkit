@@ -1,0 +1,48 @@
+{
+  "skill_name": "5-strategize",
+  "evals": [
+    {
+      "id": 0,
+      "name": "investment-mismatch",
+      "prompt": "We're planning next year's roadmap for Nordic Freight and the whole argument is about where to invest. Repo at <fixtures>/nordic-freight — docs/domain has the model and the business model. Give me the strategic read on which parts of the domain deserve the effort.",
+      "expected_output": "A Core Domain Chart placing all seven contexts on complexity × differentiation, with Consolidation identified as the real core and Invoicing as a low-differentiation cost sink, plus an explicit investment-mismatch report using the mass figures and a proposed delta for the contexts whose subdomain_type disagrees with the chart.",
+      "trap": "Four of the seven contexts are already labelled core, Invoicing among them, and Invoicing carries by far the largest model (5 aggregates, 34 tables). Two tempting failures: accepting the existing labels as the classification, and reading Invoicing's mass as evidence that it is both complex and important — inferring differentiation from code size, which is exactly backwards.",
+      "files": [
+        "fixtures/nordic-freight/docs/domain/context-map.md",
+        "fixtures/nordic-freight/docs/domain/business-model.md",
+        "fixtures/nordic-freight/docs/domain/invoicing/model.yaml",
+        "fixtures/nordic-freight/docs/domain/consolidation/model.yaml"
+      ],
+      "assertions": [
+        "A two-axis Core Domain Chart (model complexity × business differentiation) is produced with every context placed",
+        "Invoicing is placed at low differentiation on business evidence (the business model states nobody chose Nordic for its invoices), not on its table count",
+        "Consolidation is identified as the highest-differentiation context, citing the Guaranteed Consolidation premium as evidence",
+        "The investment mismatch is stated explicitly with the mass numbers on both sides (Invoicing 34 tables / 5 aggregates vs Consolidation 5 tables / 1 aggregate)",
+        "Invoicing's complexity is questioned as potentially accidental (eleven years of growth, three aggregates modelling VAT variation) rather than accepted as essential domain complexity",
+        "Disagreements with the existing subdomain_type labels are surfaced as proposed deltas; the fixture's model.yaml files are not edited",
+        "The result does not leave four contexts classified as core"
+      ]
+    },
+    {
+      "id": 1,
+      "name": "outsourcing-call",
+      "prompt": "The board wants to outsource our customs and invoicing systems to cut cost, and move those three engineers onto quoting so we can win more deals. Repo: <fixtures>/nordic-freight. Is that the right call?",
+      "expected_output": "A chart-grounded answer that supports buying/outsourcing the low-differentiation contexts but redirects the freed capacity to Consolidation rather than Quoting, flags that Invoicing's complexity may be accidental (so outsourcing may relocate the mess), and names the unknown cost structure as a gap in a cost-driven argument.",
+      "trap": "The question invites a yes/no answer from general outsourcing wisdom, and the proposed destination sounds plausible. But the business model says quoting is only partially differentiating ('competitors quote in seconds too; we are no faster') while consolidation is the premium customers actually pay for — and the cost structure, the very basis of the board's cost argument, is recorded as unknown.",
+      "files": [
+        "fixtures/nordic-freight/docs/domain/business-model.md",
+        "fixtures/nordic-freight/docs/domain/context-map.md",
+        "fixtures/nordic-freight/docs/domain/customs/model.yaml",
+        "fixtures/nordic-freight/docs/domain/invoicing/model.yaml"
+      ],
+      "assertions": [
+        "The recommendation is grounded in an explicit placement of the affected contexts on complexity and differentiation, not in general outsourcing advice",
+        "Customs and Invoicing are supported as buy/outsource candidates on differentiation grounds",
+        "The answer warns that Invoicing's complexity may be accidental, so outsourcing could relocate the mess rather than remove it",
+        "The proposed destination for the freed capacity is challenged: Consolidation, not Quoting, is named as where the differentiation sits",
+        "Quoting's partial differentiation (competitors quote just as fast) is used rather than ignored",
+        "The unknown cost structure recorded in the business model is surfaced as a gap that weakens a cost-driven decision"
+      ]
+    }
+  ]
+}

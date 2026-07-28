@@ -1,0 +1,1 @@
+{"file_reads":6,"bash_calls":16,"notes":"6 Reads (1 doc + 5 headless-Chrome screenshots for visual QA); bash covered the doc census, 3 build.mjs runs, a pid-file-tracked python http.server, and its clean shutdown."}

@@ -1,0 +1,21 @@
+context: OccupancyInsight
+subdomain_type: core
+tactical_pattern: transaction-script
+ubiquitous_language:
+  - term: Occupancy
+    definition: How full, per bay type, at a point in time — the number taken to the landlord to argue rent.
+  - term: Free (bay)
+    definition: Garage — the sensor says free. Lot — unknowable until somebody walks past it.
+  - term: Repaint
+    definition: Converting bays of one type into another; the decision this report exists to support.
+aggregates: []
+notes: >-
+  Core by business value, empty by construction: this context owns no state transitions, only a
+  projection over events owned elsewhere. H14 (does a car in a truck bay count as a car or a truck?)
+  and H3 (a lot observes nothing) must be answered before an aggregate here would be honest; H4 asks
+  whether the sensors can be trusted at all. Also carries the entitlement-bay report the expert asked
+  for, which as stated has no mechanism (H6).
+relationships:
+  - { to: GuidanceIntegration, type: downstream }
+  - { to: ParkingVisit, type: downstream }
+  - { to: SiteConfiguration, type: downstream }

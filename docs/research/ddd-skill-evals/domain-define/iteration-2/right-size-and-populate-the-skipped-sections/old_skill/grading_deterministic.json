@@ -1,0 +1,34 @@
+{
+  "expectations": [
+    {
+      "text": "no transport or implementation detail (HTTP verbs, status codes, OpenAPI, queues, retries)",
+      "passed": true,
+      "evidence": "clean"
+    },
+    {
+      "text": "messages carry a type (command/event/query)",
+      "passed": true,
+      "evidence": "51 typed mention(s)"
+    },
+    {
+      "text": "a `assumption` section exists and is not left blank",
+      "passed": true,
+      "evidence": "present, non-empty"
+    },
+    {
+      "text": "a `open question` section exists and is not left blank",
+      "passed": true,
+      "evidence": "present, non-empty"
+    },
+    {
+      "text": "a `verification metric` section exists and is not left blank",
+      "passed": true,
+      "evidence": "present, non-empty"
+    },
+    {
+      "text": "no domain name is asserted with no relative in the fixture's vocabulary (fabrication check)",
+      "passed": true,
+      "evidence": "every name traces to something declared"
+    }
+  ]
+}

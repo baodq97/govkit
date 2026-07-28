@@ -1,0 +1,713 @@
+{
+  "repo": "repo/docs/domain",
+  "contexts": 7,
+  "findings": [
+    {
+      "severity": "BLOCKER",
+      "id": "STRAT-1",
+      "title": "Sub-domain classification inverts the business model",
+      "evidence": [
+        {
+          "context": "consolidation",
+          "subdomain_type": "supporting",
+          "differentiation": "**yes** — the premium customers pay for; a new entrant would need both the depot network and the planning know-how",
+          "verdict": "differentiating capability NOT classified core"
+        },
+        {
+          "context": "customs",
+          "subdomain_type": "core",
+          "differentiation": "no — required, and two vendors already do it well",
+          "verdict": "non-differentiating capability classified core"
+        },
+        {
+          "context": "invoicing",
+          "subdomain_type": "core",
+          "differentiation": "**no** — *\"nobody has ever chosen us because of our invoices\"*",
+          "verdict": "non-differentiating capability classified core"
+        }
+      ],
+      "impact": "Invoicing is 44.7% of tables and 51.2% of attributes and is built as a full domain model, while the one capability the business calls differentiating (Consolidation) is 6.6% of tables and is classified 'supporting'. Investment follows the classification, so this misdirects the build."
+    },
+    {
+      "severity": "BLOCKER",
+      "id": "EVT-1",
+      "title": "Zero failure or compensation events — the model is happy-path only",
+      "evidence": {
+        "declared_events": [
+          "BookingConfirmed",
+          "BookingRequested",
+          "CapacityReserved",
+          "ContainerSealed",
+          "CustomerNotified",
+          "DeclarationCleared",
+          "DeclarationSubmitted",
+          "InvoiceIssued",
+          "QuoteIssued",
+          "QuoteRequested",
+          "ShipmentHandedToCarrier"
+        ],
+        "known_failure_paths_from_discovery": [
+          "overbooked container means a shipment is bumped (hotspot 1 / stated rule)",
+          "partner carrier refuses a sealed container (hotspot 3, unowned)",
+          "Invoicing declares CreditNote + DunningCase aggregates, so credits and non-payment exist in reality but emit no events"
+        ]
+      },
+      "impact": "Every reversal path is undesigned. Teams will invent incompatible compensation logic per context, and the two hotspots that already cost money stay unowned."
+    },
+    {
+      "severity": "BLOCKER",
+      "id": "LANG-1",
+      "title": "The same word carries different meanings AND the same type name carries different shapes",
+      "evidence": {
+        "term_collisions": {
+          "consignment": [
+            {
+              "context": "Booking",
+              "definition": "The goods a customer hands over as one unit"
+            },
+            {
+              "context": "Invoicing",
+              "definition": "A billable line on an invoice"
+            }
+          ]
+        },
+        "type_shape_clashes": {
+          "ConsignmentLine": [
+            {
+              "context": "Booking",
+              "kind": "entities",
+              "attributes": [
+                "hazardClass",
+                "lineId",
+                "volumeM3",
+                "weightKg"
+              ]
+            },
+            {
+              "context": "Consolidation",
+              "kind": "entities",
+              "attributes": [
+                "lineId",
+                "stackable",
+                "volumeM3"
+              ]
+            }
+          ]
+        },
+        "discovery_hotspot": "Hotspot 2: 'Finance and operations use \"consignment\" differently — a billable line vs a physical stack of pallets'"
+      },
+      "impact": "The discovery session logged this as an open hotspot; the model then encoded both meanings instead of resolving them, and reused ConsignmentLine as a cross-context type with two incompatible attribute sets. Sharing that type silently drops fields."
+    },
+    {
+      "severity": "BLOCKER",
+      "id": "INV-1",
+      "title": "The capacity invariant is written where it cannot be enforced (check-then-act across a boundary)",
+      "evidence": {
+        "invariant": "Consolidation: 'A container's committed volume must never exceed its capacity'",
+        "booking_relationship_note": "synchronous remaining-capacity check before reserving",
+        "booking_invariant": [
+          "A booking may only be confirmed once its capacity has been reserved"
+        ],
+        "discovery_hotspot": "Hotspot 1: 'Two shipments were committed to the same container slot in March; nobody agrees where the check should have happened'",
+        "business_impact_stated": "an overbooked container means a shipment is bumped and the Guaranteed Consolidation promise is broken"
+      },
+      "impact": "Booking reads remaining capacity synchronously from Consolidation, then commits in its own transaction. Two concurrent bookings both read space and both commit. This is the exact March incident, and the model reproduces the design that caused it rather than fixing it. It also directly breaks the +18% premium the revenue stream depends on."
+    },
+    {
+      "severity": "BLOCKER",
+      "id": "INV-2",
+      "title": "The customs-before-handover rule is owned by a context that cannot enforce it, and the confirmed timeline violates it",
+      "evidence": {
+        "rule_stated_by": "customs clerk",
+        "rule": "A shipment cannot be handed to a carrier before its declaration is submitted",
+        "declared_as_invariant_of": "Customs",
+        "action_actually_performed_by": "Routing (emits ShipmentHandedToCarrier)",
+        "routing_aggregates": [],
+        "routing_relationships": [
+          "Booking",
+          "PartnerNetwork"
+        ],
+        "routing_knows_customs": false,
+        "timeline_order": {
+          "ShipmentHandedToCarrier": 6,
+          "DeclarationSubmitted": 8
+        },
+        "contradiction": "the timeline both sides confirmed puts handover TWO events before the declaration it is supposed to wait for"
+      },
+      "impact": "Routing has no aggregate, no invariant, and no relationship to Customs — it cannot check anything. Meanwhile the confirmed event order contradicts the confirmed rule and nobody reconciled them. Build this as written and you ship a compliance violation on the happy path."
+    },
+    {
+      "severity": "BLOCKER",
+      "id": "DATA-1",
+      "title": "The declared shared identifier does not exist in two of the four contexts that supposedly share it, and no event carries it",
+      "evidence": {
+        "context_map_claim": "`ShipmentRef` value object shared by Booking, Consolidation, Customs, Invoicing (sharing level: Building Blocks)",
+        "reality": {
+          "booking": "present",
+          "consolidation": "ABSENT — never appears in this model",
+          "customs": "present",
+          "invoicing": "ABSENT — never appears in this model"
+        },
+        "events_whose_payload_carries_shipmentRef": [],
+        "customs_declaration_attributes": [
+          "declarationId",
+          "shipmentRef",
+          "portCode",
+          "status"
+        ],
+        "upstream_of_customs": "Consolidation, whose events carry containerId / bookingId / fillRate — never shipmentRef"
+      },
+      "impact": "Customs keys its Declaration on shipmentRef, but nothing upstream ever emits one. There is no end-to-end correlation key from a booking to its declaration to its invoice, so the chain cannot be joined at runtime and cannot be audited after an incident."
+    },
+    {
+      "severity": "BLOCKER",
+      "id": "DATA-2",
+      "title": "Invoicing's only invariant references a field that does not exist on the entity",
+      "evidence": {
+        "invariant": [
+          "An invoice line must reference a cleared declaration"
+        ],
+        "invoice_line_attributes": [
+          "lineId",
+          "description",
+          "amount",
+          "vatCode"
+        ],
+        "declaration_identity": "declarationId (Customs)",
+        "gap": "InvoiceLine has no declarationId, no shipmentRef, no link of any kind to Customs"
+      },
+      "impact": "'An invoice line must reference a cleared declaration' is unimplementable as modelled. Either the invariant is aspirational or the entity is wrong — and it is the one rule standing between the company and invoicing for uncleared goods."
+    },
+    {
+      "severity": "MAJOR",
+      "id": "REL-1",
+      "title": "Context map records direction only — no integration pattern on any edge",
+      "evidence": {
+        "types_used": [
+          "downstream",
+          "upstream"
+        ],
+        "edges": 13,
+        "shared_kernel_declared_in_context_map": "ConsignmentLine, Booking + Consolidation, 'both write it'",
+        "same_pair_in_model_yaml": {
+          "Booking->Consolidation": "downstream",
+          "Consolidation->Booking": "upstream"
+        }
+      },
+      "impact": "'upstream/downstream' fixes no contract. Nothing says which side translates, who may break whom, or whether an ACL exists. The one place a pattern IS named (Shared Kernel in context-map.md) is contradicted by both model.yaml files, which call the same pair upstream/downstream."
+    },
+    {
+      "severity": "MAJOR",
+      "id": "REV-1",
+      "title": "The premium that justifies the whole product is not in the model",
+      "evidence": {
+        "revenue_stream": "Guaranteed Consolidation premium (+18% of forwarding fee) — promises a departure slot even on a partly-filled container",
+        "stated_rule_unmodelled": "The premium is charged whether or not the container ends up full (finance analyst) — no matching invariant in Invoicing",
+        "invoicing_invariants": [
+          "An invoice line must reference a cleared declaration"
+        ],
+        "contexts_mentioning_the_premium_concept": [
+          "consolidation"
+        ],
+        "short_horizon_goal": "Raise average container fill from 71% to 80%"
+      },
+      "impact": "No aggregate, event, or invariant represents a guaranteed departure slot. Invoicing's only invariant ties a line to a cleared declaration, which does not express the premium at all. The 71%->80% fill goal has no invariant or metric owner either."
+    },
+    {
+      "severity": "MAJOR",
+      "id": "AGG-1",
+      "title": "Invoicing carries a 128-attribute entity and five aggregates, three of them modelling tax rules",
+      "evidence": {
+        "densest_entity_attrs": {
+          "quoting": 26,
+          "booking": 22,
+          "consolidation": 18,
+          "routing": 9,
+          "customs": 34,
+          "invoicing": 128,
+          "notifications": 7
+        },
+        "invoicing_aggregates": [
+          "Invoice",
+          "SurchargeSchedule",
+          "CreditNote",
+          "DunningCase",
+          "PaymentAllocation"
+        ],
+        "invoicing_note": "Grown over eleven years. Three of the five aggregates exist to model VAT variations across the nine ports; two were added when the Finnish tax rules changed in 2024.",
+        "business_classification": {
+          "business_role": "compliance-enforcer",
+          "evolution_stage": "commodity",
+          "differentiation": "**no** — *\"nobody has ever chosen us because of our invoices\"*"
+        },
+        "customs_note": "Two commercial customs platforms cover all nine ports; we integrate with neither.",
+        "customs_classification": {
+          "business_role": "compliance-enforcer",
+          "evolution_stage": "product",
+          "differentiation": "no — required, and two vendors already do it well"
+        }
+      },
+      "impact": "Both of the heaviest custom builds are capabilities the business itself rates as non-differentiating, and both have off-the-shelf answers (VAT engines; the two commercial customs platforms already covering all nine ports). No build-vs-buy decision is recorded."
+    },
+    {
+      "severity": "MAJOR",
+      "id": "GOV-1",
+      "title": "Nothing here is signed off, and the strategic layer rests on one proxy voice",
+      "evidence": {
+        "front_matter": {
+          "business-model.md": {
+            "status": "draft",
+            "owner": "TBD",
+            "date": "2026-05-18"
+          },
+          "context-map.md": {
+            "status": "draft",
+            "owner": "TBD",
+            "date": "2026-06-02"
+          },
+          "discovery/timeline.md": {
+            "status": "draft",
+            "owner": "TBD",
+            "date": "2026-05-25"
+          }
+        },
+        "model_yaml_files_with_provenance": [],
+        "customer_participation": "none in either session (business-model.md and timeline.md both state 'no customer')",
+        "proxy_sourced_rows": 2,
+        "context_map_staleness": "not revisited since the first modelling session in March; discovery sessions were 2026-05-18 and 2026-05-25",
+        "cost_structure": "Unknown — nobody in the room owns the P&L"
+      },
+      "impact": "All three docs are status: draft, owner: TBD. No customer was in either session, so 'differentiation' and the value proposition come from the commercial director speaking for customers. The classification you would be approving predates both discovery sessions by roughly three months. Cost structure is unknown, so 'revenue-generator' is unverified."
+    },
+    {
+      "severity": "MINOR",
+      "id": "EVT-2",
+      "title": "Candidate event promoted to modelled fact without carrying its provenance",
+      "evidence": [
+        {
+          "event": "CustomerNotified",
+          "timeline_confirmation": "*candidate* — inferred from the notification templates, nobody confirmed when it fires",
+          "modelled_in": [
+            "notifications"
+          ]
+        }
+      ],
+      "impact": "CustomerNotified is inferred from templates; nobody confirmed when it fires. The model.yaml records it with the same confidence as the ten confirmed events."
+    }
+  ],
+  "mass": {
+    "total_tables": 76,
+    "total_attributes": 608,
+    "per_context": {
+      "quoting": {
+        "tables": 11,
+        "attributes": 78,
+        "densest_entity_attrs": 26,
+        "pct_tables": 14.5,
+        "pct_attributes": 12.8,
+        "subdomain_type": "core",
+        "tactical_pattern": "full-domain-model"
+      },
+      "booking": {
+        "tables": 9,
+        "attributes": 54,
+        "densest_entity_attrs": 22,
+        "pct_tables": 11.8,
+        "pct_attributes": 8.9,
+        "subdomain_type": "core",
+        "tactical_pattern": "full-domain-model"
+      },
+      "consolidation": {
+        "tables": 5,
+        "attributes": 41,
+        "densest_entity_attrs": 18,
+        "pct_tables": 6.6,
+        "pct_attributes": 6.7,
+        "subdomain_type": "supporting",
+        "tactical_pattern": "full-domain-model"
+      },
+      "routing": {
+        "tables": 3,
+        "attributes": 17,
+        "densest_entity_attrs": 9,
+        "pct_tables": 3.9,
+        "pct_attributes": 2.8,
+        "subdomain_type": "supporting",
+        "tactical_pattern": "transaction-script"
+      },
+      "customs": {
+        "tables": 12,
+        "attributes": 96,
+        "densest_entity_attrs": 34,
+        "pct_tables": 15.8,
+        "pct_attributes": 15.8,
+        "subdomain_type": "core",
+        "tactical_pattern": "full-domain-model"
+      },
+      "invoicing": {
+        "tables": 34,
+        "attributes": 311,
+        "densest_entity_attrs": 128,
+        "pct_tables": 44.7,
+        "pct_attributes": 51.2,
+        "subdomain_type": "core",
+        "tactical_pattern": "full-domain-model"
+      },
+      "notifications": {
+        "tables": 2,
+        "attributes": 11,
+        "densest_entity_attrs": 7,
+        "pct_tables": 2.6,
+        "pct_attributes": 1.8,
+        "subdomain_type": "generic",
+        "tactical_pattern": "bought-adapter"
+      }
+    }
+  },
+  "capability_inputs": {
+    "Load consolidation / container fill optimisation": {
+      "business_role": "revenue-generator",
+      "evolution_stage": "custom-built",
+      "differentiation": "**yes** — the premium customers pay for; a new entrant would need both the depot network and the planning know-how"
+    },
+    "Quoting": {
+      "business_role": "engagement-creator",
+      "evolution_stage": "product",
+      "differentiation": "partial — competitors quote in seconds too; we are no faster"
+    },
+    "Customs declaration": {
+      "business_role": "compliance-enforcer",
+      "evolution_stage": "product",
+      "differentiation": "no — required, and two vendors already do it well"
+    },
+    "Invoicing": {
+      "business_role": "compliance-enforcer",
+      "evolution_stage": "commodity",
+      "differentiation": "**no** — *\"nobody has ever chosen us because of our invoices\"*"
+    },
+    "Shipment notifications": {
+      "business_role": "engagement-creator",
+      "evolution_stage": "commodity",
+      "differentiation": "no"
+    },
+    "Carrier routing": {
+      "business_role": "cost-reduction",
+      "evolution_stage": "product",
+      "differentiation": "no — the partner network is the asset, not the routing step"
+    }
+  },
+  "classification_conflicts": [
+    {
+      "context": "consolidation",
+      "subdomain_type": "supporting",
+      "differentiation": "**yes** — the premium customers pay for; a new entrant would need both the depot network and the planning know-how",
+      "verdict": "differentiating capability NOT classified core"
+    },
+    {
+      "context": "customs",
+      "subdomain_type": "core",
+      "differentiation": "no — required, and two vendors already do it well",
+      "verdict": "non-differentiating capability classified core"
+    },
+    {
+      "context": "invoicing",
+      "subdomain_type": "core",
+      "differentiation": "**no** — *\"nobody has ever chosen us because of our invoices\"*",
+      "verdict": "non-differentiating capability classified core"
+    }
+  ],
+  "events": {
+    "timeline_count": 11,
+    "declared_count": 11,
+    "missing_from_models": [],
+    "not_in_timeline": [],
+    "unconfirmed_in_timeline_but_modelled_as_fact": [
+      {
+        "event": "CustomerNotified",
+        "timeline_confirmation": "*candidate* — inferred from the notification templates, nobody confirmed when it fires",
+        "modelled_in": [
+          "notifications"
+        ]
+      }
+    ],
+    "failure_or_compensation_events": []
+  },
+  "relationships": {
+    "declared": [
+      {
+        "from": "Quoting",
+        "to": "Booking",
+        "type": "upstream"
+      },
+      {
+        "from": "Booking",
+        "to": "Quoting",
+        "type": "downstream"
+      },
+      {
+        "from": "Booking",
+        "to": "Consolidation",
+        "type": "downstream"
+      },
+      {
+        "from": "Booking",
+        "to": "Routing",
+        "type": "upstream"
+      },
+      {
+        "from": "Consolidation",
+        "to": "Booking",
+        "type": "upstream"
+      },
+      {
+        "from": "Consolidation",
+        "to": "Customs",
+        "type": "upstream"
+      },
+      {
+        "from": "Routing",
+        "to": "Booking",
+        "type": "downstream"
+      },
+      {
+        "from": "Routing",
+        "to": "PartnerNetwork",
+        "type": "downstream"
+      },
+      {
+        "from": "Customs",
+        "to": "Consolidation",
+        "type": "downstream"
+      },
+      {
+        "from": "Customs",
+        "to": "Invoicing",
+        "type": "upstream"
+      },
+      {
+        "from": "Invoicing",
+        "to": "Customs",
+        "type": "downstream"
+      },
+      {
+        "from": "Invoicing",
+        "to": "Notifications",
+        "type": "upstream"
+      },
+      {
+        "from": "Notifications",
+        "to": "Invoicing",
+        "type": "downstream"
+      }
+    ],
+    "asymmetric": [],
+    "dangling_targets": [
+      {
+        "from": "Routing",
+        "to": "PartnerNetwork",
+        "type": "downstream",
+        "note": "target has no model.yaml"
+      }
+    ],
+    "distinct_types": [
+      "downstream",
+      "upstream"
+    ]
+  },
+  "ubiquitous_language": {
+    "contexts_with_glossary": [
+      "Booking",
+      "Consolidation",
+      "Invoicing"
+    ],
+    "contexts_without_glossary": [
+      "Quoting",
+      "Routing",
+      "Customs",
+      "Notifications"
+    ],
+    "collisions": {
+      "consignment": [
+        {
+          "context": "Booking",
+          "definition": "The goods a customer hands over as one unit"
+        },
+        {
+          "context": "Invoicing",
+          "definition": "A billable line on an invoice"
+        }
+      ]
+    },
+    "type_name_reused_with_different_shape": {
+      "ConsignmentLine": [
+        {
+          "context": "Booking",
+          "kind": "entities",
+          "attributes": [
+            "hazardClass",
+            "lineId",
+            "volumeM3",
+            "weightKg"
+          ]
+        },
+        {
+          "context": "Consolidation",
+          "kind": "entities",
+          "attributes": [
+            "lineId",
+            "stackable",
+            "volumeM3"
+          ]
+        }
+      ]
+    }
+  },
+  "invariants": {
+    "Quoting": [
+      "A quote cannot be accepted after its validity window"
+    ],
+    "Booking": [
+      "A booking may only be confirmed once its capacity has been reserved"
+    ],
+    "Consolidation": [
+      "A container's committed volume must never exceed its capacity"
+    ],
+    "Routing": [],
+    "Customs": [
+      "A shipment cannot be handed to a carrier before its declaration is submitted"
+    ],
+    "Invoicing": [
+      "An invoice line must reference a cleared declaration"
+    ],
+    "Notifications": []
+  },
+  "contexts_without_invariants": [
+    "Routing",
+    "Notifications"
+  ],
+  "cross_boundary_invariants": [],
+  "shared_artifact_reality_check": {
+    "ShipmentRef": {
+      "booking": "present",
+      "consolidation": "ABSENT — never appears in this model",
+      "customs": "present",
+      "invoicing": "ABSENT — never appears in this model"
+    },
+    "ConsignmentLine": {
+      "booking": "present",
+      "consolidation": "present"
+    }
+  },
+  "event_payload_keys": {
+    "QuoteRequested": [
+      "customerId",
+      "laneId",
+      "volumeM3"
+    ],
+    "QuoteIssued": [
+      "quoteId",
+      "price",
+      "validUntil"
+    ],
+    "BookingRequested": [
+      "bookingId",
+      "departureId",
+      "volumeM3"
+    ],
+    "BookingConfirmed": [
+      "bookingId",
+      "containerId"
+    ],
+    "CapacityReserved": [
+      "containerId",
+      "bookingId",
+      "volumeM3"
+    ],
+    "ContainerSealed": [
+      "containerId",
+      "fillRate"
+    ],
+    "ShipmentHandedToCarrier": [
+      "bookingId",
+      "carrierId"
+    ],
+    "DeclarationSubmitted": [
+      "declarationId",
+      "portCode"
+    ],
+    "DeclarationCleared": [
+      "declarationId",
+      "clearedAt"
+    ],
+    "InvoiceIssued": [
+      "invoiceId",
+      "customerId",
+      "total"
+    ],
+    "CustomerNotified": [
+      "customerId",
+      "templateId"
+    ]
+  },
+  "events_carrying_shipmentref": [],
+  "revenue_stream_coverage": {
+    "revenue_stream": "Guaranteed Consolidation premium (+18% of forwarding fee) — promises a departure slot even on a partly-filled container",
+    "stated_rule_unmodelled": "The premium is charged whether or not the container ends up full (finance analyst) — no matching invariant in Invoicing",
+    "invoicing_invariants": [
+      "An invoice line must reference a cleared declaration"
+    ],
+    "contexts_mentioning_the_premium_concept": [
+      "consolidation"
+    ],
+    "short_horizon_goal": "Raise average container fill from 71% to 80%"
+  },
+  "god_entities": {
+    "customs": 34,
+    "invoicing": 128
+  },
+  "provenance": {
+    "front_matter": {
+      "business-model.md": {
+        "status": "draft",
+        "owner": "TBD",
+        "date": "2026-05-18"
+      },
+      "context-map.md": {
+        "status": "draft",
+        "owner": "TBD",
+        "date": "2026-06-02"
+      },
+      "discovery/timeline.md": {
+        "status": "draft",
+        "owner": "TBD",
+        "date": "2026-05-25"
+      }
+    },
+    "model_yaml_files_with_provenance": [],
+    "customer_participation": "none in either session (business-model.md and timeline.md both state 'no customer')",
+    "proxy_sourced_rows": 2,
+    "context_map_staleness": "not revisited since the first modelling session in March; discovery sessions were 2026-05-18 and 2026-05-25",
+    "cost_structure": "Unknown — nobody in the room owns the P&L"
+  },
+  "sound": {
+    "event_coverage": "all 11 timeline events appear in a model.yaml; no orphans in either direction",
+    "relationship_symmetry": "every internal edge has a matching reciprocal declaration; no direction clashes",
+    "right_sized_contexts": [
+      "Notifications (generic -> bought-adapter, no aggregates, matches the business rating)",
+      "Routing (supporting -> transaction-script, owns no rule, stated explicitly)"
+    ],
+    "honest_gaps": "the discovery docs mark their own weaknesses (proxy rows, candidate event, unknown cost structure, three open hotspots) instead of hiding them"
+  },
+  "summary": {
+    "blockers": 7,
+    "majors": 4,
+    "minors": 1,
+    "verdict": "NOT SAFE TO BUILD ON AS-IS",
+    "unresolved_discovery_hotspots": 3,
+    "hotspots_still_open_in_the_model": [
+      "1 - double-committed container slot -> INV-1 (design unchanged)",
+      "2 - 'consignment' means two things -> LANG-1 (both meanings encoded)",
+      "3 - carrier refuses a sealed container -> EVT-1 (no event, no owner)"
+    ]
+  }
+}

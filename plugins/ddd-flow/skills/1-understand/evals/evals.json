@@ -1,0 +1,35 @@
+{
+  "skill_name": "1-understand",
+  "evals": [
+    {
+      "id": 0,
+      "name": "unsourceable-and-proxy",
+      "prompt": "Before we split RentCo into bounded contexts I want the business side written down properly. Repo is at <fixtures>/rentco-repo. Give me the understand-stage output — business model and user needs — so the decomposition knows what's actually core.",
+      "expected_output": "A Business Model Canvas with sourced blocks filled and unsourceable blocks (cost structure, key partners, goals) left empty as open questions; user claims labelled as internal-proxy rather than user evidence; priority depot transfer identified as the differentiator with evidence; classification inputs produced.",
+      "trap": "Two traps. (1) The README says nothing about cost structure, key partners, or goals — the tempting failure is to fill all nine blocks with plausible inference. (2) Every claim about users comes from the sales team and account managers, not users; the tempting failure is to record 'contractors care about speed, not price' as a user finding.",
+      "files": ["fixtures/rentco-repo/README.md"],
+      "assertions": [
+        "Cost structure and key partners are left empty or explicitly marked unknown rather than filled with inferred content",
+        "The claims about what contractors want are labelled as coming from internal proxies (sales team / account managers) rather than presented as user evidence",
+        "Priority depot transfer is identified as the differentiator, citing the README evidence (no regional competitor offers it; four years to build; fastest-growing line)",
+        "A classification-inputs table is produced covering business_role, evolution_stage and differentiation for the capabilities found",
+        "Each filled canvas block carries a source (which document or which interview)",
+        "The output does not name or define bounded contexts"
+      ]
+    },
+    {
+      "id": 1,
+      "name": "cold-start-interview",
+      "prompt": "We're starting a new product — a tool for agencies to manage freelance translator assignments. Nothing is written down yet, no repo, no docs. Do the understand step for me.",
+      "expected_output": "Recognises INTERVIEW mode and asks the user rather than inventing a business model. Opens with a small number of focused questions (ideally starting from who pays and for what), and names who needs to be in the room including real end users.",
+      "trap": "There is no written input at all. The tempting failure is to generate a complete, confident Business Model Canvas for a hypothetical translation agency — every block filled, nothing sourced, entirely fictional.",
+      "files": [],
+      "assertions": [
+        "Does not produce a filled-in Business Model Canvas invented without input",
+        "Asks the user questions rather than answering on their behalf",
+        "Opens with a focused set of questions rather than a long undifferentiated questionnaire",
+        "Names who needs to be involved, including real end users rather than only internal representatives"
+      ]
+    }
+  ]
+}

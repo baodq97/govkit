@@ -1,0 +1,20 @@
+context: Routing
+subdomain_type: supporting
+tactical_pattern: transaction-script
+mass: { tables: 3, attributes: 17, densest_entity_attrs: 9 }
+aggregates: []
+aggregates_rationale: >
+  Routing receives BookingConfirmed and hands the shipment to the partner carrier selected by the
+  standing contract for that lane. It owns no rule of its own.
+cold_chain_note: >
+  Still true after cold chain, and deliberately so. The handover is a custody transfer, so Routing
+  now reports who took custody and at what temperature — but it does not decide whether that
+  reading is a breach. That rule lives in ColdChain. Scattering the tolerance logic into the
+  handover step is the obvious shortcut and the one to refuse: it would put the same judgement in
+  two contexts and keep Routing a transaction script in name only.
+domain_events:
+  - { name: ShipmentHandedToCarrier, payload: [bookingId, carrierId, custodyPartyId, handoverTemperatureCelsius, handedOverAt] }
+relationships:
+  - { to: Booking, type: downstream }
+  - { to: PartnerNetwork, type: downstream, note: "external" }
+  - { to: ColdChain, type: upstream, note: "handover fact closes a custody leg; ColdChain adjudicates" }

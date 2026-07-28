@@ -2,7 +2,7 @@
 name: data-model
 description: >
   Design or audit a relational data model. Two modes. FORWARD: turn a domain model
-  (docs/domain/ from domain-decompose, or a prose description) into a logical schema —
+  (docs/domain/ from the ddd-flow plugin, or a prose description) into a logical schema —
   tables, keys, relationships, constraints, ERD — plus a PostgreSQL projection. AUDIT: review an
   EXISTING database (migrations, DDL, or ORM models — Alembic, SQLAlchemy, Django, Prisma,
   TypeORM, EF) and flag data-model issues with severity, then diff against docs/domain/ for drift.
@@ -10,7 +10,7 @@ description: >
   "turn aggregates into tables", "ERD", "design tables". Use AUDIT when the user says "audit my
   schema", "review the database", "check our data model", "is my schema healthy", "find schema
   problems", "data model review", or points at an existing schema/migrations folder. This is the
-  persistence step of the swe-flow chain (goal-define → domain-decompose → data-model), and the
+  persistence step of the chain (goal-define → ddd-flow decompose → data-model), and the
   go-to skill for reviewing the data layer of an existing/legacy project.
 license: MIT
 ---
@@ -23,7 +23,8 @@ from it. Audit compares a real schema — in any dialect — against that logica
 
 ## Where this fits
 
-The persistence step of the swe-flow chain: `goal-define` → `domain-decompose` → **`data-model`**
+The persistence step of the swe-flow chain: `goal-define` → `ddd-flow:3-decompose`
+(ships in the `ddd-flow` plugin; the handoff is the `docs/domain/` tree) → **`data-model`**
 (sibling of `api-designer`). FORWARD consumes `docs/domain/`; both modes write to `docs/data/`.
 
 ## Pick the mode

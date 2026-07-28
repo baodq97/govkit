@@ -19,7 +19,7 @@ decision to record; you produce the implementation direction as a governed doc.
 If the Skill tool lists any of the skills named below, invoke the matching one first and follow
 it. If none is listed, run the embedded procedure below; it is complete on its own.
 
-Canonical skills: `swe-flow:domain-decompose` (boundaries), `swe-flow:api-designer`
+Canonical skills: `ddd-flow:3-decompose` (boundaries, ships in the ddd-flow plugin), `swe-flow:api-designer`
 (interfaces), `swe-flow:data-model` (persistence)
 
 ## Two disciplines that are yours, not a skill's

@@ -1,0 +1,75 @@
+context: ParkingVisit
+subdomain_type: core
+tactical_pattern: full-domain-model
+ubiquitous_language:
+  - term: Visit
+    definition: One vehicle's stay from entry to exit; the expert never named its identity (H13).
+  - term: AssignedSpot
+    definition: Where the driver was sent — a bay in a garage, an area in a lot; same field, different meaning.
+  - term: VehicleClass
+    definition: What the vehicle is and what the tariff is priced by; disabled and family are not in it.
+  - term: Paid
+    definition: The system's record of payment. "The system is the truth"; the stripe is a copy.
+  - term: The window
+    definition: The 15 minutes allowed between paying and exiting; past it the exit refuses the card.
+  - term: Full (site)
+    definition: No bay at all — the sign says FULL, the barrier stays down, no ticket is issued.
+  - term: Full (class)
+    definition: No bay of that class — the driver is still admitted and substituted at their own class's rate.
+  - term: Lost ticket
+    definition: A button on the payment machine; pay the daily cap for the class, get a fresh card marked paid.
+aggregates:
+  - name: ParkingVisit
+    root: ParkingVisit
+    entities:
+      - name: ParkingVisit
+        attributes: [visitId, siteId, declaredClass, chargedClass, assignedSpot, entryTime, exitTime, amountDue, paidAt, status]
+    value_objects:
+      - name: AssignedSpot
+        attributes: [siteType, bayId, areaId]   # bayId in a garage, areaId in a lot — never both
+      - name: VehicleClass
+        attributes: [code]
+      - name: Money
+        attributes: [amount, currency]
+      - name: ParkingPeriod
+        attributes: [entryTime, exitTime]
+      - name: PaymentWindow
+        attributes: [paidAt, expiresAt]         # expiresAt = paidAt + 15 minutes
+      - name: CardStripeRecord
+        attributes: [assignedSpot, paidFlag]    # payment time on the stripe is unknown — H10
+    domain_events:
+      - { name: VehicleClassDeclared, payload: [visitId, siteId, declaredClass] }
+      - { name: EntryRefused, payload: [siteId, declaredClass, reason] }
+      - { name: TicketIssued, payload: [visitId, siteId, assignedSpot] }
+      - { name: AreaAssigned, payload: [visitId, areaId] }
+      - { name: EntryRecorded, payload: [visitId, siteId, entryTime] }
+      - { name: TicketPaid, payload: [visitId, amount, paidAt] }
+      - { name: LostTicketCharged, payload: [siteId, vehicleClass, amount] }
+      - { name: ReplacementCardIssued, payload: [siteId, paidFlag] }
+      - { name: AdditionalPaymentCollected, payload: [visitId, amount, paidAt] }
+      - { name: VehicleExited, payload: [visitId, siteId, exitTime] }
+    invariants:
+      - When the site is full, no ticket is issued and the barrier does not open.
+      - A truck is refused when the truck bays are full; a truck is never admitted to a car bay.
+      - When no bay of the declared class is free, admit to a substitutable class and charge the declared class's rate (car to truck bay, electric car to normal bay).
+      - A stay is priced per started fifteen minutes at the site and class rate, with that site's free-first-15 setting, daily cap and night/weekend rates.
+      - Exit must follow payment within fifteen minutes; past the window the card is refused and the difference is paid at a payment machine.
+      - The system's paid status is the truth; the stripe is a copy.
+      - A lost ticket is charged the daily cap for that vehicle class and a replacement card is issued marked paid.
+      - When the declared class and the plate's registered class disagree, the higher of the two rates is charged.
+      - When the assigned bay is taken anyway, the driver takes the next free one; there is no reassignment and no consequence.
+notes: >-
+  Identity (visitId) is the modeller's, not the expert's — H13 is open and it is the identity the
+  ten-year fiscal record depends on. Open: H12 (lost-ticket lookup), H2 (a lot cannot know it is
+  full), H16 (substitution pairs), H15 (rate change mid-stay), H18 (offline entry), H1 (who assigns
+  the bay).
+relationships:
+  - { to: Tariff, type: customer-supplier }
+  - { to: SiteConfiguration, type: downstream }
+  - { to: GuidanceIntegration, type: acl }
+  - { to: VehicleIdentification, type: downstream }
+  - { to: TerminalOperations, type: partnership }
+  - { to: PaymentCapture, type: acl }
+  - { to: RevenueReconciliation, type: upstream }
+  - { to: OccupancyInsight, type: upstream }
+  - { to: FiscalRecord, type: upstream }

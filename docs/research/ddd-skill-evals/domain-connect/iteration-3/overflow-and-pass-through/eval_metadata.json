@@ -1,0 +1,28 @@
+{
+  "eval_id": 1,
+  "eval_name": "overflow-and-pass-through",
+  "skill_name": "domain-connect",
+  "prompt": "Trace the full end-to-end shipment lifecycle for Nordic Freight \u2014 quote through to invoice \u2014 as a domain message flow so we can see how the contexts fit together. Repo: <fixtures>/nordic-freight.",
+  "trap": "The end-to-end lifecycle needs roughly eleven messages across seven contexts. Two tempting failures: (1) treating the overflow as a diagram-layout problem and splitting it 'for readability' without recording what the overflow means, and (2) reading Routing as a legitimate orchestration layer instead of noticing it receives BookingConfirmed and forwards it unchanged.",
+  "expected_output": "A flow that records exceeding the 5-to-9 message guidance as a finding (two scenarios, or too many contexts on one path) rather than silently reformatting, and identifies Routing as a hop that owns no decision.",
+  "assertions": [
+    {
+      "text": "Exceeding the 5-to-9 message guidance is recorded as a finding about the scenario or the boundaries, not merely as a formatting decision"
+    },
+    {
+      "text": "Routing is identified as a pass-through that owns no decision of its own, citing its empty aggregate list or its forwarding behaviour"
+    },
+    {
+      "text": "Messages are both numbered and typed, and a message table accompanies the diagram"
+    },
+    {
+      "text": "The CustomerNotified event is not treated as confirmed \u2014 the discovery timeline marks it as a candidate"
+    },
+    {
+      "text": "Each finding cites message numbers as evidence rather than describing the design in adjectives"
+    },
+    {
+      "text": "The flow contains no transport or implementation detail (HTTP verbs, queues, retries, serialization)"
+    }
+  ]
+}

@@ -1,0 +1,19 @@
+context: Customs
+subdomain_type: core
+tactical_pattern: full-domain-model
+mass: { tables: 12, attributes: 96, densest_entity_attrs: 34 }
+aggregates:
+  - name: Declaration
+    root: Declaration
+    entities:
+      - { name: Declaration, attributes: [declarationId, shipmentRef, portCode, status] }
+    domain_events:
+      - { name: DeclarationSubmitted, payload: [declarationId, portCode] }
+      - { name: DeclarationCleared, payload: [declarationId, clearedAt] }
+invariants:
+  - A shipment cannot be handed to a carrier before its declaration is submitted
+relationships:
+  - { to: Consolidation, type: downstream }
+  - { to: Invoicing, type: upstream }
+notes: >
+  Two commercial customs platforms cover all nine ports; we integrate with neither.

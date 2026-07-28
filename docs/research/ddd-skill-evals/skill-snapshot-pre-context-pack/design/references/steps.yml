@@ -1,0 +1,121 @@
+# DDD modelling steps — configuration, not code.
+#
+# ddd_state.py reads this to work out what exists in a repo. Add a step, rename an artifact
+# convention, point at a different docs root, or wire in a step this plugin does not ship —
+# all without touching the script. A consumer repo can override it with --config.
+#
+# Fields per step:
+#   id            stable identifier used in the journal
+#   loop          which inner loop it belongs to (display only — it does NOT impose an order)
+#   skill         the skill that owns the step
+#   question      what the step answers, in one line (shown to the user when proposing it)
+#   artifacts     glob patterns, relative to docs_root, that evidence the step ran
+#   require_all   true  -> every pattern must match for `done` (some match -> `partial`)
+#                 false -> any pattern matching means `done`
+#   exclude       glob patterns that do not count as evidence (indexes, templates)
+#   markers       substrings that must appear in a matched file for it to count; used where two
+#                 steps write the same file at different depths
+#   min_markers   how many markers a file needs
+#   invalidated_by  steps whose artifacts, if newer, make this one STALE
+#
+# Staleness is declared here rather than inferred from order, because the loop has no fixed
+# order: strategize is invalidated by a new business model, not by whatever ran before it.
+
+version: 1
+docs_root: docs/domain
+
+# Length budgets, in lines of markdown. Right-sizing is doctrine in every step skill, and it is
+# the first thing that quietly stops happening: a run can produce a 160-line canvas for a context
+# it has just declared generic and bought, and nothing objects. These make it objectionable.
+#
+# A budget caps PROSE, never findings. Over budget, cut in this order: rationale a reader can infer,
+# restatement of upstream artifacts, worked reasoning already carried by a table. Never cut open
+# questions, provenance, hotspot references, or a stated absence — those are the deliverable.
+budgets:
+  context_readme:            # per-context canvas, by subdomain_type
+    core: 180
+    supporting: 90
+    generic: 35
+    master-data: 35
+  aggregate_canvas: 150
+  files:                     # glob (relative to docs_root) -> line cap and the skill that fixes it
+    business-model*.md:   { lines: 150, owner: 1-understand }
+    context-map.md:       { lines: 180, owner: 3-decompose }
+    core-domain-chart.md: { lines: 150, owner: 5-strategize }
+    team-topology.md:     { lines: 150, owner: 6-organise }
+    code-structure.md:    { lines: 120, owner: 8-code }
+    event-model/README.md: { lines: 200, owner: 8-code }
+    discovery/*.md:       { lines: 120, owner: 2-discover }
+    message-flows/*.md:   { lines: 90,  owner: 4-connect }
+journal: docs/domain/.ddd-journal.jsonl
+log: docs/domain/MODELLING-LOG.md
+
+steps:
+  - id: understand
+    loop: 1
+    skill: 1-understand
+    question: What does the business sell, to whom, and what differentiates it?
+    artifacts: ["business-model*.md"]
+    invalidated_by: []
+
+  - id: discover
+    loop: 1
+    skill: 2-discover
+    question: What actually happens in this domain, in the words of the people who do it?
+    artifacts: ["discovery/*.md"]
+    invalidated_by: []
+
+  - id: decompose
+    loop: 2
+    skill: 3-decompose
+    question: Where are the boundaries, and what does each context own?
+    artifacts: ["context-map.md", "*/model.yaml"]
+    require_all: true
+    # connect and code are the two steps that can REFUTE a cut with evidence — a flow needing more
+    # than 9 messages, or an aggregate whose contention forces a different boundary. Both make the
+    # decomposition stale, which is why the edges point backwards here.
+    invalidated_by: [discover, connect, code]
+
+  - id: connect
+    loop: 2
+    skill: 4-connect
+    question: Do real use cases flow across these boundaries without hidden coupling?
+    artifacts: ["message-flows/*.md"]
+    exclude: ["message-flows/README.md"]
+    invalidated_by: [decompose]
+
+  - id: strategize
+    loop: 2
+    skill: 5-strategize
+    question: Which parts deserve the investment, and what do we buy instead of build?
+    artifacts: ["core-domain-chart.md"]
+    invalidated_by: [understand, decompose]
+
+  - id: organise
+    loop: 2
+    skill: 6-organise
+    question: Which team owns which context, and at what cognitive load?
+    artifacts: ["team-topology.md"]
+    invalidated_by: [decompose, strategize, connect]
+
+  - id: define
+    loop: 3
+    skill: 7-define
+    question: What is each context responsible for, and what is it assuming?
+    # domain-decompose writes a first-pass canvas to the same file; the markers are what
+    # distinguish a defined context from a sketched one.
+    artifacts: ["*/README.md"]
+    # `*/` also catches this plugin's own non-context directories. Their index files are not
+    # canvases, and counting them makes define look partial forever.
+    exclude: ["discovery/README.md", "message-flows/README.md", "event-model/README.md",
+              "aggregates/README.md"]
+    markers: ["assumption", "verification metric", "open question"]
+    min_markers: 2
+    invalidated_by: [decompose, connect, strategize]
+
+  - id: code
+    loop: 3
+    skill: 8-code
+    question: What stays consistent in one transaction, and what gets repaired afterwards?
+    artifacts: ["*/aggregates/*.md"]
+    invalidated_by: [define, decompose]

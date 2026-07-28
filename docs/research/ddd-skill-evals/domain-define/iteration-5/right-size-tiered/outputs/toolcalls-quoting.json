@@ -1,0 +1,1 @@
+{"context":"Quoting","tier":"light","file_reads":5,"bash_calls":9,"notes":"No message flows on disk and no inbound message named anywhere; canvas trimmed from 114 to 90 lines to hit the light budget without dropping findings."}

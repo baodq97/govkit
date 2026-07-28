@@ -1,0 +1,28 @@
+{
+  "eval_id": 1,
+  "eval_name": "interface-critique",
+  "skill_name": "domain-define",
+  "prompt": "Here's our Booking context \u2014 before we freeze its public interface, tell me whether the design holds up. Repo: <fixtures>/nordic-freight, docs/domain/booking.",
+  "trap": "Booking's interface reads as reasonable, so the tempting failure is a tidy canvas with 'the design looks sound'. The second trap is drift: 'freeze its public interface' pulls toward endpoints, verbs and status codes, which is api-designer's job and destroys the canvas's ability to be reviewed by domain experts.",
+  "expected_output": "A filled canvas plus an explicit interface critique that catches the query-then-command pair as the wrong message shape and the ConsignmentLine entity being shared with Consolidation as exposed internals \u2014 all at domain level, with no transport design.",
+  "assertions": [
+    {
+      "text": "The interface-critique questions are actually applied, with a verdict recorded for the ones that fire"
+    },
+    {
+      "text": "The synchronous capacity query followed by a reserve command is flagged as the wrong message shape \u2014 one command the other context accepts or rejects"
+    },
+    {
+      "text": "Sharing the ConsignmentLine entity with Consolidation is flagged as exposed internals or Shared Kernel coupling with a stated cost"
+    },
+    {
+      "text": "The output stays at domain level \u2014 no HTTP verbs, URL paths, status codes, or OpenAPI fragments"
+    },
+    {
+      "text": "Assumptions and open questions are recorded rather than left blank"
+    },
+    {
+      "text": "The purpose is stated in business language with no technical detail"
+    }
+  ]
+}

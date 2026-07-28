@@ -1,0 +1,630 @@
+#!/usr/bin/env python3
+"""Cross-artifact checks over a docs/domain tree.
+
+Deterministic, no API key, no LLM. Every finding here is something a skill already tells a model to
+look for — moving it into a script means it runs every time instead of only when someone remembers,
+and it catches the class of problem that reading markdown file-by-file cannot: a contradiction that
+lives BETWEEN two files.
+
+    python3 ddd_check.py --root .            # human-readable
+    python3 ddd_check.py --root . --json     # for the review lens
+
+Exit code is 0 unless --strict is passed (then non-zero when any finding has severity=high).
+This reports; the gate stays `npx govkit verify`.
+"""
+
+from __future__ import annotations
+
+import argparse
+import json
+import re
+import statistics
+import sys
+from dataclasses import dataclass, field
+from pathlib import Path
+
+
+@dataclass
+class Finding:
+    id: str
+    severity: str  # high | medium | info
+    title: str
+    evidence: list[str] = field(default_factory=list)
+    fix_owner: str = ""  # which step skill owns the fix
+
+
+# --------------------------------------------------------------------------- loading
+
+
+def _yaml(text: str) -> dict:
+    try:
+        import yaml  # type: ignore
+
+        return yaml.safe_load(text) or {}
+    except ImportError:
+        return _mini(text)
+
+
+def _mini(text: str) -> dict:
+    """Enough YAML for model.yaml: scalars, flow maps, and lists of flow maps."""
+    out: dict = {}
+    key = None
+    for raw in text.splitlines():
+        if not raw.strip() or raw.lstrip().startswith("#"):
+            continue
+        if not raw.startswith((" ", "-", "\t")):
+            k, _, v = raw.partition(":")
+            key = k.strip()
+            v = v.strip()
+            out[key] = v if v else []
+        elif key and raw.lstrip().startswith("- "):
+            item = raw.lstrip()[2:].strip()
+            if isinstance(out.get(key), list):
+                out[key].append(item)
+    return out
+
+
+def _names(node) -> list[str]:
+    """Pull `name:` values out of whatever shape a list-of-things arrived in."""
+    found = []
+    if isinstance(node, list):
+        for item in node:
+            if isinstance(item, dict) and "name" in item:
+                found.append(str(item["name"]))
+            elif isinstance(item, str):
+                m = re.search(r"name:\s*([A-Za-z0-9_]+)", item)
+                if m:
+                    found.append(m.group(1))
+    return found
+
+
+def _entity_names(agg) -> list[str]:
+    out = []
+    if isinstance(agg, list):
+        for a in agg:
+            if isinstance(a, dict):
+                out += _names(a.get("entities"))
+    return out
+
+
+def _invariants(c: dict) -> list:
+    """Invariants live per-aggregate in the schema 3-decompose writes; some repos put a
+    context-wide list at the top level. Both count — a context protects a rule either way."""
+    out = list(c.get("invariants") or [])
+    for a in (c.get("aggregates") or []):
+        if isinstance(a, dict):
+            out += list(a.get("invariants") or [])
+    return out
+
+
+def _norm(s: str) -> str:
+    return re.sub(r"[^a-z0-9]", "", str(s).lower())
+
+
+def _cells(line: str) -> list[str]:
+    return [c.strip() for c in line.strip().strip("|").split("|")]
+
+
+def _traced_messages(docs: Path) -> dict[str, list[str]] | None:
+    """message name -> the `To` values every traced scenario delivers it to.
+
+    Returns None when 4-connect has not run, so callers can tell "no flows exist yet" from
+    "flows exist and this message is in none of them". Reads the table 4-connect prescribes
+    (`| # | From | Message | Type | Contents | To |`) by column name, not position, so a repo
+    that drops the Contents column still parses.
+    """
+    d = docs / "message-flows"
+    if not d.is_dir():
+        return None
+    files = [f for f in sorted(d.glob("*.md"))
+             if f.stem.lower() not in ("readme", "index") and not f.stem.lower().startswith("proposed")]
+    if not files:
+        return None
+    seen: dict[str, list[str]] = {}
+    for f in files:
+        i_msg = i_to = None
+        for line in f.read_text(errors="ignore").splitlines():
+            if not line.lstrip().startswith("|"):
+                i_msg = i_to = None
+                continue
+            cells = _cells(line)
+            low = [c.lower() for c in cells]
+            if "message" in low and "to" in low:
+                i_msg, i_to = low.index("message"), low.index("to")
+                continue
+            if i_msg is None or not re.match(r"^\d{1,2}$", cells[0] if cells else ""):
+                continue
+            if len(cells) <= max(i_msg, i_to):
+                continue
+            name = cells[i_msg].strip("`* ")
+            if name:
+                seen.setdefault(name, []).append(cells[i_to].strip("`* "))
+    return seen
+
+
+STATES = ("as-is", "to-be", "could-be")
+
+
+def _discovery_states(docs: Path) -> dict[str, str] | None:
+    """element name -> `as-is` / `to-be` / `could-be`, as discovery declared it.
+
+    Three return values, and the difference between them is the whole point: `None` means
+    2-discover has not run, `{}` means it ran and never said which elements happen today, and a
+    populated dict means the axis is being used. Reads model.json first, then the `State` column of
+    timeline.md by header name, so a repo that orders its columns differently still parses.
+    """
+    f = docs / "discovery" / "model.json"
+    if f.exists():
+        try:
+            tl = json.loads(f.read_text(errors="ignore")).get("timeline")
+            if isinstance(tl, list):
+                return {str(e["name"]): str(e["state"]).strip().lower() for e in tl
+                        if isinstance(e, dict) and e.get("name") and e.get("state")}
+        except Exception:
+            pass
+    f = docs / "discovery" / "timeline.md"
+    if not f.exists():
+        return None
+    out: dict[str, str] = {}
+    i_el = i_st = None
+    for line in f.read_text(errors="ignore").splitlines():
+        if not line.lstrip().startswith("|"):
+            i_el = i_st = None
+            continue
+        cells = _cells(line)
+        low = [c.lower() for c in cells]
+        if "element" in low and "state" in low:
+            i_el, i_st = low.index("element"), low.index("state")
+            continue
+        if i_el is None or i_st is None or len(cells) <= max(i_el, i_st):
+            continue
+        name, st = cells[i_el].strip("`* "), cells[i_st].strip("`* ").lower()
+        if name and st in STATES:
+            out[name] = st
+    return out
+
+
+def load_contexts(docs: Path, root: Path | None = None) -> dict[str, dict]:
+    ctx = {}
+    if not docs.is_dir():
+        return ctx
+    for d in sorted(p for p in docs.iterdir() if p.is_dir()):
+        f = d / "model.yaml"
+        if f.exists():
+            data = _yaml(f.read_text(errors="ignore"))
+            data["_dir"] = d.name
+            data["_path"] = str(f.relative_to(root)) if root else str(f)
+            ctx[str(data.get("context") or d.name)] = data
+    return ctx
+
+
+def load_business_model(docs: Path) -> dict[str, dict]:
+    """Capability -> {business_role, evolution_stage, differentiation} from the classification table."""
+    rows: dict[str, dict] = {}
+    for f in docs.glob("business-model*.md"):
+        for line in f.read_text(errors="ignore").splitlines():
+            cells = [c.strip() for c in line.strip().strip("|").split("|")] if "|" in line else []
+            if len(cells) < 4 or cells[0].lower().startswith(("capability", "---", ":--")):
+                continue
+            diff = cells[3].lower()
+            if diff.startswith(("yes", "no", "partial", "unknown", "**yes", "**no")):
+                rows[cells[0].strip("*` ")] = {
+                    "business_role": cells[1],
+                    "evolution_stage": cells[2],
+                    "differentiation": "yes" if diff.startswith(("yes", "**yes")) else
+                                       "no" if diff.startswith(("no", "**no")) else
+                                       "partial" if diff.startswith("partial") else "unknown",
+                    "source": str(f.name),
+                }
+    return rows
+
+
+def _match_capability(context: str, caps: dict[str, dict]) -> dict | None:
+    lc = context.lower()
+    for name, row in caps.items():
+        n = name.lower()
+        if lc == n or lc in n or n.startswith(lc) or lc.startswith(n.split()[0]):
+            return row | {"capability": name}
+    return None
+
+
+def _mass(c: dict) -> int:
+    m = c.get("mass")
+    if isinstance(m, dict):
+        return int(m.get("attributes") or m.get("tables") or 0)
+    if isinstance(m, str):
+        n = re.search(r"attributes:\s*(\d+)", m)
+        if n:
+            return int(n.group(1))
+    return 0
+
+
+# --------------------------------------------------------------------------- checks
+
+
+def run_checks(root: Path, docs: Path) -> list[Finding]:
+    ctx = load_contexts(docs, root)
+    caps = load_business_model(docs)
+    out: list[Finding] = []
+
+    # 1 — the label and the business evidence disagree
+    for name, c in ctx.items():
+        cap = _match_capability(name, caps)
+        if not cap:
+            continue
+        st = str(c.get("subdomain_type", "")).strip()
+        if st == "core" and cap["differentiation"] == "no":
+            out.append(Finding(
+                "classification-mismatch", "high",
+                f"{name} is labelled `core` but the business model says it differentiates on nothing",
+                [f"{c['_path']}: subdomain_type: core",
+                 f"{cap['source']}: {cap['capability']} → differentiation: no"],
+                "5-strategize"))
+        if st in ("supporting", "generic") and cap["differentiation"] == "yes":
+            out.append(Finding(
+                "classification-mismatch", "high",
+                f"{name} carries the differentiation the business charges for, but is labelled `{st}`",
+                [f"{c['_path']}: subdomain_type: {st}",
+                 f"{cap['source']}: {cap['capability']} → differentiation: yes"],
+                "5-strategize"))
+
+    # 2 — everything is core
+    cores = [n for n, c in ctx.items() if str(c.get("subdomain_type", "")).strip() == "core"]
+    if len(cores) > 2:
+        out.append(Finding(
+            "too-many-core", "high",
+            f"{len(cores)} of {len(ctx)} contexts are labelled `core` — differentiation was assumed, not assessed",
+            [", ".join(sorted(cores))], "5-strategize"))
+
+    # 3 — the mass is not where the differentiation is
+    masses = {n: _mass(c) for n, c in ctx.items()}
+    if any(masses.values()):
+        med = statistics.median([v for v in masses.values() if v] or [0])
+        total = sum(masses.values()) or 1
+        for name, m in masses.items():
+            cap = _match_capability(name, caps)
+            if not cap or not m:
+                continue
+            share = 100 * m / total
+            if cap["differentiation"] == "no" and share >= 35:
+                out.append(Finding(
+                    "investment-mismatch", "high",
+                    f"{name} holds {share:.0f}% of the modelled mass and differentiates on nothing",
+                    [f"{m} attributes of {total} across {len(ctx)} contexts",
+                     f"{cap['source']}: differentiation: no"], "5-strategize"))
+            if cap["differentiation"] == "yes" and m < med:
+                out.append(Finding(
+                    "under-invested-core", "high",
+                    f"{name} is what the business differentiates on, and carries below-median model mass",
+                    [f"{m} attributes vs median {med:.0f}"], "3-decompose"))
+
+    # 4 — a context that owns no rule is a capability, not a context
+    for name, c in ctx.items():
+        aggs = c.get("aggregates")
+        has_aggs = bool(aggs) and aggs != []
+        inv = _invariants(c)
+        if has_aggs and not inv:
+            out.append(Finding(
+                "context-without-invariant", "medium",
+                f"{name} declares aggregates but states no invariant — aggregates with nothing to protect",
+                [c["_path"]], "3-decompose"))
+        if not has_aggs and not (c.get("aggregates_rationale") or c.get("notes")):
+            out.append(Finding(
+                "empty-without-reason", "medium",
+                f"{name} has no aggregates and no stated reason — a deliberate decision reads the same as a gap",
+                [c["_path"]], "3-decompose"))
+
+    # 5 — the same entity written by two contexts is Shared Kernel arriving by stealth
+    owners: dict[str, list[str]] = {}
+    for name, c in ctx.items():
+        for e in _entity_names(c.get("aggregates")):
+            owners.setdefault(e, []).append(name)
+    for entity, holders in owners.items():
+        if len(holders) > 1:
+            out.append(Finding(
+                "shared-entity", "high",
+                f"`{entity}` is modelled inside {len(holders)} contexts — Shared Kernel coupling unless labelled",
+                [", ".join(sorted(holders))], "3-decompose"))
+
+    # 6 — an emitted event nobody consumes
+    emitted: dict[str, str] = {}
+    for name, c in ctx.items():
+        for a in (c.get("aggregates") or []):
+            if isinstance(a, dict):
+                for ev in _names(a.get("domain_events")):
+                    emitted[ev] = name
+        for ev in _names(c.get("domain_events")):
+            emitted[ev] = name
+    traced = _traced_messages(docs)
+    if emitted and traced is not None:
+        # Once flows exist, the question is not "is this name written down anywhere" — prose
+        # discussing an event mentions it, which silences a name-counting check exactly when the
+        # model is rich enough for orphans to matter. The question is whether any traced scenario
+        # carries it, and to whom.
+        others = {_norm(k) for k in ctx}
+        untraced, unconsumed = [], []
+        for ev, src in sorted(emitted.items()):
+            rows = traced.get(ev)
+            if not rows:
+                untraced.append(f"{ev} ({src})")
+                continue
+            # A `To` cell is prose: it can name two contexts, or a context plus a device. Ask
+            # whether any context name occurs inside it, not whether the cell equals one.
+            reached = {o for t in rows for o in others if o and o != _norm(src) and o in _norm(t)}
+            if not reached:
+                unconsumed.append(f"{ev} → {'; '.join(sorted({t for t in rows if t})) or 'nobody'}")
+        if untraced:
+            # 4-connect traces three to five scenarios on purpose, so a peripheral event being
+            # absent is expected. It is worth one line, not one finding each.
+            out.append(Finding(
+                "event-untraced", "info",
+                f"{len(untraced)} of {len(emitted)} declared events appear in no traced scenario",
+                untraced + ["expected for peripheral events; a core-path event here is a gap in the flows"],
+                "4-connect"))
+        if unconsumed:
+            out.append(Finding(
+                "event-no-context-consumer", "info",
+                f"{len(unconsumed)} traced event(s) reach no bounded context — they end at an actor or a device",
+                unconsumed, "4-connect"))
+    elif emitted:
+        # No flows yet: fall back to the weak signal, which is all there is before 4-connect runs.
+        corpus = "\n".join(
+            p.read_text(errors="ignore")
+            for p in list(docs.rglob("*.md")) + list(docs.rglob("*.yaml")) + list(docs.rglob("*.yml"))
+        )
+        for ev, src in sorted(emitted.items()):
+            if len(re.findall(rf"\b{re.escape(ev)}\b", corpus)) <= 1:
+                out.append(Finding(
+                    "event-untraced", "medium",
+                    f"`{ev}` is emitted by {src} and named nowhere else — no consumer, no flow",
+                    [f"emitted in {src}"], "4-connect"))
+
+    # 7 — a flow that needed more than nine messages refutes the cut
+    for f in (docs / "message-flows").glob("*.md") if (docs / "message-flows").is_dir() else []:
+        # An index summarises every flow in one table and a delta proposal lists changes, so both
+        # blow the nine-message limit without any single scenario doing so. steps.yml excludes the
+        # index from evidence for the same reason.
+        if f.stem.lower() in ("readme", "index") or f.stem.lower().startswith("proposed"):
+            continue
+        body = f.read_text(errors="ignore")
+        nums = set(re.findall(r"^\|\s*(\d{1,2})\s*\|", body, re.M))
+        if len(nums) > 9:
+            out.append(Finding(
+                "flow-overflow", "high",
+                f"{f.name} needs {len(nums)} messages — over the 5-to-9 limit, the cut is refuted",
+                [str(f.relative_to(root))], "3-decompose"))
+
+        # 7b — a temporal rule stated in the scenario paragraph but on no message row. Prose can
+        # say "within fifteen minutes"; only a row can say WHICH message that binds, and only a row
+        # can be drawn or checked. Requires a keyword next to a duration — the bare word "after"
+        # is ordinary English and firing on it would train people to ignore this.
+        scenario = re.search(r"^##\s*Scenario\s*$(.*?)^##", body, re.M | re.S)
+        if scenario:
+            stated = {m[0].lower() for m in re.findall(
+                r"\b(within|after|every)\b[^.]{0,24}?\b\d+\s*(min|minute|hour|day|week|month|second)",
+                scenario.group(1), re.I)}
+            # Only the message table's own `When` column counts. Scanning every table row instead
+            # matched the word "after" inside a Findings sentence and silenced the check on a flow
+            # that has no When column at all — the exact case it exists to catch.
+            i_when = None
+            carried = False
+            for line in body.splitlines():
+                if not line.lstrip().startswith("|"):
+                    i_when = None
+                    continue
+                cells = _cells(line)
+                low = [c.lower() for c in cells]
+                if "message" in low and "to" in low:
+                    i_when = low.index("when") if "when" in low else None
+                    continue
+                if i_when is None or not re.match(r"^\d{1,2}(\.\d+)?$", cells[0] if cells else ""):
+                    continue
+                if len(cells) > i_when and cells[i_when].strip(" —-*"):
+                    carried = True
+            if stated and not carried:
+                out.append(Finding(
+                    "temporal-rule-in-prose", "medium",
+                    f"{f.name} states a '{'/'.join(sorted(stated))}' rule in the scenario but no "
+                    "message row carries it — the rule cannot be drawn or checked",
+                    [str(f.relative_to(root))], "4-connect"))
+
+    # 8 — a canvas without its falsifiable sections is an opinion presented tidily
+    for name, c in ctx.items():
+        readme = docs / c["_dir"] / "README.md"
+        if not readme.exists():
+            continue
+        body = readme.read_text(errors="ignore").lower()
+        marks = ("assumption", "verification metric", "open question")
+        missing = [s for s in marks if s not in body]
+        # steps.yml calls a context `defined` at two of the three marks. Below that, 7-define has
+        # not run here and the file is 3-decompose's first-pass canvas — flagging it would report
+        # the process being incomplete as if the canvas were defective.
+        if len(marks) - len(missing) < 2:
+            continue
+        if missing:
+            out.append(Finding(
+                "canvas-incomplete", "medium",
+                f"{name}'s canvas is missing: {', '.join(missing)}",
+                [str(readme.relative_to(root))], "7-define"))
+
+    # 9 — a context nobody owns will rot
+    topo = docs / "team-topology.md"
+    if topo.exists():
+        # model.yaml carries the id (`ParkingGuidance`); prose writes the name ("Parking Guidance").
+        # Match on letters and digits only so the two spellings are the same context.
+        body = re.sub(r"[^a-z0-9]", "", topo.read_text(errors="ignore").lower())
+        for name in ctx:
+            if re.sub(r"[^a-z0-9]", "", name.lower()) not in body:
+                out.append(Finding(
+                    "unowned-context", "high",
+                    f"{name} appears in no team's ownership table",
+                    [str(topo.relative_to(root))], "6-organise"))
+
+    # 10 — a relaxed invariant with no repair path is an unhandled defect with a schedule
+    for name, c in ctx.items():
+        for canvas in (docs / c["_dir"] / "aggregates").glob("*.md") if (docs / c["_dir"] / "aggregates").is_dir() else []:
+            body = canvas.read_text(errors="ignore").lower()
+            relaxed = any(w in body for w in ("relax", "not enforced", "eventual"))
+            if relaxed and "corrective polic" not in body:
+                out.append(Finding(
+                    "relaxed-without-policy", "high",
+                    f"{canvas.stem} relaxes a rule with no corrective policy — nobody decided what repairs it",
+                    [str(canvas.relative_to(root))], "8-code"))
+
+    # 11 — a citation that resolves to nothing. Q-nn and H-nn are the only thread tying a boundary
+    # back to the question it rests on; the failure is silent, because the sentence still reads
+    # fine once the id it points at has been dropped or renumbered.
+    defined: set[str] = set()
+    for f in list(docs.glob("business-model*.md")) + list(docs.glob("discovery/*.md")):
+        for line in f.read_text(errors="ignore").splitlines():
+            m = re.match(r"^\s*[-|*#]*\s*\**\s*\b([QH]\d{1,3})\b\s*(?:—|-|\.|\||:|\*)", line)
+            if m:
+                defined.add(m.group(1))
+    if defined:
+        cited: dict[str, set[str]] = {}
+        for f in sorted(docs.rglob("*.md")):
+            if f.name.startswith("business-model") or f.parent.name == "discovery":
+                continue
+            for ref in set(re.findall(r"\b([QH]\d{1,3})\b", f.read_text(errors="ignore"))):
+                cited.setdefault(ref, set()).add(f.relative_to(docs).as_posix())
+        for ref, where in sorted(cited.items()):
+            if ref not in defined:
+                out.append(Finding(
+                    "dangling-reference", "medium",
+                    f"`{ref}` is cited in {len(where)} file(s) and defined nowhere upstream",
+                    sorted(where)[:4], "2-discover" if ref.startswith("H") else "1-understand"))
+
+    # 12 — right-sizing is the doctrine that stops happening silently. A generic context that was
+    # bought and a core context that carries the model should not produce canvases of the same
+    # size; without a number, nothing notices when they do.
+    budgets = _budgets()
+    if budgets:
+        ctx_budget = budgets.get("context_readme") or {}
+        for name, c in ctx.items():
+            readme = docs / c["_dir"] / "README.md"
+            cap = ctx_budget.get(str(c.get("subdomain_type", "")).strip())
+            if not readme.exists() or not cap:
+                continue
+            n = len(readme.read_text(errors="ignore").splitlines())
+            if n > int(cap) * 1.15:  # 15% slack — this is a smell, not a linter
+                out.append(Finding(
+                    "artifact-over-budget", "medium" if n > int(cap) * 1.5 else "info",
+                    f"{name}'s canvas is {n} lines against a {cap}-line budget for `{c.get('subdomain_type')}`",
+                    [str(readme.relative_to(root)),
+                     "cut rationale and restated upstream content — never open questions or provenance"],
+                    "7-define"))
+        agg_cap = budgets.get("aggregate_canvas")
+        for f in sorted(docs.rglob("aggregates/*.md")) if agg_cap else []:
+            n = len(f.read_text(errors="ignore").splitlines())
+            if n > int(agg_cap) * 1.15:
+                out.append(Finding(
+                    "artifact-over-budget", "info",
+                    f"{f.stem}'s aggregate canvas is {n} lines against a {agg_cap}-line budget",
+                    [str(f.relative_to(root))], "8-code"))
+        for pattern, spec in (budgets.get("files") or {}).items():
+            cap = int(spec["lines"] if isinstance(spec, dict) else spec)
+            owner = spec.get("owner", "") if isinstance(spec, dict) else ""
+            for f in sorted(docs.glob(pattern)):
+                n = len(f.read_text(errors="ignore").splitlines())
+                if n > cap * 1.15:
+                    rel = f.relative_to(docs).as_posix()
+                    out.append(Finding(
+                        "artifact-over-budget", "medium" if n > cap * 1.5 else "info",
+                        f"{rel} is {n} lines against a {cap}-line budget",
+                        [str(f.relative_to(root))], owner))
+
+    # 13 — as-is versus to-be versus could-be. A timeline that mixes what happens today with what
+    # someone wishes happened reads identically either way, and every step downstream inherits the
+    # confusion: 3-decompose can draw a boundary around behaviour that does not exist, 5-strategize
+    # can source differentiation from an idea nobody committed to. The axis is orthogonal to
+    # confirmed-versus-candidate — a person can confirm, on the record, that something is only an
+    # idea, and that element is `confirmed` and `could-be` at once.
+    states = _discovery_states(docs)
+    if states is not None and not states:
+        out.append(Finding(
+            "discovery-state-unlabelled", "medium",
+            "the discovery timeline never says which elements happen today — as-is, to-be and "
+            "could-be are indistinguishable",
+            ["discovery/timeline.md: add a `State` column; discovery/model.json: a `state` field per element",
+             "until then a boundary drawn around future behaviour looks exactly like one drawn "
+             "around a running system"],
+            "2-discover"))
+    elif states:
+        for name in sorted(ctx):
+            known = {e: states[e] for e, src in emitted.items() if src == name and e in states}
+            if len(known) >= 2 and all(v != "as-is" for v in known.values()):
+                out.append(Finding(
+                    "context-is-future-only", "info",
+                    f"{name}'s boundary rests entirely on behaviour that does not happen yet — "
+                    f"{len(known)} events, none `as-is`",
+                    [ctx[name]["_path"], *(f"{e} → {v}" for e, v in sorted(known.items())[:4]),
+                     "expected on greenfield; on a migration it is a boundary nothing running can "
+                     "falsify"],
+                    "3-decompose"))
+
+    order = {"high": 0, "medium": 1, "info": 2}
+    return sorted(out, key=lambda f: (order[f.severity], f.id))
+
+
+def _steps_config(config: Path | None = None) -> dict:
+    """steps.yml is the shared configuration: artifact conventions, staleness edges, budgets.
+    Reading it here means a repo overrides a file, not the script."""
+    p = config or Path(__file__).resolve().parent.parent / "references" / "steps.yml"
+    if not p.exists():
+        return {}
+    try:
+        import yaml  # type: ignore
+
+        return yaml.safe_load(p.read_text(errors="ignore")) or {}
+    except ImportError:
+        return {}
+
+
+def _budgets(config: Path | None = None) -> dict:
+    return _steps_config(config).get("budgets") or {}
+
+
+
+
+# --------------------------------------------------------------------------- cli
+
+
+def main() -> int:
+    ap = argparse.ArgumentParser()
+    ap.add_argument("--root", default=".")
+    ap.add_argument("--docs", default=None)
+    ap.add_argument("--json", action="store_true")
+    ap.add_argument("--strict", action="store_true", help="exit 1 when a high-severity finding exists")
+    args = ap.parse_args()
+
+    root = Path(args.root).resolve()
+    docs = Path(args.docs).resolve() if args.docs else root / "docs" / "domain"
+    findings = run_checks(root, docs)
+
+    if args.json:
+        print(json.dumps({
+            "root": str(root),
+            "docs": str(docs),
+            "findings": [f.__dict__ for f in findings],
+            "counts": {s: sum(1 for f in findings if f.severity == s) for s in ("high", "medium", "info")},
+        }, indent=2, ensure_ascii=False))
+    elif not findings:
+        print(f"No cross-artifact findings in {docs}.")
+    else:
+        counts = {s: sum(1 for f in findings if f.severity == s) for s in ("high", "medium", "info")}
+        print(f"{len(findings)} finding(s) in {docs} — "
+              f"{counts['high']} high, {counts['medium']} medium, {counts['info']} info\n")
+        for f in findings:
+            print(f"[{f.severity.upper():<6}] {f.id} → fix in {f.fix_owner}")
+            print(f"         {f.title}")
+            for e in f.evidence:
+                print(f"           · {e}")
+            print()
+
+    if args.strict and any(f.severity == "high" for f in findings):
+        return 1
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())

@@ -1,0 +1,24 @@
+context: Routing
+subdomain_type: supporting
+tactical_pattern: transaction-script
+mass: { tables: 3, attributes: 17, densest_entity_attrs: 9 }
+aggregates: []
+aggregates_rationale: >
+  Routing receives BookingConfirmed and hands the shipment to the partner carrier selected by the
+  standing contract for that lane. It owns no rule of its own.
+domain_events:
+  - { name: ShipmentHandedToCarrier, payload: [bookingId, carrierId] }
+relationships:
+  - { to: Booking, type: downstream }
+  - { to: PartnerNetwork, type: downstream, note: "external" }
+notes: >
+  DECLINED as a bounded context (2026-07-28, capability-vs-context test) — it owns no business
+  invariant of its own, and the rule that gates the handoff ("a shipment cannot be handed to a
+  carrier before its declaration is submitted") belongs to Customs. Routing is a dispatch
+  capability of Booking, or an ACL adapter over the external Partner Network; it is not a
+  candidate service boundary or a candidate team. Kept on disk as the record of the decision and
+  of the ShipmentHandedToCarrier event. Escalation condition — promote it to a real context if
+  carrier selection stops being a per-lane standing-contract lookup (multi-carrier bidding or
+  lane-rate selection), or if carrier refusal / re-routing exceptions get real rules and penalties
+  (hotspot 3 in discovery/timeline.md, currently unowned). See "Declined context candidates" in
+  context-map.md.
