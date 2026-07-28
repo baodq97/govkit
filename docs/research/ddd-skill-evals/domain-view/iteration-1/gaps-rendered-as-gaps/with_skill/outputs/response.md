@@ -54,10 +54,10 @@ it should lose.
 - **The timeline never says which elements happen today.** As-is, to-be and could-be are
   indistinguishable, and the page says so in a banner. A boundary drawn around future behaviour
   looks exactly like one drawn around a running system.
-- **Half the flow has never run.** connect, strategize, organise, define, code — 4 of 8 steps are
-  `missing`, and decompose is stale against discover (discovery landed 2026-05-25, the model
-  2026-06-02 but from the March session). There is no core domain chart, so nothing on screen ranks
-  investment; the Review lens lists that as a gap rather than drawing an empty chart.
+- **Half the flow has never run.** connect, strategize, organise, define, code — 5 of 8 steps are
+  `missing`, and the Review lens marks decompose **stale against discover**: the model may describe
+  something the interviews have already moved past. There is no core domain chart, so nothing on
+  screen ranks investment; that is listed as a gap rather than drawn as an empty chart.
 
 ## Two caveats you should hear before you present it
 

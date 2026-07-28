@@ -869,10 +869,15 @@ function renderMap() {
 
   // Edges first so nodes paint over their endpoints.
   const focus = selectedId ? nameOf(selectedId) : null;
+  const offMap = [];
   for (const rel of model.relationships || []) {
     const from = findPos(rel.from);
     const to = findPos(rel.to);
-    if (!from || !to) continue;
+    // An endpoint that is not a bounded context — a partner network, an acquirer — has no node to
+    // land on. Skipping the edge is the honest thing to draw and the dishonest thing to leave
+    // unsaid: the model declares that relationship, and a map that quietly loses it is exactly the
+    // failure this surface exists to prevent. Counted here, reported under the diagram.
+    if (!from || !to) { offMap.push(`${rel.from} → ${rel.to}`); continue; }
     const style = REL_STYLE[rel.type] || DEFAULT_REL;
     const a = edgeAnchor(from, to);
     const b = edgeAnchor(to, from);
@@ -925,6 +930,17 @@ function renderMap() {
 
     group.addEventListener("click", () => select(ctx.id));
     svg.appendChild(group);
+  }
+
+  // Relationships whose other end is not a bounded context. The map cannot draw them and must not
+  // pretend they do not exist — an external dependency dropped from the picture is one nobody
+  // reviews.
+  if (offMap.length) {
+    const note = document.createElement("p");
+    note.className = "doc-warn";
+    note.textContent = `${offMap.length} declared relationship(s) reach outside the model and are not drawn: `
+      + offMap.join(" · ") + ". They are dependencies the map has no node for, not missing data.";
+    document.getElementById("diagram-note").append(note);
   }
 
   renderLegend();

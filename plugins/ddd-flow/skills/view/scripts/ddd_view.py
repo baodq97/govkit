@@ -208,7 +208,11 @@ def build_domain(docs: Path) -> dict:
             # Model mass, not table mass: entities + value objects + events + invariants is the
             # count 5-strategize measures the complexity axis from, and it is the only weight a
             # design-time model has — there is no schema yet.
-            "mass": ents + vos + evs + invs,
+            # Model mass, derived — but only when the repo states none. A context declaring
+            # `mass: {tables: 3, attributes: 17}` and holding no aggregates yet derived to zero and
+            # rendered as no bar at all, which reads as "nothing here" for something measured.
+            "mass": check._mass(c) or (ents + vos + evs + invs),
+            "massSource": "declared" if check._mass(c) else "derived",
             "attrCount": attrs,
             "counts": {"aggregates": len(aggs), "entities": ents, "valueObjects": vos,
                        "events": evs, "invariants": invs},
@@ -224,7 +228,12 @@ def build_domain(docs: Path) -> dict:
     # an absence: a context nothing points at and that points at nothing.
     linked = {r["from"] for r in rels} | {r["to"] for r in rels}
     free = sorted(c["name"] for c in contexts if c["name"] not in linked)
-    return {"contexts": contexts, "relationships": rels, "free": free}
+    # A relationship can point at something that is not a bounded context — a partner
+    # network, an acquirer. The edge is real and the node is not, so the shell was
+    # drawing an arrow into empty space. Declare them as externals instead.
+    known = {c["name"] for c in contexts}
+    externals = sorted({r["to"] for r in rels if r.get("to") and r["to"] not in known})
+    return {"contexts": contexts, "relationships": rels, "externals": externals, "free": free}
 
 
 def build_business_model(f: Path) -> dict:

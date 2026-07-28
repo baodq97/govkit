@@ -1,0 +1,1 @@
+{"file_reads":7,"bash_calls":22,"notes":"7 Read calls (SKILL.md, 2 source docs, ddd_view.py, shell.html x2, context-map.md); 22 Bash calls covering extractor run, payload inspection, shell.html greps, enrich re-run, server start/verify/kill."}
