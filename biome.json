@@ -3,7 +3,7 @@
   "vcs": { "enabled": true, "clientKind": "git", "useIgnoreFile": true },
   "files": {
     "ignoreUnknown": true,
-    "includes": ["**", "!docs/research/**", "!plugins/ddd-flow/examples/**"]
+    "includes": ["**", "!docs/research", "!plugins/ddd-flow/examples"]
   },
   "formatter": {
     "enabled": true,

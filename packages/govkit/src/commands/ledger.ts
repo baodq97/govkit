@@ -61,7 +61,7 @@ const DEFAULT_LEDGER_PATH = "docs/ledger.json";
 /** Resolve the ledger location (config `ledger.path`, default `docs/ledger.json`) and CONFINE
  *  it under `root` — the exact escape guard `resolveJournalPath` applies: a `../../x` path
  *  must error loudly, never read (or later gate) a file outside the repo. */
-export function resolveLedgerPath(root: string, config: GovkitConfig): string {
+function resolveLedgerPath(root: string, config: GovkitConfig): string {
   const rel = config.ledger?.path ?? DEFAULT_LEDGER_PATH;
   if (typeof rel !== "string" || rel.trim() === "") {
     throw new Error("govkit: ledger.path must be a non-empty string path within --root");

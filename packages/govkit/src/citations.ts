@@ -21,13 +21,13 @@ import { toPathspec, typeDir } from "./util";
 
 /** The three ways an anchored resolution can fail. Ordered as they are attempted, so the name
  *  also says how far the resolver got before it stopped. */
-export const CITATION_FAILURES = ["path-missing", "line-beyond-eof", "anchor-not-found"] as const;
+const CITATION_FAILURES = ["path-missing", "line-beyond-eof", "anchor-not-found"] as const;
 export type CitationFailure = (typeof CITATION_FAILURES)[number];
 
 /** The forms this resolver declines to judge. Both are REPORTED with counts and never folded
  *  into the resolved total — a silent skip reads as coverage, which is the exact failure mode
  *  the positional checker had. */
-export const CITATION_SKIPS = ["no-anchor", "ambiguous-path"] as const;
+const CITATION_SKIPS = ["no-anchor", "ambiguous-path"] as const;
 export type CitationSkip = (typeof CITATION_SKIPS)[number];
 
 /** How far from the cited span the anchor may sit. Small enough that a moved block is caught
@@ -301,7 +301,7 @@ function isFile(path: string): boolean {
 
 /** Resolve ONE citation. Split out from the walk so a test can drive every branch with a
  *  hand-built Citation, and so the three failure names each have one origin. */
-export function resolveCitation(
+function resolveCitation(
   root: string,
   citation: Citation,
   index: BasenameIndex,

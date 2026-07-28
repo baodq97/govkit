@@ -75,7 +75,7 @@
       "title": "R1 config-surface generality: a third dissimilar taxonomy (ML lab: exp/mc/ds) runs the shipped CLI end-to-end with zero engine changes",
       "spec": "PRD-0001",
       "passes": true,
-      "check": "packages/govkit/test/generality.test.ts \u2014 10 e2e cases over fixtures/ml-research: .govkit docs.root, custom statuses/prefixes/required keys, cross-type refs, requiredSectionsByStatus, demoted index tier, custom journal+ledger paths, drift+ledger git surface"
+      "check": "packages/govkit/test/generality.test.ts \u2014 10 e2e cases over packages/govkit/test/fixtures/ml-research: .govkit docs.root, custom statuses/prefixes/required keys, cross-type refs, requiredSectionsByStatus, demoted index tier, custom journal+ledger paths, drift+ledger git surface"
     },
     {
       "id": "F-R2-JUDGE",

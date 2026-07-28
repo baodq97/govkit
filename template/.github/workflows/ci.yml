@@ -14,12 +14,11 @@ jobs:
           node-version: 22
 
       # The governance gate — toolchain-agnostic, no ANTHROPIC_API_KEY, no Claude.
-      # `npx` fetches govkit on demand; pin a version for reproducible CI (e.g. govkit@0.2).
-      # verify = structural gate (blocks); eval = quality floor (blocks) + advisory score.
-      - name: govkit verify
-        run: npx --yes govkit verify
-      - name: govkit eval
-        run: npx --yes govkit eval
+      # `npx` fetches govkit on demand; pin a version for reproducible CI (e.g. govkit@0.7).
+      # check = verify (structural gate) + eval (quality floor + advisory score) in one pass —
+      # the single gate a CI calls.
+      - name: govkit check
+        run: npx --yes govkit check
 
       # Add your own steps below (install / lint / typecheck / test for your stack).
       # - run: <your build & tests>

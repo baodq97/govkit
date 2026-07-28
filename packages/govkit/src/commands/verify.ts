@@ -16,7 +16,6 @@ import {
 } from "../config";
 import { isParseError, parseFrontMatter } from "../frontmatter";
 import {
-  collectGovernedIds,
   effectiveRequired,
   headingLines,
   listMarkdown,
@@ -173,9 +172,9 @@ function checkIdConvention(file: string, data: Record<string, unknown>, def: Doc
 // RFC-0011 (G2): an id sits inside a markdown link cell (`[US-0001](./US-0001-x.md)`), so match
 // it as a bounded TOKEN anywhere in the row — bounded by a non-id char so `US-1` never matches a
 // `US-10` row. Replaces the substring `line.includes(id)` that silently false-passed.
-function rowHasId(row: string, id: string): boolean {
+function idRowPattern(id: string): RegExp {
   const esc = id.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-  return new RegExp(`(?<![A-Za-z0-9-])${esc}(?![A-Za-z0-9-])`).test(row);
+  return new RegExp(`(?<![A-Za-z0-9-])${esc}(?![A-Za-z0-9-])`);
 }
 
 // RFC-0011 (KT-0004): an INDEX cell may carry YAML-style surrounding quotes (`"@handle"`) while
@@ -222,7 +221,9 @@ function checkIndex(dir: string, typeName: string, docs: Doc[], def: DocType): F
   for (const doc of docs) {
     const id = str(doc.data.id);
     if (!id) continue;
-    const row = lines.find((line) => rowHasId(line, id));
+    // The pattern depends only on the id — compile once per doc, not once per INDEX line.
+    const idPattern = idRowPattern(id);
+    const row = lines.find((line) => idPattern.test(line));
     // scopeToChanged keys per-doc index problems on the leading doc id — keep it first.
     if (!row) {
       problems.push(
@@ -683,7 +684,11 @@ export function runVerify(opts: VerifyOptions): VerifyResult {
   }
 
   violations.push(...checkDuplicateIds(allDocs));
-  violations.push(...checkReferences(allDocs, types, collectGovernedIds(opts.root, config)));
+  // The id universe is exactly the docs this run already walked and parsed — building the set
+  // from `allDocs` replaces a second full corpus walk (re-read + re-parse of every file) that
+  // `collectGovernedIds` would do to arrive at the same ids.
+  const governedIds = new Set(allDocs.map((d) => str(d.data.id)).filter((id) => id !== ""));
+  violations.push(...checkReferences(allDocs, types, governedIds));
   violations.push(...checkCoherence(allDocs, types));
   violations.push(...checkRequiredSections(allDocs, types));
 

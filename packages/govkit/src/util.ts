@@ -148,7 +148,7 @@ export function effectiveRequired(
  *  non-empty string[]. Anything else (a number, an object) yields []. Shared by `stale`
  *  (RFC-0009) and `drift` (RFC-0015) so the two governs-readers can never disagree on what
  *  a doc actually declared. */
-export function normalizeGoverns(value: unknown): string[] {
+function normalizeGoverns(value: unknown): string[] {
   if (typeof value === "string") {
     const s = value.trim();
     return s === "" ? [] : [s];

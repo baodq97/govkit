@@ -24,6 +24,17 @@
           }
         ]
       }
+    ],
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"${CLAUDE_PROJECT_DIR}/packages/govkit/dist/cli.js\" check --hook --journal",
+            "timeout": 60
+          }
+        ]
+      }
     ]
   }
 }

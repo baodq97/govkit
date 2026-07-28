@@ -179,9 +179,11 @@ function judge(doc: DriftDoc, manifest: string | null): DriftEntry | null {
   return null;
 }
 
-export function runDrift(opts: DriftOptions): DriftResult {
+export function runDrift(opts: DriftOptions, preScanned?: DriftDoc[]): DriftResult {
   const config = opts.config ?? loadConfig(opts.root);
-  const governed = scanDrift(opts.root, config);
+  // `preScanned` lets runDriftAck hand over the scan it already needs for itself — the corpus
+  // walk re-reads and re-parses every doc, so an ack run should pay for it once, not twice.
+  const governed = preScanned ?? scanDrift(opts.root, config);
   const opted = governed.filter((d) => d.hasReconciled);
   const skipped = governed.length - opted.length;
   if (!gitAvailable(opts.root)) {
@@ -282,7 +284,7 @@ export interface DriftAckOptions {
  *  continuation line — writing a sha onto the key line would corrupt it into a two-line
  *  scalar); the caller turns null into the rewrite-by-hand operational error, never a silent
  *  skip. */
-export function rewriteReconciled(content: string, sha: string): string | null {
+function rewriteReconciled(content: string, sha: string): string | null {
   const token = locateReconciled(content);
   if (token === null || token.value === "") return null;
   return content.slice(0, token.start) + sha + content.slice(token.end);
@@ -290,7 +292,8 @@ export function rewriteReconciled(content: string, sha: string): string | null {
 
 export function runDriftAck(opts: DriftAckOptions): DriftAckResult {
   const config = opts.config ?? loadConfig(opts.root);
-  const check = runDrift({ root: opts.root, config });
+  const governed = scanDrift(opts.root, config);
+  const check = runDrift({ root: opts.root, config }, governed);
   const empty = { acked: [], upToDate: [], unackable: [] };
   if (!check.gitAvailable) {
     // Nothing to write without git: an ack records the CURRENT content state, which does not exist.
@@ -303,7 +306,6 @@ export function runDriftAck(opts: DriftAckOptions): DriftAckResult {
     };
   }
 
-  const governed = scanDrift(opts.root, config);
   let targets = governed.filter((d) => d.hasReconciled);
   if (opts.docPath !== undefined) {
     // A NAMED doc gets operational errors, not skips: the user pointed at this exact file,

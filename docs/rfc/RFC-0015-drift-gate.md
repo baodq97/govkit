@@ -4,7 +4,7 @@ title: Deterministic spec↔code drift gate — reconciled shas and an explicit 
 status: implemented
 owner: baodq97
 date: 2026-07-07
-reconciled: sha256:eb483d6f09c04b88
+reconciled: sha256:27d646ef780f623d
 governs:
   - packages/govkit/src/commands/drift.ts
 ---

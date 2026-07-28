@@ -209,17 +209,11 @@ export interface GovkitConfig {
 
 /** The fields every `waivers:` entry must carry, non-empty. Named once so the validator, the
  *  error message, and the `govkit.yml` example cannot drift. */
-export const WAIVER_REQUIRED_FIELDS = [
-  "rule",
-  "scope",
-  "reason",
-  "authorized_by",
-  "expires",
-] as const;
+const WAIVER_REQUIRED_FIELDS = ["rule", "scope", "reason", "authorized_by", "expires"] as const;
 
 /** How far ahead the summary warns about an active waiver's expiry. A waiver is a debt with a due
  *  date; two weeks is enough to renew-or-fix before the finding comes back and reddens CI. */
-export const WAIVER_EXPIRY_HORIZON_DAYS = 14;
+const WAIVER_EXPIRY_HORIZON_DAYS = 14;
 
 /** One validated `waivers:` entry. Every field mandatory — see the block comment above. */
 export interface Waiver {
@@ -294,7 +288,7 @@ function expiryInstant(value: string): number | null {
  *  though it did — the same looks-configured-but-isn't leak `tiers` fails loud on. Here it lands
  *  as a malformed-waiver VIOLATION rather than a load throw, because unlike `tiers` a waiver is
  *  data the gate reports on. */
-export function knownRuleKeys(config: GovkitConfig): Set<string> {
+function knownRuleKeys(config: GovkitConfig): Set<string> {
   const keys = new Set<string>(VIOLATION_KINDS);
   for (const rubric of Object.values(config.eval?.rubrics ?? {})) {
     for (const rule of rubric) keys.add(rule.id);

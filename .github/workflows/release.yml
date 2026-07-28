@@ -17,7 +17,9 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: read
-      id-token: write # npm --provenance
+      # id-token: write — restore together with --provenance the day the repo goes public
+      # (npm 422s provenance bundles from private source repos; an unused write grant is
+      # pure token scope until then).
     steps:
       - uses: actions/checkout@v4
         with:
@@ -51,6 +53,13 @@ jobs:
             echo "tag v$TAG_VERSION != packages/govkit version $PKG_VERSION" >&2
             exit 1
           fi
+
+      # The packaging guard tsup.config.ts names: prove the packed tarball carries dist +
+      # templates and runs under stock node with no unbundled deps — the one failure class
+      # (an un-inlined runtime dep) nothing in `bun run check` can catch.
+      - name: Pack proof
+        working-directory: packages/govkit
+        run: npm run pack:proof
 
       # --provenance is off: npm 422s provenance bundles from PRIVATE source repos
       # ("Only public source repositories are supported"). Re-add the flag the day

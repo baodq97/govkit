@@ -4,7 +4,7 @@ title: Governs-existence check — a ghost pathspec is a broken declaration, gat
 status: implemented
 owner: baodq97
 date: 2026-07-08
-reconciled: sha256:eb483d6f09c04b88
+reconciled: sha256:27d646ef780f623d
 governs:
   - packages/govkit/src/commands/drift.ts
 ---

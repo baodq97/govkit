@@ -11,7 +11,9 @@ template: **governance you can run, not just read.** Your docs-as-code SDLC
 | `govkit.yml` | the governance schema — your doc dirs + required front-matter (edit to taste) |
 | `.claude/settings.json` | a `PreToolUse` hook that runs `npx govkit audit-write` — blocks a doc write with bad front-matter, in-editor, **no API key** |
 | `.claude/workflows/sdlc.js` | the `sdlc` workflow: PRD → … → Code, reviewer-gated (needs the swe-flow plugin) |
-| `.github/workflows/ci.yml` | runs `npx govkit verify` on every push/PR — the same gate, no Claude, no key |
+| `.claude/workflows/gate-loop.js` | the five-station gate loop run before a governed doc's status advances (needs the swe-flow plugin) |
+| `.claude/hooks/session-freshness.mjs` | a `SessionStart` advisory that flags a stale branch before work starts on it |
+| `.github/workflows/ci.yml` | runs the govkit gate on every push/PR — the same checks, no Claude, no key |
 | `docs/{product,rfc,adr,issues}/` | your governed artifacts; each dir has an `INDEX.md` |
 
 ## Use it

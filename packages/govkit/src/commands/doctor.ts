@@ -15,7 +15,7 @@ import { listMarkdown, typeDir } from "../util";
 /** How govkit.yml resolved. A discriminated union, not a nullable config: "absent" and
  *  "present but broken" lead to different next actions, and collapsing them loses that. */
 export type DoctorConfigState =
-  | { readonly kind: "missing"; readonly expectedAt: string }
+  | { readonly kind: "missing" }
   | { readonly kind: "invalid"; readonly problem: string }
   | { readonly kind: "loaded" };
 
@@ -23,7 +23,6 @@ export interface DoctorType {
   name: string;
   /** Repo-relative, forward-slashed — the path a caller can paste back into a command. */
   dir: string;
-  exists: boolean;
   docs: number;
   /** Docs with NO `---` block at all — adopt's exact lane (adopt.ts runAdopt, the trigger
    *  predicate that mirrors verify's "missing YAML front-matter" condition). */
@@ -170,7 +169,7 @@ function findUngoverned(root: string, config: GovkitConfig): DoctorUngoverned[] 
  * Ungoverned dirs are deliberately NOT on this ladder: "looks like docs" is a guess, and a
  * recommendation has to be one govkit is willing to be wrong about out loud.
  */
-export function recommendNext(result: Omit<DoctorResult, "next">): NextAction {
+function recommendNext(result: Omit<DoctorResult, "next">): NextAction {
   if (result.config.kind === "missing") {
     return {
       kind: "scaffold",
@@ -263,7 +262,7 @@ export function runDoctor(opts: DoctorOptions): DoctorResult {
   };
 
   if (!existsSync(join(root, "govkit.yml"))) {
-    return withNext({ kind: "missing", expectedAt: "govkit.yml" });
+    return withNext({ kind: "missing" });
   }
 
   let config: GovkitConfig;
@@ -306,7 +305,6 @@ export function runDoctor(opts: DoctorOptions): DoctorResult {
     types.push({
       name,
       dir: posix(relative(root, dir)),
-      exists: existsSync(dir),
       docs: files.length,
       missingFrontMatter: missing,
       malformedFrontMatter: malformed,

@@ -4,7 +4,7 @@ title: Machine-checkable feature ledger — append-only done-ness agents cannot 
 status: implemented
 owner: baodq97
 date: 2026-07-07
-reconciled: sha256:1ec8e5fbf923c6f7
+reconciled: sha256:b749aad127726c7d
 governs:
   - packages/govkit/src/commands/ledger.ts
 ---

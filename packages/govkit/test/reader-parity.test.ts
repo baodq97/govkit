@@ -6,7 +6,7 @@
 //    from util.ts — is 10 modules plus util.ts itself, and they do NOT all owe the same duty:
 //
 //      module              vocabulary                        role              honours recursive?
-//      verify.ts           listMarkdown+typeDir+collectIds    corpus walk       MUST — yes
+//      verify.ts           listMarkdown+typeDir               corpus walk       MUST — yes
 //      citations.ts        typeDir                            corpus walk       MUST — yes
 //      eval.ts             listMarkdown+typeDir               corpus walk       MUST — yes
 //      report.ts           listMarkdown+typeDir               corpus walk       MUST — yes
@@ -284,8 +284,10 @@ describe("the census — surface N+1 cannot join the seam without joining this t
     },
     "commands/report.ts": { symbols: ["listMarkdown", "typeDir"], role: "resolves-governed-paths" },
     "commands/stale.ts": { symbols: ["scanGoverned"], role: "resolves-governed-paths" },
+    // verify builds its id set from the docs its own walk already parsed — importing
+    // `collectGovernedIds` again would mean paying a second full corpus walk for the same ids.
     "commands/verify.ts": {
-      symbols: ["collectGovernedIds", "listMarkdown", "typeDir"],
+      symbols: ["listMarkdown", "typeDir"],
       role: "resolves-governed-paths",
     },
     "journal.ts": { symbols: ["isInside"], role: "confines-a-configured-path" },
@@ -440,7 +442,8 @@ describe("required parity — the three readers of 'which keys must exist' agree
     write("context-map.md", BODY); // no front-matter → adopt plans a block
     const result = runAdopt({ root, config });
     expect(result.planned).toHaveLength(1);
-    const keys = result.planned[0].fields.map((f) => f.key);
+    const keys = (result.planned[0]?.fields ?? []).map((f) => f.key);
+    expect(keys).toContain("id");
     expect(keys).not.toContain("status");
   });
 });
