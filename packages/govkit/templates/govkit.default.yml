@@ -52,13 +52,24 @@ docs:
       idPrefix: ADR
       startStatus: proposed
       statuses: [proposed, accepted, rejected, superseded]
+      terminalStatuses: [accepted, superseded]
+      # Chain referential-integrity (RFC-0003): an optional `parent` must resolve to a real
+      # id. Resolve-only — a root ADR with no parent is skipped, `type` is advisory.
+      refs: [{ key: parent, type: rfc }]
     us:
       dir: docs/issues
       required: [id, title, status, owner, date, priority]
       idPrefix: US
       startStatus: open
       statuses: [open, in-progress, blocked, done, wontfix]
+      # Terminal = shipped only. `wontfix` is deliberately NOT terminal: a won't-fix issue
+      # under a draft RFC is not the "shipped an undecided design" case the gate targets.
       terminalStatuses: [done]
+      # Without this, a US's `parent` is inert front-matter: RFC-0003 never resolves it and
+      # RFC-0008 cannot check coherence across the US->RFC edge — the most-travelled edge in
+      # the whole chain. Caught 2026-07-29 smoke-testing 0.10.0, where a US at `done` under
+      # an RFC at `draft` still passed `verify`.
+      refs: [{ key: parent, type: rfc }]
     # Named design tree the ddd-flow plugin writes (bounded contexts, aggregates,
     # message flows). Files are named after concepts; ids stay numbered handles.
     domain:

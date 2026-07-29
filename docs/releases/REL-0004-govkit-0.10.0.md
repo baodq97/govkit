@@ -1,7 +1,7 @@
 ---
 id: REL-0004
 title: govkit 0.10.0 — init scaffolds the whole schema, not four hardcoded dirs
-status: draft
+status: released
 owner: baodq97
 date: 2026-07-29
 ---
@@ -27,12 +27,11 @@ now produces a materially different scaffold):
 - **Two doc types join the default schema**: `domain` (the ddd-flow modelling tree, recursive,
   no id↔filename convention) and `rel` (release records, with the `released` as-built sections).
   `init` scaffolds six INDEX dirs where 0.9.0 scaffolded four.
-- **Three gates that shipped inert are now wired by default**: `terminalStatuses` on rfc / us /
-  rel turns on chain-status coherence (RFC-0008), `refs:` on adr / us / rel turns on chain
-  referential-integrity (RFC-0003), and `requiredSectionsByStatus` on rfc / rel turns on the
-  status-conditional as-built sections (RFC-0010). Verified against 0.9.0 by scaffolding a
-  clean repo and landing a `us` at `done` under an `rfc` at `draft`: 0.9.0 passed it with
-  exit 0.
+- **Gates that shipped inert are now partly wired by default**: `terminalStatuses` on rfc / us
+  / rel, `refs:` on rel, and `requiredSectionsByStatus` on rfc / rel (RFC-0010).
+  **Incompletely** — see Post-publish smoke: `refs:` never reached adr or us, and
+  `terminalStatuses` never reached adr, so RFC-0003 and RFC-0008 stayed inert across the
+  US→RFC edge. `govkit@0.10.1` closes that; 0.10.0 should be treated as superseded.
 - **`ratification:` tiers ship in the default schema** (R0_owner / R1_packet / R2_lead), so the
   authority split the plugins' agents read is present from the first commit rather than being
   something a consumer has to discover in this repo and copy.
@@ -59,4 +58,21 @@ this repo's own config, so the gates simply stop firing rather than erroring.
 
 ## Post-publish smoke
 
-Pending publish — filled from the real run before this record flips to `released`.
+Executed 2026-07-29 after workflow run 30442482865 (check → pack proof → npm publish →
+GitHub Release, all green), real commands and real exit codes:
+
+- `npm view govkit dist-tags` → `latest: 0.10.0`.
+- `npx --yes govkit@latest init` in a clean git repo → **9 created**, six INDEX dirs
+  (`product rfc adr issues domain releases`), exit 0. 0.9.0 created seven and four.
+- The scaffolded `.claude/settings.json` offers all three plugins
+  (`swe-flow@govkit, ddd-flow@govkit, design-flow@govkit`).
+- **The smoke found the release incomplete.** Replaying the exact case that motivated it —
+  a `us` at `done` whose `parent` is an `rfc` at `draft` — `npx govkit@0.10.0 verify` still
+  returned **OK, 0 violations, exit 0**. Cause: `terminalStatuses` alone cannot fire
+  RFC-0008, because coherence is checked across a *resolved* `refs:` edge, and the default
+  schema declared `refs:` on `rel` only. A per-type diff against this repo's own `govkit.yml`
+  then showed two gaps, not one: `refs:` missing on adr and us, `terminalStatuses` missing
+  on adr.
+- Both are closed in `govkit@0.10.1` (REL-0005), which re-runs this same case as its own
+  smoke. **0.10.0 delivers the six-type scaffold and the plugin wiring, but not the
+  referential gates its summary claimed** — pin 0.10.1 or later.
