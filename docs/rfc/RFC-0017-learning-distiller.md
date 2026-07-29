@@ -4,7 +4,7 @@ title: Learning-distiller — the keyed DISTILL step of the R7 flywheel, proposa
 status: implemented
 owner: baodq97
 date: 2026-07-08
-reconciled: sha256:0e27c5ae547b49b5
+reconciled: sha256:628f3a2d14c0e256
 governs:
   - plugins/swe-flow/agents/distiller.md
   - plugins/swe-flow/skills/distill-learnings/SKILL.md
