@@ -1,7 +1,7 @@
 ---
 id: RFC-0030
 title: design-flow — the experience-design loop (ui-designer + live co-design view)
-status: draft
+status: accepted
 owner: baodq97
 date: 2026-07-29
 ---
