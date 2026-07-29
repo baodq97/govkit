@@ -7,8 +7,7 @@ description: >-
   issue. It teaches vertical slicing (a thin end-to-end cut, not a horizontal layer), an XS-to-XL
   sizing ladder where XL means "break it down further", four break triggers, and how to record
   the order work must happen in when one slice depends on another. Output is N shippable
-  slices — to structure ONE runnable goal instead, use goal-define. Atomic and
-  dependency-free — it calls no other skill.
+  slices. Atomic and dependency-free — it calls no other skill.
 ---
 
 # Work Breakdown
