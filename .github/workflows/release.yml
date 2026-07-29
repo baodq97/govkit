@@ -22,7 +22,7 @@ jobs:
       # (npm 422s provenance bundles from private source repos; an unused write grant is
       # pure token scope until then).
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
         with:
           fetch-depth: 0 # drift + ledger read commit history; a shallow clone reads as 'no history'
 
@@ -37,7 +37,7 @@ jobs:
       - run: bun run check
 
       - name: Setup Node (registry auth + provenance)
-        uses: actions/setup-node@v5
+        uses: actions/setup-node@v7
         with:
           node-version: 22
           registry-url: https://registry.npmjs.org
