@@ -1,7 +1,7 @@
 ---
 id: REL-0006
 title: govkit 0.10.2 — the anti-filler rubric stops rejecting ordinary English
-status: draft
+status: released
 owner: baodq97
 date: 2026-07-29
 ---
@@ -50,4 +50,25 @@ config is unknown to 0.10.1's loader.
 
 ## Post-publish smoke
 
-Pending publish — filled from the real run before this record flips to `released`.
+Executed 2026-07-29 after the release workflow ran green, through `npx --yes govkit@latest` in
+a clean git repo outside this monorepo. Both directions were checked, because loosening a
+blocking rule is only safe if it still blocks what it should:
+
+- `npm view govkit version` → `0.10.2`.
+- **The false positive is gone.** An RFC whose Context reads "When it had to be written we had
+  one consumer" → `verify` OK, `eval` OK, floor 100%, score 100/100, **exit 0**. The same doc
+  blocked on 0.10.1.
+- **Recall is intact.** An ADR stubbed with two of the retained markers:
+
+  ```
+  ## Context
+  TODO: write this up properly once we know what we are doing about the queue.
+  ## Decision
+  Placeholder text.
+  ```
+
+  → `eval` **FAIL, exit 1**, citing both floor rules (`not an empty stub`, `no template filler
+  left in`). The rule still catches the thing it exists for.
+- In-repo, the fixture is proven fallible: restoring the removed alternative turns `calibrate`
+  red with `fp 1`, names `good/docs/rfc/RFC-0002-ordinary-english.md`, and reports the f1
+  regression 1 → 0.909 against the committed baseline.
