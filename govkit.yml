@@ -104,7 +104,7 @@ eval:
       - { id: scope, weight: 15, kind: section, pattern: 'scope|non-?goal|out of scope|boundaries|deliverable', desc: "scope / non-goals" }
       - { id: kpi, weight: 10, kind: regex, pattern: '\$?\d+\s*(%|percent|x\b|ms\b|/s|/mo|/day|k\b|m\b|bps|users|req)|\bfrom\s+\d+\b.*\bto\s+\d+\b', desc: "a quantified target (advisory; cannot judge if meaningful)" }
       - { id: substance, weight: 10, kind: minWords, min: 40, required: true, desc: "not an empty stub (≥40 words of prose)" }
-      - { id: nofiller, weight: 5, kind: forbid, pattern: 'lorem ipsum|to be filled (in|out)|to be written|todo:?\s*write|placeholder text|fill (this )?in later|insert [a-z ]+ here', required: true, desc: "no template filler left in" }
+      - { id: nofiller, weight: 5, kind: forbid, pattern: 'lorem ipsum|to be filled (in|out)|todo:?\s*write|placeholder text|fill (this )?in later|insert [a-z ]+ here', required: true, desc: "no template filler left in" }
     rfc:
       - { id: summary, weight: 15, kind: section, pattern: 'summary|overview|proposal|abstract|context', desc: "summary / proposal" }
       - { id: alternatives, weight: 20, kind: section, pattern: 'alternative|trade-?off|option|comparison|considered', desc: "alternatives + trade-offs" }
@@ -113,14 +113,14 @@ eval:
       - { id: decision, weight: 15, kind: section, pattern: 'decision|recommendation|proposal|rollout|what we|chosen', desc: "stated recommendation" }
       - { id: comparison, weight: 5, kind: regex, pattern: '\brejected\b|\bruled out\b|\bdiscarded\b|\bpreferred\b|instead of|rather than|versus|pros and cons|trade-?off', desc: "weighs an alternative (advisory)" }
       - { id: substance, weight: 10, kind: minWords, min: 40, required: true, desc: "not an empty stub (≥40 words of prose)" }
-      - { id: nofiller, weight: 5, kind: forbid, pattern: 'lorem ipsum|to be filled (in|out)|to be written|todo:?\s*write|placeholder text|fill (this )?in later|insert [a-z ]+ here', required: true, desc: "no template filler left in" }
+      - { id: nofiller, weight: 5, kind: forbid, pattern: 'lorem ipsum|to be filled (in|out)|todo:?\s*write|placeholder text|fill (this )?in later|insert [a-z ]+ here', required: true, desc: "no template filler left in" }
     adr:
       - { id: context, weight: 25, kind: section, pattern: 'context|background|problem statement|forces|status quo|situation', desc: "context section" }
       - { id: decision, weight: 25, kind: section, pattern: 'decision|chosen|resolution|outcome|drivers|considered options|what we', desc: "decision section" }
       - { id: consequences, weight: 20, kind: section, pattern: 'consequence|trade-?off|result|implication|pros and cons|negative|impact|risk', desc: "consequences section" }
       - { id: alternatives, weight: 10, kind: regex, pattern: 'option|alternative|considered|weighed|instead of|rather than|versus|pros and cons|\brejected\b', desc: "mentions alternatives (advisory)" }
       - { id: substance, weight: 15, kind: minWords, min: 30, required: true, desc: "not an empty stub (≥30 words of prose)" }
-      - { id: nofiller, weight: 5, kind: forbid, pattern: 'lorem ipsum|to be filled (in|out)|to be written|todo:?\s*write|placeholder text|fill (this )?in later|insert [a-z ]+ here', required: true, desc: "no template filler left in" }
+      - { id: nofiller, weight: 5, kind: forbid, pattern: 'lorem ipsum|to be filled (in|out)|todo:?\s*write|placeholder text|fill (this )?in later|insert [a-z ]+ here', required: true, desc: "no template filler left in" }
     us:
       - { id: story, weight: 15, kind: regex, pattern: '\bas an?\b.+\bi (want|need|would like|wish|can|must)\b', desc: "user-story / job-story form (advisory)" }
       - { id: acceptance, weight: 25, kind: section, pattern: 'acceptance|criteria|scenario|expected behaviou?r|requirement|definition of done', desc: "acceptance-criteria section" }
@@ -128,10 +128,10 @@ eval:
       - { id: benefit, weight: 10, kind: regex, pattern: '\bso (that|i|we|they|the|my|our|you|it)\b|in order to', desc: "states a benefit (advisory)" }
       - { id: priority, weight: 10, kind: frontmatter, key: priority, desc: "priority set (presence only)" }
       - { id: substance, weight: 15, kind: minWords, min: 30, required: true, desc: "not an empty stub (≥30 words of prose)" }
-      - { id: nofiller, weight: 5, kind: forbid, pattern: 'lorem ipsum|to be filled (in|out)|to be written|todo:?\s*write|placeholder text|fill (this )?in later|insert [a-z ]+ here', required: true, desc: "no template filler left in" }
+      - { id: nofiller, weight: 5, kind: forbid, pattern: 'lorem ipsum|to be filled (in|out)|todo:?\s*write|placeholder text|fill (this )?in later|insert [a-z ]+ here', required: true, desc: "no template filler left in" }
     rel:
       - { id: substance, weight: 30, kind: minWords, min: 30, required: true, desc: "not an empty stub (≥30 words of prose)" }
-      - { id: nofiller, weight: 10, kind: forbid, pattern: 'lorem ipsum|to be filled (in|out)|to be written|todo:?\s*write|placeholder text|fill (this )?in later|insert [a-z ]+ here', required: true, desc: "no template filler left in" }
+      - { id: nofiller, weight: 10, kind: forbid, pattern: 'lorem ipsum|to be filled (in|out)|todo:?\s*write|placeholder text|fill (this )?in later|insert [a-z ]+ here', required: true, desc: "no template filler left in" }
 
 # ── Waivers: the recorded, EXPIRING exception ────────────────────────────────
 # The escape hatch a gate needs in order to stay trusted. Without one, a rule

@@ -124,6 +124,55 @@ the brief's prose quality is **advisory/judgment** (reviewer/judge agents); desi
   target-action slot in the design read, one primary action per screen, and the flow diagram
   in the screen inventory. A dedicated UX step is future work with its own RFC.
 
+## As-built
+
+Shipped in `plugins/design-flow/` (v0.1.0, 16 files) and wired into both scaffold surfaces.
+`ui-designer` carries three scripts, five references and a token skeleton; `view` carries the
+extractor, the SSE preview server and the frozen shell. The plugin is enabled repo-wide in
+`.claude/settings.json`, `template/.claude/settings.json` and
+`packages/govkit/templates/settings.default.json`, and is the third entry in
+`.claude-plugin/marketplace.json` and `scripts/check-sync.mjs`.
+
+Dogfooded end to end on `examples/euro-parking`, which now carries a `docs/ui/` built from its
+own domain model: `prototype.html` (14 frames), `tokens.json`, `design-brief.md` (16 recorded
+gaps), a screen inventory, and the published `_views/model.json`. The run was executed in a
+structurally isolated harness — verified by asserting no file in the sandbox referenced the
+repo path — and evaluated with Opus, whose findings drove four of the fixes below.
+
+## Deviations from design
+
+Four, all discovered by using the skill rather than reading it:
+
+- **The deliverable moved.** This RFC's Decision names the output as `INDEX.md`,
+  `design-brief.md`, `tokens.json`, `screens/` — metadata *about* a design. What shipped makes
+  **`docs/ui/prototype.html` the deliverable**, with the tokens and inventory demoted to the
+  things that make it verifiable. The RFC's design was one abstraction layer too high: it
+  produced documents everyone could nod at without agreeing on anything, and the disagreements
+  only surfaced once the actual price, the actual error sentence and the actual button label
+  had to be spelled out. Two scripts the RFC never contemplated exist because of this —
+  `scaffold_prototype.mjs` (emits the shell so token variables cannot be retyped wrong) and
+  `check_prototype.mjs` (every declared screen drawn, no filler, no colour bypassing the token
+  gate, the declared type stack actually applied).
+- **The validator count doubled.** The RFC promised *a* deterministic validator. Two shipped,
+  because the prototype needs its own gate; both keep the declared three-state exit contract.
+- **Surface floors became machine-checked.** Not in the RFC at all. `scaffold_prototype.mjs`
+  emits `data-min-body` per device (kiosk 24px / phone 16px / desktop 14px) and
+  `check_prototype.mjs` enforces it — added after Opus shipped 20–23px text on a 24px kiosk
+  floor with both gates green. The whole device concept (kiosk / phone / desktop, with target
+  sizes and read distances) is an addition; the RFC treated the surface as undifferentiated.
+- **A fifth reference exists.** `references/prototype-craft.md` — how to fill a frame so it
+  reads as real — was not in the planned set. It is where the effort actually goes.
+
+Nothing in the RFC was dropped. The two-mode structure, the consume-the-upstream mapping, the
+WCAG-on-declared-pairs scope, the design-system ADR rule, never-silently-regenerate, the
+extractor-not-emitter view, the feedback-first event loop and the two-phase publish all shipped
+as designed. The four open questions remain open and unchanged.
+
+**Not yet reconciled:** the generator/validator agreement is held by explicit
+`GENERATED CHROME START/END` sentinels after a proximity heuristic produced a scaffold that
+failed its own gate; that fix is in the code but the RFC's Decision text still describes the
+simpler model.
+
 ## Impact / rollout
 
 Plugin-surface only: no engine code, no `govkit.yml` schema change, no consumer migration.

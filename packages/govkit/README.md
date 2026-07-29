@@ -3,104 +3,156 @@
 > **Governance you can run, not just read.** A docs-as-code SDLC governance engine for the
 > AI-agent era — deterministic, cross-platform, zero-install, **no API key**.
 
-govkit turns your design docs (PRD → RFC → ADR → User Story → Code) into a contract a
-machine enforces. Generation is cheap; **trust is the product.** A document being
-well-formed — or having been produced by an LLM — does not make it good, so govkit keeps the
-deterministic, no-key checks separate from any LLM judgment.
+Your design docs (PRD → RFC → ADR → User Story → Code) become a contract a program checks:
+correct front-matter, a real status lifecycle, references that resolve, an index that stays in
+sync, and a doc that cannot claim "shipped" while the design above it is still undecided.
+
+One bundled file, zero runtime dependencies. `npx govkit` installs nothing.
+
+## 60 seconds
 
 ```bash
-npx govkit verify     # structural gate — blocks on malformed/incoherent docs
-npx govkit eval       # quality floor (blocks) + advisory 0–100 score
-npx govkit check      # verify + eval, one non-zero exit for CI
+npx govkit init      # govkit.yml + a write-time hook + docs/{product,rfc,adr,issues,domain,releases}/
+npx govkit verify    # green on the empty scaffold
 ```
 
-One bundled file, zero runtime dependencies — `npx govkit` ships nothing to install.
+Now write a user story that claims to be done, under an RFC nobody has accepted yet:
 
-## Two trust layers
+```yaml
+# docs/issues/US-0001-tap-to-pay.md
+---
+id: US-0001
+title: Tap to pay at the station
+status: done          # shipped…
+owner: TBD
+date: 2026-07-29
+priority: P1
+parent: RFC-0001      # …under a design still at `draft`
+---
+```
 
-| Layer | Command | Question | Result |
-|---|---|---|---|
-| **Gate** (quality *control*) | `govkit verify` | Is it well-**formed**? | binary pass/fail — blocks merge |
-| **Eval** (quality *signal*) | `govkit eval` | Is it a complete, non-stub doc? | required **floor** blocks + advisory **0–100** score |
+```console
+$ npx govkit verify
+govkit verify: FAIL — 2 doc(s) checked, 1 violation, 1 blocking:
+  docs/issues/US-0001-tap-to-pay.md [us]
+    - 'US-0001' is done but its parent 'RFC-0001' is draft — not a decided/terminal state (one of [accepted, implemented, superseded])
 
-`verify` enforces front-matter completeness, the status lifecycle, id↔filename convention,
-INDEX sync, globally-unique ids, no unresolved placeholders, chain referential-integrity,
-chain-status coherence (a doc may not ship while its `parent`'s design is still undecided),
-and status-conditional required sections (an `implemented` doc must carry its as-built /
-deviations note). `eval` adds a deterministic **structural floor** (not an empty stub, no
-leftover template filler, canonical sections as *distinct* headings) plus an advisory score
-to watch quality trend — both no-key.
+Fixes:
+    fix: [coherence] a decided doc points at a parent that is not decided — advance the parent's status, or repoint `parent:` (the decided set is docs.types.<type>.terminalStatuses)
+$ echo $?
+1
+```
+
+That is the whole idea. Every violation names the repair, and CI runs the same binary with no
+Claude and no API key.
+
+## What blocks, and what only warns
+
+Knowing which is which is what makes a gate worth keeping.
+
+| | Command | Blocks? |
+|---|---|---|
+| **Gate** — is it well-*formed*? | `govkit verify` | **yes**, binary |
+| **Quality floor** — is it a real doc, not a stub? | `govkit eval` | **yes**, small required floor |
+| **Quality score** — 0–100 trend | `govkit eval` | no, advisory |
+| **Lifecycle view** — done / in-flight / cleanup | `govkit report` | never |
+| **Recency** — the code moved past the doc | `govkit stale` | never |
+
+`verify` checks front-matter completeness, the status lifecycle, the id↔filename convention,
+INDEX sync, globally-unique ids, unresolved placeholders, references that resolve, chain-status
+coherence (the example above), and status-conditional sections — a doc at `implemented` must
+carry its as-built / deviations note.
 
 **An honest boundary:** a presence/shape rubric *cannot* tell a real artifact from a
-keyword-salad with the right headings. So `eval` is a **floor**, tuned for zero
-false-positive on legitimate docs, accepting that a determined gamer passes it. Judging
-whether the prose is *sound* is a keyed reviewer's job, never part of the no-key CI gate.
-
-## Measuring the gate itself (RFC-0012)
-
-- **`--journal`** on `verify` / `eval` / `check`: append one JSONL gate-outcome record per
-  run to `.govkit/journal.jsonl` (configurable via `journal.path`; root-confined; a write
-  failure warns and never changes the exit code; crashed runs still record `ok: false`).
-- **`govkit calibrate --corpus <dir> [--baseline <file> [--update-baseline]]`**: run the
-  eval floor against a labeled corpus — `<dir>/good/` must pass, `<dir>/weak/` must fail —
-  and exit 1 on any false positive, on recall/F1 regression, or on corpus shrinkage vs the
-  committed baseline. A missing baseline file is a hard error (no fail-open); an ungraded
-  corpus fixture is a hard error (no green-on-nothing). Author your own corpus; the tarball
-  ships none.
-
-## Spec↔code drift and the feature ledger (RFC-0015 / RFC-0016)
-
-- **`govkit drift [--ack [doc]]`**: a doc carrying `governs:` + `reconciled: sha256:<hex>`
-  fails the gate when its governed CONTENT (a hash over the files' git blob OIDs — stable
-  across squash/rebase, which rewrite commit shas and would orphan the claim) no longer
-  matches the recorded claim — the deterministic spec↔code drift gate no SDD tool ships.
-  `--ack` rewrites only the claim value (a deliberate, git-visible act); docs without
-  `reconciled:` stay covered by the advisory `stale` only, so adoption is per-doc and zero-FP.
-  Every governed doc is additionally existence-checked per pathspec (RFC-0018): a `governs:`
-  spec matching no tracked file fails, named verbatim — an ack can't clear it, the governs
-  list needs the hand edit.
-- **`govkit ledger`**: validates a committed JSON feature ledger (`docs/ledger.json`,
-  `ledger.path` configurable): schema, unique ids, every `spec` resolving to a governed doc,
-  and git-backed anti-gaming — removing an entry or its `check` field vs HEAD is a violation;
-  flipping `passes` either way is legal. Advisory `N/M passing` line never affects the exit.
-- Both join `--journal` and `--hook`.
-
-## Wiring the gate into an agent loop (RFC-0013 / RFC-0014)
-
-- **`--hook`** on `verify` / `eval` / `check`: maps any gate failure to **exit 2** and routes
-  the report to stderr — the blocking-hook convention (Claude Code feeds exit-2 stderr back
-  to the model). Fail-closed: an operational error under `--hook` also exits 2; a broken
-  guardrail blocks rather than waves through. Example (Stop hook):
-  `npx --yes govkit check --hook` — the session cannot end on a red gate.
-- **`tiers:`** in `govkit.yml`: downgrade chosen verify kinds to `advisory` (warn, don't
-  block): `tiers: { index: advisory }`. Default: every kind blocking — zero behavior change
-  until you opt in. Unknown kind or value fails loud at config load. Advisory violations
-  still print, reach `--json`, and land in the journal with their tier — visible, just not
-  blocking. The eval floor is untouched (it has its own required/advisory split).
+keyword-salad with the right headings. So `eval` is scoped as a **floor**, tuned for zero
+false-positives on legitimate docs and accepting that a determined gamer passes it. Judging
+whether prose is *sound* is a keyed reviewer's job, never part of the no-key CI gate. govkit
+would rather name that line than pretend it isn't there.
 
 ## Config, not code
 
-Doc dirs, required keys, the status lifecycle, and the quality rubric are all declared in a
-single `govkit.yml` — any repo (any doc layout, any quality bar) adopts govkit by editing
-that file, not by forking the engine.
+Doc dirs, required keys, the status lifecycle, and the quality rubric are all declared in one
+`govkit.yml`. Any repo — any doc layout, any quality bar — adopts govkit by editing that file,
+never by forking the engine.
 
 ```bash
-npx govkit init               # scaffold govkit.yml + the audit-write hook + docs/*/INDEX.md
-npx govkit init --adopt       # existing docs: migrate prose metadata → front-matter (dry-run)
+npx govkit init --docs-root .govkit   # isolate kit-managed docs under one folder
+npx govkit init --adopt               # existing docs: migrate prose metadata → front-matter
+npx govkit init --adopt --apply       #   (dry-run first; anything it cannot find stays failing
+                                      #    rather than being asserted unverified)
 ```
+
+## Commands
+
+**Daily**
+
+```bash
+npx govkit verify        # the structural gate
+npx govkit eval          # quality floor + advisory score
+npx govkit check         # both, one non-zero exit — what CI runs
+npx govkit report        # lifecycle view (advisory)
+npx govkit report --aging   # + time-in-status from git blame; per-type thresholds in config
+npx govkit stale         # docs whose `governs:` code has newer commits (advisory, needs git)
+```
+
+**Keeping specs honest against code**
+
+```bash
+npx govkit drift         # a doc with `governs:` + `reconciled: sha256:<hex>` fails when the
+                         # governed CONTENT moves past the recorded claim — hashed over git blob
+                         # OIDs, so squash and rebase do not orphan it
+npx govkit drift --ack   # re-vouch: rewrites only the claim, as a git-visible act
+npx govkit ledger        # gate a committed docs/ledger.json — schema, unique ids, every `spec`
+                         # resolving to a real doc, and append-only vs HEAD (removing an entry
+                         # is a violation; flipping `passes` either way is legal)
+```
+
+Docs without `reconciled:` stay covered by the advisory `stale` only, so drift adoption is
+per-doc and starts at zero false-positives. Every `governs:` pathspec is also existence-checked:
+one matching no tracked file fails by name, and no `--ack` can clear it.
+
+**Wiring it into an agent loop**
+
+```bash
+npx govkit check --hook  # any gate failure → exit 2 + report on stderr, the blocking-hook
+                         # convention. Fail-closed: an operational error also exits 2, because
+                         # a broken guardrail should block rather than wave things through.
+```
+
+`tiers: { index: advisory }` in `govkit.yml` downgrades chosen verify kinds to warnings. Default
+is every kind blocking, so nothing changes until you opt in; advisory violations still print,
+reach `--json`, and land in the journal with their tier.
+
+**Measuring the gate itself**
+
+```bash
+npx govkit verify --journal    # one JSONL outcome record per run (crashed runs included)
+npx govkit calibrate --corpus <dir> --baseline <file>
+                               # score the gate against YOUR labeled corpus: <dir>/good/ must
+                               # pass, <dir>/weak/ must fail. Exits 1 on any false positive, on
+                               # recall/F1 regression, or on corpus shrinkage vs the baseline.
+```
+
+A missing baseline is a hard error, and so is an ungraded fixture — no fail-open, no
+green-on-nothing. Author your own corpus; the tarball ships none.
 
 ## The invariant that shapes everything
 
-A non-Claude-Code contributor must be able to run the gates in CI **with no API key**. Both
-deterministic layers live only in this CLI:
+A contributor who has never opened Claude Code must be able to run the gates in CI **with no
+API key**. So both deterministic layers live only in this CLI:
 
-- **In CI:** `npx govkit check` (→ `verify` then `eval`) — Node only, no key.
-- **In Claude Code:** a `PreToolUse` hook runs `npx govkit audit-write` to block a write to a
+- **In CI:** `npx govkit check` — Node only, no key.
+- **In your editor:** a `PreToolUse` hook runs `npx govkit audit-write`, rejecting a write to a
   governed doc that lacks complete front-matter.
 
-Two advisory, read-only commands never affect an exit code: `govkit report` (lifecycle view —
-done / in-flight / cleanup) and `govkit stale` (flags a doc whose `governs:` code has newer
-commits than the doc; git-gated).
+## Authoring the docs it grades
+
+The engine grades artifacts; three Claude Code plugins write them — **swe-flow** (the chain),
+**ddd-flow** (domain modelling), **design-flow** (UI design and a live co-design view).
+`govkit init` offers all three in the settings it scaffolds.
+
+**[The flow: one feature, start to finish](https://github.com/baodq97/govkit/blob/main/docs/the-flow.md)**
+walks the whole chain — which skill to invoke at which step, and what lands on disk.
 
 ## Requirements
 
@@ -108,8 +160,10 @@ Node ≥ 20. No other runtime dependency.
 
 ## Links
 
-- **Full docs, the swe-flow authoring plugin, and the consumer template:**
+- **Full docs, plugins, and the consumer template:**
   [github.com/baodq97/govkit](https://github.com/baodq97/govkit)
+- **Why it is built this way:**
+  [design-rationale](https://github.com/baodq97/govkit/blob/main/docs/design-rationale.md)
 - **Issues:** [github.com/baodq97/govkit/issues](https://github.com/baodq97/govkit/issues)
 
 MIT © baodq97
