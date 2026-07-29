@@ -67,6 +67,8 @@ jobs:
       - name: Publish govkit
         working-directory: packages/govkit
         run: npm publish --access public
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
 
       # The Release object is part of the release, not an afterthought — v0.8.0 shipped to
       # npm with no GitHub Release until a human noticed. Notes point at the governed REL
@@ -84,5 +86,3 @@ jobs:
             gh release create "$GITHUB_REF_NAME" --title "govkit $GITHUB_REF_NAME" \
               --notes "$NOTES" --generate-notes
           fi
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
