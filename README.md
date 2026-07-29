@@ -150,6 +150,8 @@ claude plugin install swe-flow@govkit          # authoring skills + role agents 
 npx govkit verify    # structural gate (what blocks)
 npx govkit eval      # quality floor + advisory 0–100 score
 npx govkit report    # lifecycle view: done / in-flight / cleanup (advisory)
+npx govkit report --aging   # + time-in-status from git blame; opt-in per-type
+                            #   `aging: {status: days}` thresholds → advisory ⚠ (RFC-0029)
 npx govkit stale     # docs whose `governs:` code moved on (advisory, needs git)
 
 # 4. Agent-loop guardrail mode (RFC-0013/0014, opt-in):

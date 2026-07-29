@@ -90,6 +90,13 @@ export interface DocType {
   /** Required id prefix (e.g. "ADR"). When set, `verify` enforces id + filename convention. */
   idPrefix?: string;
   /**
+   * Opt-in aging thresholds (RFC-0029): status → max whole DAYS a doc may sit at that status
+   * before `report --aging` marks it with an advisory ⚠. Advisory-only by construction (the
+   * report never exits non-zero), and no defaults ship: a threshold is a judgment about a
+   * repo's own review cadence — config can justify one, the engine cannot.
+   */
+  aging?: Record<string, number>;
+  /**
    * Cross-artifact references. Each entry names a front-matter key whose value, WHEN
    * non-empty, must resolve to an existing doc id anywhere in the governed chain — this is
    * how `verify` makes "governs the whole chain" literally true (see RFC-0003). Resolve-only
@@ -486,6 +493,25 @@ export function loadConfig(root: string): GovkitConfig {
         throw new Error(
           `govkit: type '${name}' ${key} must be true or false (got '${String(value)}' in ${path})`,
         );
+      }
+    }
+    // `aging` (RFC-0029) is advisory-only, but a malformed map is the looks-configured-but-isn't
+    // leak all the same: a quoted "90" or a list would silently never flag while the config
+    // reads as if the cadence were watched. Same loud stance as `tiers`.
+    const aging = def.aging;
+    if (aging !== undefined) {
+      if (typeof aging !== "object" || aging === null || Array.isArray(aging)) {
+        throw new Error(
+          `govkit: type '${name}' aging must be a map of status → max days in ${path}`,
+        );
+      }
+      for (const [status, days] of Object.entries(aging)) {
+        if (typeof days !== "number" || !Number.isFinite(days) || days < 0) {
+          throw new Error(
+            `govkit: type '${name}' aging.${status} must be a non-negative number of days ` +
+              `(got '${String(days)}' in ${path})`,
+          );
+        }
       }
     }
   }

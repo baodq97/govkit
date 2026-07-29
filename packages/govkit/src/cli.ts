@@ -66,6 +66,7 @@ async function main(argv: string[]): Promise<number> {
       // and a positional keeps `--ack` alone meaning "all opted-in docs" unambiguous.
       ack: { type: "boolean", default: false },
       "pr-body": { type: "boolean", default: false },
+      aging: { type: "boolean", default: false },
       "docs-root": { type: "string" },
       "check-citations": { type: "boolean", default: false },
       force: { type: "boolean", default: false },
@@ -113,6 +114,7 @@ async function main(argv: string[]): Promise<number> {
     { set: values.hook, flag: "--hook", allowed: sensorCommands },
     { set: values.ack, flag: "--ack", allowed: ["drift"] },
     { set: values["pr-body"], flag: "--pr-body", allowed: ["report"] },
+    { set: values.aging, flag: "--aging", allowed: ["report"] },
     { set: values.corpus !== undefined, flag: "--corpus", allowed: ["calibrate"] },
     { set: values.baseline !== undefined, flag: "--baseline", allowed: ["calibrate"] },
     { set: values["update-baseline"], flag: "--update-baseline", allowed: ["calibrate"] },
@@ -466,7 +468,7 @@ async function main(argv: string[]): Promise<number> {
       // Advisory lifecycle view (RFC-0008). Read-only, no exit-code effect: a report that
       // could fail CI would tempt someone to gate on advisory output, the exact thing the
       // gate/eval split exists to prevent.
-      const result = runReport({ root: values.root ?? process.cwd() });
+      const result = runReport({ root: values.root ?? process.cwd(), aging: values.aging });
       // --pr-body (RFC-0021) is a rendering choice over the same ReportResult, not a gate:
       // stdout gets the marker-fenced block; splicing it into a PR body is the caller's job.
       if (values["pr-body"]) process.stdout.write(renderReportPrBody(result));

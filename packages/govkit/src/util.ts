@@ -360,6 +360,31 @@ export function gitMatchCount(root: string, pathspecs: string[]): number | null 
   }
 }
 
+/** Committer time (epoch seconds) of the commit that last changed line `lineNo` (1-based) of
+ *  `relPath` (forward-slash, repo-root-relative), or null when blame cannot answer: no git, an
+ *  untracked file, or a line whose latest edit is only in the working tree (blame's all-zero
+ *  boundary sha — "not committed yet" is not a date worth reporting). Feeds `report --aging`
+ *  (RFC-0029): blaming ONE line — the status line — means a body edit never resets the clock
+ *  the way whole-file `gitCommitTime` would. Committer time, matching `%ct` everywhere else. */
+export function gitLineCommitTime(root: string, relPath: string, lineNo: number): number | null {
+  try {
+    const out = execFileSync(
+      "git",
+      ["blame", "-L", `${lineNo},${lineNo}`, "--porcelain", "--", relPath],
+      { cwd: root, encoding: "utf8", stdio: ["ignore", "pipe", "ignore"] },
+    );
+    if (/^0{40}/.test(out)) return null;
+    const m = /^committer-time (\d+)$/m.exec(out);
+    if (!m?.[1]) return null;
+    const t = Number.parseInt(m[1], 10);
+    return Number.isFinite(t) ? t : null;
+  } catch {
+    // safe to degrade: no git / untracked path / line beyond EOF — the caller reports null,
+    // never a crash (the gitCommitTime posture).
+    return null;
+  }
+}
+
 /** Current HEAD commit sha, or undefined when git (or any commit) is absent. Feeds the
  *  `--journal` sensor's `gitSha` field — a sensor annotation, so absence is NOT an error:
  *  the field is simply omitted (same degrade-not-fail posture as `stale`). One direct spawn

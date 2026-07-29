@@ -4,6 +4,8 @@ title: report --aging — time-in-status flow signals for the lifecycle view
 status: accepted
 owner: baodq97
 date: 2026-07-29
+governs:
+  - packages/govkit/src/commands/report.ts
 ---
 
 > Extends the advisory lifecycle report (RFC-0008, RFC-0021) with the dimension it is
@@ -119,6 +121,30 @@ in v1 — see Open questions.
   at `accepted` (the anti-pattern RFC-0024 documents) shows a plausible statusSince. Aging
   does not try to detect provenance violations; that stays the honor-system + hook layer's
   job. Worth a note in the docs so nobody reads aging as a provenance check.
+
+## As-built
+
+Shipped as `--aging` on `report`: `gitLineCommitTime` in `util.ts` (git blame `-L n,n
+--porcelain`, committer time, all-zero boundary sha → null), a local `statusLineNo` in
+`report.ts` scoped to `frontMatterSpan` (top-level `status:` only), per-bucket `docs[]`
+(`statusSince` ISO date + `ageDays`) and `overThreshold` (present only when the type's
+`aging:` config names that status), an `agingNote` degrade when git is absent, the plain
+rendering's `oldest / ⚠ over threshold` lines, and a dates-only `since` column on
+`--pr-body`. Config gains the per-type `aging: {status: days}` map, validated loud (the
+`tiers` stance). Six e2e tests in `test/report-aging.test.ts` pin the RFC's Impact list;
+`--aging` is report-scoped in the CLI flag table.
+
+## Deviations from design
+
+- **The "front-matter parser's line index" is a block span.** The parser exposes
+  `frontMatterSpan`, not per-key line numbers; the locator counts lines inside that span
+  (CRLF-safe, one grammar owner) — same guarantee, different mechanism than the RFC's
+  wording implied.
+- **`ageDays` clamps at 0** for a status committed "in the future" relative to the
+  clock (clock skew, backdated fixtures) — unpinned by the design, chosen over a
+  negative age.
+- **The uncommitted-doc note renders per bucket** (`uncommitted, no age: …`) rather
+  than as one global `(untracked)` list — the bucket is where the reader already is.
 
 ## Recommendation
 

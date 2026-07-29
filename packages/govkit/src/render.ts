@@ -405,8 +405,25 @@ export function printReport(result: ReportResult): void {
       // type opted into terminalStatuses (else every bucket is unmarked, which is honest).
       const tag = b.terminal ? " ✓ decided" : t.hasTerminal ? " · in-flight" : "";
       out.write(`  ${b.status} ×${b.count}${tag}  [${b.ids.join(", ")}]\n`);
+      // Aging (RFC-0029): the oldest doc names where the clock is longest; ⚠ only where config
+      // set a threshold for this (type, status) pair — the report invents no cadence itself.
+      if (b.docs && b.docs.length > 0) {
+        const dated = b.docs.filter((d) => d.ageDays !== null);
+        if (dated.length > 0) {
+          const oldest = dated.reduce((a, d) => ((d.ageDays ?? 0) > (a.ageDays ?? 0) ? d : a));
+          out.write(`    oldest: ${oldest.id} — ${oldest.ageDays}d in status\n`);
+        }
+        const undated = b.docs.filter((d) => d.ageDays === null);
+        if (undated.length > 0) {
+          out.write(`    (uncommitted, no age: ${undated.map((d) => d.id).join(", ")})\n`);
+        }
+        if (b.overThreshold && b.overThreshold.length > 0) {
+          out.write(`    ⚠ over threshold: [${b.overThreshold.join(", ")}]\n`);
+        }
+      }
     }
   }
+  if (result.agingNote) out.write(`\n(aging: ${result.agingNote})\n`);
   out.write(
     "\n(advisory — a presence-only view of lifecycle; it cannot judge whether prose is current. " +
       "Use it to spot superseded/rejected docs to clean up and stale work to reconcile.)\n",
