@@ -399,3 +399,39 @@ warning when installed plugin version ≠ `plugins/*/plugin.json`.
 **Dropped — the workflow-args JSON parse failure.** First gate-loop invocation passed a prose
 string where the script parses JSON args; it failed in 18ms with a message naming the fix and
 the retry succeeded. Loud, self-describing, one retry of cost: no encoding earns its tokens.
+
+## Round 24 — 2026-07-29: a gate that was configured, tested, and did not fire
+
+The escape survived two releases in one afternoon. `npx govkit@0.9.0 init` in a clean repo
+produced a `govkit.yml` whose `us` and `adr` types declared no `refs:` and no
+`terminalStatuses`, so RFC-0003 and RFC-0008 were structurally unable to fire for a consumer
+scaffolded by the CLI — while this repo's own config had all three keys and the whole test
+suite ran green against it. 0.10.0 shipped to close that, and its own post-publish smoke found
+it had only half-closed: `terminalStatuses` reached rfc/us/rel, `refs:` reached `rel` alone, so
+a `us` at `done` under an `rfc` at `draft` STILL returned exit 0 on a fresh scaffold. 0.10.1
+closed it for real. Two published versions, one of them advertising a gate it did not deliver.
+
+**Lesson 1 — asserting a config key exists proves nothing about whether its gate can fire.**
+`init.test.ts` already had a "drift guard" asserting the scaffolded schema carried
+statuses/idPrefix/rubrics, and it was green through both bad releases. It could not have caught
+this: coherence is evaluated across a *resolved* `refs:` edge, so `terminalStatuses` without
+`refs:` is half a gate, and half a gate reads exactly like a whole one at the config layer. The
+fix is a test that induces the violation end to end from `runInit` and asserts rejection —
+`scaffold-gates.test.ts`, seven cases, each proven fallible by deleting the one key it targets.
+The measurement that matters: deleting `us.refs` turns THREE tests red, because one missing
+line silently disables three separate gates. Encoded as ledger candidate `F-GATE-INERT`.
+
+**Lesson 2 — the shipped artifact and the dogfood config are two different subjects.** Every
+gate in this repo works, and that is what the suite measured. Nothing measured the thing a
+consumer actually receives, so the two drifted for at least two releases without a red signal.
+`check-sync` catches this one class of it — it went red the moment `templates/govkit.default.yml`
+and `template/govkit.yml` diverged during the 0.10.1 fix, which is how the third gap
+(`terminalStatuses` on adr) was found at all. The generalisation: any artifact shipped to a
+consumer needs a test that exercises the CONSUMER's copy, not the author's.
+
+**Lesson 3 — post-publish smoke earned its cost, and only because it replayed a real case.**
+REL-0004's smoke could have read "init created 9 files, exit 0" and passed. It caught the miss
+because it re-ran the specific scenario that motivated the release — a done-US under a
+draft-RFC — rather than checking that the command exited zero. A smoke that only asserts the
+happy path confirms the release happened, not that it worked. REL-0004 records its own failure
+in that section instead of reading as a clean run.
