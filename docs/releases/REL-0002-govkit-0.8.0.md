@@ -1,7 +1,7 @@
 ---
 id: REL-0002
 title: govkit 0.8.0 — the design-tree, waiver and citation features reach npm; the engine gates its own repo again
-status: draft
+status: released
 owner: baodq97
 date: 2026-07-29
 parent: RFC-0016
