@@ -13,7 +13,7 @@ relationship is governed, and what is published. A model that re-derives that by
 is doing arithmetic, badly and differently each run. This script does the derivation; the human
 does the one column it cannot: `Public?`.
 
-    python3 derive_cel.py --root plugins/ddd-flow/examples/euro-parking   # markdown (default)
+    python3 derive_cel.py --root examples/euro-parking   # markdown (default)
     python3 derive_cel.py --root . --json                                 # for a downstream step
 
 Exit code is 0 whenever the tree could be read; 2 when it could not. This derives; the gate stays

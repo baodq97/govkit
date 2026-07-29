@@ -141,7 +141,7 @@ than deriving it from position, so running strategize before connect costs nothi
 
 ## A full run to look at
 
-`examples/euro-parking/` is one domain taken end to end by all eight steps, nothing hand-edited
+The repo's `examples/euro-parking/` is one domain taken end to end by all eight steps, nothing hand-edited
 afterwards — 10 bounded contexts, 4 aggregate canvases, 4 message flows, ~3,400 lines, from twelve
 requirements and one domain-expert session. The requirements come from the **SAP DDD Kata**, which
 the ddd-crew starter process names as the way to practise it and which publishes **no solution**, so
@@ -149,7 +149,7 @@ nothing in the output could have been recalled rather than modelled.
 
 The parts worth studying are the refusals: nine relaxed rules with no corrective policy and a note
 saying so, every throughput cell `unknown` with a named owner, two contexts left unplaced on
-differentiation. See `examples/euro-parking/README.md`.
+differentiation. See `examples/euro-parking/README.md` in the govkit repo — it now also carries the UI design the sibling design-flow plugin built from the same model.
 
 ## What it measurably does, and what it does not
 

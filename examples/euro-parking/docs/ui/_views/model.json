@@ -1,0 +1,856 @@
+{
+  "schemaVersion": 1,
+  "kind": "design-workspace",
+  "source": {
+    "mode": "published",
+    "root": "docs/ui"
+  },
+  "brief": {
+    "sections": [
+      {
+        "title": "_intro",
+        "body": "# Design brief — Euro Parking self-service payment kiosk\n\nSurface: the fixed portrait touchscreen where a driver pays before leaving.\nInput: `docs/domain/` (ten bounded contexts, four message flows, thirty event-model slices,\nnineteen hotspots) and `BRIEF.md`. **There is no PRD and no `docs/api/`** — every consequence of\nthat is recorded under § Gaps rather than filled in.\n\n`docs/ui/` did not exist before this run, so nothing was carried forward or overwritten."
+      },
+      {
+        "title": "The design read",
+        "body": "> Reading this as: a **form-flow — a fixed portrait self-service payment terminal, one decision per\n> screen** for **every driver at a Euro Parking site: any ability, any language, usually hurried,\n> usually with a queue behind them, reading at arm's length in garage glare**, whose one job is\n> **pay what this stay owes and get the card back in time to leave inside the fifteen-minute\n> window**, in a **transport-signage** language, leaning **a named approximation of the GOV.UK\n> Design System retuned to kiosk scale**.\n\nWhere each slot came from:\n\n| Slot | Source |\n|---|---|\n| Page kind | BRIEF.md: \"the fixed portrait touchscreen where a driver pays before leaving\" |\n| Audience | BRIEF.md's audience line, plus `business-model.md`'s driver story map — which is flagged there as *an operator's belief about drivers*, never observed (Q8 / H19). The audience the aesthetic is picked for is therefore itself an assumption. |\n| The single job | `DOMAIN-FLOW-0002` — the scenario \"the money runs through\"; the driver's half of it ends with the card back in their hand and fifteen minutes on the clock |\n| Vibe | derived, not given: no brand assets, no logo, no colours and no vibe words exist anywhere in the repo (**Gap G-15**) |\n| System family | decided here — see ADR-UI-001 |\n\nNo clarifying question was asked. The two readings that could have diverged — \"a payment screen\"\nversus \"a public machine anyone must succeed at\" — are settled by the brief's own audience\nsentence, so asking would have been a question dump with a known answer."
+      },
+      {
+        "title": "ADR-UI-001 — one design system for this surface",
+        "body": "**Decision.** A named approximation of the **GOV.UK Design System (govuk-frontend)**, retuned to\nkiosk scale. Not the package itself: it is a British public-sector system carrying British\ngovernment brand assumptions, and this is a German commercial operator.\n\n**What is taken:** plain-language copy rules; a single accent doing brand work with semantic\ncolours kept separate; ink-on-paper contrast rather than tinted surfaces; the focus style as a\nyellow bar plus an ink keyline; error summaries that say what happened and what to do; no\ndecorative chrome anywhere.\n\n**What is retuned:** the type scale is anchored at 28px, not 19px — the reading distance is arm's\nlength in glare, not a phone in a hand; targets are 60px minimum and 100px for the primary action;\nthe layout is a single column of full-width bands, because at 452px of usable width a grid buys\nnothing.\n\n**Alternatives rejected.** *Material 3* — its density, elevation and ripple are phone-scale and\nits motion vocabulary is exactly what a queue does not want. *A vendor terminal UI kit* — none is\nnamed anywhere in the sources, and adopting an unnamed one would be a decision with no owner.\n*No system at all* — this surface will grow entrance and exit screens; ad-hoc means three\ninconsistent machines at one site.\n\n**Icon family:** one, and it is \"none\" — text plus four drawn glyphs (↓ → ✓ €). A terminal that\nmust keep working with the network down (`terminal-operations/README.md`, partition tolerance)\nships no icon font, and every hardware target is labelled in words instead."
+      },
+      {
+        "title": "Affordances — what the hands meet, before any styling",
+        "body": "These outrank every aesthetic decision below them, and three of the five are things that live\n*outside* the screen.\n\n1. **LOST TICKET is a physical button on the machine**, not a control in the UI. \"A button on the\n   payment machine… no attendant\" (EXPERT, `timeline.md` 30). This is the single most consequential\n   line in the design: a driver with no card cannot begin a flow from a screen that opens with\n   \"insert your card\", so the entry point has to be hardware. It is drawn in the fascia on all\n   fourteen frames and appears in the UI on none of them.\n2. **The card slot is a place, not an idea.** Every instruction that refers to it carries a ↓ aimed\n   at where it physically is, and the fascia highlights the slot when the screen is talking about it.\n3. **The machine takes coins.** Reconciliation matches \"machines vs bank vs **coin box**\" every\n   morning (`business-model.md`), so a coin slot exists and every payment screen offers both paths.\n4. **Nothing hovers.** No affordance anywhere depends on hover, and no state is reachable only by\n   one.\n5. **Glare and distance set the floor.** Light background beats dark under garage glare\n   (`prototype-craft.md` § Surface floors). **No screen text anywhere is under 24px** — the kiosk\n   floor — with 27–42px for whatever the screen is actually about, and 62–72px for the amount and\n   the deadline so they read from outside the queue. The only type below 24px in the file is on the\n   fascia (11–13px): those are labels silkscreened on metal in the drawing, not screen text.\n   The first draft of this prototype ran its secondary register at 20–23px and failed this check\n   on measurement, which is the reason the pre-flight says measure rather than estimate.\n\n**And a sixth that is a design addition, not a source:** the **HELP** intercom button. The sources\nplace the control-room intercom at the *exit* (\"machine eats the card → intercom\"). Three error\nstates on this surface have no other way forward. It is drawn, and recorded as **Gap G-6** — if the\npayment machine has no intercom, the recovery copy on three frames is wrong and this is the first\nthing to fix."
+      },
+      {
+        "title": "The three dials",
+        "body": "| Dial | Value | Reason |\n|---|---|---|\n| `variance` | **2** | The quiet constraints win (`design-read.md` signal 6). A public machine every driver must succeed at, in glare, at arm's length, with a queue behind them — the audience picks the aesthetic, and this audience picks convention. Boldness is spent once, on the yellow deadline band. |\n| `motion` | **1** | A kiosk has no hover; nothing may gate on a transition while somebody waits behind you; the terminal must boot and run with the network down. Reduced motion is not a preference to respect here, it *is* the design. The one thing that changes over time — the countdown — is information, not animation. |\n| `density` | **2** | One question per screen. Six facts at most, one amount, one action. A driver reading a line-item table while standing up is a driver still standing up. |"
+      },
+      {
+        "title": "The signature element",
+        "body": "**The window band: ink on signage yellow, \"Drive out by 11:22 · 14 min 32 sec left\".**\n\nOne invariant in this domain is enforced against the driver: *exit must follow payment within\nfifteen minutes; past it the card is refused* (I1, `parking-visit/aggregates/ParkingVisit.md` §3).\nToday a driver meets that rule as a barrier that will not lift and a card handed back — the expert\ncalls it \"a standing complaint from customers and we are not changing it\" (`DOMAIN-FLOW-0003`).\nThe rule is not being changed, so the design's only available move is to make it unmissable\n*before* it is broken. It appears three times, in decreasing weight: a one-line yellow strip on\n*Amount to pay* (before you pay), the full band on *Paid, take your card* (the moment it starts),\nand a strip again on *Pay the difference*. Nothing else on this surface uses yellow except the\nfocus style and the LOST TICKET button — both of which are also \"look here, this bites\"."
+      },
+      {
+        "title": "Rejected defaults",
+        "body": "**The generic default for this brief, written down first.** For \"design a parking payment kiosk\",\nthe era's default output is: white background, one saturated blue primary, Inter or a\nsystem-ui stack, rounded 12–16px cards with soft shadows floating on a tinted surface, a green tick\nin a circle for success, a red banner for failure, a summary card listing the stay as line items,\nand a \"Continue\" button. Candidate C in `.design-flow/preview/candidates/consumer-fintech.json` is\nthat default written out as a complete token file, so the diff against what shipped is a file diff\nand not a claim.\n\n| The default | What happened | Why |\n|---|---|---|\n| Cards, radii, elevation | **Replaced.** Flat full-width bands separated by 3–6px rules; radius zero everywhere inside the screen | A shadow is a light cue, and this screen is read in glare where light cues vanish. At 452px usable width a card inside a card spends 32px of the only dimension the amount needs. |\n| Inter / system-ui | **Replaced.** A DIN/Frutiger signage stack, falling back to the system grotesque | Signage lineage matches the reading distance, and a kiosk that must boot with the network down cannot fetch a webfont. Recorded honestly: the licensed face is DIN Next; the prototype falls back. |\n| Saturated blue primary | **Survives, justified.** `#0B4A8F`, one accent, brand only | European parking signage is white-on-blue; this is convention the driver already reads, not a palette preference. It does exactly one job — the primary action — and never marks state. |\n| Green tick / red banner for state | **Survives, restructured.** Semantic colours are a separate, deliberate set (paid / declined / warning), each as a soft band with a 12px colour bar, never as the brand accent | The hard rule is one brand accent plus deliberate state colours; what was rejected is state colour leaking into buttons and headers. |\n| A \"Continue\" / \"Submit\" primary | **Replaced.** Every button says what it does and what it costs: \"Pay €4,00\", \"Try again, €4,00\", \"Go back, wrong vehicle\" | `prototype-craft.md` tells list. On a machine taking money, the amount belongs on the control. |\n| Success screen as a receipt summary | **Replaced.** The paid screen is 60% deadline | The driver's next problem is not what they paid, it is that they have fifteen minutes. |\n| A dark \"premium terminal\" look | **Rejected as candidate B** (`.design-flow/preview/candidates/night-terminal.json`) | Light beats dark under glare for a public kiosk. It is the more photogenic direction and it would fail in the room it lives in. |\n\n**The pick was made without a human.** No person was available to choose by eye, so the call is\nrecorded here: candidate A (\"signage\") was chosen against B (\"night terminal\") and C (\"consumer\nfintech\") on the glare rule and the anti-default diff above. All three are complete token files and\n**all three pass `check_tokens.mjs` at exit 0** — worth knowing, because it means the gate proves\ndeclared contrast, not judgement."
+      },
+      {
+        "title": "Copy and language",
+        "body": "- **Vocabulary is the domain's, in the driver's register.** \"Started 15 minutes\", \"the most a car\n  pays in a day\", \"pay the difference\", \"lost ticket\" — all from\n  `discovery/ubiquitous-language.md`. Nothing on screen says visit, aggregate, stripe field,\n  terminal id or paid flag.\n- **The words nobody used stay unused.** No reservation, booking, subscription, season ticket,\n  refund, cancellation or customer account appears anywhere — `ubiquitous-language.md` forbids\n  introducing them downstream, and \"Request a refund\" is exactly the control a decline screen\n  invites you to invent.\n- **Errors never blame and never apologise.** \"Your card was not charged. The bank turned the\n  payment down.\" Every one of the four error frames offers at least one way forward.\n- **A recorded collision.** The expert's word for the plastic is **card**; the brief's word is\n  **ticket**; `ubiquitous-language.md` keeps both rows because the collision is the finding. The\n  screens say **card**, because that is what the driver is holding and what the exit machine keeps\n  — but the physical button keeps its stated label, **LOST TICKET**. So this design ships one\n  deliberate inconsistency between a moulded button and every screen. It is the honest reading of\n  two confirmed sources and it needs a human to settle.\n- **Language.** The frames are drawn in the English variant for review; a German site ships German\n  by default (Germany is the first market, `business-model.md`). The DE · EN · NL row follows that\n  stated sequence. Nothing in the sources says which languages are required (**Gap G-16**)."
+      },
+      {
+        "title": "Example values — numbers that are illustrative, not specification",
+        "body": "| Value | Status |\n|---|---|\n| €1,00 per started 15 min · 5 blocks · €4,00 · entry 10:00 · priced 11:07 | **Sourced** — EM-14's own worked example, verbatim |\n| Paid 11:07 → window to 11:22; refused at 11:28; back at a machine 11:31 | **Sourced** — EM-18 / EM-20 timings |\n| Daily caps €12 / €25 / €25 / €40, truck rate €2,50, difference €2,00 | **Examples.** No source gives any cap or the difference rule |\n| \"Bay 212 · Level 3\", \"Hauptbahnhof Garage · Machine 3\", \"Exit B · Level 1\" | **Examples.** Bay 212 on level 3 is EM-01's own example; the site and machine names are invented |\n| \"Stripe facing up\", \"the machine gives it back\" | **Examples** — plausible hardware behaviour, stated nowhere |"
+      },
+      {
+        "title": "Gaps — what the upstream does not say",
+        "body": "Recorded, not invented. The first four are things this surface renders that the domain has not\nnamed; the rest are decisions a human owes before build.\n\n| # | Gap | Upstream |\n|---|---|---|\n| G-1 | **No `docs/api/` and no PRD exist.** Screens bind to domain commands and events instead, so there is no RFC 9457 error catalogue to diff the error states against — the error list here is derived from the domain's *missing* rejection paths, which is weaker | absence |\n| G-2 | **A declined payment has no event anywhere in the model** — \"no rejection event exists for a declined payment\" | F3, `ParkingVisit.md` §5 |\n| G-3 | Every cap, the truck rate and the difference amount are examples | no source |\n| G-4 | Nobody said how a terminal tells \"system unreachable\" from \"system says no\", or which way to fail on a slow answer. The design fails toward telling the truth and taking no money | `terminal-operations/README.md` |\n| G-5 | Coins are taken, but change, overpayment and exact-change behaviour are unstated — and **no refund concept exists in the language at all**. Nothing on screen promises change | H9 + `ubiquitous-language.md` |\n| G-6 | The intercom is placed at the exit by the sources; this design puts HELP on the payment machine because three error states have no other way out | `business-model.md` |\n| G-7 | A mismatch charges the higher rate and **there is no dispute path anywhere in the language** — the screen can only offer HELP | `vehicle-identification/README.md` |\n| G-8 | A failed stripe write has no stated failure mode, so *Paid* declares no error state rather than inventing one | `terminal-operations/README.md` critique 2 |\n| G-9 | The deadline this screen promises is enforced by the *exit* machine, and **offline it is not enforced at all** — the stripe carries no payment time | H10, EM-21 |\n| G-10 | How \"the difference\" is priced is unstated: from `paidAt`, or from entry with the first payment deducted, and does the cap apply again? The €2,00 drawn assumes the first reading | D-3 |\n| G-11 | Nobody said whether a **fresh** window starts after paying the difference. **The design starts one** — the alternative is a driver refused twice for the same walk. This is a design decision standing in for a business answer and it is the loudest thing here | flow 3.5 |\n| G-12 | H12 has no answer, so the machine **asks the driver** which class to pay the cap for. A driver will choose the cheapest; the leakage is the spread between the cheapest and dearest cap. The UI cannot fix this — only a rule can | H12 |\n| G-13 | No printed receipt is drawn: nobody stated one, though in the first market a VAT receipt is the kind of thing a driver expects | absence |\n| G-14 | No cancel control on *Amount to pay* — no source says how a driver gets a captive card back without paying | absence |\n| G-15 | No brand assets exist: no logo, no colours, no typeface, no name treatment. The wordmark drawn is a plain setting of the operator's name | absence |\n| G-16 | No language requirement is stated anywhere | absence |\n\n**And the one under all of them.** `PayTicket`, `PayDifference` and `PresentCardAtExit` carry only\nthe stripe — `assignedSpot` and `paidFlag` — and **nothing identifies the visit** (H13 / F7: \"a\nrepository cannot load this root from what its own commands carry\"). Every screen showing an entry\ntime, a duration or an amount assumes that is resolved. If H13 resolves any other way, *Amount to\npay* cannot be drawn at all."
+      },
+      {
+        "title": "Where the user's model and the domain's model disagree",
+        "body": "Three findings for a human, not papered over:\n\n1. **The domain has one `ExitRefused` event; the driver has two completely different days.**\n   Finding 3.1 records that a driver who *has* paid is currently shown NOT PAID. *Pay the\n   difference* therefore opens with \"You paid €4,00 at 11:07\" and never shows those words — but\n   that is this design contradicting a sign the business already installed, and D-2 is the question\n   that settles it.\n2. **The model treats the lost ticket as a charge; the driver treats it as a rescue.** The events\n   `LostTicketCharged` and `ReplacementCardIssued` carry a site and a class and no visit, because\n   there is nothing to look up. The screens have to ask a stranger to classify their own vehicle\n   before they can leave, and that is a leakage decision wearing a UI.\n3. **The domain's paid state is durable; the driver's is a countdown.** In the model `paid` is not\n   a timer state — `PaymentWindow{paidAt, expiresAt}` is evaluated when the exit asks. On this\n   surface the window is the loudest object on the screen. Both are correct; they are two models of\n   one fact, which is the point."
+      },
+      {
+        "title": "Quality floor (present, not announced)",
+        "body": "No screen text under 24px; the primary reading register 27–42px; the amount and the deadline\n62–72px. Nothing tappable under 60px; the primary action is 100px. Focus is a yellow bar with an\nink keyline, drawn on the *Lost ticket, vehicle class* frame — the machine has no stated keyboard,\nso this covers an accessibility keypad if one exists and costs nothing if it does not. No\nanimation, no hover, no colour-only signal: every state carries a word and a shape as well as a\ncolour, which is also why there is no `prefers-reduced-motion` block — there is no motion to\nreduce.\n\n**Dark mode is deliberately out of scope**, and `color.dark` in `tokens.json` is empty on purpose:\nthis is fixed hardware in a lit garage, read under glare, where the light surface is the\naccessibility decision (candidate B is the dark version and was rejected on exactly that)."
+      },
+      {
+        "title": "Pre-flight",
+        "body": "Both gates at exit 0. Blockers all pass, with two stated honestly rather than ticked quietly:\n\n- **\"Open the prototype and read it cold.\"** No browser was available in this environment. The\n  frames were read as source, screen by screen, against the tells list — which is weaker than\n  looking, and is the one blocker a reviewer should re-run first by opening the file.\n- **\"Every RFC 9457 problem type of a screen's bound operations has an error entry.\"** There is no\n  `docs/api/` and therefore no error catalogue to diff against (G-1). The error states were derived\n  from the domain's own *missing* rejection paths (F3) instead, which is a weaker source and is\n  recorded as such.\n\nAdvisories: all tick except one worth naming for the reviewer — **the seven screens share a\nchassis** (top bar, band, rows, amount, action, fascia). On most surfaces that would be the \"no\nscreen earned its shape\" tell; on one physical machine a driver uses for ninety seconds it is the\npoint, and the shapes that matter do differ (an almost-empty invitation, an amount-led decision, a\ndeadline-led confirmation, a four-option list). A reviewer who disagrees should say so — it is a\njudgement, not an oversight."
+      },
+      {
+        "title": "Out of scope",
+        "body": "Entrance terminal (`DeclareVehicleDetails`), exit terminal (`PresentCardAtExit`), the FULL and NOT\nPAID signs, the control-room screen, and every operator surface (tariff editor, reconciliation\nview, exceptions list, occupancy report). Lots are out of scope too: the payment flow here is the\ngarage one, and `EM-10` warns explicitly against porting the garage slice to a lot."
+      }
+    ]
+  },
+  "tokens": {
+    "meta": {
+      "project": "euro-parking-payment-kiosk",
+      "designRead": {
+        "pageKind": "form-flow — a fixed portrait self-service payment terminal, one decision per screen",
+        "audience": "every driver at a Euro Parking site: any ability, any language, usually hurried, usually with a queue behind them, reading at arm's length in garage glare (BRIEF.md audience line; business-model.md driver story map, operator-reported and never observed — Q8/H19)",
+        "job": "pay what this stay owes and get the card back in time to leave inside the fifteen-minute window",
+        "vibe": "transport signage: flat bands, one face at four weights, nothing decorative, the deadline louder than the brand",
+        "systemFamily": "named approximation of GOV.UK Design System (govuk-frontend) retuned to kiosk scale — plain language, one accent, ink-on-paper, focus made of a yellow bar and an ink keyline. Recorded as ADR-UI-001 in design-brief.md",
+        "signature": "the black-on-signage-yellow WINDOW band that carries 'Leave by 11:22 · 14:32 left' — the one domain invariant (I1, ParkingVisit.md §3) a driver is judged by and today only finds out about at a closed barrier"
+      },
+      "dials": {
+        "variance": 2,
+        "motion": 1,
+        "density": 2,
+        "reason": "variance 2 — the quiet constraints win (design-read.md signal 6): a public machine every driver must succeed at, in glare, at arm's length, with a queue; the audience picks the aesthetic and this audience picks convention. The only place boldness is spent is the yellow deadline band. motion 1 — a kiosk has no hover (prototype-craft.md), nothing may gate on a transition while someone waits behind you, the terminal must boot and run with the network down (TerminalOperations.md, partition tolerance), and the one thing that changes over time — the countdown — is information, not animation. density 2 — one question per screen: 67 minutes of stay, one amount, one action; the surface floor is 24px body and this design runs 28px because 'any ability' plus glare is more than the floor asks (prototype-craft.md § Surface floors)."
+      }
+    },
+    "color": {
+      "roles": {
+        "background": "#F2F1EC",
+        "surface": "#FBFAF7",
+        "foreground": "#16181A",
+        "muted": "#5A5F63",
+        "border": "#C9C6BC",
+        "primary": "#0B4A8F",
+        "onPrimary": "#FFFFFF",
+        "primarySoft": "#E3ECF6",
+        "window": "#FFD24A",
+        "onWindow": "#16181A",
+        "paid": "#10693A",
+        "onPaid": "#FFFFFF",
+        "paidSoft": "#E2F0E6",
+        "declined": "#A02015",
+        "onDeclined": "#FFFFFF",
+        "declinedSoft": "#F7E3E1",
+        "warning": "#8A5A00",
+        "warningSoft": "#F6E7C6",
+        "fascia": "#2A2D30",
+        "onFascia": "#F2F1EC",
+        "slot": "#0B0D0E"
+      },
+      "dark": {}
+    },
+    "type": {
+      "display": "\"DIN Next\", \"DIN Pro\", \"Frutiger\", \"Helvetica Neue\", Helvetica, Arial, sans-serif",
+      "body": "\"DIN Next\", \"DIN Pro\", \"Frutiger\", \"Helvetica Neue\", Helvetica, Arial, sans-serif",
+      "scale": "1.333 perfect fourth, anchored at 28px body — 28 / 37 / 50 / 66 / 88; amounts and the countdown sit at 66 and 88"
+    },
+    "spacing": {
+      "unit": "8px",
+      "scale": [
+        1,
+        2,
+        3,
+        4,
+        6,
+        8,
+        12
+      ]
+    },
+    "iconography": {
+      "family": "none — text and drawn glyphs only (↓ → ✓ €); a terminal that must keep working with the network down ships no icon font, and every hardware target is labelled in words instead"
+    },
+    "contrastPairs": [
+      {
+        "fg": "foreground",
+        "bg": "background",
+        "level": "body"
+      },
+      {
+        "fg": "foreground",
+        "bg": "surface",
+        "level": "body"
+      },
+      {
+        "fg": "muted",
+        "bg": "background",
+        "level": "body"
+      },
+      {
+        "fg": "muted",
+        "bg": "surface",
+        "level": "body"
+      },
+      {
+        "fg": "onPrimary",
+        "bg": "primary",
+        "level": "body"
+      },
+      {
+        "fg": "primary",
+        "bg": "background",
+        "level": "body"
+      },
+      {
+        "fg": "foreground",
+        "bg": "primarySoft",
+        "level": "body"
+      },
+      {
+        "fg": "onWindow",
+        "bg": "window",
+        "level": "body"
+      },
+      {
+        "fg": "onPaid",
+        "bg": "paid",
+        "level": "body"
+      },
+      {
+        "fg": "paid",
+        "bg": "paidSoft",
+        "level": "body"
+      },
+      {
+        "fg": "onDeclined",
+        "bg": "declined",
+        "level": "body"
+      },
+      {
+        "fg": "declined",
+        "bg": "declinedSoft",
+        "level": "body"
+      },
+      {
+        "fg": "warning",
+        "bg": "warningSoft",
+        "level": "body"
+      },
+      {
+        "fg": "foreground",
+        "bg": "paidSoft",
+        "level": "body"
+      },
+      {
+        "fg": "foreground",
+        "bg": "declinedSoft",
+        "level": "body"
+      },
+      {
+        "fg": "foreground",
+        "bg": "warningSoft",
+        "level": "body"
+      },
+      {
+        "fg": "onFascia",
+        "bg": "fascia",
+        "level": "body"
+      },
+      {
+        "fg": "window",
+        "bg": "fascia",
+        "level": "body"
+      }
+    ],
+    "contrast": [
+      {
+        "fg": "foreground",
+        "bg": "background",
+        "level": "body",
+        "fgHex": "#16181A",
+        "bgHex": "#F2F1EC",
+        "ratio": 15.74,
+        "min": 4.5,
+        "pass": true
+      },
+      {
+        "fg": "foreground",
+        "bg": "surface",
+        "level": "body",
+        "fgHex": "#16181A",
+        "bgHex": "#FBFAF7",
+        "ratio": 17.05,
+        "min": 4.5,
+        "pass": true
+      },
+      {
+        "fg": "muted",
+        "bg": "background",
+        "level": "body",
+        "fgHex": "#5A5F63",
+        "bgHex": "#F2F1EC",
+        "ratio": 5.71,
+        "min": 4.5,
+        "pass": true
+      },
+      {
+        "fg": "muted",
+        "bg": "surface",
+        "level": "body",
+        "fgHex": "#5A5F63",
+        "bgHex": "#FBFAF7",
+        "ratio": 6.19,
+        "min": 4.5,
+        "pass": true
+      },
+      {
+        "fg": "onPrimary",
+        "bg": "primary",
+        "level": "body",
+        "fgHex": "#FFFFFF",
+        "bgHex": "#0B4A8F",
+        "ratio": 8.79,
+        "min": 4.5,
+        "pass": true
+      },
+      {
+        "fg": "primary",
+        "bg": "background",
+        "level": "body",
+        "fgHex": "#0B4A8F",
+        "bgHex": "#F2F1EC",
+        "ratio": 7.77,
+        "min": 4.5,
+        "pass": true
+      },
+      {
+        "fg": "foreground",
+        "bg": "primarySoft",
+        "level": "body",
+        "fgHex": "#16181A",
+        "bgHex": "#E3ECF6",
+        "ratio": 14.92,
+        "min": 4.5,
+        "pass": true
+      },
+      {
+        "fg": "onWindow",
+        "bg": "window",
+        "level": "body",
+        "fgHex": "#16181A",
+        "bgHex": "#FFD24A",
+        "ratio": 12.35,
+        "min": 4.5,
+        "pass": true
+      },
+      {
+        "fg": "onPaid",
+        "bg": "paid",
+        "level": "body",
+        "fgHex": "#FFFFFF",
+        "bgHex": "#10693A",
+        "ratio": 6.77,
+        "min": 4.5,
+        "pass": true
+      },
+      {
+        "fg": "paid",
+        "bg": "paidSoft",
+        "level": "body",
+        "fgHex": "#10693A",
+        "bgHex": "#E2F0E6",
+        "ratio": 5.75,
+        "min": 4.5,
+        "pass": true
+      },
+      {
+        "fg": "onDeclined",
+        "bg": "declined",
+        "level": "body",
+        "fgHex": "#FFFFFF",
+        "bgHex": "#A02015",
+        "ratio": 7.74,
+        "min": 4.5,
+        "pass": true
+      },
+      {
+        "fg": "declined",
+        "bg": "declinedSoft",
+        "level": "body",
+        "fgHex": "#A02015",
+        "bgHex": "#F7E3E1",
+        "ratio": 6.28,
+        "min": 4.5,
+        "pass": true
+      },
+      {
+        "fg": "warning",
+        "bg": "warningSoft",
+        "level": "body",
+        "fgHex": "#8A5A00",
+        "bgHex": "#F6E7C6",
+        "ratio": 4.84,
+        "min": 4.5,
+        "pass": true
+      },
+      {
+        "fg": "foreground",
+        "bg": "paidSoft",
+        "level": "body",
+        "fgHex": "#16181A",
+        "bgHex": "#E2F0E6",
+        "ratio": 15.12,
+        "min": 4.5,
+        "pass": true
+      },
+      {
+        "fg": "foreground",
+        "bg": "declinedSoft",
+        "level": "body",
+        "fgHex": "#16181A",
+        "bgHex": "#F7E3E1",
+        "ratio": 14.44,
+        "min": 4.5,
+        "pass": true
+      },
+      {
+        "fg": "foreground",
+        "bg": "warningSoft",
+        "level": "body",
+        "fgHex": "#16181A",
+        "bgHex": "#F6E7C6",
+        "ratio": 14.55,
+        "min": 4.5,
+        "pass": true
+      },
+      {
+        "fg": "onFascia",
+        "bg": "fascia",
+        "level": "body",
+        "fgHex": "#F2F1EC",
+        "bgHex": "#2A2D30",
+        "ratio": 12.24,
+        "min": 4.5,
+        "pass": true
+      },
+      {
+        "fg": "window",
+        "bg": "fascia",
+        "level": "body",
+        "fgHex": "#FFD24A",
+        "bgHex": "#2A2D30",
+        "ratio": 9.61,
+        "min": 4.5,
+        "pass": true
+      }
+    ]
+  },
+  "prototype": {
+    "path": "docs/ui/prototype.html",
+    "bytes": 39739
+  },
+  "screens": [
+    {
+      "context": "terminal-operations-payment",
+      "mermaid": "flowchart TD\n  I[\"Insert your card\"] -->|card read| R{\"what does the visit say?\"}\n  I -->|stripe unreadable| IE[\"error: we cannot read this card\"]\n  IE -->|help| CR([\"control room, by intercom\"])\n  IE -->|try again| I\n  R -->|not paid| A[\"Amount to pay\"]\n  R -->|paid, window expired| D[\"Pay the difference\"]\n  R -->|paid, window still open| P2[\"Paid, take your card<br/>(re-shows the window)\"]\n  A -->|higher rate: class mismatch| A\n  A -->|Pay| T[\"Taking payment\"]\n  A -->|no answer from the system| AE[\"error: we cannot price this stay\"]\n  D -->|Pay| T\n  T -->|captured| P[\"Paid, take your card\"]\n  T -->|declined| TE[\"error: your card was not charged\"]\n  TE -->|another card or coins| T\n  LB([\"LOST TICKET — physical button,<br/>pressed on any screen\"]) --> LC[\"Lost ticket, vehicle class\"]\n  LC --> LD[\"Lost ticket, the daily cap\"]\n  LD -->|Pay| T\n  P -->|\"card returned, ≤15 min\"| X([\"exit terminal — out of scope\"])\n  X -->|refused, window expired| I",
+      "edges": [
+        {
+          "from": "I",
+          "to": "R",
+          "label": "card read"
+        },
+        {
+          "from": "I",
+          "to": "IE",
+          "label": "stripe unreadable"
+        },
+        {
+          "from": "IE",
+          "to": "CR",
+          "label": "help"
+        },
+        {
+          "from": "IE",
+          "to": "I",
+          "label": "try again"
+        },
+        {
+          "from": "R",
+          "to": "A",
+          "label": "not paid"
+        },
+        {
+          "from": "R",
+          "to": "D",
+          "label": "paid, window expired"
+        },
+        {
+          "from": "R",
+          "to": "P2",
+          "label": "paid, window still open"
+        },
+        {
+          "from": "A",
+          "to": "A",
+          "label": "higher rate: class mismatch"
+        },
+        {
+          "from": "A",
+          "to": "T",
+          "label": "Pay"
+        },
+        {
+          "from": "A",
+          "to": "AE",
+          "label": "no answer from the system"
+        },
+        {
+          "from": "D",
+          "to": "T",
+          "label": "Pay"
+        },
+        {
+          "from": "T",
+          "to": "P",
+          "label": "captured"
+        },
+        {
+          "from": "T",
+          "to": "TE",
+          "label": "declined"
+        },
+        {
+          "from": "TE",
+          "to": "T",
+          "label": "another card or coins"
+        },
+        {
+          "from": "LC",
+          "to": "LD",
+          "label": ""
+        },
+        {
+          "from": "LD",
+          "to": "T",
+          "label": "Pay"
+        },
+        {
+          "from": "P",
+          "to": "X",
+          "label": "\"card returned, ≤15 min\""
+        },
+        {
+          "from": "X",
+          "to": "I",
+          "label": "refused, window expired"
+        }
+      ],
+      "screens": [
+        {
+          "name": "Flow",
+          "fields": {},
+          "raw": "```mermaid\nflowchart TD\n  I[\"Insert your card\"] -->|card read| R{\"what does the visit say?\"}\n  I -->|stripe unreadable| IE[\"error: we cannot read this card\"]\n  IE -->|help| CR([\"control room, by intercom\"])\n  IE -->|try again| I\n  R -->|not paid| A[\"Amount to pay\"]\n  R -->|paid, window expired| D[\"Pay the difference\"]\n  R -->|paid, window still open| P2[\"Paid, take your card<br/>(re-shows the window)\"]\n  A -->|higher rate: class mismatch| A\n  A -->|Pay| T[\"Taking payment\"]\n  A -->|no answer from the system| AE[\"error: we cannot price this stay\"]\n  D -->|Pay| T\n  T -->|captured| P[\"Paid, take your card\"]\n  T -->|declined| TE[\"error: your card was not charged\"]\n  TE -->|another card or coins| T\n  LB([\"LOST TICKET — physical button,<br/>pressed on any screen\"]) --> LC[\"Lost ticket, vehicle class\"]\n  LC --> LD[\"Lost ticket, the daily cap\"]\n  LD -->|Pay| T\n  P -->|\"card returned, ≤15 min\"| X([\"exit terminal — out of scope\"])\n  X -->|refused, window expired| I\n```\n\n**Where this flow and the domain's flow disagree — a finding, not a paper-over.**\n`DOMAIN-FLOW-0002` has the driver arrive at this machine already identified. They are not:\n`PayTicket` carries only the stripe (`assignedSpot`, `paidFlag`) and **nothing identifies the\nvisit** (H13 / F7 — \"a repository cannot load this root from what its own commands carry\"). Every\nscreen below that shows an entry time, a duration or an amount assumes that blocker is resolved. If\nH13 resolves to \"the stripe carries a visit reference\", these screens stand unchanged. If it\nresolves any other way, *Amount to pay* cannot be drawn at all, and this inventory is the artifact\nthat will need redrawing first."
+        },
+        {
+          "name": "Hardware, present on every frame",
+          "fields": {
+            "affordance": "Source | Note",
+            "---": "---|---",
+            "card slot": "the card is inserted here, written here (`PaidStatusWrittenToStripe`) and returned here; the *exit* keeps it (EXPERT) | every instruction that points at it uses a ↓ aimed at the slot's real position",
+            "coin slot": "reconciliation matches \"machines vs bank vs **coin box**\", per site, every morning (`business-model.md`; `revenue-reconciliation/README.md`) — so these machines take coins | **Gap G-5**: change, overpayment and exact-change behaviour are unstated, and no refund concept exists in the language. Nothing on screen promises change.",
+            "card reader": "payment is captured at the terminal (`payment-capture/README.md`) | the acquirer link is H9 — unknown to everyone in the room"
+          },
+          "raw": "Drawn as a dark fascia band at the bottom of every screen, because these are things the hands meet\nand they do not come and go with the software (`prototype-craft.md` § Hardware and platform\naffordances). Left to right: **card slot**, **coin slot**, **card reader**, **LOST TICKET**,\n**HELP**.\n\n| Affordance | Source | Note |\n|---|---|---|\n| Card slot | the card is inserted here, written here (`PaidStatusWrittenToStripe`) and returned here; the *exit* keeps it (EXPERT) | every instruction that points at it uses a ↓ aimed at the slot's real position |\n| Coin slot | reconciliation matches \"machines vs bank vs **coin box**\", per site, every morning (`business-model.md`; `revenue-reconciliation/README.md`) — so these machines take coins | **Gap G-5**: change, overpayment and exact-change behaviour are unstated, and no refund concept exists in the language. Nothing on screen promises change. |\n| Card reader | payment is captured at the terminal (`payment-capture/README.md`) | the acquirer link is H9 — unknown to everyone in the room |\n| **LOST TICKET** — a physical button | \"a **button on the payment machine**… no attendant\" (EXPERT, `timeline.md` 30; `parking-visit/model.yaml`) | **It is never a button in the UI.** A driver with no card cannot start a flow from a screen that asks them to insert one. |\n| **HELP** — intercom to the control room | \"Control-room intercom for remote let-out exists at every site, operator-staffed\" (`business-model.md`) | **Gap G-6, and the weakest thing in this design**: the sources put the intercom at the *exit* (\"machine eats the card → intercom\"). Three error states here have no other way forward. If the payment machine has no intercom, that copy is wrong on all three. |\n\nNo hover state exists anywhere on this surface, and no control is smaller than 88 × 88 px\n(`prototype-craft.md` floor: ≥56, primary ≥80)."
+        },
+        {
+          "name": "Insert your card",
+          "fields": {
+            "primary action": "insert the parking card in the slot",
+            "empty state": "n/a — this screen *is* the resting state of the machine; there is no emptier one",
+            "loading state": "the card is in and being read — \"Reading your card\" with the stripe fields it",
+            "error states": "(1) the stripe cannot be read — a real rejection path the model does not have a",
+            "api bindings": "none — there is no `docs/api/` in this project (**Gap G-1**). The domain",
+            "copy notes": "the tariff line (\"€1,00 per started 15 minutes · first 15 minutes free · daily cap"
+          },
+          "raw": "- **Primary action**: insert the parking card in the slot\n- **Empty state**: n/a — this screen *is* the resting state of the machine; there is no emptier one\n- **Loading state**: the card is in and being read — \"Reading your card\" with the stripe fields it\n  is looking for held in place, so nothing shifts when the amount arrives\n- **Error states**: (1) the stripe cannot be read — a real rejection path the model does not have a\n  name for (F3: \"a card the exit cannot read\", EM-30), so the copy is the design's and the *event*\n  is a gap. Two ways forward: insert it again the other way round, or HELP.\n- **API bindings**: none — there is no `docs/api/` in this project (**Gap G-1**). The domain\n  binding is the hardware read that precedes `PayTicket`; `DOMAIN-FLOW-0002` message 1.\n- **Copy notes**: the tariff line (\"€1,00 per started 15 minutes · first 15 minutes free · daily cap\n  €25,00\") states the priced rule verbatim from I2 / `tariff/README.md`. The rate €1,00 is the\n  example EM-14 itself uses; the cap is an invented example (**Gap G-3**). Language row DE · EN · NL\n  follows the stated market sequence Germany → Austria → Netherlands (`business-model.md`)."
+        },
+        {
+          "name": "Amount to pay",
+          "fields": {
+            "primary action": "pay the amount shown",
+            "empty state": "n/a — a card was read, so there is always a stay and always an amount",
+            "loading state": "\"Working out what you owe\" — the amount's line box is held at final size so the",
+            "error states": "the system cannot be reached, so the stay cannot be priced. This is the state",
+            "variants": "(drawn, hand-added frames, not separate screens — same question, same action, one",
+            "api bindings": "`PayTicket` (command, `parking-visit`), `PriceOfStay?` (query → Tariff,",
+            "copy notes": "numbers are EM-14's own worked example — entry 10:00, priced 11:07, 67 minutes ="
+          },
+          "raw": "- **Primary action**: pay the amount shown\n- **Empty state**: n/a — a card was read, so there is always a stay and always an amount\n- **Loading state**: \"Working out what you owe\" — the amount's line box is held at final size so the\n  number lands without the Pay button jumping under a thumb already moving toward it\n- **Error states**: the system cannot be reached, so the stay cannot be priced. This is the state\n  `terminal-operations/README.md` says nobody has specified: *\"the terminal must tell 'system\n  unreachable' from 'system says no'… nobody said which way to fail\"* (**Gap G-4**). The design\n  fails **toward telling the truth and not taking money**, and gives two ways forward: another\n  payment machine, or HELP. It does **not** say \"try again\" — there is nothing the driver can do to\n  fix a network.\n- **Variants** (drawn, hand-added frames, not separate screens — same question, same action, one\n  inserted explanation band): `Amount to pay--higher rate` — the registered class disagrees with the\n  class declared at the entrance, so the higher rate is charged and the driver is told so\n  (BRIEF; EXPERT rule in `vehicle-identification/README.md`; EM-11).\n- **API bindings**: `PayTicket` (command, `parking-visit`), `PriceOfStay?` (query → Tariff,\n  `DOMAIN-FLOW-0002` message 3), `VehicleClassMismatchDetected` (event, VehicleIdentification).\n- **Copy notes**: numbers are EM-14's own worked example — entry 10:00, priced 11:07, 67 minutes =\n  5 started fifteen-minute blocks, the first free, €4,00. \"Started\" is the domain's word and the\n  screen keeps it: *5 × 15 min started*. The mismatch variant charges the truck/bus rate (EM-11's\n  example pair, car declared / truck registered); its rate €2,50 is an example (**Gap G-3**). The\n  mismatch band tells the driver what happened and offers HELP, and **there is no dispute path\n  anywhere in the language** — `vehicle-identification/README.md` raises exactly this as an open\n  question (**Gap G-7**)."
+        },
+        {
+          "name": "Taking payment",
+          "fields": {
+            "primary action": "an instruction, not a tap — follow the card reader, and do not remove the card",
+            "empty state": "n/a",
+            "loading state": "n/a — this screen *is* the loading state; giving it a second one would draw the",
+            "error states": "the payment was declined. This is the second of F3's five missing rejection",
+            "api bindings": "PaymentCapture — *the captured-payment fact has no name anywhere in the model*",
+            "copy notes": "the amount stays on screen through the whole attempt. A driver who looks away and"
+          },
+          "raw": "- **Primary action**: an instruction, not a tap — follow the card reader, and do not remove the card\n  from the slot. (`screens-and-states.md` explicitly allows a transient system-driven screen whose\n  one action is an instruction.)\n- **Empty state**: n/a\n- **Loading state**: n/a — this screen *is* the loading state; giving it a second one would draw the\n  same frame twice\n- **Error states**: the payment was declined. This is the second of F3's five missing rejection\n  paths — `parking-visit/aggregates/ParkingVisit.md` §5: *\"no rejection event exists for a declined\n  payment\"* (**Gap G-2**). The copy never blames the driver and never says why the bank refused,\n  because the terminal does not know: \"Your card was not charged.\" Two ways forward, both hardware:\n  another card, or coins.\n- **API bindings**: PaymentCapture — *the captured-payment fact has no name anywhere in the model*\n  (H9, flow finding 2.3). This screen renders an event the domain has not named yet.\n- **Copy notes**: the amount stays on screen through the whole attempt. A driver who looks away and\n  back must not have to wonder whether it went through."
+        },
+        {
+          "name": "Paid, take your card",
+          "fields": {
+            "primary action": "take the card from the slot",
+            "empty state": "n/a",
+            "loading state": "n/a — the payment is already captured when this screen appears",
+            "error states": "n/a — no source names a failed stripe write. `PaidStatusWrittenToStripe` is an",
+            "variants": "`Paid, take your card--replacement` — the same screen after a lost-ticket charge,",
+            "api bindings": "`TicketPaid {visitId, amount, paidAt}` and `PaidStatusWrittenToStripe`",
+            "copy notes": "this screen carries the **signature element** — the yellow band with the deadline"
+          },
+          "raw": "- **Primary action**: take the card from the slot\n- **Empty state**: n/a\n- **Loading state**: n/a — the payment is already captured when this screen appears\n- **Error states**: n/a — no source names a failed stripe write. `PaidStatusWrittenToStripe` is an\n  acknowledgement, and `terminal-operations/README.md` critique 2 calls it a hardware ack that no\n  invariant reads; there is no stated failure of it to design for (**Gap G-8**, recorded rather\n  than invented)\n- **Variants**: `Paid, take your card--replacement` — the same screen after a lost-ticket charge,\n  where the card being returned is a fresh one marked paid (\"a fresh card that says paid, and you\n  leave\", EXPERT / `timeline.md` 31)\n- **API bindings**: `TicketPaid {visitId, amount, paidAt}` and `PaidStatusWrittenToStripe`\n  (`DOMAIN-FLOW-0002` messages 5–6).\n- **Copy notes**: this screen carries the **signature element** — the yellow band with the deadline\n  as a clock time first (**Leave by 11:22**) and the count second (14:32 left). The clock time is\n  the one a driver can act on while walking; the countdown is what makes it urgent. I1 is the rule\n  the driver is judged by and today they meet it as a closed barrier and a \"standing complaint\"\n  (`DOMAIN-FLOW-0003`). Making it unmissable *before* it is broken is the whole point of the\n  element. **Gap G-9**: the exit machine, not this one, enforces the window, and offline it is not\n  enforced at all (H10, EM-21) — this screen promises a deadline the system does not uniformly keep."
+        },
+        {
+          "name": "Pay the difference",
+          "fields": {
+            "primary action": "pay the difference shown",
+            "empty state": "n/a — reached only with a card that is paid and out of window",
+            "loading state": "n/a — reuses *Amount to pay*'s pricing frame; the driver has already seen it",
+            "error states": "n/a — the payment errors on this path are the same ones drawn under",
+            "api bindings": "`PayDifference` (command), `PriceOfStay?` (query),",
+            "copy notes": "the screen has to explain a refusal that happened at a *different machine*, to"
+          },
+          "raw": "- **Primary action**: pay the difference shown\n- **Empty state**: n/a — reached only with a card that is paid and out of window\n- **Loading state**: n/a — reuses *Amount to pay*'s pricing frame; the driver has already seen it\n- **Error states**: n/a — the payment errors on this path are the same ones drawn under\n  *Taking payment*, which this screen hands off to\n- **API bindings**: `PayDifference` (command), `PriceOfStay?` (query),\n  `AdditionalPaymentCollected {visitId, amount, paidAt}` (`DOMAIN-FLOW-0003` messages 4–7).\n- **Copy notes**: the screen has to explain a refusal that happened at a *different machine*, to\n  someone who believes they already paid — so it opens with what it knows to be true (\"You paid\n  €4,00 at 11:07\") before it asks for more. It never says NOT PAID: `DOMAIN-FLOW-0003` finding 3.1\n  is that a driver who *has* paid is currently shown the unpaid sign, and D-2 records that nobody\n  ever said what the expired-window sign should read. **Gap G-10**: the amount rule itself is\n  unstated (D-3) — is the difference priced from `paidAt`, or from entry with the first payment\n  deducted, and does the daily cap apply again? The €2,00 drawn is an example computed the first\n  way. **Gap G-11**: nobody said whether a *fresh* window starts. The design starts one, because the\n  alternative is a driver who can be refused twice for the same walk; that is a design decision\n  standing in for a business answer, and it is the single loudest thing in this inventory needing\n  an expert."
+        },
+        {
+          "name": "Lost ticket, vehicle class",
+          "fields": {
+            "primary action": "choose the vehicle class being paid for",
+            "empty state": "n/a — the four classes are standing configuration, never absent",
+            "loading state": "n/a — the class list and the caps are held at the terminal; a tariff change",
+            "error states": "n/a — no input can fail; the driver picks one of four fixed targets",
+            "api bindings": "`DeclareLostTicket` (command) → `LostTicketCharged {siteId, vehicleClass,",
+            "copy notes": "**this screen exists because of H12 and it does not solve it.** With no card there"
+          },
+          "raw": "- **Primary action**: choose the vehicle class being paid for\n- **Empty state**: n/a — the four classes are standing configuration, never absent\n- **Loading state**: n/a — the class list and the caps are held at the terminal; a tariff change\n  reaches the machines \"the same evening\" (`tariff/README.md`), so this screen never waits\n- **Error states**: n/a — no input can fail; the driver picks one of four fixed targets\n- **API bindings**: `DeclareLostTicket` (command) → `LostTicketCharged {siteId, vehicleClass,\n  amount}`, `ReplacementCardIssued {siteId, paidFlag}` (EM-16).\n- **Copy notes**: **this screen exists because of H12 and it does not solve it.** With no card there\n  is no visit to look up, so \"the daily cap **for that vehicle class**\" has no source for *which*\n  class. Asking the driver is the only self-service answer available — there is no attendant, by the\n  expert's own description. The classes are INPUT §2's list minus the two entitlements (disabled and\n  family are properties of the *person*, not the vehicle, and are \"not in\" the class —\n  `ubiquitous-language.md`), so: motorcycle, car, electric car, truck/bus. **Gap G-12**: a driver\n  choosing their own class will choose the cheapest, and the leakage is exactly the spread between\n  the cheapest and dearest cap. H16 also records that motorcycles were never discussed at all."
+        },
+        {
+          "name": "Lost ticket, the daily cap",
+          "fields": {
+            "primary action": "pay the daily cap for the chosen class",
+            "empty state": "n/a",
+            "loading state": "n/a — the cap is a held rate, not a computed stay",
+            "error states": "n/a — hands off to *Taking payment*, where the decline is drawn",
+            "api bindings": "as above; the payment leg is PaymentCapture (H9, unnamed).",
+            "copy notes": "no entry time, no duration and no \"started 15 minutes\" appear here, because none"
+          },
+          "raw": "- **Primary action**: pay the daily cap for the chosen class\n- **Empty state**: n/a\n- **Loading state**: n/a — the cap is a held rate, not a computed stay\n- **Error states**: n/a — hands off to *Taking payment*, where the decline is drawn\n- **API bindings**: as above; the payment leg is PaymentCapture (H9, unnamed).\n- **Copy notes**: no entry time, no duration and no \"started 15 minutes\" appear here, because none\n  of them is known — the flat charge *is* the daily cap (EXPERT). The screen says which class it is\n  charging and offers a way back to change it, because the previous screen asked a driver to\n  self-assess and they can be wrong. €25,00 for a car is an example (**Gap G-3**)."
+        },
+        {
+          "name": "What is deliberately not here",
+          "fields": {
+            "entrance and exit terminal screens.": "Different machines, different commands, out of scope.",
+            "a receipt.": "The fiscal record is the *operator's* ten-year obligation and explicitly \"not the",
+            "a \"pay by app / qr\" path.": "No source mentions one."
+          },
+          "raw": "- **Entrance and exit terminal screens.** Different machines, different commands, out of scope.\n- **A receipt.** The fiscal record is the *operator's* ten-year obligation and explicitly \"not the\n  plate\"; nobody stated a printed VAT receipt for a driver, which in the first market (Germany) is\n  the kind of thing a driver expects. Recorded as **Gap G-13** rather than drawn.\n- **Anything with the words reservation, booking, subscription, season ticket, refund, cancellation\n  or customer account.** `ubiquitous-language.md` § Words nobody used forbids introducing them\n  downstream, and a \"Refund\" control on a decline screen would have been the natural invention.\n- **A \"pay by app / QR\" path.** No source mentions one.\n- **A cancel control on *Amount to pay*.** A driver whose card is in the slot and who wants it back\n  without paying has no stated path: nothing in the sources says whether the machine times out and\n  returns the card, or whether a physical cancel button exists on the fascia. Rather than invent a\n  second piece of hardware or a control that might do nothing, this is **Gap G-14** — and it is the\n  one place where the frames are quieter than a real machine probably needs to be. The lost-ticket\n  screens *do* carry \"Go back\", because there the driver has pressed a button by mistake and no\n  card is captive."
+        }
+      ]
+    }
+  ],
+  "audit": null,
+  "candidates": [
+    {
+      "name": "consumer-fintech",
+      "tokens": {
+        "meta": {
+          "project": "euro-parking-payment-kiosk",
+          "status": "REJECTED candidate C — this is deliberately the generic default derived in design-brief.md § Rejected defaults, written out in full so the diff against the chosen direction is a file diff and not an assertion.",
+          "designRead": {
+            "pageKind": "form-flow — a fixed portrait self-service payment terminal",
+            "audience": "every driver at a Euro Parking site: any ability, any language, hurried, in a queue, at arm's length",
+            "job": "pay what this stay owes and get the card back in time to leave inside the fifteen-minute window",
+            "vibe": "friendly consumer checkout — rounded cards, soft shadow, one confident blue",
+            "systemFamily": "shadcn/Radix defaults with a Material-ish elevation model"
+          },
+          "dials": {
+            "variance": 3,
+            "motion": 4,
+            "density": 5,
+            "reason": "This is what any model produces for 'design a payment screen' with no thought about the hardware — recorded as the era's default so the chosen direction can be diffed against it. Rejected: the card-inside-a-card wastes the vertical band a 480px portrait screen needs for the amount, the elevation model disappears under glare, motion 4 gates a queue on transitions, and density 5 puts a receipt-style line-item table in front of somebody standing up."
+          }
+        },
+        "color": {
+          "roles": {
+            "background": "#FFFFFF",
+            "surface": "#F8FAFC",
+            "foreground": "#0F172A",
+            "muted": "#64748B",
+            "border": "#E2E8F0",
+            "primary": "#2563EB",
+            "onPrimary": "#FFFFFF",
+            "primarySoft": "#EFF6FF",
+            "window": "#F59E0B",
+            "onWindow": "#0F172A",
+            "paid": "#15803D",
+            "onPaid": "#FFFFFF",
+            "paidSoft": "#F0FDF4",
+            "declined": "#B91C1C",
+            "onDeclined": "#FFFFFF",
+            "declinedSoft": "#FEF2F2",
+            "warning": "#92400E",
+            "warningSoft": "#FEF3C7",
+            "fascia": "#1E293B",
+            "onFascia": "#F8FAFC",
+            "slot": "#020617"
+          },
+          "dark": {}
+        },
+        "type": {
+          "display": "Inter, \"SF Pro Display\", system-ui, sans-serif",
+          "body": "Inter, system-ui, sans-serif",
+          "scale": "1.25 modular, anchored at 16px body"
+        },
+        "spacing": {
+          "unit": "4px",
+          "scale": [
+            1,
+            2,
+            3,
+            4,
+            6,
+            8,
+            12
+          ]
+        },
+        "iconography": {
+          "family": "Lucide"
+        },
+        "contrastPairs": [
+          {
+            "fg": "foreground",
+            "bg": "background",
+            "level": "body"
+          },
+          {
+            "fg": "foreground",
+            "bg": "surface",
+            "level": "body"
+          },
+          {
+            "fg": "muted",
+            "bg": "background",
+            "level": "body"
+          },
+          {
+            "fg": "onPrimary",
+            "bg": "primary",
+            "level": "body"
+          },
+          {
+            "fg": "onWindow",
+            "bg": "window",
+            "level": "body"
+          },
+          {
+            "fg": "onPaid",
+            "bg": "paid",
+            "level": "body"
+          },
+          {
+            "fg": "onDeclined",
+            "bg": "declined",
+            "level": "body"
+          },
+          {
+            "fg": "warning",
+            "bg": "warningSoft",
+            "level": "body"
+          },
+          {
+            "fg": "onFascia",
+            "bg": "fascia",
+            "level": "body"
+          }
+        ]
+      }
+    },
+    {
+      "name": "night-terminal",
+      "tokens": {
+        "meta": {
+          "project": "euro-parking-payment-kiosk",
+          "status": "REJECTED candidate B — see docs/ui/design-brief.md § Rejected defaults. Kept as a complete token file so the rejection is auditable, not a sentence.",
+          "designRead": {
+            "pageKind": "form-flow — a fixed portrait self-service payment terminal",
+            "audience": "every driver at a Euro Parking site: any ability, any language, hurried, in a queue, at arm's length",
+            "job": "pay what this stay owes and get the card back in time to leave inside the fifteen-minute window",
+            "vibe": "dark control-room terminal, amber-on-charcoal, machine-like",
+            "systemFamily": "named approximation of a transit ticket machine's dark UI (Deutsche Bahn / NS ticketing lineage)"
+          },
+          "dials": {
+            "variance": 4,
+            "motion": 1,
+            "density": 2,
+            "reason": "Same read as the chosen direction; the only difference is polarity. Rejected on evidence, not taste: prototype-craft.md § Surface floors states light beats dark under glare for a public kiosk, and every Euro Parking payment machine described in the sources stands in a lit garage or outdoors on a lot. A dark screen in a bright garage reflects the room back at the driver."
+          }
+        },
+        "color": {
+          "roles": {
+            "background": "#15181C",
+            "surface": "#1F242A",
+            "foreground": "#EDEFF2",
+            "muted": "#A6ADB5",
+            "border": "#39414A",
+            "primary": "#FFB020",
+            "onPrimary": "#15181C",
+            "primarySoft": "#2A2318",
+            "window": "#FFD24A",
+            "onWindow": "#15181C",
+            "paid": "#4ED18A",
+            "onPaid": "#15181C",
+            "paidSoft": "#16241D",
+            "declined": "#FF8177",
+            "onDeclined": "#15181C",
+            "declinedSoft": "#2A1A18",
+            "warning": "#F0C36B",
+            "warningSoft": "#2A2418",
+            "fascia": "#0B0D0F",
+            "onFascia": "#EDEFF2",
+            "slot": "#000000"
+          },
+          "dark": {}
+        },
+        "type": {
+          "display": "\"DIN Next\", \"Frutiger\", \"Helvetica Neue\", Helvetica, Arial, sans-serif",
+          "body": "\"DIN Next\", \"Frutiger\", \"Helvetica Neue\", Helvetica, Arial, sans-serif",
+          "scale": "1.333 perfect fourth, anchored at 28px body"
+        },
+        "spacing": {
+          "unit": "8px",
+          "scale": [
+            1,
+            2,
+            3,
+            4,
+            6,
+            8,
+            12
+          ]
+        },
+        "iconography": {
+          "family": "none — text and drawn glyphs only (↓ → ✓ €)"
+        },
+        "contrastPairs": [
+          {
+            "fg": "foreground",
+            "bg": "background",
+            "level": "body"
+          },
+          {
+            "fg": "foreground",
+            "bg": "surface",
+            "level": "body"
+          },
+          {
+            "fg": "muted",
+            "bg": "background",
+            "level": "body"
+          },
+          {
+            "fg": "onPrimary",
+            "bg": "primary",
+            "level": "body"
+          },
+          {
+            "fg": "onWindow",
+            "bg": "window",
+            "level": "body"
+          },
+          {
+            "fg": "paid",
+            "bg": "background",
+            "level": "body"
+          },
+          {
+            "fg": "declined",
+            "bg": "background",
+            "level": "body"
+          },
+          {
+            "fg": "warning",
+            "bg": "warningSoft",
+            "level": "body"
+          },
+          {
+            "fg": "onFascia",
+            "bg": "fascia",
+            "level": "body"
+          }
+        ]
+      }
+    }
+  ],
+  "gaps": []
+}

@@ -35,12 +35,37 @@ be recalled rather than modelled.
 4. `docs/domain/parking-visit/README.md` and `.../aggregates/ParkingVisit.md` — a Bounded Context
    Canvas v5 and an Aggregate Design Canvas v1.1 filled from evidence.
 
+## The UI design that consumes this model
+
+`docs/ui/` is the payment-kiosk design the sibling **design-flow** plugin produced from this same
+domain model, with no PRD and no API design to lean on — the second model of the same product:
+ddd-flow models the domain, ui-designer models what the driver in front of the machine sees.
+
+Open `docs/ui/prototype.html` in a browser first. Fourteen frames, real copy and real amounts,
+the machine's physical fascia (card slot, coin slot, LOST TICKET, HELP) drawn on every frame
+because it is on every real machine, and the fifteen-minute exit window rendered as the one thing
+a driver cannot miss — the invariant `parking-visit/model.yaml` states and `DOMAIN-FLOW-0003`
+shows a driver meeting as a closed barrier.
+
+`docs/ui/design-brief.md` records what was decided and what could not be: sixteen gaps where this
+domain model does not reach far enough to design against, each cited to the file that falls
+silent. The two rejected token directions are kept whole under `.design-flow/preview/candidates/`
+rather than described, so the choice stays reviewable.
+
+Both deterministic gates pass on it:
+
+```bash
+node ../../plugins/design-flow/skills/ui-designer/scripts/check_tokens.mjs docs/ui/tokens.json
+node ../../plugins/design-flow/skills/ui-designer/scripts/check_prototype.mjs \
+  docs/ui/prototype.html docs/ui/tokens.json docs/ui/screens
+```
+
 Then put it on a screen, which is how it is meant to be reviewed:
 
 ```bash
 cd examples/euro-parking
-python3 ../../skills/view/scripts/ddd_view.py --root . --out .ddd-flow/preview/model.json
-node ../../skills/view/scripts/preview-server.cjs --dir .ddd-flow/preview
+python3 ../../plugins/ddd-flow/skills/view/scripts/ddd_view.py --root . --out .ddd-flow/preview/model.json
+node ../../plugins/ddd-flow/skills/view/scripts/preview-server.cjs --dir .ddd-flow/preview
 ```
 
 ## The parts worth studying are the refusals
@@ -58,7 +83,7 @@ A model that answers everything from a twelve-line brief is fabricating. What th
 
 ## Findings the deterministic checks produce on it
 
-`python3 ../../skills/design/scripts/ddd_check.py --root .` reports two high findings, and both are
+`python3 ../../plugins/ddd-flow/skills/design/scripts/ddd_check.py --root .` reports two high findings, and both are
 contradictions **between** files that reading them one at a time would not surface: a flow that
 needs eleven messages against a nine-message limit, and four contexts labelled `core` on a map whose
 own core domain chart reduces that to one.
