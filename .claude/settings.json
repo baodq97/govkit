@@ -1,5 +1,17 @@
 {
   "$schema": "https://json.schemastore.org/claude-code-settings.json",
+  "extraKnownMarketplaces": {
+    "govkit": {
+      "source": {
+        "source": "github",
+        "repo": "baodq97/govkit"
+      }
+    }
+  },
+  "enabledPlugins": {
+    "swe-flow@govkit": true,
+    "ddd-flow@govkit": true
+  },
   "hooks": {
     "SessionStart": [
       {

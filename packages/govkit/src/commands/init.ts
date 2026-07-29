@@ -1,6 +1,7 @@
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname, isAbsolute, relative, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
+import { parse as parseYaml } from "yaml";
 
 export interface InitResult {
   created: string[];
@@ -51,7 +52,24 @@ function withDocsRoot(schema: string, docsRoot: string): string {
   return schema.replace(anchor, `docs:\n  root: ${JSON.stringify(docsRoot)}`);
 }
 
-// The four INDEX stubs, rooted under docsRoot (default `"."` → `docs/*` as before). Uses POSIX
+// One INDEX stub per type declared in the scaffolded schema — DERIVED, never hardcoded, so a
+// type added to govkit.default.yml (domain, rel, …) scaffolds its dir automatically. A
+// hand-kept list here silently un-scaffolds every new type: the premise at the top of
+// govkit.yml ("doc dirs are CONFIG, not hardcoded in the CLI") has to hold for init too —
+// caught 2026-07-29 when domain/rel joined the default schema and init kept emitting four.
+function typeIndexStubs(prefix: string): Array<{ path: string; content: string }> {
+  const parsed = parseYaml(defaultSchema()) as {
+    docs?: { types?: Record<string, { dir?: string; idPrefix?: string }> };
+  };
+  return Object.entries(parsed?.docs?.types ?? {})
+    .filter(([, def]) => typeof def?.dir === "string" && def.dir.trim() !== "")
+    .map(([name, def]) => ({
+      path: `${prefix}${def.dir}/INDEX.md`,
+      content: indexStub(`${(def.idPrefix ?? name).toUpperCase()} Index`),
+    }));
+}
+
+// The scaffold entries, rooted under docsRoot (default `"."` → `docs/*` as before). Uses POSIX
 // separators in the relative path; runInit resolves them against `root` with the platform join.
 function scaffold(docsRoot: string): Array<{ path: string; content: string }> {
   const prefix = docsRoot === "." ? "" : `${docsRoot}/`;
@@ -66,10 +84,7 @@ function scaffold(docsRoot: string): Array<{ path: string; content: string }> {
       path: ".claude/hooks/session-freshness.mjs",
       content: bundledDefault("session-freshness.default.mjs"),
     },
-    { path: `${prefix}docs/product/INDEX.md`, content: indexStub("PRD Index") },
-    { path: `${prefix}docs/rfc/INDEX.md`, content: indexStub("RFC Index") },
-    { path: `${prefix}docs/adr/INDEX.md`, content: indexStub("ADR Index") },
-    { path: `${prefix}docs/issues/INDEX.md`, content: indexStub("User Story (US) Index") },
+    ...typeIndexStubs(prefix),
   ];
 }
 

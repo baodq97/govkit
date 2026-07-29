@@ -6,7 +6,8 @@
 ## Doc chain
 
 `PRD → RFC → ADR → Issue (US) → Code`. Artifacts live under the dirs declared in `govkit.yml`
-(`docs/product`, `docs/rfc`, `docs/adr`, `docs/issues`). Each carries front-matter
+(`docs/product`, `docs/rfc`, `docs/adr`, `docs/issues`, plus `docs/domain` for the ddd-flow
+design tree and `docs/releases` for release records). Each carries front-matter
 (`id, title, status, owner, date`) and a row in its `INDEX.md`.
 
 ## Lifecycle — gates by change class

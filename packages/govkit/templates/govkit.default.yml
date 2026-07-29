@@ -55,6 +55,28 @@ docs:
       idPrefix: US
       startStatus: open
       statuses: [open, in-progress, blocked, done, wontfix]
+    # Named design tree the ddd-flow plugin writes (bounded contexts, aggregates,
+    # message flows). Files are named after concepts; ids stay numbered handles.
+    domain:
+      dir: docs/domain
+      required: [id, title, status, owner, date]
+      idPrefix: DOMAIN
+      startStatus: draft
+      statuses: [draft, review, accepted, superseded]
+      recursive: true
+      idFilenameConvention: false
+    # Release record: a REL at `released` must say what shipped and how to recover.
+    # Inert until the first flip — zero-false-positive before then.
+    rel:
+      dir: docs/releases
+      required: [id, title, status, owner, date]
+      idPrefix: REL
+      startStatus: draft
+      statuses: [draft, released, superseded]
+      terminalStatuses: [released, superseded]
+      requiredSectionsByStatus:
+        released: ["What shipped", "Migration", "Rollback"]
+      refs: [{ key: parent, type: rfc }]
 
 # ── Layer 2: the quality EVAL (`govkit eval`) ────────────────────────────────
 # An HONEST deterministic, no-API-key layer. It is a STRUCTURAL FLOOR, not a
@@ -103,3 +125,6 @@ eval:
       - { id: priority, weight: 10, kind: frontmatter, key: priority, desc: "priority set (presence only)" }
       - { id: substance, weight: 15, kind: minWords, min: 30, required: true, desc: "not an empty stub (≥30 words of prose)" }
       - { id: nofiller, weight: 5, kind: forbid, pattern: 'lorem ipsum|to be filled (in|out)|to be written|todo:?\s*write|placeholder text|fill (this )?in later|insert [a-z ]+ here', required: true, desc: "no template filler left in" }
+    rel:
+      - { id: substance, weight: 30, kind: minWords, min: 30, required: true, desc: "not an empty stub (≥30 words of prose)" }
+      - { id: nofiller, weight: 10, kind: forbid, pattern: 'lorem ipsum|to be filled (in|out)|to be written|todo:?\s*write|placeholder text|fill (this )?in later|insert [a-z ]+ here', required: true, desc: "no template filler left in" }
