@@ -35,9 +35,13 @@ skill — swe-flow consumes its output. Both plugins are enabled repo-wide in
 
 ## Agent constraints (non-negotiable)
 
-- Never self-assign an owner (`owner: TBD`; propose in the PR body).
-- Never self-flip a `status:`; propose the target, the human doc owner flips it.
-- Never self-approve, self-merge, or act as code owner.
+- Authority split: the MAIN agent (session lead) may flip statuses, assign owners, and
+  merge only under the tier conditions in `govkit.yml` `ratification:` (R0/R1/R2 — read
+  them there). SUB-AGENTS (workflow agents, skill subagents, dispatched runs) never flip
+  a `status:`, never assign an owner, never merge — they PROPOSE; the main agent applies.
+- Owner names a HUMAN, never the agent (new docs start `owner: TBD`; propose in the PR body).
+- Every act (flip / merge / publish) rides a green FULL gate. Stage before gating:
+  `git add -A && <gate> && git commit`.
 - Halt at a Lifecycle threshold when the required artifact is missing — do not invent it.
 
 ## Verify

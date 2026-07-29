@@ -42,7 +42,10 @@ docs:
       required: [id, title, status, owner, date]
       idPrefix: RFC
       startStatus: draft
-      statuses: [draft, proposed, accepted, rejected, superseded]
+      statuses: [draft, proposed, accepted, implemented, rejected, superseded]
+      terminalStatuses: [accepted, implemented, superseded]
+      requiredSectionsByStatus:
+        implemented: ["As-built", "Deviations from design"]
     adr:
       dir: docs/adr
       required: [id, title, status, owner, date]
@@ -55,6 +58,7 @@ docs:
       idPrefix: US
       startStatus: open
       statuses: [open, in-progress, blocked, done, wontfix]
+      terminalStatuses: [done]
     # Named design tree the ddd-flow plugin writes (bounded contexts, aggregates,
     # message flows). Files are named after concepts; ids stay numbered handles.
     domain:
@@ -128,3 +132,18 @@ eval:
     rel:
       - { id: substance, weight: 30, kind: minWords, min: 30, required: true, desc: "not an empty stub (≥30 words of prose)" }
       - { id: nofiller, weight: 10, kind: forbid, pattern: 'lorem ipsum|to be filled (in|out)|to be written|todo:?\s*write|placeholder text|fill (this )?in later|insert [a-z ]+ here', required: true, desc: "no template filler left in" }
+
+# ── Ratification: who may flip what (read by agents, not by the engine) ──────
+ratification:
+  R0_owner:
+    transitions: [prd->approved, rfc->accepted, adr->accepted, "*->superseded", rel->released]
+    acts: [merge, publish, "edit:ratification"]
+  R1_packet:
+    transitions: [rfc:accepted->implemented, us:in-progress->done, "drift --ack"]
+    conditions:
+      - full_gate_green: npx govkit check
+      - packet_exists
+      - red_team_in: [flip-as-is, flip-after-reconcile]
+      - cite: [packet.runId, "govkit.yml@<sha>"]
+  R2_lead:
+    transitions: [us:open->in-progress, us->blocked]
