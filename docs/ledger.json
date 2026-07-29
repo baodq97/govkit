@@ -174,6 +174,13 @@
       "spec": "RFC-0016",
       "passes": true,
       "check": "closed by govkit@0.8.0 (workflow run 30416333171, 2026-07-29): scratch-installed node_modules/.bin/govkit check from this repo root exits 0 (verify 55 docs/0 violations); npm view govkit dist-tags -> latest: 0.8.0; REL-0002 Post-publish smoke records the full command set"
+    },
+    {
+      "id": "F-AGING",
+      "title": "report --aging: time-in-status from one-line git blame, config-only thresholds, dates-only pr-body column",
+      "spec": "RFC-0029",
+      "passes": true,
+      "check": "packages/govkit/test/report-aging.test.ts — 6 e2e pinning the RFC's Impact list; full gate green at flip commit 05c666b; gate-loop packet wf_3954ac48-722 (red-team: flip-after-reconcile, both reconciles applied)"
     }
   ]
 }
