@@ -369,3 +369,33 @@ edges — it is in the act layer above the gate: the deterministic core saw the 
 checks; Round 22's compounding discipline is *when it is consulted*: every act that changes what
 main is — push, merge, flip, publish — chains on the full gate in the same execution, with no
 authority tier exempt.
+
+## Round 23 — 2026-07-29: green over unstaged edits — the gate saw yesterday's blobs
+
+The escape, twice in one session on the RFC-0029 slice. `bun run check` ran green at 04:22 over
+the UNSTAGED `--aging` edits, `git add -A && git commit` landed `efd5e4e` — and the gate-loop
+verifier's independent re-run went BLOCK at 04:23 with `drifted: 4` (RFC-0013/0014/0021/0023,
+whose `governs:` cover the cli/config/report files the commit moved, none re-acked). Same shape
+again at 04:42: the F3 follow-up touched `report.ts`, pre-commit check green, post-land drift
+`drifted: 1` (RFC-0021) — caught in 48s this time by the session's own post-land re-check.
+Journal: 92 records on 2026-07-29; the two red windows are 04:23:36/04:24:51 and 04:42:07.
+
+**Lesson 1 — a green over unstaged edits is a green about the PREVIOUS state.** `drift` hashes
+staged/committed blob OIDs (util.gitIndexRecords), never the working tree, so check-then-add
+gives the one git-backed gate in the chain nothing to look at. Round 17 F9 / Round 22's
+act-on-green rule was followed to the letter and still failed, because it never said WHAT state
+the green certifies. Encoded at rule-line cost in AGENTS.md ("Gate the INDEX, not the working
+tree"): stage first — `git add -A && bun run check && git commit` — or re-run after landing.
+No engine change: the gate could see everything, once given blobs to see.
+
+**Lesson 2 — the installed plugin can lag the repo it lives in.** gate-loop packet
+`wf_3954ac48-722` could not dispatch `swe-flow:red-teamer`: the agent exists in the repo
+(0.11.1) but the installed cache is 0.7.0, which predates the RFC-0025 role plane. The
+workflow's fallback held (a generic agent read the definition), so the cost was noise, not a
+miss — but check-sync validates repo-internal manifests only and nothing watches the
+cache↔repo skew. Encoded as ledger `F-PLUGIN-SKEW` (open): candidate is a session-freshness
+warning when installed plugin version ≠ `plugins/*/plugin.json`.
+
+**Dropped — the workflow-args JSON parse failure.** First gate-loop invocation passed a prose
+string where the script parses JSON args; it failed in 18ms with a message naming the fix and
+the retry succeeded. Loud, self-describing, one retry of cost: no encoding earns its tokens.

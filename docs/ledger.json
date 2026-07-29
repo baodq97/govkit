@@ -176,6 +176,13 @@
       "check": "closed by govkit@0.8.0 (workflow run 30416333171, 2026-07-29): scratch-installed node_modules/.bin/govkit check from this repo root exits 0 (verify 55 docs/0 violations); npm view govkit dist-tags -> latest: 0.8.0; REL-0002 Post-publish smoke records the full command set"
     },
     {
+      "id": "F-PLUGIN-SKEW",
+      "title": "installed swe-flow cache lags the repo — role-plane agents undispatchable until the plugin updates",
+      "spec": "RFC-0025",
+      "passes": false,
+      "check": "open: cache at 0.7.0 vs repo 0.11.1; gate-loop wf_3954ac48-722 could not dispatch swe-flow:red-teamer (fell back to a generic agent). Candidate fix: session-freshness hook warns when installed plugin version != repo plugins/*/plugin.json"
+    },
+    {
       "id": "F-AGING",
       "title": "report --aging: time-in-status from one-line git blame, config-only thresholds, dates-only pr-body column",
       "spec": "RFC-0029",

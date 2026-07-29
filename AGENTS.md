@@ -107,6 +107,11 @@ ship as **plugin agents** (`swe-flow:implementer`, …) to be usable from the `s
 - **Reconcile-as-you-go:** editing a file under any governed doc's `governs:` updates that
   doc's as-built/reconciled in the same change, or hands the ack to the owner explicitly —
   drift found at close-time is an accumulation failure (Round 17).
+- **Gate the INDEX, not the working tree:** `drift` compares staged/committed blob OIDs, so a
+  full gate over UNSTAGED edits certifies the previous state and goes red only after you land —
+  green-before-commit proved nothing twice in one session (Round 23: drifted 4 at 04:23,
+  drifted 1 at 04:42, each minutes after a green check). Stage first —
+  `git add -A && bun run check && git commit` — or re-run the gate immediately after landing.
 
 ## Agent constraints (cross-cutting)
 
