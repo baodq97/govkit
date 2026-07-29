@@ -1,7 +1,7 @@
 ---
 id: REL-0003
 title: govkit 0.9.0 — report --aging brings time-in-status to the lifecycle view
-status: draft
+status: released
 owner: baodq97
 date: 2026-07-29
 parent: RFC-0029
@@ -48,5 +48,15 @@ disappears).
 
 ## Post-publish smoke
 
-Pending — filled with real commands and exit codes after the `v0.9.0` tag workflow
-publishes; this doc flips to `released` only on that evidence (the REL-0002 precedent).
+Executed 2026-07-29 after workflow run 30423542973 (check → pack:proof → npm publish →
+GitHub Release, all green), real commands and real exit codes:
+
+- `npm view govkit dist-tags` → `latest: 0.9.0`.
+- The published bundle gates **this repo**: `npm install govkit@0.9.0` into a scratch dir,
+  then its `node_modules/.bin/govkit check` from the repo root → verify OK 58 docs /
+  0 violations, eval floor 100% (avg 99/100), **exit 0**.
+- The shipped feature works from the published bundle: the scratch bin's
+  `report --aging` from the repo root renders real ages (`PRD-0001 — 21d in status`,
+  `oldest: RFC-0001 — 57d`), exit 0.
+- Clean-dir scaffold: the scratch bin's `init` in a fresh mktemp dir, then `check` →
+  exit 0.
