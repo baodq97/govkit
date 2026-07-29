@@ -23,6 +23,10 @@ npx govkit verify            # check front-matter + INDEX sync (what CI runs)
 npx govkit init              # re-scaffold any missing pieces (idempotent)
 ```
 
+**→ [The flow: one feature, start to finish](https://github.com/baodq97/govkit/blob/main/docs/the-flow.md)**
+— which skill to invoke at which step, and what lands on disk. Start there; `AGENTS.md` in this
+repo is the contract, that page is the walkthrough.
+
 Three Claude Code plugins ride along in `.claude/settings.json` (`enabledPlugins`): **swe-flow**
 (author governed PRD/RFC/ADR/US, run the `sdlc` + gate-loop workflows), **ddd-flow**
 (domain modelling — the `docs/domain` artifacts swe-flow consumes), and **design-flow**

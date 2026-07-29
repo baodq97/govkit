@@ -6,13 +6,19 @@
 ## Layout
 
 ```
-packages/govkit/   the deterministic governance CLI (TypeScript) — the engine/spine
-plugins/swe-flow/  Claude Code plugin: authoring skills + agents (not a workspace package)
-template/          consumer scaffold surface — pins govkit + installs plugin, NO engine source
+packages/govkit/     the deterministic governance CLI (TypeScript) — the engine/spine
+plugins/swe-flow/    Claude Code plugin: the chain — authoring skills + role agents
+plugins/ddd-flow/    Claude Code plugin: the DDD modelling loop  → docs/domain/
+plugins/design-flow/ Claude Code plugin: the experience-design loop → docs/ui/
+                     (none are workspace packages; they meet at ARTIFACTS, never imports)
+template/            consumer scaffold surface — pins govkit + installs the three plugins,
+                     NO engine source
+examples/            worked end-to-end example (euro-parking) all three plugins produced
 .claude/
-  workflows/       the `sdlc` workflow (PRD→RFC→ADR→US→Code); project-scoped
-  agents/          dev-time agents (NOTE: NOT dispatchable from workflows — see § Agents)
-docs/              PRD / RFC / ADR / issues (US) / runbooks — governed by govkit
+  workflows/         the `sdlc` workflow (PRD→RFC→ADR→US→Code); project-scoped
+  agents/            dev-time agents (NOTE: NOT dispatchable from workflows — see § Agents)
+docs/                PRD / RFC / ADR / issues (US) / runbooks — governed by govkit
+                     the-flow.md (consumer walkthrough) + design-rationale.md (why) are not
 govkit.yml         the pluggable schema: doc dirs + required front-matter + status
                    lifecycle (`statuses:`) + id convention (`idPrefix:`) + quality
                    rubric (`eval:`)

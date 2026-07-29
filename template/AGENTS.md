@@ -10,6 +10,12 @@
 design tree and `docs/releases` for release records). Each carries front-matter
 (`id, title, status, owner, date`) and a row in its `INDEX.md`.
 
+Design trees sit beside the chain as inputs it consumes. `docs/domain` (ddd-flow) is governed
+like the rest. `docs/ui` (design-flow), `docs/api`, and `docs/data` are **not** lifecycle-
+governed — no front-matter, no INDEX, no status — because design iterates through non-linear
+feedback rounds that a draft→approved lifecycle would only distort. They are validated by their
+own plugins' scripts instead of by `govkit verify`.
+
 ## Lifecycle — gates by change class
 
 Pick the highest-matching row; that gate plus every lighter one applies.
@@ -26,12 +32,18 @@ schema) classifies one class higher. When in doubt, classify up.
 
 ## Authoring
 
-Use the **swe-flow** plugin's `spec-author` skill to write a PRD/RFC/ADR/US — it fills correct
-front-matter, sets `owner: TBD` + the start status, updates `INDEX.md`, and self-validates with
-`npx govkit verify`. The `sdlc` workflow orchestrates the whole chain. For domain modelling
-(bounded contexts, aggregates, the `docs/domain` tree), use the **ddd-flow** plugin's `design`
-skill — swe-flow consumes its output. Both plugins are enabled repo-wide in
-`.claude/settings.json`.
+| To do this | Use |
+|---|---|
+| Write a governed PRD / RFC / ADR / US | **swe-flow** `spec-author` — fills front-matter, sets `owner: TBD` + the start status, updates `INDEX.md`, self-validates with `npx govkit verify` |
+| Model the domain (contexts, aggregates, events → `docs/domain`) | **ddd-flow** `design` — the orchestrator; `view` to review it in a browser |
+| Design the user-facing surface (brief, tokens, prototype → `docs/ui`) | **design-flow** `ui-designer` — `view` for the live co-design loop |
+| Design the API / data contracts | **swe-flow** `api-designer`, `data-model` |
+| Split work into shippable slices | **swe-flow** `work-breakdown` |
+| Close landed code into one owner decision | **swe-flow** `gate-close` |
+
+swe-flow's designers consume the ddd-flow and design-flow trees, so run those first when the
+change needs them. The `sdlc` workflow orchestrates the chain end to end. All three plugins are
+enabled repo-wide in `.claude/settings.json`.
 
 ## Agent constraints (non-negotiable)
 

@@ -3,208 +3,152 @@
 > **Governance you can run, not just read.** A docs-as-code SDLC governance engine
 > for the AI-agent era — deterministic, cross-platform, zero-install.
 
-This is the **ecosystem monorepo**. Five things co-evolve here so they *cannot drift*:
+Your PRD, RFC, ADR, and user stories become artifacts a program can check: correct
+front-matter, a real status lifecycle, references that resolve, an index that stays in sync.
+The checks run in your editor as you write and in CI on every PR — **with no API key**, so a
+contributor who has never opened Claude Code still passes the same gate you do.
 
-| Path | What | Ships via |
+Three Claude Code plugins author those artifacts; the engine grades them. The two halves are
+deliberately separate — the thing that writes the document is never the thing that approves it.
+
+## Start here
+
+**→ [The flow: one feature, start to finish](./docs/the-flow.md)** — what you type, in what
+order, and what appears on disk. Read that page before this one if you plan to actually use
+govkit.
+
+## Install
+
+govkit is on npm — [`govkit`](https://www.npmjs.com/package/govkit) resolves from the registry,
+so `npx --yes govkit …` works with nothing installed.
+
+**Any repo, new or existing:**
+
+```bash
+npx govkit init                  # govkit.yml + the write-time hook + docs/*/INDEX.md — idempotent
+npx govkit verify                # green on a fresh scaffold; this is what CI will run
+```
+
+**A repo that already has design docs** — don't rewrite them by hand:
+
+```bash
+npx govkit init --adopt          # dry run: shows what metadata it would extract per file
+npx govkit init --adopt --apply  # extracts prose metadata (e.g. `**Status**: X`) into front-matter
+```
+
+Anything it cannot find is sentineled so it still fails the gate — govkit never asserts
+metadata it did not actually read. Status values outside your enum come back as a suggested
+`govkit.yml` patch. In Claude Code, `/swe-flow:govkit-adopt` drives this whole migration for you.
+
+**A greenfield repo, full surface in one shot** — copy `template/` (or "Use this template"
+once published). You get `govkit.yml`, the hooks, the `sdlc` and gate-loop workflows, a CI
+workflow, the governed doc dirs, and an `AGENTS.md` contract.
+
+**Then wire CI and the authoring plugins:**
+
+```bash
+# CI — .github/workflows/ci.yml (the template ships this):
+#   npx --yes govkit check        → verify + eval, exits non-zero, no Claude, no key
+
+# Claude Code — the authoring layer:
+claude plugin marketplace add baodq97/govkit
+claude plugin install swe-flow@govkit      # the chain: PRD → RFC → ADR → US → code
+claude plugin install ddd-flow@govkit      # the domain model  → docs/domain/
+claude plugin install design-flow@govkit   # the UI + prototype → docs/ui/
+```
+
+## The flow, in one screen
+
+| Step | You run | You get |
 |---|---|---|
-| `packages/govkit/` | **govkit** — the deterministic governance CLI (TypeScript) | npm → `npx govkit` |
-| `plugins/swe-flow/` | the **swe-flow** Claude Code plugin (skills + agents) that *authors* artifacts | marketplace (git-subdir) |
-| `plugins/ddd-flow/` | the **ddd-flow** Claude Code plugin — the DDD modelling loop; writes `docs/domain/`, which swe-flow's designers consume | marketplace (git-subdir) |
-| `plugins/design-flow/` | the **design-flow** Claude Code plugin — the experience-design loop (RFC-0030); writes `docs/ui/` and runs the live co-design view | marketplace (git-subdir) |
-| `template/` | the consumer **scaffold surface** (pins `govkit`, installs the plugin — carries **no** engine source) | `govkit init` / "Use this template" |
-| `.claude/workflows/` | the **`sdlc`** workflow orchestrating PRD→RFC→ADR→US→Code | project-scoped (workflows can't be bundled in a plugin) |
+| Requirements | `/swe-flow:spec-author` | `docs/product/` — a governed PRD |
+| Domain model | `/ddd-flow:design` · `/ddd-flow:view` | `docs/domain/` — contexts, aggregates, events |
+| UI design | `/design-flow:ui-designer` · `/design-flow:view` | `docs/ui/` — brief, tokens, an openable prototype |
+| Technical design | `/swe-flow:api-designer` · `/swe-flow:data-model` · the architect agent | `docs/api/`, `docs/data/`, `docs/rfc/`, `docs/adr/` |
+| Slicing | `/swe-flow:work-breakdown` | `docs/issues/` — independently shippable stories |
+| Build | test-author → implementer agents | code, with a failing test written first |
+| Gate | `npx govkit check` + reviewer / red-teamer / verifier agents | pass, or a specific reason |
+| Close | `/swe-flow:gate-close` | `docs/releases/` — one owner-decision packet |
+| Learn | `/swe-flow:distill-learnings` | proposed rule changes, from what the gate caught |
 
-> **Not a starter you fork.** New projects run `govkit init` (or "Use this template" on the
-> published `template/`) and **pin** govkit + **install** the plugin — they never copy the
-> engine source. That is what keeps every downstream repo from drifting.
+Domain model and UI design are siblings, not a sequence — both read the PRD. Most changes run
+only part of this chain; [the flow](./docs/the-flow.md) has the short paths.
 
-## Two trust layers
+## Commands
 
-Generation is cheap; **trust is the product.** A document being well-formed — or having
-been produced by an LLM — does not make it good. govkit separates the two questions:
-
-| Layer | Command | Question | Result |
-|---|---|---|---|
-| **Gate** (quality *control*) | `govkit verify` | Is it well-**formed**? | binary pass/fail — blocks merge |
-| **Eval** (quality *signal*) | `govkit eval` | Is it a complete, non-stub doc? | required **floor** blocks + advisory **0–100** score |
-| **Judge** (substance *verdict*) | `swe-flow:judge` + `substance-judge` skill (RFC-0019) | Is the prose **sound**? | opt-in, needs a key — **never** in no-key CI; anchored 0–100, deepeval-compatible records |
-
-The gate enforces front-matter, the status lifecycle, id↔filename convention, INDEX
-sync, unique ids, no placeholders, chain referential-integrity (RFC-0003),
-**chain-status coherence** (RFC-0008 — a doc may not reach a terminal/shipped state while
-its `parent`'s design is still undecided), and **status-conditional required sections**
-(RFC-0010 — a doc at a post-implementation status, e.g. `implemented`, must carry its
-as-built / deviations note, so design↔code divergence is a recorded ritual). `eval` adds a
-deterministic **structural floor** that blocks CI (not an empty stub, no leftover template
-filler, canonical sections as *distinct* headings) plus an **advisory score** to watch
-quality trend — both no-key. Two advisory, read-only commands never affect an exit code:
-`govkit report` gives a lifecycle view (done / in-flight / cleanup), and `govkit stale`
-(RFC-0009) flags a doc whose `governs:` code has newer commits than the doc — a **proxy**
-("code moved", not "doc wrong"), git-gated and outside the no-key floor by construction.
-Two R7 learning-flywheel surfaces (RFC-0012), both no-key: an opt-in `--journal` flag on
-`verify`/`eval`/`check` appends one JSONL gate-outcome record per run (crashed runs
-included — the sensor stays honest during incidents), and `govkit calibrate` scores the
-gate itself against a labeled `good/`/`weak/` corpus, failing CI on any false positive, on
-recall/F1 regression, or on corpus shrinkage vs a committed baseline. This repo calibrates
-its own floor in `bun run check` against `packages/govkit/eval/fixtures` (not shipped to
-npm — consumers author their own corpus).
-Where the governed docs live is configurable via `docs.root` (default `.`, RFC-0007) — set
-e.g. `.govkit` to isolate kit-managed docs under one folder.
-
-**An honest boundary** (the result of an adversarial red-team): a presence/shape rubric
-*cannot* tell a real artifact from a keyword-salad with the right headings. So `eval` is
-deliberately scoped as a **floor**, tuned for zero false-positive on legitimate docs and
-accepting that a determined gamer passes it. Judging whether the prose is *sound* is the
-swe-flow `judge` agent's job (RFC-0019 — opt-in, keyed, outside CI). The floor's own trust is
-pinned by an **adversarial corpus** (`packages/govkit/eval/`) the test suite asserts
-catches every known gaming vector while passing MADR/Nygard/terse styles.
-
-The gate enforces **structure**, not **provenance**. A stateless, no-git check cannot tell a doc
-born straight at `accepted` (no draft history, no human approval) from one a human accepted — both
-pass `verify` and `eval`. So "a doc starts at `startStatus` and only a human flips it forward" is an
-**honor-system** rule, held by commit discipline + the human accept + the keyed reviewer, not by the
-gate (RFC-0024). govkit's three tiers, named honestly: **firm** (the `verify` gate — blocks),
-**advisory** (`eval` score, `stale`, `report`, the per-write `remind` nudge — never blocks), and
-**honor-system** (status provenance, substance soundness — outside the engine by design).
-
-## The invariant that shapes everything
-
-A non-Claude-Code contributor must be able to run the governance gates in CI **with no API key**.
-So both deterministic layers live **only** in the `govkit` CLI:
-
-- **In Claude Code:** a `PreToolUse` hook (`type: command`) runs `npx govkit audit-write` to block a
-  write to a governed doc that lacks complete front-matter.
-- **In CI:** the *same binary* runs `npx govkit check` (→ `verify` then `eval`) — Node only, no
-  Claude, no key.
-- Authoring **skills** and the **`sdlc`** workflow only *author* artifacts and *call* govkit to
-  validate; they never embed the gate.
-
-## Init a new repo with govkit
-
-Three paths, depending on where you start. All of them end at the same contract:
-**`govkit.yml` + the `audit-write` hook + `npx govkit check` in CI** — no engine source copied.
-
-> **govkit is on npm** — [`govkit`](https://www.npmjs.com/package/govkit) resolves from the
-> registry, so `npx --yes govkit …` works out of the box. To pin it in a consumer repo:
-> ```bash
-> npm i -D govkit            # or pin a line: npm i -D govkit@^0.7.0
-> ```
-
-### Path A — greenfield repo from the template (recommended)
-
-Copy `template/` (or "Use this template" once it is published as a repo). You get the full
-surface in one shot:
-
-| You get | What it does |
-|---|---|
-| `govkit.yml` | the governance schema — doc dirs, required front-matter, status lifecycle, eval rubric (edit to taste) |
-| `.claude/settings.json` | `PreToolUse` → `npx govkit audit-write` (blocks a bad doc write in-editor) + `SessionStart` → freshness advisory (warns when the branch is behind upstream) |
-| `.claude/hooks/session-freshness.mjs` | the freshness hook itself — advisory-only, offline-safe |
-| `.claude/workflows/sdlc.js` | the `sdlc` workflow PRD→RFC→ADR→US→Foundation→Code (needs the swe-flow plugin) |
-| `.github/workflows/ci.yml` | `npx govkit verify` + `eval` on every push/PR — no Claude, no API key |
-| `docs/{product,rfc,adr,issues}/INDEX.md` | the governed doc dirs, each with its index |
-| `AGENTS.md` | the agent contract: lifecycle gates, agent constraints, authoring rules |
+**Daily:**
 
 ```bash
-cp -r <govkit-monorepo>/template/. my-new-repo/ && cd my-new-repo
-git init && npx govkit verify        # green on the empty scaffold
+npx govkit verify        # the structural gate — this is what blocks
+npx govkit eval          # quality floor (blocks) + advisory 0–100 score (never blocks)
+npx govkit check         # both, in order — what CI runs
+npx govkit report        # lifecycle view: done / in-flight / cleanup (advisory)
+npx govkit report --aging   # + time-in-status from git blame, with per-type thresholds
+npx govkit stale         # docs whose `governs:` code has moved on (advisory, needs git)
 ```
 
-### Path B — bare repo, CLI scaffold
-
-In any repo (new or existing, no governed docs yet):
+**Opt-in, when you want them:**
 
 ```bash
-npx govkit init                      # scaffolds govkit.yml + the audit-write hook
-                                     # + docs/{product,rfc,adr,issues}/INDEX.md — idempotent
-npx govkit init --docs-root .govkit  # optional: isolate kit-managed docs under one folder (RFC-0007)
-```
-
-`init` scaffolds only the engine surface (schema + hook + INDEXes). CI, the `sdlc`
-workflow, and `AGENTS.md` are template concerns — copy them from `template/` if you want them.
-
-### Path C — existing repo that already has design docs
-
-Don't rewrite your docs by hand — migrate their declared metadata (RFC-0006):
-
-```bash
-npx govkit init --adopt              # DRY-RUN: shows what it would extract per file
-npx govkit init --adopt --apply      # extracts prose metadata (e.g. `**Status**: X`) into
-                                     # front-matter; anything NOT found is sentineled so it
-                                     # still fails the gate — never asserts unverified metadata
-```
-
-Status values outside your enum come back as a suggested `govkit.yml` patch — reconcile,
-then `npx govkit verify` until green.
-
-### Then, for every path
-
-```bash
-# 1. Wire CI (template ships this; paths B/C add it):
-#    .github/workflows/ci.yml → `npx --yes govkit check`   (verify + eval, exits non-zero)
-
-# 2. Install the authoring companion (Claude Code):
-claude plugin marketplace add baodq97/govkit   # the marketplace lives in this repo
-claude plugin install swe-flow@govkit          # authoring skills + role agents — see plugins/swe-flow/README.md for the full surface
-
-# 3. Daily loop:
-npx govkit verify    # structural gate (what blocks)
-npx govkit eval      # quality floor + advisory 0–100 score
-npx govkit report    # lifecycle view: done / in-flight / cleanup (advisory)
-npx govkit report --aging   # + time-in-status from git blame; opt-in per-type
-                            #   `aging: {status: days}` thresholds → advisory ⚠ (RFC-0029)
-npx govkit stale     # docs whose `governs:` code moved on (advisory, needs git)
-
-# 4. Agent-loop guardrail mode (RFC-0013/0014, opt-in):
-npx govkit check --hook            # gate failure => exit 2 + report on stderr — wire as a
-                                   # blocking hook (the template ships a Stop hook doing this);
-                                   # tiers: in govkit.yml downgrades chosen verify kinds to
-                                   # advisory warnings (default: all blocking)
-
-# 5. Spec↔code drift gate + feature ledger (RFC-0015/0016, opt-in):
-npx govkit drift                   # docs with governs:+reconciled:sha256:<hex> FAIL when the
-npx govkit drift --ack [doc]       # governed CONTENT moved past the recorded claim (stable
-                                   # across squash/rebase); --ack re-vouches
-npx govkit ledger                  # gate a committed docs/ledger.json: schema, unique ids,
-                                   # spec refs resolve, append-only vs HEAD (anti-gaming)
-
-# 6. Learning-flywheel sensor + immune system (RFC-0012, opt-in):
-npx govkit verify --journal        # append one JSONL gate-outcome record (.govkit/journal.jsonl)
+npx govkit check --hook  # gate failure → exit 2 + a report on stderr, for wiring as a blocking
+                         # agent-loop hook (the template ships a Stop hook doing this)
+npx govkit drift         # fails when governed CONTENT moved past its recorded claim
+npx govkit drift --ack   # re-vouch for it — an explicit, recorded ritual
+npx govkit ledger        # gate a committed docs/ledger.json: schema, unique ids, append-only
+npx govkit verify --journal          # append one JSONL gate-outcome record per run
 npx govkit calibrate --corpus <dir> --baseline <file>
-                     # score the gate itself: confusion matrix (FP/FN, precision/recall/F1)
-                     # against YOUR labeled corpus — <dir> holds good/ (must pass the floor)
-                     # and weak/ (must fail it); exits 1 on any FP, on recall/F1 regression,
-                     # or on corpus shrinkage vs the committed baseline
+                         # score the gate itself against YOUR labeled good/ and weak/ corpus;
+                         # exits 1 on any false positive, on recall/F1 regression, or on
+                         # corpus shrinkage vs the committed baseline
 ```
 
-## Quickstart (hacking on this monorepo)
+## What blocks, what only warns
+
+Knowing which is which is what makes a gate worth keeping:
+
+- **`verify` blocks.** Malformed front-matter, an illegal status, a broken reference, an index
+  out of sync. If it fails, something really is wrong.
+- **`eval` has a small blocking floor** — not an empty stub, no leftover template filler — and
+  an **advisory score** that never blocks. The score is a trend, not a target.
+- **`report`, `stale`, `aging` never block.** They are situational awareness.
+- **Whether the prose is any good** is judgment. That lives with the reviewer, the opt-in keyed
+  judge, and you — govkit does not pretend a rubric can decide it.
+
+The reasoning behind all of this — including the red-team result that shaped the eval layer's
+scope — is in **[docs/design-rationale.md](./docs/design-rationale.md)**.
+
+## Working on govkit itself
+
+This is the ecosystem monorepo: the engine (`packages/govkit/`), the three plugins
+(`plugins/`), the consumer scaffold (`template/`), and the workflows co-evolve here so they
+cannot drift apart. See [design-rationale](./docs/design-rationale.md#the-monorepo-exists-so-five-things-cannot-drift)
+for what lives where and why.
 
 ```bash
 bun install
 bun run build          # build every package (tsup)
-bun run check          # the FULL gate: check-sync + skill-lint + biome + typecheck + build + tests + verify + eval + calibrate + drift + ledger, re-run under stock node (portability proof)
+bun run check          # the FULL gate: check-sync + skill-lint + biome + typecheck + build +
+                       # tests + verify + eval + calibrate + drift + ledger, re-run under stock
+                       # node as a portability proof
 
-# run the engine against this repo (dogfood) — the shipped bundle is Node-portable,
-# so the SAME dist runs identically under bun OR stock node:
-bun  packages/govkit/dist/cli.js verify   # dev runtime (bun)
+# dogfood — the shipped bundle is Node-portable, so the SAME dist runs under bun OR node:
+bun  packages/govkit/dist/cli.js verify   # dev runtime
 node packages/govkit/dist/cli.js verify   # the npx-govkit contract (stock node, no key)
 ```
 
-## Toolchain
+**Toolchain:** bun (install + test runner) · TypeScript (strict) ·
+[Biome](https://biomejs.dev) (lint + format) · [tsup](https://tsup.egoist.dev) (bundle).
+The published artifact stays Node-portable (`engines.node >= 20`); bun is never a runtime
+requirement on consumers (ADR-0002). Node ≥ 20 is the distribution baseline.
 
-bun (install + test runner) · TypeScript (strict) · [Biome](https://biomejs.dev) (lint + format) ·
-[tsup](https://tsup.egoist.dev) (bundle). **The published `govkit` artifact stays Node-portable**
-(`engines.node >= 20`, `npx govkit`) — bun is the dev accelerant, **never** a runtime requirement
-on consumers (ADR-0002). Node ≥ 20 is the distribution baseline.
+`AGENTS.md` is the governance this repo runs on itself — the same contract the template ships.
 
 ## Status
 
-MVP adoptable. Both trust layers ship and run no-key in CI: `govkit verify` (front-matter,
-status enum, id convention, INDEX sync, unique ids, no placeholders) and `govkit eval`
-(graded rubric proven by a labeled corpus), plus `govkit init` (scaffold) and the
-`audit-write` hook. The `swe-flow` plugin (goal→API→data→spec-author + role agents), the `ddd-flow`
-plugin (domain modelling), and the `sdlc` workflow author the artifacts the engine grades. See
-`AGENTS.md` for the governance this repo runs on itself. Shipped since this section was first
-written: npm publish (`npx govkit`, latest), the marketplace, and the opt-in keyed judge layer
-(RFC-0019/0020). The honest frontier per `docs/ledger.json`: an external consumer outside the
-author's DNA (`F-R1-N3`) and npm provenance once the repo goes public (`F-R0-PROVENANCE`).
+**MVP adoptable.** Both deterministic trust layers ship and run no-key in CI, alongside
+`govkit init` and the write-time hook. The three plugins and the `sdlc` workflow author the
+artifacts the engine grades. Shipped since this section was first written: npm publish, the
+marketplace, the opt-in keyed judge layer, and the design-flow plugin.
+
+The honest frontier, per `docs/ledger.json`: an external consumer outside the author's own
+projects (`F-R1-N3`), and npm provenance once the repo goes public (`F-R0-PROVENANCE`).
