@@ -12,3 +12,15 @@ build/
 # os / editor
 .DS_Store
 Thumbs.db
+
+# govkit sensor output — local run records, never committed.
+# NOTE: ignore these PATHS, not the whole `.govkit/` directory: with
+# `govkit init --docs-root .govkit` your governed docs live in `.govkit/docs`,
+# and ignoring the parent would silently keep them out of every commit.
+/.govkit/journal.jsonl
+/.govkit/evals/
+
+# plugin scratch — generated preview sessions, regenerated on demand
+.ddd-flow/
+.design-flow/
+__pycache__/
