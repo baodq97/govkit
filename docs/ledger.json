@@ -180,7 +180,7 @@
       "title": "installed swe-flow cache lags the repo — role-plane agents undispatchable until the plugin updates",
       "spec": "RFC-0025",
       "passes": false,
-      "check": "open: cache at 0.7.0 vs repo 0.11.1; gate-loop wf_3954ac48-722 could not dispatch swe-flow:red-teamer (fell back to a generic agent). Candidate fix: session-freshness hook warns when installed plugin version != repo plugins/*/plugin.json"
+      "check": "instance fixed 2026-07-29: /plugin update + /reload-plugins registered swe-flow 0.11.1 (18 agents incl. red-teamer/verifier, gate-close skill). Stays open for the CLASS rule: session-freshness hook warns when installed plugin version != repo plugins/*/plugin.json — until then the skew can silently recur on any machine"
     },
     {
       "id": "F-AGING",
