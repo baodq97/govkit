@@ -133,9 +133,10 @@ Shipped as `--aging` on `report`: `gitLineCommitTime` in `util.ts` (git blame `-
 --porcelain`, committer time, all-zero boundary sha → null), a local `statusLineNo` in
 `report.ts` scoped to `frontMatterSpan` (top-level `status:` only), per-bucket `docs[]`
 (`statusSince` ISO date + `ageDays`) and `overThreshold` (present only when the type's
-`aging:` config names that status), an `agingNote` degrade when git is absent, the plain
-rendering's `oldest / ⚠ over threshold` lines, and a dates-only `since` column on
-`--pr-body`. Config gains the per-type `aging: {status: days}` map, validated loud (the
+`aging:` config names that status), an `agingNote` degrade when git is absent (surfaced on the terminal, `--json` AND
+`--pr-body` renderings — static text, so pr-body idempotency holds), the plain
+rendering's `oldest / ⚠ over threshold / uncommitted` lines, and a dates-only `since`
+column on `--pr-body`. Config gains the per-type `aging: {status: days}` map, validated loud (the
 `tiers` stance). Six e2e tests in `test/report-aging.test.ts` pin the RFC's Impact list;
 `--aging` is report-scoped in the CLI flag table.
 

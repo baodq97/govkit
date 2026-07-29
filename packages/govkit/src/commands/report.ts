@@ -119,6 +119,10 @@ export function renderReportPrBody(result: ReportResult): string {
   // the markers hug the content exactly as the RFC's example block pins.
   const body = tables.join("\n\n");
   const parts = [PR_BODY_BEGIN, "### govkit governance report"];
+  // `--aging` asked for but unanswerable (no git): the degrade note joins THIS surface too —
+  // a reviewer who asked for the column must learn why it is missing, same as the terminal
+  // rendering. Static text, so the byte-identical contract is untouched.
+  if (result.agingNote) parts.push(`_(aging: ${result.agingNote})_`);
   if (body) parts.push(body);
   parts.push(PR_BODY_END);
   return `${parts.join("\n")}\n`;

@@ -74,6 +74,9 @@ describe("report --aging", () => {
     const bucket = JSON.parse(r.stdout).types[0].buckets[0];
     expect(bucket.ids).toEqual(["ADR-0002"]);
     expect(bucket.docs[0]).toEqual({ id: "ADR-0002", statusSince: null, ageDays: null });
+    // The plain rendering surfaces the same doc as explicitly age-less — never dropped.
+    const plain = runCli(root, ["report", "--aging"]);
+    expect(plain.stdout).toContain("(uncommitted, no age: ADR-0002)");
   });
 
   test("no git → a surfaced note, a normal report, exit 0", () => {
@@ -86,6 +89,12 @@ describe("report --aging", () => {
     expect(parsed.aging).toBeUndefined();
     expect(parsed.agingNote).toContain("git is not available");
     expect(parsed.types[0].buckets[0].ids).toEqual(["ADR-0003"]);
+    // The degrade note reaches the pr-body surface too (a reviewer asked for the column and
+    // must learn why it is missing) — and stays byte-identical, being static text.
+    const a = runCli(root, ["report", "--pr-body", "--aging"]);
+    const b = runCli(root, ["report", "--pr-body", "--aging"]);
+    expect(a.stdout).toContain("_(aging: git is not available");
+    expect(a.stdout).toBe(b.stdout);
   });
 
   test("⚠ threshold fires only for the CONFIGURED (type, status) pair", () => {
