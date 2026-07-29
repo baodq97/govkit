@@ -1,27 +1,28 @@
 name: release
 
-# R0 publish path: push a tag `v<version>` matching packages/govkit/package.json
-# (or run this workflow manually from the Actions tab / API — the environment's
-# git proxy cannot push tags, so workflow_dispatch is the agent-reachable path)
-# and this workflow publishes the engine to npm with provenance.
+# R0 publish path, ONE trigger: push a tag `v<version>` matching
+# packages/govkit/package.json and this workflow publishes the engine to npm and
+# creates the GitHub Release. workflow_dispatch was removed after the 0.8.0
+# release ran twice (dispatch + tag push three minutes apart — the duplicate had
+# to be hand-cancelled); tag pushes are proven to work from every environment
+# this repo is driven from, so the escape hatch cost more than it covered.
 # One-time setup (human act): add an npm automation token as the NPM_TOKEN
 # repository secret (Settings → Secrets and variables → Actions).
 on:
   push:
     tags:
       - "v*"
-  workflow_dispatch:
 
 jobs:
   publish:
     runs-on: ubuntu-latest
     permissions:
-      contents: read
+      contents: write # gh release create needs it; checkout only reads
       # id-token: write — restore together with --provenance the day the repo goes public
       # (npm 422s provenance bundles from private source repos; an unused write grant is
       # pure token scope until then).
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
         with:
           fetch-depth: 0 # drift + ledger read commit history; a shallow clone reads as 'no history'
 
@@ -36,16 +37,15 @@ jobs:
       - run: bun run check
 
       - name: Setup Node (registry auth + provenance)
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v5
         with:
           node-version: 22
           registry-url: https://registry.npmjs.org
 
       # Guard: the tag must equal the engine version, or the publish stops here —
-      # a stale tag must not ship a mismatched artifact. Manual dispatches publish
-      # whatever version main carries, so the tag assert only applies to tag runs.
+      # a stale tag must not ship a mismatched artifact. Unconditional now that the
+      # tag push is the only trigger.
       - name: Assert tag matches package version
-        if: startsWith(github.ref, 'refs/tags/')
         run: |
           PKG_VERSION="$(node -p "require('./packages/govkit/package.json').version")"
           TAG_VERSION="${GITHUB_REF_NAME#v}"
@@ -67,5 +67,22 @@ jobs:
       - name: Publish govkit
         working-directory: packages/govkit
         run: npm publish --access public
+
+      # The Release object is part of the release, not an afterthought — v0.8.0 shipped to
+      # npm with no GitHub Release until a human noticed. Notes point at the governed REL
+      # doc (the record of truth); --generate-notes fills the commit list. Idempotent: skip
+      # if the release already exists (a re-run after a partial failure must not error here).
+      - name: Create GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          if gh release view "$GITHUB_REF_NAME" >/dev/null 2>&1; then
+            echo "release $GITHUB_REF_NAME already exists — skipping"
+          else
+            REL_DOC="$(ls docs/releases/REL-*-govkit-${GITHUB_REF_NAME#v}.md 2>/dev/null | head -1)"
+            NOTES="Governed release record: ${REL_DOC:-docs/releases/ (no REL doc found for this tag — author one)}"
+            gh release create "$GITHUB_REF_NAME" --title "govkit $GITHUB_REF_NAME" \
+              --notes "$NOTES" --generate-notes
+          fi
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
