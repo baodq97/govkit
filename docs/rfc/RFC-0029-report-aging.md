@@ -4,6 +4,7 @@ title: report --aging — time-in-status flow signals for the lifecycle view
 status: accepted
 owner: baodq97
 date: 2026-07-29
+reconciled: sha256:8b1b8441fe9f0ca6
 governs:
   - packages/govkit/src/commands/report.ts
   - packages/govkit/src/util.ts
