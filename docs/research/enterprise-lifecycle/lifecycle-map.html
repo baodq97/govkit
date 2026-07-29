@@ -1,0 +1,500 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Sơ đồ tuyến — vòng đời sản phẩm &amp; vị trí govkit</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600;700;800&family=IBM+Plex+Mono:wght@400;600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --paper:#F3F5F9; --card:#FFFFFF; --ink:#16233B; --muted:#5B6B85;
+    --lineB:#D64533; --lineE:#0E7A6A; --loop:#6C4AB0; --gate:#E8A13C;
+    --dead:#5B6474; --back:#D6367E;
+    --chip-full:#0E7A6A; --chip-partial:#9A8A12; --chip-gap:#8A93A6;
+    --radius:14px;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--paper);color:var(--ink);
+    font-family:"Be Vietnam Pro",system-ui,sans-serif;font-size:15px;line-height:1.55}
+  .mono{font-family:"IBM Plex Mono",monospace}
+
+  header{padding:34px 28px 10px;max-width:1720px;margin:0 auto}
+  .eyebrow{font-family:"IBM Plex Mono",monospace;font-size:11px;letter-spacing:.14em;
+    text-transform:uppercase;color:var(--muted)}
+  h1{margin:6px 0 4px;font-size:clamp(24px,3.2vw,40px);font-weight:800;letter-spacing:-.01em}
+  h1 .b{color:var(--lineB)} h1 .e{color:var(--lineE)}
+  .sub{margin:0;color:var(--muted);max-width:76ch}
+
+  .wrap{max-width:1720px;margin:18px auto 60px;padding:0 28px;
+    display:grid;grid-template-columns:minmax(0,1fr) 372px;gap:18px;align-items:start}
+  .map-card{background:var(--card);border-radius:var(--radius);
+    box-shadow:0 1px 2px rgba(22,35,59,.06),0 12px 32px rgba(22,35,59,.07);
+    padding:10px;overflow-x:auto}
+  .map-card svg{display:block;min-width:1280px;width:100%;height:auto}
+
+  aside{display:flex;flex-direction:column;gap:14px;position:sticky;top:16px}
+  .panel{background:var(--card);border-radius:var(--radius);padding:18px 18px 16px;
+    box-shadow:0 1px 2px rgba(22,35,59,.06),0 8px 24px rgba(22,35,59,.06)}
+  .panel h2{margin:0 0 10px;font-size:12px;letter-spacing:.12em;text-transform:uppercase;
+    color:var(--muted);font-weight:700}
+
+  #detail .placeholder{color:var(--muted);font-size:14px;margin:2px 0 4px}
+  .st-head{display:flex;align-items:center;gap:10px;margin-bottom:2px}
+  .code-pill{font-family:"IBM Plex Mono",monospace;font-size:11px;font-weight:600;
+    color:#fff;border-radius:999px;padding:3px 9px}
+  .st-name{font-size:19px;font-weight:800;letter-spacing:-.01em}
+  .st-kind{font-size:12px;color:var(--muted);margin:2px 0 10px}
+  .sec{margin:12px 0 0}
+  .sec .lbl{font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);
+    font-weight:700;margin-bottom:5px}
+  .sec ul{margin:0;padding-left:18px}
+  .sec li{margin:3px 0}
+  .gk-chip{display:inline-block;font-family:"IBM Plex Mono",monospace;font-size:10px;
+    font-weight:600;letter-spacing:.08em;color:#fff;border-radius:4px;padding:2px 7px;
+    vertical-align:1px;margin-right:6px}
+  .branch-row{display:flex;gap:8px;margin:5px 0;font-size:13.5px;align-items:baseline}
+  .branch-arrow{color:var(--muted);flex:none}
+
+  .lg{display:grid;grid-template-columns:26px 1fr;gap:8px 10px;align-items:center;font-size:13px}
+  .lg svg{display:block}
+
+  .note{font-size:13px;color:var(--ink)}
+  .note ol{margin:4px 0 0;padding-left:18px}
+  .note li{margin:4px 0}
+  .note .src{color:var(--muted);font-size:12px;margin-top:8px}
+
+  .zoneLabel{font-size:13px;font-weight:800;letter-spacing:.02em}
+  .zoneSub{font-size:11px;fill:var(--muted)}
+  .stLabel{font-size:12.5px;font-weight:600;fill:var(--ink)}
+  .stCode{font-family:"IBM Plex Mono",monospace;font-size:9.5px;font-weight:600;fill:#fff}
+  .edgeLbl{font-size:10.5px;fill:var(--muted);font-style:italic}
+  .gkTag{font-family:"IBM Plex Mono",monospace;font-size:10px;font-weight:600}
+  .unionName{font-size:13.5px;font-weight:800;fill:var(--ink)}
+
+  g.station{cursor:pointer}
+  g.station .halo{opacity:0;transition:opacity .15s}
+  g.station:hover .halo,g.station.sel .halo{opacity:1}
+  g.station:focus-visible{outline:none}
+  g.station:focus-visible .halo{opacity:1}
+
+  .drawable{stroke-dasharray:var(--len);stroke-dashoffset:var(--len);
+    animation:draw 1.1s ease forwards}
+  .fadein{opacity:0;animation:pop .4s ease forwards}
+  @keyframes draw{to{stroke-dashoffset:0}}
+  @keyframes pop{to{opacity:1}}
+  @media (prefers-reduced-motion:reduce){
+    .drawable{animation:none;stroke-dashoffset:0}
+    .fadein{animation:none;opacity:1}
+  }
+  @media (max-width:1080px){
+    .wrap{grid-template-columns:1fr}
+    aside{position:static}
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="eyebrow">bản đồ trạng thái · view render từ MODEL (FSM) trong file</div>
+  <h1>Sơ đồ tuyến vòng đời sản phẩm — tuyến <span class="b">Business</span>, tuyến <span class="e">Engineering</span></h1>
+  <p class="sub">Hai tuyến không nối nhau bằng lối đi bộ mà gặp nhau tại <b>hai ga liên tuyến, nơi hai đoàn tàu cùng đỗ</b>:
+  Classify &amp; Inception (cùng lập PRD) và Showcase &amp; Benefit (cùng đo lợi ích).
+  Ga vành cam là gate cần người duyệt, ô vuông xám là điểm dừng hẳn. Chọn một ga để xem ai verify và bằng chứng gì.</p>
+</header>
+
+<div class="wrap">
+  <div class="map-card"><svg id="map" viewBox="0 0 1900 830" role="img"
+    aria-label="Sơ đồ tuyến vòng đời sản phẩm: tuyến Business và tuyến Engineering gặp nhau tại hai ga liên tuyến, với các gate và vùng phủ govkit"></svg></div>
+
+  <aside>
+    <div class="panel" id="detail">
+      <h2>Chi tiết ga</h2>
+      <p class="placeholder">Chưa chọn ga nào. Bấm (hoặc Tab + Enter) vào một ga trên bản đồ.</p>
+      <div id="detail-body"></div>
+    </div>
+
+    <div class="panel">
+      <h2>Chú giải</h2>
+      <div class="lg" id="legend"></div>
+    </div>
+
+    <div class="panel note">
+      <h2>Vì sao gate không phải một người</h2>
+      Ba cơ chế verify tìm thấy trong hệ thống thật:
+      <ol>
+        <li>Mỗi nghiệp vụ có state machine riêng (entity <span class="mono">*process</span>).</li>
+        <li>Ma trận thẩm quyền là <b>data</b>: country × currency × loại × hạn mức.</li>
+        <li>Chuỗi chức danh nhiều nấc, ví dụ L5 → Budget → CIO.</li>
+      </ol>
+      <div class="src">Nguồn: khảo sát btm-platform (module Approval, workflow resource request, team Finance AP).</div>
+    </div>
+  </aside>
+</div>
+
+<script>
+/* ============================================================
+   MODEL — nguồn chân lý của sơ đồ. View phía dưới chỉ consume.
+   plane: B (business) / E (engineering) / U (ga liên tuyến, cả hai)
+   ============================================================ */
+const MODEL = {
+  planes: {
+    B: {ten:"TUYẾN B · BUSINESS", sub:"vòng đời initiative — system of record: workflow platform (BPF + approval matrix)", mau:"var(--lineB)"},
+    E: {ten:"TUYẾN E · ENGINEERING", sub:"per initiative đã commit — system of record: git repo (docs-as-code)", mau:"var(--lineE)"}
+  },
+  states: [
+    {id:"B1", code:"B-1", ten:"Captured", plane:"B", kind:"state",
+     desc:"Ý tưởng được ghi nhận, chưa cam kết gì.",
+     actors:["Requester / Business Unit"],
+     govkit:{level:"gap", items:["Candidate: doc type initiative (status vocab = các ga tuyến B)"]}},
+    {id:"B2", code:"B-2", ten:"Gate · Value & Strategy", plane:"B", kind:"gate",
+     desc:"Chấm điểm giá trị và độ khớp chiến lược, không phải một người gật đầu.",
+     actors:["Strategy Office","Finance","Compliance"],
+     evidence:["Scoring 5 trục (strategic, regulatory, benefit, cost, time-to-market)","NPV / business case sơ bộ"],
+     govkit:{level:"gap", items:[]}},
+    {id:"B3", code:"B-3", ten:"Validated", plane:"B", kind:"state",
+     desc:"Có bằng chứng thật rằng bài toán đáng giải.",
+     actors:["PO + người dùng thử"],
+     evidence:["Prototype / fake door","n người dùng xác nhận"],
+     govkit:{level:"gap", items:[]}},
+    {id:"B4", code:"B-4", ten:"Gate · Funding bet", plane:"B", kind:"gate",
+     desc:"So với các bet khác đang xếp hàng, cái này có đáng rót tiền không.",
+     actors:["PMO / Portfolio board","Chuỗi duyệt theo nấc (vd L5 → Budget → CIO)"],
+     evidence:["Authority matrix theo hạn mức","WIP limit của portfolio"],
+     govkit:{level:"gap", items:[]}},
+    {id:"B5", code:"B-5", ten:"Committed", plane:"B", kind:"state",
+     desc:"Bet đã được cấp vốn, có chủ. Đoàn tàu B khởi hành đến ga liên tuyến.",
+     actors:["PMO"],
+     govkit:{level:"gap", items:[]}},
+    {id:"U1", code:"U-1", ten:"Classify & Inception", plane:"U", kind:"union",
+     desc:"Ga liên tuyến thứ nhất: hai đoàn tàu cùng đỗ. Business mang bet đã fund đến; engineering ngồi cùng bàn. Classify và PRD được lập CHUNG tại đây, không phải business làm xong rồi ném qua tường.",
+     actors:["PO + SA + Eng lead (cùng một sân ga)","Procurement nếu rẽ nhánh mua"],
+     evidence:["Classify verdict: core/supporting/generic × cynefin × tuổi thọ","PRD skeleton đồng tác giả, mang initiative-id","Capacity check: có đội nhận không"],
+     govkit:{level:"partial", items:["swe-flow: goal-define, domain-decompose, spec-author mint PRD kèm initiative-id","Thiếu: Core Domain Chart + check link chéo hai system of record"]}},
+    {id:"U2", code:"U-2", ten:"Showcase & Benefit", plane:"U", kind:"union",
+     desc:"Ga liên tuyến thứ hai: engineering mang outcome đến, business đo benefit thật so với business case. Hai bên cùng quyết: scale, iterate thành idea mới, hay sunset.",
+     actors:["PMO + Finance (đo benefit)","PO + Service owner (trình outcome)"],
+     evidence:["Outcome data từ ga E-7","OKR / CapabilityOutcome vs business case đã hứa"],
+     govkit:{level:"partial", items:["report --pr-body nộp trạng thái governance lên plane business"]}},
+    {id:"K",  code:"K", ten:"Killed", plane:"B", kind:"term",
+     desc:"Không ai đau đủ để giải. Dừng sớm là thắng.", actors:[], govkit:{level:null, items:[]}},
+    {id:"P",  code:"P", ten:"Parked", plane:"B", kind:"term",
+     desc:"Ý tưởng đúng nhưng chưa đến lúc, hoặc WIP đầy.", actors:[], govkit:{level:null, items:[]}},
+    {id:"X",  code:"X", ten:"Mua / SaaS", plane:"B", kind:"term",
+     desc:"Generic subdomain: mua, không build.", actors:["Procurement"], govkit:{level:null, items:[]}},
+    {id:"E1", code:"E-1", ten:"Doc chain", plane:"E", kind:"state",
+     desc:"PRD → RFC → ADR → US. Ga đầu tiên sau khi rời ga liên tuyến U-1.",
+     actors:["PO viết PRD","Eng lead viết RFC/ADR"],
+     govkit:{level:"full", items:["swe-flow: spec-author","front-matter mang initiative-id (trace về tuyến B)"]}},
+    {id:"E2", code:"E-2", ten:"Gate · Spec ratified", plane:"E", kind:"gate",
+     desc:"Spec được duyệt trước khi code. Agent không bao giờ tự flip status.",
+     actors:["Doc owner flip status","Reviewer đồng thuận"],
+     evidence:["verify / eval pass (no-key floor)","gate-loop + red-team + substance-judge (keyed)"],
+     govkit:{level:"full", items:["govkit verify / eval / check","skills: gate-loop, spec-red-team, substance-judge"]}},
+    {id:"E3", code:"E-3", ten:"Build", plane:"E", kind:"state",
+     desc:"Implement theo spec đã duyệt.", actors:["Dev / agent teams"],
+     govkit:{level:"full", items:["ledger ghi done-ness","drift theo dõi spec ↔ code"]}},
+    {id:"E4", code:"E-4", ten:"Gate · Ship", plane:"E", kind:"gate",
+     desc:"Cửa cuối trước khi ra production.",
+     actors:["Release owner"],
+     evidence:["drift ack (spec ↔ code khớp)","ledger đủ","REL smoke test"],
+     govkit:{level:"full", items:["govkit drift / ledger","REL doc ghi smoke evidence"]}},
+    {id:"E5", code:"E-5", ten:"Release", plane:"E", kind:"state",
+     desc:"Ra production.", actors:["Release owner"], govkit:{level:"full", items:["REL doc"]}},
+    {id:"E6", code:"E-6", ten:"Hypercare", plane:"E", kind:"state",
+     desc:"Trực chiến sau release; escape ở đây nuôi vòng R7.",
+     actors:["Team build + on-call"],
+     govkit:{level:"full", items:["journal ghi gate outcome","escape log"]}},
+    {id:"E7", code:"E-7", ten:"Operate", plane:"E", kind:"state",
+     desc:"Vận hành ổn định. Đoàn tàu E chở outcome data đến ga liên tuyến U-2.",
+     actors:["Service owner"], govkit:{level:"full", items:["report --pr-body chuẩn bị cho phiên U-2"]}},
+    {id:"S",  code:"S", ten:"Sunset", plane:"E", kind:"term",
+     desc:"Kết thúc vòng đời có chủ đích, không zombie.", actors:["Service owner"], govkit:{level:null, items:[]}},
+    {id:"R7", code:"R7", ten:"Vòng R7", plane:"E", kind:"loop",
+     desc:"Learning flywheel: journal → calibrate → distiller, trả corpus/rule về gate bằng PR (proposal-only).",
+     actors:["Distiller (keyed)","Human ratify PR"],
+     govkit:{level:"full", items:["govkit calibrate: FP=0, baseline pin","distiller không bao giờ tự merge"]}}
+  ],
+  transitions: [
+    {from:"B1",to:"B2",kind:"main"},
+    {from:"B2",to:"B3",kind:"main",dk:"score đạt"},
+    {from:"B2",to:"K", kind:"branch",dk:"không ai đau"},
+    {from:"B3",to:"B4",kind:"main"},
+    {from:"B4",to:"B5",kind:"main",dk:"duyệt theo nấc"},
+    {from:"B4",to:"P", kind:"branch",dk:"thua bet khác / WIP đầy"},
+    {from:"B5",to:"U1",kind:"main"},
+    {from:"U1",to:"X", kind:"branch",dk:"generic → mua"},
+    {from:"U1",to:"B3",kind:"back",dk:"complex chưa rõ → probe"},
+    {from:"U1",to:"E1",kind:"main"},
+    {from:"U1",to:"U2",kind:"dual",dk:"PO đồng hành delivery (dual-track)"},
+    {from:"E1",to:"E2",kind:"main"},
+    {from:"E2",to:"E3",kind:"main"},
+    {from:"E3",to:"E4",kind:"main"},
+    {from:"E4",to:"E5",kind:"main"},
+    {from:"E5",to:"E6",kind:"main"},
+    {from:"E6",to:"E7",kind:"main"},
+    {from:"E7",to:"U2",kind:"main"},
+    {from:"E7",to:"S", kind:"branch",dk:"hết vòng đời"},
+    {from:"E6",to:"E3",kind:"back",dk:"defect / escape"},
+    {from:"U2",to:"B1",kind:"back",dk:"học → idea mới / iterate"},
+    {from:"E6",to:"R7",kind:"loopIn",dk:"escapes + journal"},
+    {from:"R7",to:"E2",kind:"loopOut",dk:"corpus / rule PR"},
+    {from:"R7",to:"E4",kind:"loopOut",dk:"baseline pin"}
+  ]
+};
+
+/* ============================================================
+   VIEW CONFIG — toạ độ & nét vẽ, không chứa nghiệp vụ
+   ============================================================ */
+const POS = {
+  B1:[95,200], B2:[235,200], B3:[375,200], B4:[515,200], B5:[655,200],
+  U1:[800,300], U2:[1790,430],
+  K:[235,90], P:[515,90], X:[950,190],
+  E1:[940,560], E2:[1060,560], E3:[1180,560], E4:[1300,560], E5:[1420,560],
+  E6:[1540,560], E7:[1660,560], S:[1770,650], R7:[1300,740]
+};
+const LABEL_SIDE = {B1:"below",B2:"below",B3:"below",B4:"below",B5:"below",
+  U1:"below",U2:"below",K:"above",P:"above",X:"below",
+  E1:"below",E2:"below",E3:"below",E4:"below",E5:"below",E6:"below",E7:"below",
+  S:"below",R7:"none"};
+const ROUTES = [
+  {plane:"B", ids:["B1","B2","B3","B4","B5","U1"]},
+  {plane:"E", ids:["U1","E1","E2","E3","E4","E5","E6","E7","U2"]}
+];
+const CTRL = {
+  "U1>B3":[590,50], "E6>E3":[1360,430], "U2>B1":[950,0],
+  "R7>E2":[1000,760]
+};
+const EDGE_END = { "U2>B1":[95,178] };   /* điểm đến tuỳ chỉnh để né nhãn */
+const EDGE_STYLE = {
+  main:  {stroke:null, w:7,  dash:null,  arrow:false},
+  branch:{stroke:null, w:4,  dash:null,  arrow:true},
+  back:  {stroke:"var(--back)", w:2.4, dash:"7 6", arrow:true},
+  dual:  {stroke:"var(--lineB)", w:3.5, dash:"2 9", arrow:false, opacity:.4},
+  loopIn:{stroke:"var(--loop)", w:2.4, dash:null,  arrow:true},
+  loopOut:{stroke:"var(--loop)",w:1.8, dash:"5 5", arrow:true}
+};
+const GK_LEVEL = {
+  full:   {ten:"FULL",    mau:"var(--chip-full)"},
+  partial:{ten:"PARTIAL", mau:"var(--chip-partial)"},
+  gap:    {ten:"GAP",     mau:"var(--chip-gap)"}
+};
+
+/* ============================================================
+   RENDER
+   ============================================================ */
+const SVG_NS = "http://www.w3.org/2000/svg";
+const svg = document.getElementById("map");
+const el = (tag, attrs={}, parent=svg) => {
+  const n = document.createElementNS(SVG_NS, tag);
+  for (const [k,v] of Object.entries(attrs)) n.setAttribute(k, v);
+  parent.appendChild(n); return n;
+};
+const S = Object.fromEntries(MODEL.states.map(s=>[s.id,s]));
+const stationColor = s => s.plane==="E" ? "var(--lineE)"
+                        : s.plane==="U" ? "var(--ink)" : "var(--lineB)";
+
+const defs = el("defs");
+for (const [name,color] of [["aB","#D64533"],["aE","#0E7A6A"],["aback","#D6367E"],
+                            ["aloop","#6C4AB0"],["adead","#5B6474"]]) {
+  const m = el("marker",{id:name,viewBox:"0 0 10 10",refX:"8",refY:"5",
+    markerWidth:"7",markerHeight:"7",orient:"auto-start-reverse"},defs);
+  el("path",{d:"M0,0 L10,5 L0,10 z",fill:color},m);
+}
+const markerFor = t => {
+  if (t.kind==="back") return "aback";
+  if (t.kind.startsWith("loop")) return "aloop";
+  if (S[t.to].kind==="term") return "adead";
+  return S[t.from].plane==="E" ? "aE" : "aB";
+};
+
+/* govkit coverage zones */
+function zone(x,y,w,h,fill,dash,label,labelColor,side){
+  el("rect",{x,y,width:w,height:h,rx:18,fill,stroke:dash?"#B9C1D0":"none",
+    "stroke-dasharray":dash?"5 5":"", "stroke-width":1.4});
+  const left = side.startsWith("left") || side==="bottom-left";
+  const ty = side==="bottom-left" ? y+h-11 : y+22;
+  el("text",{x:left?x+16:x+w-16,y:ty,class:"gkTag",fill:labelColor,
+    "text-anchor":left?"start":"end"}).textContent = label;
+}
+zone(40,140,700,130,"rgba(138,147,166,.07)","dash","govkit · GAP — candidate: doc type initiative","var(--chip-gap)","bottom-left");
+zone(870,498,860,142,"rgba(14,122,106,.08)",null,"govkit · FULL — verify · eval · drift · ledger · gate-loop · judge","var(--chip-full)","right");
+
+/* plane headers */
+el("text",{x:44,y:60,class:"zoneLabel",fill:"var(--lineB)"}).textContent = MODEL.planes.B.ten;
+el("text",{x:44,y:78,class:"zoneSub"}).textContent = MODEL.planes.B.sub;
+el("text",{x:985,y:448,class:"zoneLabel",fill:"var(--lineE)"}).textContent = MODEL.planes.E.ten;
+el("text",{x:985,y:466,class:"zoneSub"}).textContent = MODEL.planes.E.sub;
+
+/* main route lines — cả hai tuyến đều chạy XUYÊN QUA ga liên tuyến */
+for (const r of ROUTES) {
+  const pts = r.ids.map(id=>POS[id].join(",")).join(" ");
+  const line = el("polyline",{points:pts,fill:"none",
+    stroke:r.plane==="E"?"var(--lineE)":"var(--lineB)",
+    "stroke-width":7,"stroke-linecap":"round","stroke-linejoin":"round",class:"drawable"});
+  line.style.setProperty("--len",line.getTotalLength());
+}
+
+/* other edges */
+const outEdges = id => MODEL.transitions.filter(t=>t.from===id);
+for (const t of MODEL.transitions) {
+  if (t.kind==="main") continue;
+  const st = EDGE_STYLE[t.kind];
+  const [x1,y1]=POS[t.from];
+  let [x2,y2] = EDGE_END[t.from+">"+t.to] || POS[t.to];
+  const ctrl = CTRL[t.from+">"+t.to];
+  if (S[t.to].kind==="term") {
+    const [ax,ay] = ctrl || [x1,y1];
+    const dx=x2-ax, dy=y2-ay, len=Math.hypot(dx,dy)||1;
+    x2 -= dx/len*20; y2 -= dy/len*20;
+  }
+  let d;
+  if (t.kind==="dual") {          /* đường PO đồng hành: chạy ngang giữa hai ga liên tuyến */
+    d = `M${x1+22},${y1} L${x2-90},${y1} L${x2},${y2-42}`;
+  } else {
+    d = ctrl ? `M${x1},${y1} Q${ctrl[0]},${ctrl[1]} ${x2},${y2}`
+             : `M${x1},${y1} L${x2},${y2}`;
+  }
+  const p = el("path",{d,fill:"none",
+    stroke:st.stroke||stationColor(S[t.from]),
+    "stroke-width":st.w,"stroke-linecap":"round",
+    "marker-end":st.arrow?`url(#${markerFor(t)})`:""});
+  if (st.dash) p.setAttribute("stroke-dasharray",st.dash);
+  if (st.opacity) p.setAttribute("opacity",st.opacity);
+  if (t.dk && t.kind!=="branch") {
+    let mx,my;
+    if (t.kind==="dual"){ mx=(x1+x2)/2; my=y1-10; }
+    else { mx = ctrl ? (x1+2*ctrl[0]+x2)/4 : (x1+x2)/2;
+           my = (ctrl ? (y1+2*ctrl[1]+y2)/4 : (y1+y2)/2) - 7; }
+    el("text",{x:mx,y:my,class:"edgeLbl","text-anchor":"middle"}).textContent = t.dk;
+  }
+}
+
+/* flywheel ring */
+(()=>{ const [cx,cy]=POS.R7;
+  el("circle",{cx,cy,r:46,fill:"none",stroke:"var(--loop)","stroke-width":5,opacity:.25});
+  el("text",{x:cx,y:cy+64,class:"edgeLbl","text-anchor":"middle"})
+    .textContent = "journal → calibrate → distiller (PR)";
+})();
+
+/* stations */
+const detailBody = document.getElementById("detail-body");
+const placeholder = document.querySelector("#detail .placeholder");
+let selected = null;
+
+function renderDetail(s){
+  placeholder.style.display = "none";
+  const gk = s.govkit && s.govkit.level ? GK_LEVEL[s.govkit.level] : null;
+  const kindTen = {state:"Trạng thái",gate:"Gate — cần người duyệt",term:"Điểm dừng",
+    union:"Ga liên tuyến — hai đoàn tàu cùng đỗ",loop:"Vòng học"}[s.kind];
+  const branches = outEdges(s.id).map(t=>{
+    const target = S[t.to];
+    return `<div class="branch-row"><span class="branch-arrow">→</span>
+      <span><b>${target.ten}</b>${t.dk?` <span style="color:var(--muted)">· ${t.dk}</span>`:""}</span></div>`;
+  }).join("") || `<div class="branch-row"><span style="color:var(--muted)">Ga cuối, không có nhánh đi tiếp.</span></div>`;
+  detailBody.innerHTML = `
+    <div class="st-head">
+      <span class="code-pill" style="background:${s.plane==="E"?"var(--lineE)":s.plane==="U"?"var(--ink)":"var(--lineB)"}">${s.code}</span>
+      <span class="st-name">${s.ten}</span>
+    </div>
+    <div class="st-kind">${kindTen}</div>
+    <div>${s.desc}</div>
+    ${s.actors && s.actors.length ? `<div class="sec"><div class="lbl">Ai verify / vận hành</div>
+      <ul>${s.actors.map(a=>`<li>${a}</li>`).join("")}</ul></div>`:""}
+    ${s.evidence && s.evidence.length ? `<div class="sec"><div class="lbl">Bằng chứng để qua</div>
+      <ul>${s.evidence.map(e=>`<li>${e}</li>`).join("")}</ul></div>`:""}
+    ${gk ? `<div class="sec"><div class="lbl">govkit tại đây</div>
+      <div><span class="gk-chip" style="background:${gk.mau}">${gk.ten}</span></div>
+      ${s.govkit.items.length?`<ul style="margin-top:6px">${s.govkit.items.map(i=>`<li>${i}</li>`).join("")}</ul>`:""}
+    </div>`:""}
+    <div class="sec"><div class="lbl">Nhánh rẽ từ ga này</div>${branches}</div>`;
+}
+
+function select(g, s){
+  if (selected) selected.classList.remove("sel");
+  selected = g; g.classList.add("sel");
+  renderDetail(s);
+}
+
+MODEL.states.forEach((s,i)=>{
+  const [x,y] = POS[s.id];
+  const color = stationColor(s);
+  const g = el("g",{class:"station fadein",tabindex:"0",role:"button",
+    "aria-label":`${s.code} ${s.ten}`});
+  g.style.animationDelay = (0.5 + i*0.05)+"s";
+
+  el("circle",{cx:x,cy:y,r:s.kind==="union"?44:s.kind==="gate"?24:19,
+    fill:"rgba(44,74,154,.14)",class:"halo"},g);
+
+  if (s.kind==="term") {
+    el("rect",{x:x-9,y:y-9,width:18,height:18,rx:4,fill:"var(--dead)"},g);
+  } else if (s.kind==="gate") {
+    el("circle",{cx:x,cy:y,r:15,fill:"#fff",stroke:"var(--gate)","stroke-width":5},g);
+    el("circle",{cx:x,cy:y,r:6.5,fill:color},g);
+  } else if (s.kind==="union") {
+    /* nhà ga liên tuyến: capsule dọc, hai chấm màu = hai đoàn tàu cùng đỗ */
+    el("rect",{x:x-17,y:y-33,width:34,height:66,rx:17,fill:"#fff",
+      stroke:"var(--ink)","stroke-width":4.5},g);
+    el("circle",{cx:x,cy:y-14,r:7,fill:"var(--lineB)"},g);
+    el("circle",{cx:x,cy:y+14,r:7,fill:"var(--lineE)"},g);
+  } else if (s.kind==="loop") {
+    el("circle",{cx:x,cy:y,r:13,fill:"var(--loop)"},g);
+  } else {
+    el("circle",{cx:x,cy:y,r:9.5,fill:"#fff",stroke:color,"stroke-width":4.5},g);
+  }
+
+  if (s.kind==="loop") {
+    el("text",{x:x,y:y+4,class:"stCode","text-anchor":"middle"},g).textContent = s.code;
+  } else {
+    const pw = s.code.length>2 ? 34 : 22;
+    const py = s.kind==="union" ? y-52
+             : LABEL_SIDE[s.id]==="above" ? y+16 : y-30;
+    el("rect",{x:x-pw/2,y:py,width:pw,height:15,rx:7.5,fill:color},g);
+    el("text",{x:x,y:py+11,class:"stCode","text-anchor":"middle"},g).textContent = s.code;
+  }
+
+  if (LABEL_SIDE[s.id]!=="none") {
+    const side = LABEL_SIDE[s.id];
+    const isU = s.kind==="union";
+    const lx = side==="right" ? x+34 : x;
+    const ly = isU ? y+52 : side==="above" ? y-38 : side==="right" ? y+4 : y+42;
+    const anchor = side==="right" ? "start" : "middle";
+    el("text",{x:lx,y:ly,class:isU?"unionName":"stLabel","text-anchor":anchor},g).textContent = s.ten;
+    if (isU && s.govkit && s.govkit.level){
+      const tagAnchor = s.id==="U2" ? "end" : anchor;
+      const tagX = s.id==="U2" ? x+70 : lx;
+      el("text",{x:tagX,y:ly+16,class:"gkTag",fill:"var(--chip-partial)",
+        "text-anchor":tagAnchor},g).textContent =
+        s.id==="U1" ? "govkit · PARTIAL — initiative-id ↔ PRD" : "govkit · PARTIAL — report --pr-body";
+    }
+  }
+
+  g.addEventListener("click",()=>select(g,s));
+  g.addEventListener("keydown",e=>{
+    if (e.key==="Enter"||e.key===" ") { e.preventDefault(); select(g,s); }
+  });
+  svg.appendChild(g);
+});
+
+/* legend — cũng render từ config */
+const legend = document.getElementById("legend");
+const legendItems = [
+  [`<svg width="26" height="16"><line x1="1" y1="8" x2="25" y2="8" stroke="#D64533" stroke-width="6" stroke-linecap="round"/></svg>`,"Tuyến B — Business (idea → bet)"],
+  [`<svg width="26" height="16"><line x1="1" y1="8" x2="25" y2="8" stroke="#0E7A6A" stroke-width="6" stroke-linecap="round"/></svg>`,"Tuyến E — Engineering (spec → operate)"],
+  [`<svg width="26" height="18"><rect x="7" y="1" width="12" height="16" rx="6" fill="#fff" stroke="#16233B" stroke-width="2"/><circle cx="13" cy="6" r="2.2" fill="#D64533"/><circle cx="13" cy="12" r="2.2" fill="#0E7A6A"/></svg>`,"Ga liên tuyến — hai đoàn tàu cùng đỗ, quyết định chung"],
+  [`<svg width="26" height="16"><circle cx="13" cy="8" r="6" fill="#fff" stroke="#E8A13C" stroke-width="3.5"/></svg>`,"Ga gate — cần evidence + người duyệt"],
+  [`<svg width="26" height="16"><rect x="6" y="2" width="13" height="13" rx="3" fill="#5B6474"/></svg>`,"Điểm dừng — killed / parked / sunset / mua"],
+  [`<svg width="26" height="16"><line x1="1" y1="8" x2="25" y2="8" stroke="#D64533" stroke-width="3" stroke-dasharray="2 6" opacity=".5"/></svg>`,"PO đồng hành delivery (dual-track)"],
+  [`<svg width="26" height="16"><line x1="1" y1="8" x2="25" y2="8" stroke="#D6367E" stroke-width="2" stroke-dasharray="6 5"/></svg>`,"Đường quay lại — probe, defect, học ra idea mới"],
+  [`<svg width="26" height="16"><circle cx="13" cy="8" r="6" fill="#6C4AB0"/></svg>`,"Vòng R7 — flywheel trả rule về gate bằng PR"],
+  [`<svg width="26" height="16"><rect x="1" y="2" width="24" height="12" rx="4" fill="rgba(14,122,106,.15)"/></svg>`,"Vùng phủ govkit (FULL / PARTIAL / GAP)"]
+];
+for (const [icon,label] of legendItems){
+  const d1=document.createElement("div"); d1.innerHTML=icon;
+  const d2=document.createElement("div"); d2.textContent=label;
+  legend.append(d1,d2);
+}
+</script>
+</body>
+</html>
