@@ -6,6 +6,10 @@ owner: baodq97
 date: 2026-07-29
 governs:
   - packages/govkit/src/commands/report.ts
+  - packages/govkit/src/util.ts
+  - packages/govkit/src/config.ts
+  - packages/govkit/src/cli.ts
+  - packages/govkit/src/render.ts
 ---
 
 > Extends the advisory lifecycle report (RFC-0008, RFC-0021) with the dimension it is
@@ -145,6 +149,11 @@ rendering's `oldest / ⚠ over threshold` lines, and a dates-only `since` column
   negative age.
 - **The uncommitted-doc note renders per bucket** (`uncommitted, no age: …`) rather
   than as one global `(untracked)` list — the bucket is where the reader already is.
+- **Committer time, not author date.** The design read "the commit's author date"; the
+  implementation reads blame's `committer-time`, matching `%ct` in every other git-backed
+  reader (`stale`, `drift`). Visible on rebase/squash-merge repos, where committer time is
+  the landing date: the aging clock starts when the status change reached the branch,
+  which is the time-in-status the report means.
 
 ## Recommendation
 
