@@ -119,6 +119,12 @@ rules, a new `weak/` fixture, and the baseline update, all in the same PR. The t
 laws appear verbatim in the agent file; the skill encodes the six-step procedure with the
 insufficient-data early exit as step 0.
 
+2026-07-29 amendment: step 3's AGENTS.md encoding gained a **non-inferable filter** — the
+skill now refuses to propose rule lines that restate what an agent can discover from the
+repo (layouts, listings, code structure), citing the measured evidence (Gloaguen et al.
+2026, ETH SRI: context duplicating the discoverable cuts agent task success ~3% at >20%
+extra inference cost). Same proposal-only laws; the filter narrows what may be proposed.
+
 ## Deviations from design
 
 None at ship — review-hardening lands in-PR, keeping accepted design == shipped code (the

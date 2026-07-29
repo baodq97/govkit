@@ -43,6 +43,16 @@ poisons an append-only corpus; fail-honest over fail-productive.
    - a `govkit.yml` tweak (e.g. a `tiers:` demotion backed by journal FP evidence);
    - a ledger entry for newly discovered work.
 
+   **AGENTS.md rule lines must pass the non-inferable filter:** never propose a line that
+   restates what an agent can discover from the repo itself — directory layouts, file
+   listings, command inventories, code structure. Context that duplicates discoverable
+   information measurably HURTS agents (Gloaguen et al. 2026, ETH SRI: LLM-generated
+   context files cut task success ~3% and add >20% inference cost, precisely because they
+   re-describe the discoverable). A rule line earns its tokens only when it encodes what
+   the repo cannot reveal on its own: a constraint, a convention with a reason, a pitfall
+   with its incident. If the lesson is "where something lives", it is not an AGENTS.md
+   rule — drop it or encode it as a fixture.
+
 4. **Validate.** Every proposed fixture must actually be caught: run
    `node packages/govkit/dist/cli.js calibrate --corpus packages/govkit/eval/fixtures
    --baseline packages/govkit/eval/baseline.json` and require FP=0 with non-regressing
