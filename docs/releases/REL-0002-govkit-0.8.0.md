@@ -57,12 +57,17 @@ skew this release closes; see `F-ENGINE-SKEW`).
 
 ## Post-publish smoke
 
-To be executed at publish time and recorded here before this doc flips to `released`:
+Executed 2026-07-29 after workflow run 30416333171 (build → test → pack:proof → npm publish,
+success), real commands and real exit codes:
 
 - `npm view govkit dist-tags` → `latest: 0.8.0`.
-- `npx --yes govkit@0.8.0 check` exits 0 **in this repo** — the F-ENGINE-SKEW closer: the
-  published binary gates the corpus that ships it.
-- The packed tarball installs into a clean scratch dir; `npx govkit init` scaffolds
-  (including the three-hook settings and the freshness hook); the gate exits 0, and removing
-  a required front-matter key makes it exit non-zero.
-- The five consumer repos exit 0 under the published 0.8.0.
+- The published bundle gates **this repo**: `npm install govkit@0.8.0` into a scratch dir,
+  then its `node_modules/.bin/govkit check` from the repo root → verify OK 55 docs /
+  0 violations, eval floor 100%, **exit 0** — the F-ENGINE-SKEW closer. (In-repo
+  `npx govkit` resolves the workspace and 127s; the scratch-installed bin is the honest
+  spelling of "a consumer's govkit".)
+- Clean-dir scaffold: `govkit init` in a fresh mktemp dir → gate exit 0; the three-hook
+  `settings.json` AND `.claude/hooks/session-freshness.mjs` are scaffolded (the 0.8.0
+  template unification); authoring a doc missing `owner:` flips the gate to exit 1.
+- All five consumer repos exit 0 under the published 0.8.0 binary: alert-triage-agent,
+  customs-platform, mandat, augur, demo-foundation-tobacco-industry.

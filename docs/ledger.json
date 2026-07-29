@@ -172,8 +172,8 @@
       "id": "F-ENGINE-SKEW",
       "title": "published engine gates this repo again — govkit's own corpus depends on unreleased engine features",
       "spec": "RFC-0016",
-      "passes": false,
-      "check": "gate-loop wf_885a7193-6ae reviewer finding (2026-07-29): npx --yes govkit@latest check (published 0.7.1, 5b5b73d) exits 1 on this repo — docs/domain relies on idFilenameConvention: false, merged at b931315, 58 commits after the tag; bun run check passes only via the workspace dist. Goes green when the next engine release (>=0.8.0) publishes the config-generality + design-tree features and npx govkit check exits 0 here"
+      "passes": true,
+      "check": "closed by govkit@0.8.0 (workflow run 30416333171, 2026-07-29): scratch-installed node_modules/.bin/govkit check from this repo root exits 0 (verify 55 docs/0 violations); npm view govkit dist-tags -> latest: 0.8.0; REL-0002 Post-publish smoke records the full command set"
     }
   ]
 }
