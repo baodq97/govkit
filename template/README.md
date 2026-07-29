@@ -23,8 +23,12 @@ npx govkit verify            # check front-matter + INDEX sync (what CI runs)
 npx govkit init              # re-scaffold any missing pieces (idempotent)
 ```
 
-Install the **swe-flow** Claude Code plugin to author governed artifacts (PRD/RFC/ADR/US) and
-run the `sdlc` workflow — add the govkit marketplace, then `claude plugin install swe-flow`.
+Two Claude Code plugins ride along in `.claude/settings.json` (`enabledPlugins`): **swe-flow**
+(author governed PRD/RFC/ADR/US, run the `sdlc` + gate-loop workflows) and **ddd-flow**
+(domain modelling — the `docs/domain` artifacts swe-flow consumes). On first open, Claude Code
+asks you to trust the repo, then installs both from the govkit marketplace automatically —
+no manual `plugin install` needed. Decline the prompt and everything no-key (hooks, CI, the
+engine) still works; the plugins are the authoring layer, never the gate.
 
 > This is a starting point — edit `govkit.yml` and `AGENTS.md` for your project. The engine
 > reads them; nothing is hardcoded.

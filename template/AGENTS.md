@@ -27,7 +27,10 @@ schema) classifies one class higher. When in doubt, classify up.
 
 Use the **swe-flow** plugin's `spec-author` skill to write a PRD/RFC/ADR/US — it fills correct
 front-matter, sets `owner: TBD` + the start status, updates `INDEX.md`, and self-validates with
-`npx govkit verify`. The `sdlc` workflow orchestrates the whole chain.
+`npx govkit verify`. The `sdlc` workflow orchestrates the whole chain. For domain modelling
+(bounded contexts, aggregates, the `docs/domain` tree), use the **ddd-flow** plugin's `design`
+skill — swe-flow consumes its output. Both plugins are enabled repo-wide in
+`.claude/settings.json`.
 
 ## Agent constraints (non-negotiable)
 
