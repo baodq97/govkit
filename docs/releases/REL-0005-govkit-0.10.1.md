@@ -1,7 +1,7 @@
 ---
 id: REL-0005
 title: govkit 0.10.1 — the referential gates 0.10.0 claimed but did not wire
-status: draft
+status: released
 owner: baodq97
 date: 2026-07-29
 ---
@@ -47,4 +47,18 @@ config is unknown to 0.10.0's loader; the gates simply stop firing.
 
 ## Post-publish smoke
 
-Pending publish — filled from the real run before this record flips to `released`.
+Executed 2026-07-29 after the release workflow ran green (check → pack proof → npm publish →
+GitHub Release), real commands and real exit codes, all through `npx --yes govkit@latest` in a
+clean git repo outside this monorepo:
+
+- `npm view govkit version` → `0.10.1`; `init` → 9 created, six INDEX dirs, exit 0.
+- **The case that escaped twice now fails.** A `us` at `done` whose `parent` is an `rfc` at
+  `draft`: `verify` → **exit 1**, with the message naming both ends and the decided set —
+  `'US-0001' is done but its parent 'RFC-0001' is draft — not a decided/terminal state (one
+  of [accepted, implemented, superseded])`.
+- **It goes green when the design is actually decided**, so the gate is not simply stuck:
+  flipping the RFC to `accepted` → `check` exit 0.
+- **RFC-0003 fires independently**: repointing the US at a non-existent `RFC-9999` →
+  `reference 'parent: RFC-9999' does not resolve to any known doc id`, exit 1.
+- The regression test is proven fallible in-repo: reverting the schema fix turns
+  `init.test.ts`'s new case red.

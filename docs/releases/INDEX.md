@@ -6,4 +6,4 @@
 | [REL-0002](./REL-0002-govkit-0.8.0.md) | govkit 0.8.0 — the design-tree, waiver and citation features reach npm; the engine gates its own repo again | released | baodq97 | 2026-07-29 |
 | [REL-0003](./REL-0003-govkit-0.9.0.md) | govkit 0.9.0 — report --aging brings time-in-status to the lifecycle view | released | baodq97 | 2026-07-29 |
 | [REL-0004](./REL-0004-govkit-0.10.0.md) | govkit 0.10.0 — init scaffolds the whole schema, not four hardcoded dirs | released | baodq97 | 2026-07-29 |
-| [REL-0005](./REL-0005-govkit-0.10.1.md) | govkit 0.10.1 — the referential gates 0.10.0 claimed but did not wire | draft | baodq97 | 2026-07-29 |
+| [REL-0005](./REL-0005-govkit-0.10.1.md) | govkit 0.10.1 — the referential gates 0.10.0 claimed but did not wire | released | baodq97 | 2026-07-29 |
