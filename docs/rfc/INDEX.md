@@ -30,4 +30,4 @@
 | [RFC-0026](./RFC-0026-gate-loop-hardening.md) | Gate-loop hardening — round 2 of the dogfood loop | implemented | baodq97 | 2026-07-23 |
 | [RFC-0027](./RFC-0027-ratification-policy.md) | Risk-tiered ratification — fewer asks, same provenance | implemented | baodq97 | 2026-07-24 |
 | [RFC-0028](./RFC-0028-domain-decompose-right-sizing.md) | Domain-decompose right-sizing — proportional tactical modelling and an additive model.yaml contract | implemented | baodq97 | 2026-07-24 |
-| [RFC-0029](./RFC-0029-report-aging.md) | report --aging — time-in-status flow signals for the lifecycle view | accepted | baodq97 | 2026-07-29 |
+| [RFC-0029](./RFC-0029-report-aging.md) | report --aging — time-in-status flow signals for the lifecycle view | implemented | baodq97 | 2026-07-29 |

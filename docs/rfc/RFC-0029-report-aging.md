@@ -1,7 +1,7 @@
 ---
 id: RFC-0029
 title: report --aging — time-in-status flow signals for the lifecycle view
-status: accepted
+status: implemented
 owner: baodq97
 date: 2026-07-29
 reconciled: sha256:8b1b8441fe9f0ca6
