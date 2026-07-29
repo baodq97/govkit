@@ -19,7 +19,7 @@ from it. Audit compares a real schema — in any dialect — against that logica
 
 ## Where this fits
 
-The persistence step of the swe-flow chain: `goal-define` → `ddd-flow:3-decompose`
+The persistence step of the swe-flow chain: `ddd-flow:3-decompose`
 (ships in the `ddd-flow` plugin; the handoff is the `docs/domain/` tree) → **`data-model`**
 (sibling of `api-designer`). FORWARD consumes `docs/domain/`; both modes write to `docs/data/`.
 

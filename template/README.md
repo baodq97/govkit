@@ -23,11 +23,12 @@ npx govkit verify            # check front-matter + INDEX sync (what CI runs)
 npx govkit init              # re-scaffold any missing pieces (idempotent)
 ```
 
-Two Claude Code plugins ride along in `.claude/settings.json` (`enabledPlugins`): **swe-flow**
-(author governed PRD/RFC/ADR/US, run the `sdlc` + gate-loop workflows) and **ddd-flow**
-(domain modelling — the `docs/domain` artifacts swe-flow consumes). On first open, Claude Code
-asks you to trust the repo, then installs both from the govkit marketplace automatically —
-no manual `plugin install` needed. Decline the prompt and everything no-key (hooks, CI, the
+Three Claude Code plugins ride along in `.claude/settings.json` (`enabledPlugins`): **swe-flow**
+(author governed PRD/RFC/ADR/US, run the `sdlc` + gate-loop workflows), **ddd-flow**
+(domain modelling — the `docs/domain` artifacts swe-flow consumes), and **design-flow**
+(the experience-design loop — `docs/ui` artifacts plus a live co-design view). On first open,
+Claude Code asks you to trust the repo, then installs them from the govkit marketplace
+automatically — no manual `plugin install` needed. Decline the prompt and everything no-key (hooks, CI, the
 engine) still works; the plugins are the authoring layer, never the gate.
 
 > This is a starting point — edit `govkit.yml` and `AGENTS.md` for your project. The engine

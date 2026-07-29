@@ -17,10 +17,12 @@ Everything **calls** `npx govkit verify` to validate — nothing embeds the dete
   vertical slices before writing any doc or code: an XS-to-XL sizing ladder, four break triggers,
   and how to record ordering when one slice depends on another. Tier-1 and dependency-free —
   calls no other skill.
-- **`skills/goal-define`** — structure a clear, verifiable goal from rough input.
 - **`skills/api-designer`** — domain → OpenAPI 3.1 contract → `docs/api`.
 - **`skills/data-model`** — domain → relational schema (+ PostgreSQL projection) → `docs/data`;
   forward or audit mode.
+- The **frontend-design step lives in the sibling `design-flow` plugin** (RFC-0030):
+  `design-flow:ui-designer` authors `docs/ui/` and `design-flow:view` runs the live co-design
+  loop — the plugins meet at the artifact, not an import.
 - **`skills/spec-author`** — turn design output into a governed **PRD / RFC / ADR / US** with
   correct front-matter + INDEX row, then self-validate via `npx govkit verify`. Discovers doc
   dirs + required keys from the consumer's `govkit.yml`.

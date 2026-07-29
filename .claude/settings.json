@@ -10,7 +10,8 @@
   },
   "enabledPlugins": {
     "swe-flow@govkit": true,
-    "ddd-flow@govkit": true
+    "ddd-flow@govkit": true,
+    "design-flow@govkit": true
   },
   "hooks": {
     "SessionStart": [

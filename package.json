@@ -25,7 +25,7 @@
     "govkit-calibrate": "bun packages/govkit/dist/cli.js calibrate --corpus packages/govkit/eval/fixtures --baseline packages/govkit/eval/baseline.json",
     "govkit-drift": "bun packages/govkit/dist/cli.js drift --journal",
     "govkit-ledger": "bun packages/govkit/dist/cli.js ledger --journal",
-    "check": "node scripts/check-sync.mjs && node scripts/skill-lint.mjs plugins/swe-flow && node scripts/skill-lint.mjs plugins/ddd-flow && node --test scripts/skill-lint.test.mjs && node --test scripts/check-sync.test.mjs && biome check . && bun run --filter '*' typecheck && bun run --filter '*' build && bun run --filter '*' test && bun run govkit-check && bun run govkit-check:node && bun run govkit-calibrate && bun run govkit-drift && bun run govkit-ledger"
+    "check": "node scripts/check-sync.mjs && node scripts/skill-lint.mjs plugins/swe-flow && node scripts/skill-lint.mjs plugins/ddd-flow && node scripts/skill-lint.mjs plugins/design-flow && node --test scripts/skill-lint.test.mjs && node --test scripts/check-sync.test.mjs && biome check . && bun run --filter '*' typecheck && bun run --filter '*' build && bun run --filter '*' test && bun run govkit-check && bun run govkit-check:node && bun run govkit-calibrate && bun run govkit-drift && bun run govkit-ledger"
   },
   "devDependencies": {
     "@biomejs/biome": "^2.2.0"

@@ -31,7 +31,7 @@ Specification-first API design: domain → resources → OpenAPI 3.1 contract �
 
 ## Where this fits
 
-This is the API-design step of the swe-flow chain: `goal-define` → `ddd-flow:3-decompose`
+This is the API-design step of the swe-flow chain: `ddd-flow:3-decompose`
 (ships in the `ddd-flow` plugin; the handoff is the `docs/domain/` tree, not an import) →
 **`api-designer`**. When `docs/domain/` exists, consume it; otherwise work from a prose
 description — both paths produce the same contract under `docs/api/`.

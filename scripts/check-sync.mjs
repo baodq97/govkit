@@ -92,7 +92,7 @@ function runCli() {
   // never saw the release; ddd-flow has the same two-file shape and gets the same guard.)
   const marketplacePath = ".claude-plugin/marketplace.json";
   const marketplace = JSON.parse(readFileSync(join(repoRoot, marketplacePath), "utf8"));
-  for (const pluginName of ["swe-flow", "ddd-flow"]) {
+  for (const pluginName of ["swe-flow", "ddd-flow", "design-flow"]) {
     const pluginPath = `plugins/${pluginName}/.claude-plugin/plugin.json`;
     const plugin = JSON.parse(readFileSync(join(repoRoot, pluginPath), "utf8"));
     const entry = (marketplace.plugins ?? []).find((p) => p.name === plugin.name);
@@ -213,7 +213,7 @@ function runCli() {
   }
 
   console.log(
-    `check-sync: OK — marketplace entries match plugin.json for swe-flow and ddd-flow ` +
+    `check-sync: OK — marketplace entries match plugin.json for swe-flow, ddd-flow, and design-flow ` +
       `(version + description byte-identical), ${mirrorPairs.length} ` +
       `root↔template mirror pair(s) are byte-identical, ${onDisk.size} agent/skill(s) are ` +
       `all named in ${readmePath}, and all ${scriptFiles.length} ${scriptsDir}/*.mjs are wired to ` +

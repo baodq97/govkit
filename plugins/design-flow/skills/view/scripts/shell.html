@@ -1,0 +1,472 @@
+<!doctype html>
+<!--
+  design-flow view — the frozen shell. Renders ONE model.json (written by ui_view.mjs) and
+  never changes per project: changing what is shown means changing the docs/ui artifacts.
+  Chrome is deliberately neutral (system font, near-black) so it never competes with the
+  tokens being previewed — the preview area is the only place project tokens apply.
+
+  Feedback is the first-class channel: click any card/swatch/screen to target it, write a
+  note, pick a candidate, or approve a lens. Everything POSTs to /feedback and lands in
+  events.jsonl for the agent's next round — design conversation happens here, not in chat.
+-->
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>design-flow view</title>
+<style>
+  :root {
+    --bg: #101114; --panel: #17181c; --line: #26282e; --fg: #d7dae0; --dim: #8b8f98;
+    --accent: #6ea8fe; --ok: #4cc38a; --fail: #e5484d; --warn: #d5a021;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--fg);
+         font: 14px/1.5 system-ui, -apple-system, "Segoe UI", sans-serif; }
+  a { color: var(--accent); }
+  .layout { display: grid; grid-template-columns: 220px 1fr 300px; height: 100vh; }
+  .rail, .drawer { background: var(--panel); border-right: 1px solid var(--line);
+                   overflow-y: auto; padding: 12px; }
+  .drawer { border-right: 0; border-left: 1px solid var(--line); display: flex;
+            flex-direction: column; }
+  .main { overflow-y: auto; padding: 20px 28px; }
+  h1 { font-size: 15px; margin: 0 0 4px; }
+  .mode { display: inline-block; font-size: 11px; padding: 1px 8px; border-radius: 9px;
+          border: 1px solid var(--line); color: var(--dim); margin-bottom: 10px; }
+  .honesty { font-size: 11px; color: var(--dim); margin: 0 0 14px; }
+  .lens-btn { display: block; width: 100%; text-align: left; background: none; color: var(--fg);
+              border: 0; border-radius: 6px; padding: 7px 10px; cursor: pointer; font: inherit; }
+  .lens-btn:hover { background: #1f2127; }
+  .lens-btn.active { background: #23262d; color: #fff; }
+  .lens-btn .n { color: var(--dim); font-size: 11px; margin-left: 4px; }
+  .gap-badge { color: var(--warn); }
+  section.lens { display: none; } section.lens.active { display: block; }
+  h2 { font-size: 18px; margin: 0 0 4px; } h3 { font-size: 14px; margin: 20px 0 8px; }
+  .sub { color: var(--dim); font-size: 12px; margin: 0 0 16px; }
+  .cardgrid { display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: 12px; }
+  .fbable { cursor: pointer; position: relative; }
+  .fbable:hover { outline: 1px solid var(--accent); outline-offset: 2px; border-radius: 6px; }
+  .fbable.targeted { outline: 2px solid var(--accent); outline-offset: 2px; border-radius: 6px; }
+  /* token sheet */
+  .swatch { border: 1px solid var(--line); border-radius: 8px; overflow: hidden; }
+  .swatch .chip { height: 52px; }
+  .swatch .meta { padding: 6px 10px; font-size: 12px; display: flex; justify-content: space-between; }
+  .swatch .meta code { color: var(--dim); }
+  table { border-collapse: collapse; width: 100%; font-size: 13px; }
+  td, th { border-bottom: 1px solid var(--line); padding: 6px 10px; text-align: left; }
+  th { color: var(--dim); font-weight: 500; font-size: 12px; }
+  .chip-ok, .chip-fail { font-size: 11px; padding: 1px 8px; border-radius: 9px; }
+  .chip-ok { background: rgba(76,195,138,.15); color: var(--ok); }
+  .chip-fail { background: rgba(229,72,77,.18); color: var(--fail); }
+  .spacebar { background: var(--accent); opacity: .7; height: 10px; border-radius: 3px; margin: 3px 0; }
+  /* preview area gets the PROJECT tokens as CSS vars (set from JS) */
+  .preview { background: var(--p-background, #fff); color: var(--p-foreground, #111);
+             border: 1px solid var(--line); border-radius: 10px; padding: 24px; }
+  .p-btn { background: var(--p-primary, #16f); color: var(--p-onPrimary, #fff); border: 0;
+           border-radius: 8px; padding: 9px 18px; font: inherit; cursor: pointer; }
+  .p-btn.ghost { background: transparent; color: var(--p-primary, #16f);
+                 border: 1px solid var(--p-primary, #16f); }
+  .p-card { border: 1px solid var(--p-border, #ddd); border-radius: 10px; padding: 16px;
+            max-width: 320px; }
+  .p-input { display: block; width: 100%; max-width: 320px; padding: 8px 10px; margin-top: 4px;
+             border: 1px solid var(--p-border, #bbb); border-radius: 7px; font: inherit;
+             background: transparent; color: inherit; }
+  .p-badge { display: inline-block; font-size: 11px; padding: 2px 9px; border-radius: 9px;
+             background: var(--p-muted, #eee); color: var(--p-background, #fff); }
+  .p-toast { border-left: 3px solid var(--p-primary, #16f); background: var(--p-card, rgba(0,0,0,.04));
+             padding: 10px 14px; border-radius: 6px; max-width: 380px; }
+  /* screens — each wireframe is a mini SCREEN wearing the project tokens, not a gray card */
+  .wire { border: 1px solid var(--line); border-radius: 12px; background: var(--panel);
+          overflow: hidden; }
+  .wire h4 { margin: 0; font-size: 12px; color: var(--dim); padding: 8px 12px 0; }
+  .mock { margin: 10px 12px; border-radius: 10px; border: 1px solid var(--line);
+          background: var(--p-background, #fff); color: var(--p-foreground, #111);
+          min-height: 210px; display: flex; flex-direction: column; padding: 14px;
+          font-size: 13px; }
+  .mock .m-title { font-weight: 700; font-size: 14px; margin-bottom: 10px; }
+  .mock .m-body { flex: 1; }
+  .mock .m-empty { color: var(--p-muted, #667); }
+  .mock .m-skel { height: 12px; border-radius: 6px; background: var(--p-border, #ccc);
+                  opacity: .55; margin: 8px 0; }
+  .mock .m-error { border-left: 4px solid var(--p-alert, #a33); background: rgba(140,29,24,.08);
+                   color: var(--p-foreground, #111); padding: 10px 12px; border-radius: 6px; }
+  .mock .m-pa { align-self: stretch; text-align: center; background: var(--p-primary, #16f);
+                color: var(--p-onPrimary, #fff); border-radius: 8px; padding: 10px;
+                font-weight: 600; margin-top: 12px; }
+  .mock .m-pa.missing { background: none; border: 2px dashed var(--warn); color: var(--warn); }
+  .statetabs { display: flex; gap: 4px; margin: 0 12px 4px; }
+  .statetabs button { font-size: 11px; background: none; border: 1px solid var(--line);
+                      color: var(--dim); border-radius: 5px; padding: 2px 8px; cursor: pointer; }
+  .statetabs button.on { border-color: var(--accent); color: var(--accent); }
+  .bind { font-size: 11px; color: var(--dim); margin: 0 12px 10px; }
+  .approve.done { background: none; color: var(--dim); border-color: var(--line); cursor: default; }
+  .lens-btn .ok { color: var(--ok); font-size: 11px; margin-left: 4px; }
+  .flow { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 14px; }
+  .flow .edge { border: 1px solid var(--line); border-radius: 6px; padding: 3px 10px;
+                font-size: 12px; color: var(--dim); }
+  /* prototype — the deliverable, served in an iframe so there is only one renderer */
+  .protoframe { width: 100%; height: calc(100vh - 150px); border: 1px solid var(--line);
+                border-radius: 10px; background: #fff; }
+  .protobar { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; }
+  .protobar a { font-size: 12px; }
+  .missing-note { border: 1px dashed var(--warn); color: var(--warn); border-radius: 10px;
+                  padding: 20px; font-size: 13px; }
+  /* prose (brief/audit) */
+  .prose { max-width: 760px; } .prose h3 { margin-top: 22px; }
+  .prose pre.body { white-space: pre-wrap; font: 13px/1.6 inherit; color: var(--fg);
+                    background: none; margin: 0; }
+  /* candidates */
+  .cand { border: 1px solid var(--line); border-radius: 10px; padding: 14px; }
+  .cand .mini { display: flex; gap: 4px; margin: 8px 0; }
+  .cand .mini span { flex: 1; height: 26px; border-radius: 4px; }
+  .cand .pick { margin-top: 8px; width: 100%; background: var(--accent); color: #0b0c0f;
+                border: 0; border-radius: 7px; padding: 7px; font: inherit; cursor: pointer; }
+  /* drawer */
+  .drawer h3 { margin: 4px 0 10px; font-size: 13px; }
+  .target-line { font-size: 12px; color: var(--dim); border: 1px dashed var(--line);
+                 border-radius: 6px; padding: 6px 8px; min-height: 30px; margin-bottom: 8px; }
+  .target-line b { color: var(--accent); }
+  textarea { width: 100%; min-height: 74px; background: var(--bg); color: var(--fg);
+             border: 1px solid var(--line); border-radius: 7px; padding: 8px; font: inherit; }
+  .send, .approve { width: 100%; margin-top: 8px; border: 0; border-radius: 7px; padding: 8px;
+                    font: inherit; cursor: pointer; }
+  .send { background: var(--accent); color: #0b0c0f; }
+  .approve { background: rgba(76,195,138,.15); color: var(--ok); border: 1px solid var(--ok); }
+  .sentlog { flex: 1; overflow-y: auto; margin-top: 14px; font-size: 12px; }
+  .sentlog .item { border-bottom: 1px solid var(--line); padding: 6px 0; color: var(--dim); }
+  .sentlog .item b { color: var(--fg); font-weight: 500; }
+  .toastmsg { position: fixed; bottom: 16px; left: 50%; transform: translateX(-50%);
+              background: var(--panel); border: 1px solid var(--line); border-radius: 8px;
+              padding: 8px 16px; font-size: 12px; display: none; }
+  ul.gaps { color: var(--warn); font-size: 13px; }
+</style>
+</head>
+<body>
+<div class="layout">
+  <nav class="rail">
+    <h1>design-flow view</h1>
+    <span class="mode" id="mode">draft</span>
+    <p class="honesty">Wireframe fidelity — proves tokens, states &amp; flow. Not final pixels.</p>
+    <div id="lensList"></div>
+  </nav>
+  <main class="main" id="main"></main>
+  <aside class="drawer">
+    <h3>Feedback → agent</h3>
+    <div class="target-line" id="targetLine">No target — click any swatch, component, or screen to aim a note; or write a general note below.</div>
+    <textarea id="note" placeholder="e.g. primary chói quá trên nền này; đổi hướng ấm hơn…"></textarea>
+    <button type="button" class="send" id="send">Send note</button>
+    <button type="button" class="approve" id="approveLens">✓ Approve current lens</button>
+    <div class="sentlog" id="sentlog"></div>
+  </aside>
+</div>
+<div class="toastmsg" id="toastmsg"></div>
+<script>
+"use strict";
+let MODEL = null;
+const APPROVED = new Set();
+let LENS = null;
+let TARGET = null; // {lens, kind, name}
+const STATE_TAB = {}; // screenKey -> empty|loading|error
+
+// ---------------------------------------------------------------- transport
+async function loadModel() {
+  const res = await fetch("model.json", { cache: "no-store" });
+  MODEL = await res.json();
+  render();
+}
+async function sendFeedback(event) {
+  try {
+    await fetch("feedback", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify(event),
+    });
+    logSent(event);
+    toast("Sent — the agent reads this next round");
+  } catch { toast("Send failed — is the server still up?"); }
+}
+function toast(msg) {
+  const el = document.getElementById("toastmsg");
+  el.textContent = msg; el.style.display = "block";
+  setTimeout(() => { el.style.display = "none"; }, 2200);
+}
+function logSent(event) {
+  const log = document.getElementById("sentlog");
+  const div = document.createElement("div");
+  div.className = "item";
+  div.innerHTML = `<b>${esc(event.type)}</b> ${esc(event.target ? formatTarget(event.target) : event.name || event.lens || "")}<br>${esc(event.text || "")}`;
+  log.prepend(div);
+}
+
+// ---------------------------------------------------------------- helpers
+function esc(s) {
+  return String(s ?? "").replace(/[&<>"']/g, (c) =>
+    ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]);
+}
+function el(html) {
+  const t = document.createElement("template");
+  t.innerHTML = html.trim();
+  return t.content.firstChild;
+}
+function formatTarget(t) { return t ? `${t.lens} / ${t.kind} / ${t.name}` : ""; }
+function setTarget(t, node) {
+  TARGET = t;
+  document.querySelectorAll(".fbable.targeted").forEach((n) => {
+    n.classList.remove("targeted");
+  });
+  if (node) node.classList.add("targeted");
+  document.getElementById("targetLine").innerHTML =
+    t ? `Target: <b>${esc(formatTarget(t))}</b> — note below goes to it.` :
+        "No target — click any swatch, component, or screen to aim a note.";
+}
+function fbable(node, target) {
+  node.classList.add("fbable");
+  node.addEventListener("click", (e) => { e.stopPropagation(); setTarget(target, node); });
+  return node;
+}
+function roleVars(roles) {
+  return Object.entries(roles || {}).map(([k, v]) => `--p-${k}:${v}`).join(";");
+}
+
+// ---------------------------------------------------------------- rendering
+function render() {
+  document.getElementById("mode").textContent = MODEL.source?.mode ?? "draft";
+  const lenses = [];
+  lenses.push({ id: "prototype", label: "Prototype", warn: !MODEL.prototype });
+  if (MODEL.brief) lenses.push({ id: "brief", label: "Brief" });
+  if (MODEL.candidates?.length) lenses.push({ id: "candidates", label: "Candidates", n: MODEL.candidates.length });
+  if (MODEL.tokens) lenses.push({ id: "tokens", label: "Tokens" });
+  if (MODEL.tokens) lenses.push({ id: "gallery", label: "Gallery" });
+  for (const s of MODEL.screens ?? [])
+    lenses.push({ id: `screens:${s.context}`, label: `Contract · ${s.context}`, n: s.screens.length });
+  if (MODEL.audit) lenses.push({ id: "audit", label: "Audit" });
+  lenses.push({ id: "gaps", label: "Gaps", n: MODEL.gaps?.length ?? 0, warn: (MODEL.gaps?.length ?? 0) > 0 });
+
+  if (!LENS || !lenses.some((l) => l.id === LENS)) LENS = lenses[0]?.id ?? "gaps";
+
+  const list = document.getElementById("lensList");
+  list.innerHTML = "";
+  for (const l of lenses) {
+    const b = el(`<button type="button" class="lens-btn${l.id === LENS ? " active" : ""}">${esc(l.label)}${
+      l.n !== undefined ? ` <span class="n${l.warn ? " gap-badge" : ""}">${l.n}</span>` : ""}${
+      APPROVED.has(l.id) ? ` <span class="ok">✓</span>` : ""}</button>`);
+    b.addEventListener("click", () => {
+      LENS = l.id;
+      history.replaceState(null, "", `#lens=${encodeURIComponent(l.id)}`);
+      render();
+    });
+    list.appendChild(b);
+  }
+
+  const main = document.getElementById("main");
+  main.innerHTML = "";
+  if (LENS === "prototype") main.appendChild(renderPrototype());
+  else if (LENS === "brief") main.appendChild(renderProse("Design brief", MODEL.brief));
+  else if (LENS === "candidates") main.appendChild(renderCandidates());
+  else if (LENS === "tokens") main.appendChild(renderTokens());
+  else if (LENS === "gallery") main.appendChild(renderGallery());
+  else if (LENS.startsWith("screens:")) main.appendChild(renderScreens(LENS.slice(8)));
+  else if (LENS === "audit") main.appendChild(renderProse("Audit", MODEL.audit));
+  else main.appendChild(renderGaps());
+  const ab = document.getElementById("approveLens");
+  ab.classList.toggle("done", APPROVED.has(LENS));
+  ab.textContent = APPROVED.has(LENS) ? "✓ Approved — recorded" : "✓ Approve current lens";
+}
+
+function renderPrototype() {
+  const root = el(`<section class="lens active"><h2>Prototype</h2>
+    <p class="sub">The deliverable — every declared screen and state, in the real tokens. Open it
+    standalone to click through at full size; leave notes here with the drawer.</p></section>`);
+  if (!MODEL.prototype) {
+    root.appendChild(el(`<div class="missing-note">No <code>docs/ui/prototype.html</code> yet.
+      ui-designer scaffolds it from the tokens and screen inventory, then fills every frame —
+      until it exists there is nothing here to review, and that absence is the finding.</div>`));
+    return root;
+  }
+  const bar = el(`<div class="protobar"><a href="prototype.html" target="_blank" rel="noopener">Open standalone ↗</a>
+    <span class="sub" style="margin:0">${Math.round(MODEL.prototype.bytes / 1024)} KB · ${esc(MODEL.prototype.path)}</span></div>`);
+  root.appendChild(bar);
+  root.appendChild(fbable(el(`<iframe class="protoframe" src="prototype.html" title="prototype"></iframe>`),
+    { lens: "prototype", kind: "prototype", name: "whole surface" }));
+  return root;
+}
+
+function renderProse(title, doc) {
+  const root = el(`<section class="lens active prose"><h2>${esc(title)}</h2></section>`);
+  for (const s of doc.sections ?? []) {
+    if (s.title !== "_intro") root.appendChild(el(`<h3>${esc(s.title)}</h3>`));
+    root.appendChild(el(`<pre class="body">${esc(s.body)}</pre>`));
+  }
+  return root;
+}
+
+function renderTokens() {
+  const t = MODEL.tokens;
+  const root = el(`<section class="lens active"><h2>Token sheet</h2>
+    <p class="sub">Click a swatch or row to target feedback at it.</p></section>`);
+  const grid = el(`<div class="cardgrid"></div>`);
+  for (const [name, hex] of Object.entries(t.color?.roles ?? {})) {
+    grid.appendChild(fbable(el(`<div class="swatch"><div class="chip" style="background:${esc(hex)}"></div>
+      <div class="meta"><span>${esc(name)}</span><code>${esc(hex)}</code></div></div>`),
+      { lens: "tokens", kind: "color-role", name }));
+  }
+  root.appendChild(grid);
+
+  root.appendChild(el(`<h3>Contrast — computed, not judged</h3>`));
+  const table = el(`<table><tr><th>fg</th><th>bg</th><th>level</th><th>ratio</th><th>AA</th></tr></table>`);
+  for (const c of t.contrast ?? []) {
+    const row = fbable(el(`<tr><td>${esc(c.fg)}</td><td>${esc(c.bg)}</td><td>${esc(c.level)}</td>
+      <td>${esc(c.ratio)}:1</td>
+      <td><span class="${c.pass ? "chip-ok" : "chip-fail"}">${c.pass ? "pass" : `fail &lt; ${c.min}`}</span></td></tr>`),
+      { lens: "tokens", kind: "contrast-pair", name: `${c.fg} on ${c.bg}` });
+    table.appendChild(row);
+  }
+  root.appendChild(table);
+
+  if (t.type) {
+    root.appendChild(el(`<h3>Type</h3>`));
+    for (const [role, face] of Object.entries(t.type))
+      root.appendChild(fbable(el(`<p style="margin:2px 0"><span class="sub" style="display:inline-block;width:70px">${esc(role)}</span> ${esc(face)}</p>`),
+        { lens: "tokens", kind: "type-role", name: role }));
+  }
+  if (t.spacing?.scale?.length) {
+    root.appendChild(el(`<h3>Spacing (${esc(t.spacing.unit ?? "")})</h3>`));
+    for (const s of t.spacing.scale)
+      root.appendChild(el(`<div class="spacebar" style="width:${Math.min(Number(s) * 4 || 0, 600)}px"></div>`));
+  }
+  return root;
+}
+
+function renderGallery() {
+  const roles = MODEL.tokens?.color?.roles ?? {};
+  const vars = roleVars(roles);
+  const root = el(`<section class="lens active"><h2>Component gallery</h2>
+    <p class="sub">Core components wearing the declared tokens. Click one to target feedback.</p></section>`);
+  const pv = el(`<div class="preview" style="${vars}"></div>`);
+  const add = (html, name) => pv.appendChild(fbable(el(html), { lens: "gallery", kind: "component", name }));
+  add(`<div style="margin-bottom:18px"><button class="p-btn">Primary action</button>
+       <button class="p-btn ghost" style="margin-left:8px">Secondary</button></div>`, "buttons");
+  add(`<div class="p-card" style="margin-bottom:18px"><strong>Card title</strong>
+       <p style="margin:6px 0 0">Body copy set in the body face, on the card surface.</p></div>`, "card");
+  add(`<div style="margin-bottom:18px"><label>Field label<input class="p-input" placeholder="Example value" /></label></div>`, "input");
+  add(`<div style="margin-bottom:18px"><span class="p-badge">badge</span></div>`, "badge");
+  add(`<div class="p-toast">Saved — the change is live.</div>`, "toast");
+  root.appendChild(pv);
+  if (Object.keys(MODEL.tokens?.color?.dark ?? {}).length) {
+    const darkVars = roleVars({ ...roles, ...MODEL.tokens.color.dark });
+    root.appendChild(el(`<h3>Dark</h3>`));
+    const dpv = el(`<div class="preview" style="${darkVars}"></div>`);
+    dpv.appendChild(el(`<button class="p-btn">Primary action</button>`));
+    root.appendChild(dpv);
+  }
+  return root;
+}
+
+function renderScreens(context) {
+  const ctx = (MODEL.screens ?? []).find((s) => s.context === context);
+  const root = el(`<section class="lens active"><h2>Screens · ${esc(context)}</h2></section>`);
+  if (ctx.edges?.length) {
+    const flow = el(`<div class="flow"></div>`);
+    for (const e of ctx.edges)
+      flow.appendChild(el(`<span class="edge">${esc(e.from)} → ${esc(e.to)}${e.label ? ` <i>(${esc(e.label)})</i>` : ""}</span>`));
+    root.appendChild(flow);
+  }
+  const vars = roleVars(MODEL.tokens?.color?.roles ?? {});
+  const grid = el(`<div class="cardgrid"></div>`);
+  for (const sc of ctx.screens) {
+    const key = `${context}:${sc.name}`;
+    const f = sc.fields ?? {};
+    const pa = f["primary action"];
+    const cur = STATE_TAB[key] ?? "empty";
+    const stKey = cur === "error" ? "error states" : `${cur} state`;
+    const declared = f[stKey] ?? f[cur];
+    const bodyHtml =
+      declared === undefined
+        ? `<div class="m-error">⚠ ${cur} state not declared — every screen names it</div>`
+        : cur === "loading"
+          ? `<div class="m-skel" style="width:80%"></div><div class="m-skel" style="width:55%"></div><div class="m-empty">${esc(declared)}</div>`
+          : cur === "error"
+            ? `<div class="m-error">${esc(declared)}</div>`
+            : `<div class="m-empty">${esc(declared)}</div>`;
+    const wire = el(`<div class="wire"><h4>${esc(sc.name)}</h4></div>`);
+    const tabs = el(`<div class="statetabs"></div>`);
+    for (const st of ["empty", "loading", "error"]) {
+      const b = el(`<button type="button" class="${st === cur ? "on" : ""}">${st}</button>`);
+      b.addEventListener("click", (e) => { e.stopPropagation(); STATE_TAB[key] = st; render(); });
+      tabs.appendChild(b);
+    }
+    wire.appendChild(tabs);
+    wire.appendChild(
+      el(`<div class="mock" style="${vars}">
+        <div class="m-title">${esc(sc.name.replace(/-/g, " "))}</div>
+        <div class="m-body">${bodyHtml}</div>
+        ${pa ? `<div class="m-pa">${esc(pa)}</div>` : `<div class="m-pa missing">primary action not declared</div>`}
+      </div>`),
+    );
+    if (f["api bindings"]) wire.appendChild(el(`<div class="bind">binds: ${esc(f["api bindings"])}</div>`));
+    grid.appendChild(fbable(wire, { lens: `screens:${context}`, kind: "screen", name: sc.name }));
+  }
+  root.appendChild(grid);
+  return root;
+}
+
+function renderCandidates() {
+  const root = el(`<section class="lens active"><h2>Candidate directions</h2>
+    <p class="sub">Pick by eye — the chosen direction becomes the working tokens; the others are recorded as rejected.</p>
+    <div class="cardgrid" id="candGrid"></div></section>`);
+  const grid = root.querySelector("#candGrid");
+  for (const c of MODEL.candidates) {
+    const roles = c.tokens?.color?.roles ?? {};
+    const card = el(`<div class="cand"><strong>${esc(c.name)}</strong></div>`);
+    const mini = el(`<div class="mini"></div>`);
+    for (const hex of Object.values(roles).slice(0, 6))
+      mini.appendChild(el(`<span style="background:${esc(hex)}"></span>`));
+    card.appendChild(mini);
+    if (c.tokens?.type)
+      card.appendChild(el(`<div class="sub">${esc(c.tokens.type.display ?? "")} / ${esc(c.tokens.type.body ?? "")}</div>`));
+    const read = c.tokens?.meta?.designRead;
+    if (read?.vibe) card.appendChild(el(`<div class="sub">${esc(read.vibe)}</div>`));
+    const pv = el(`<div class="preview" style="${roleVars(roles)};padding:12px;margin-top:6px">
+      <button class="p-btn" style="font-size:12px">Primary</button></div>`);
+    card.appendChild(pv);
+    const pick = el(`<button type="button" class="pick">Pick “${esc(c.name)}”</button>`);
+    pick.addEventListener("click", () => sendFeedback({ type: "candidate-pick", name: c.name }));
+    card.appendChild(pick);
+    grid.appendChild(fbable(card, { lens: "candidates", kind: "candidate", name: c.name }));
+  }
+  return root;
+}
+
+function renderGaps() {
+  const root = el(`<section class="lens active"><h2>Gaps</h2>
+    <p class="sub">What the extractor could not read from docs/ui — an unparsed section and an
+    empty one look identical elsewhere; only this list tells them apart.</p></section>`);
+  const ul = el(`<ul class="gaps"></ul>`);
+  for (const g of MODEL.gaps ?? []) ul.appendChild(el(`<li>${esc(g)}</li>`));
+  if (!(MODEL.gaps ?? []).length) ul.appendChild(el(`<li style="color:var(--ok)">none — everything parsed</li>`));
+  root.appendChild(ul);
+  return root;
+}
+
+// ---------------------------------------------------------------- drawer actions
+document.getElementById("send").addEventListener("click", () => {
+  const text = document.getElementById("note").value.trim();
+  if (!text) { toast("Write the note first"); return; }
+  sendFeedback({ type: "note", lens: LENS, target: TARGET, text });
+  document.getElementById("note").value = "";
+});
+document.getElementById("approveLens").addEventListener("click", () => {
+  if (APPROVED.has(LENS)) { toast("Already approved — recorded once"); return; }
+  APPROVED.add(LENS);
+  sendFeedback({ type: "approve", lens: LENS });
+  render();
+});
+document.getElementById("main").addEventListener("click", () => setTarget(null, null));
+
+// ---------------------------------------------------------------- boot + live reload
+if (location.hash.startsWith("#lens=")) LENS = decodeURIComponent(location.hash.slice(6));
+loadModel();
+const stream = new EventSource("stream");
+stream.addEventListener("model", () => loadModel());
+</script>
+</body>
+</html>

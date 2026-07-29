@@ -1,0 +1,46 @@
+{
+  "meta": {
+    "project": "<project-slug>",
+    "designRead": {
+      "pageKind": "<landing | app | dashboard | docs | editorial | form-flow>",
+      "audience": "<who this is for — the audience picks the aesthetic, not your taste>",
+      "job": "<the page's single job — the one action a successful visit performs>",
+      "vibe": "<the visual language family in 2-4 words>",
+      "systemFamily": "<official package (Material 3, Fluent, Polaris, govuk-frontend, shadcn) or a named approximation — recorded as an ADR>"
+    },
+    "dials": {
+      "variance": null,
+      "motion": null,
+      "density": null,
+      "reason": "<why these values follow from the brief — a silent baseline fails the gate>"
+    }
+  },
+  "color": {
+    "roles": {
+      "background": "<#hex>",
+      "foreground": "<#hex>",
+      "primary": "<#hex>",
+      "onPrimary": "<#hex>",
+      "muted": "<#hex>",
+      "border": "<#hex>"
+    },
+    "dark": {}
+  },
+  "type": {
+    "display": "<characterful display face — used with restraint>",
+    "body": "<complementary body face>",
+    "scale": "<type scale, e.g. 1.25 modular>"
+  },
+  "spacing": {
+    "unit": "<base unit, e.g. 4px>",
+    "scale": []
+  },
+  "iconography": {
+    "family": "<the ONE icon family for this project>"
+  },
+  "contrastPairs": [
+    { "fg": "foreground", "bg": "background", "level": "body" },
+    { "fg": "onPrimary", "bg": "primary", "level": "body" },
+    { "fg": "muted", "bg": "background", "level": "large" }
+  ]
+}

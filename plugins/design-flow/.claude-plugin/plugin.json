@@ -1,0 +1,17 @@
+{
+  "name": "design-flow",
+  "version": "0.1.0",
+  "description": "The experience-design loop: ui-designer authors docs/ui (design brief, WCAG-validated tokens, screen inventory with declared states — RFC-0030) and /design-flow:view runs the live co-design surface whose clicks, notes, and candidate picks land in events.jsonl for the agent's next round. Meets ddd-flow at docs/domain/ and swe-flow at docs/ui/; authors drafts, never flips a status.",
+  "author": {
+    "name": "baodq97"
+  },
+  "license": "MIT",
+  "keywords": [
+    "design-system",
+    "frontend-design",
+    "ux",
+    "design-tokens",
+    "wcag",
+    "claude-code-plugin"
+  ]
+}

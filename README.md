@@ -10,6 +10,7 @@ This is the **ecosystem monorepo**. Five things co-evolve here so they *cannot d
 | `packages/govkit/` | **govkit** — the deterministic governance CLI (TypeScript) | npm → `npx govkit` |
 | `plugins/swe-flow/` | the **swe-flow** Claude Code plugin (skills + agents) that *authors* artifacts | marketplace (git-subdir) |
 | `plugins/ddd-flow/` | the **ddd-flow** Claude Code plugin — the DDD modelling loop; writes `docs/domain/`, which swe-flow's designers consume | marketplace (git-subdir) |
+| `plugins/design-flow/` | the **design-flow** Claude Code plugin — the experience-design loop (RFC-0030); writes `docs/ui/` and runs the live co-design view | marketplace (git-subdir) |
 | `template/` | the consumer **scaffold surface** (pins `govkit`, installs the plugin — carries **no** engine source) | `govkit init` / "Use this template" |
 | `.claude/workflows/` | the **`sdlc`** workflow orchestrating PRD→RFC→ADR→US→Code | project-scoped (workflows can't be bundled in a plugin) |
 

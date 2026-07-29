@@ -32,3 +32,6 @@ Thumbs.db
 __pycache__/
 *.pyc
 .ruff_cache/
+
+# design-flow: generated preview sessions
+.design-flow/
