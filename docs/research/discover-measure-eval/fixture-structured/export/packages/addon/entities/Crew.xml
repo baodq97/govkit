@@ -1,0 +1,4 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Entity name="Crew" schema="fo_crew" package="addon" version="1.4.0">
+  <Display>Crew</Display>
+</Entity>

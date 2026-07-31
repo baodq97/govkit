@@ -1,0 +1,4 @@
+entity=FuelLog
+field=CostPerLitre
+kind=calculated
+expression=Cost / Max(Litres, 0.01)

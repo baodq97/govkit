@@ -1,0 +1,4 @@
+entity=Depot
+field=Occupancy
+kind=rollup
+expression=Count(Asset) / Max(Capacity, 1)

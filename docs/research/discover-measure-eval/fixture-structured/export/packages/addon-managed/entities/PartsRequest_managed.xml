@@ -1,0 +1,41 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Entity name="PartsRequest" schema="fo_partsrequest" package="addon-managed" version="1.4.0">
+  <Display>Parts Request</Display>
+  <Labels>
+    <Label lcid="1033" value="PartsRequest" />
+    <Label lcid="1066" value="PartsRequest (vi)" />
+    <Label lcid="1036" value="PartsRequest (fr)" />
+  </Labels>
+  <Attributes>
+      <Attribute name="Name" type="string" required="false" />
+      <Attribute name="WorkOrder" type="lookup" target="WorkOrder" required="false" />
+      <Attribute name="Part" type="lookup" target="Part" required="false" />
+      <Attribute name="Qty" type="int" required="false" />
+      <Attribute name="Cost" type="string" required="false" />
+      <Attribute name="Owner" type="picklist" target="owner_role" required="false" />
+      <Attribute name="ApprovedBy" type="lookup" target="Employee" required="false" />
+    <Attribute name="fo_createdon" type="datetime" required="false" platform="true" />
+    <Attribute name="fo_modifiedon" type="datetime" required="false" platform="true" />
+    <Attribute name="fo_versionnumber" type="bigint" required="false" platform="true" />
+  </Attributes>
+  <Relationships>
+    <Relationship name="fo_partsrequest_workorder" type="many-to-one" target="WorkOrder" />
+    <Relationship name="fo_partsrequest_part" type="many-to-one" target="Part" />
+    <Relationship name="fo_partsrequest_approvedby" type="many-to-one" target="Employee" />
+  </Relationships>
+  <Forms>
+    <Form name="main" layout="two-column" formid="{form-partsrequest-0001}">
+      <Section label="General" columns="2">
+        <Field name="Name" width="100" />
+        <Field name="WorkOrder" width="115" />
+        <Field name="Part" width="130" />
+        <Field name="Qty" width="145" />
+      </Section>
+      <Section label="Details" columns="1">
+        <Field name="Cost" width="90" />
+        <Field name="Owner" width="100" />
+        <Field name="ApprovedBy" width="110" />
+      </Section>
+    </Form>
+  </Forms>
+</Entity>

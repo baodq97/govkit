@@ -30,11 +30,19 @@ shape:
 | DDD descriptions inside `swe-flow` | ~14,000 chars — **64% of that plugin's budget** | moved out |
 | Always-in-context cost of this plugin | 10 descriptions | **1** (`design`, 1,417 chars) |
 
-The eight steps and `view` carry `disable-model-invocation: true`: their descriptions are **not**
-loaded into context, and the full skill loads only when you type its command. `design` names the
-command; you run it. That also means `design` cannot silently chain three steps — which matches its
-own rule that a step per turn keeps the human in the loop, since half these steps are conversations
-with people a skill cannot summon.
+`design` reads state, decides the next step, and **invokes it**. The eight steps and `view` are
+model-invocable, so an agent can drive the loop end to end; you can still run any of them directly
+by typing its command when you want to hold the workshop yourself.
+
+That costs context, and the trade is deliberate. A skill is only invocable if its description is in
+context, so "the agent can trigger it" and "it costs nothing to carry" cannot both be true. The
+steps therefore carry the shortest descriptions that still distinguish them — what the step does and
+what it writes, no trigger phrasing, since `design` routes them rather than intent matching them.
+
+What that removes is the mechanical guarantee that `design` could not silently chain three steps.
+The guarantee is now a rule rather than a lock: one step per turn, then re-read state. It matters
+because half these steps are conversations with people a skill cannot summon — chaining them
+unattended produces artifacts resting on assumptions nobody checked.
 
 The two plugins meet at an artifact, not an import: **`docs/domain/`**. `ddd-flow` writes it;
 `swe-flow`'s `api-designer`, `data-model` and `spec-author` read it. Install either without the other.
@@ -93,7 +101,11 @@ than deriving it from position, so running strategize before connect costs nothi
   `unknown` is a valid answer → `docs/domain/business-model.md`.
 - **`2-discover`** — EventStorming (plus Domain Storytelling, Example Mapping): event timeline,
   ubiquitous language, hotspots, and who was actually in the room. Tracks **confirmed vs candidate**
-  so a run that only re-read the schemas cannot pass as discovery → `docs/domain/discovery/`.
+  so a run that only re-read the schemas cannot pass as discovery. On a **structured** corpus it
+  switches to measuring — the run writes and commits its own mining scripts, emits a coverage
+  manifest (`total / parsed / skipped / failed`, validated by `mine_coverage.py`), and *proves*
+  polysemy from the schema instead of tallying it, so "not found in the artifacts" stops passing for
+  an absence → `docs/domain/discovery/`.
 
 **Loop 2 — decide the boundaries**
 

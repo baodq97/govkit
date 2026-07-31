@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Workflow name="PartsApproval" primaryentity="fo_partsrequest" trigger="create">
+  <Step type="condition" />
+  <Step type="setvalue" />
+  <Step type="sendmail" />
+</Workflow>

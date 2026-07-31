@@ -1,0 +1,29 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Entity name="Shift" schema="fo_shift" package="core" version="3.2.1">
+  <Display>Shift</Display>
+  <Labels>
+    <Label lcid="1033" value="Shift" />
+    <Label lcid="1066" value="Shift (vi)" />
+    <Label lcid="1036" value="Shift (fr)" />
+  </Labels>
+  <Attributes>
+      <Attribute name="Name" type="string" required="false" />
+      <Attribute name="StartsAt" type="datetime" required="false" />
+      <Attribute name="Depot" type="lookup" target="Depot" required="false" />
+    <Attribute name="fo_createdon" type="datetime" required="false" platform="true" />
+    <Attribute name="fo_modifiedon" type="datetime" required="false" platform="true" />
+    <Attribute name="fo_versionnumber" type="bigint" required="false" platform="true" />
+  </Attributes>
+  <Relationships>
+    <Relationship name="fo_shift_depot" type="many-to-one" target="Depot" />
+  </Relationships>
+  <Forms>
+    <Form name="main" layout="two-column" formid="{form-shift-0001}">
+      <Section label="General" columns="2">
+        <Field name="Name" width="100" />
+        <Field name="StartsAt" width="115" />
+        <Field name="Depot" width="130" />
+      </Section>
+    </Form>
+  </Forms>
+</Entity>

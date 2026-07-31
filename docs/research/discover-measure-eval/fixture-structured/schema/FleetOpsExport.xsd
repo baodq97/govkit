@@ -1,0 +1,83 @@
+<?xml version="1.0" encoding="utf-8"?>
+<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema" elementFormDefault="qualified">
+  <xs:simpleType name="attrType">
+    <xs:restriction base="xs:string">
+      <xs:enumeration value="string" /><xs:enumeration value="memo" />
+      <xs:enumeration value="int" /><xs:enumeration value="bigint" />
+      <xs:enumeration value="decimal" /><xs:enumeration value="datetime" />
+      <xs:enumeration value="picklist" /><xs:enumeration value="lookup" />
+    </xs:restriction>
+  </xs:simpleType>
+  <xs:element name="Entity">
+    <xs:complexType>
+      <xs:sequence>
+        <xs:element name="Display" type="xs:string" />
+        <xs:element name="Labels" minOccurs="0">
+          <xs:complexType><xs:sequence>
+            <xs:element name="Label" maxOccurs="unbounded">
+              <xs:complexType>
+                <xs:attribute name="lcid" type="xs:int" use="required" />
+                <xs:attribute name="value" type="xs:string" use="required" />
+              </xs:complexType>
+            </xs:element>
+          </xs:sequence></xs:complexType>
+        </xs:element>
+        <xs:element name="Attributes" minOccurs="0">
+          <xs:complexType><xs:sequence>
+            <xs:element name="Attribute" maxOccurs="unbounded">
+              <xs:complexType>
+                <xs:attribute name="name" type="xs:string" use="required" />
+                <xs:attribute name="type" type="attrType" use="required" />
+                <xs:attribute name="target" type="xs:string" use="optional" />
+                <xs:attribute name="required" type="xs:boolean" use="optional" />
+                <xs:attribute name="platform" type="xs:boolean" use="optional" />
+              </xs:complexType>
+            </xs:element>
+          </xs:sequence></xs:complexType>
+        </xs:element>
+        <xs:element name="Relationships" minOccurs="0">
+          <xs:complexType><xs:sequence>
+            <xs:element name="Relationship" minOccurs="0" maxOccurs="unbounded">
+              <xs:complexType>
+                <xs:attribute name="name" type="xs:string" use="required" />
+                <xs:attribute name="type" type="xs:string" use="required" />
+                <xs:attribute name="target" type="xs:string" use="required" />
+              </xs:complexType>
+            </xs:element>
+          </xs:sequence></xs:complexType>
+        </xs:element>
+        <xs:element name="Forms" minOccurs="0">
+          <xs:complexType><xs:sequence>
+            <xs:element name="Form" maxOccurs="unbounded">
+              <xs:complexType>
+                <xs:sequence>
+                  <xs:element name="Section" maxOccurs="unbounded">
+                    <xs:complexType>
+                      <xs:sequence>
+                        <xs:element name="Field" maxOccurs="unbounded">
+                          <xs:complexType>
+                            <xs:attribute name="name" type="xs:string" use="required" />
+                            <xs:attribute name="width" type="xs:int" use="optional" />
+                          </xs:complexType>
+                        </xs:element>
+                      </xs:sequence>
+                      <xs:attribute name="label" type="xs:string" use="required" />
+                      <xs:attribute name="columns" type="xs:int" use="optional" />
+                    </xs:complexType>
+                  </xs:element>
+                </xs:sequence>
+                <xs:attribute name="name" type="xs:string" use="required" />
+                <xs:attribute name="layout" type="xs:string" use="optional" />
+                <xs:attribute name="formid" type="xs:string" use="optional" />
+              </xs:complexType>
+            </xs:element>
+          </xs:sequence></xs:complexType>
+        </xs:element>
+      </xs:sequence>
+      <xs:attribute name="name" type="xs:string" use="required" />
+      <xs:attribute name="schema" type="xs:string" use="required" />
+      <xs:attribute name="package" type="xs:string" use="optional" />
+      <xs:attribute name="version" type="xs:string" use="optional" />
+    </xs:complexType>
+  </xs:element>
+</xs:schema>

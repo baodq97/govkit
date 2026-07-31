@@ -1,0 +1,13 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Solution name="fleetops_legacy" version="0.9.7">
+  <Entities>
+    <Entity name="WorkOrder" schema="fo_workorder" />
+    <Entity name="Asset" schema="fo_asset" />
+    <Entity name="Depot" schema="fo_depot" />
+    <Entity name="Employee" schema="fo_employee" />
+    <Entity name="PartsRequest" schema="fo_partsrequest" />
+    <Entity name="Part" schema="fo_part" />
+    <Entity name="Supplier" schema="fo_supplier" />
+    <Entity name="CostCentre" schema="fo_costcentre" />
+  </Entities>
+</Solution>

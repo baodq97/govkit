@@ -1,0 +1,29 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Entity name="Downtime" schema="fo_downtime" package="core" version="3.2.1">
+  <Display>Downtime</Display>
+  <Labels>
+    <Label lcid="1033" value="Downtime" />
+    <Label lcid="1066" value="Downtime (vi)" />
+    <Label lcid="1036" value="Downtime (fr)" />
+  </Labels>
+  <Attributes>
+      <Attribute name="Asset" type="lookup" target="Asset" required="false" />
+      <Attribute name="Hours" type="decimal" required="false" />
+      <Attribute name="Reason" type="picklist" target="reason" required="false" />
+    <Attribute name="fo_createdon" type="datetime" required="false" platform="true" />
+    <Attribute name="fo_modifiedon" type="datetime" required="false" platform="true" />
+    <Attribute name="fo_versionnumber" type="bigint" required="false" platform="true" />
+  </Attributes>
+  <Relationships>
+    <Relationship name="fo_downtime_asset" type="many-to-one" target="Asset" />
+  </Relationships>
+  <Forms>
+    <Form name="main" layout="two-column" formid="{form-downtime-0001}">
+      <Section label="General" columns="2">
+        <Field name="Asset" width="100" />
+        <Field name="Hours" width="115" />
+        <Field name="Reason" width="130" />
+      </Section>
+    </Form>
+  </Forms>
+</Entity>

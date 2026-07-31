@@ -1,0 +1,4 @@
+entity=Employee
+field=OpenWorkOrders
+kind=calculated
+expression=Count(WorkOrder where Owner = this and Status <> 'closed')

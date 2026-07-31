@@ -1,0 +1,27 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Entity name="Contract" schema="fo_contract" package="addon" version="1.4.0">
+  <Display>Contract</Display>
+  <Labels>
+    <Label lcid="1033" value="Contract" />
+    <Label lcid="1066" value="Contract (vi)" />
+    <Label lcid="1036" value="Contract (fr)" />
+  </Labels>
+  <Attributes>
+      <Attribute name="Name" type="string" required="false" />
+      <Attribute name="Supplier" type="lookup" target="Supplier" required="false" />
+    <Attribute name="fo_createdon" type="datetime" required="false" platform="true" />
+    <Attribute name="fo_modifiedon" type="datetime" required="false" platform="true" />
+    <Attribute name="fo_versionnumber" type="bigint" required="false" platform="true" />
+  </Attributes>
+  <Relationships>
+    <Relationship name="fo_contract_supplier" type="many-to-one" target="Supplier" />
+  </Relationships>
+  <Forms>
+    <Form name="main" layout="two-column" formid="{form-contract-0001}">
+      <Section label="General" columns="2">
+        <Field name="Name" width="100" />
+        <Field name="Supplier" width="115" />
+      </Section>
+    </Form>
+  </Forms>
+</Entity>

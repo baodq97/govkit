@@ -1,0 +1,36 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Entity name="Inspection" schema="fo_inspection" package="core" version="3.2.1">
+  <Display>Inspection</Display>
+  <Labels>
+    <Label lcid="1033" value="Inspection" />
+    <Label lcid="1066" value="Inspection (vi)" />
+    <Label lcid="1036" value="Inspection (fr)" />
+  </Labels>
+  <Attributes>
+      <Attribute name="Name" type="string" required="false" />
+      <Attribute name="Asset" type="lookup" target="Asset" required="false" />
+      <Attribute name="Result" type="picklist" target="result" required="false" />
+      <Attribute name="InspectedOn" type="datetime" required="false" />
+      <Attribute name="Inspector" type="lookup" target="Employee" required="false" />
+    <Attribute name="fo_createdon" type="datetime" required="false" platform="true" />
+    <Attribute name="fo_modifiedon" type="datetime" required="false" platform="true" />
+    <Attribute name="fo_versionnumber" type="bigint" required="false" platform="true" />
+  </Attributes>
+  <Relationships>
+    <Relationship name="fo_inspection_asset" type="many-to-one" target="Asset" />
+    <Relationship name="fo_inspection_inspector" type="many-to-one" target="Employee" />
+  </Relationships>
+  <Forms>
+    <Form name="main" layout="two-column" formid="{form-inspection-0001}">
+      <Section label="General" columns="2">
+        <Field name="Name" width="100" />
+        <Field name="Asset" width="115" />
+        <Field name="Result" width="130" />
+        <Field name="InspectedOn" width="145" />
+      </Section>
+      <Section label="Details" columns="1">
+        <Field name="Inspector" width="90" />
+      </Section>
+    </Form>
+  </Forms>
+</Entity>

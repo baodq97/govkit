@@ -1,8 +1,7 @@
 ---
 name: 7-define
 description: >
-  DDD loop 3 — define: Bounded Context Canvas v5 + Quality Storming — assumptions, verification metrics, open questions, interface critique. Deepens docs/domain/<context>/README.md.
-disable-model-invocation: true
+  DDD step 7 — bounded context canvas, quality storming. Deepens docs/domain/<context>/README.md.
 ---
 
 # Domain Define

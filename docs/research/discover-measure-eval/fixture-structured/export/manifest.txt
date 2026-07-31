@@ -1,0 +1,6 @@
+# FleetOps solution export, produced by fleetops-exporter 4.2
+# packages are applied in the order listed; later packages patch earlier ones
+package core            state=base       publisher=fo   installed=2019-04-11
+package addon           state=patch      publisher=fo   installed=2023-08-02
+package addon-managed   state=managed    publisher=fo   installed=2023-08-02
+package legacy          state=index      publisher=flt  installed=2017-01-30

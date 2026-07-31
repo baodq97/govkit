@@ -1,0 +1,30 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Entity name="Crew" schema="fo_crew" package="core" version="3.2.1">
+  <Display>Crew</Display>
+  <Labels>
+    <Label lcid="1033" value="Crew" />
+    <Label lcid="1066" value="Crew (vi)" />
+    <Label lcid="1036" value="Crew (fr)" />
+  </Labels>
+  <Attributes>
+      <Attribute name="Name" type="string" required="false" />
+      <Attribute name="Shift" type="lookup" target="Shift" required="false" />
+      <Attribute name="Lead" type="lookup" target="Employee" required="false" />
+    <Attribute name="fo_createdon" type="datetime" required="false" platform="true" />
+    <Attribute name="fo_modifiedon" type="datetime" required="false" platform="true" />
+    <Attribute name="fo_versionnumber" type="bigint" required="false" platform="true" />
+  </Attributes>
+  <Relationships>
+    <Relationship name="fo_crew_shift" type="many-to-one" target="Shift" />
+    <Relationship name="fo_crew_lead" type="many-to-one" target="Employee" />
+  </Relationships>
+  <Forms>
+    <Form name="main" layout="two-column" formid="{form-crew-0001}">
+      <Section label="General" columns="2">
+        <Field name="Name" width="100" />
+        <Field name="Shift" width="115" />
+        <Field name="Lead" width="130" />
+      </Section>
+    </Form>
+  </Forms>
+</Entity>

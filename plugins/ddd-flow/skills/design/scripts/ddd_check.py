@@ -828,6 +828,41 @@ def run_checks(root: Path, docs: Path) -> list[Finding]:
                 "a conflict."],
             "3-decompose"))
 
+    # 16 — grounding-readiness: the number every other gate is blind to. `govkit verify` is green on
+    # a decompose built from a schema nobody confirmed and `govkit eval` scores it 100/100, yet the
+    # author stalls because there is nothing under the boundary to cut on. btm-systems shipped exactly
+    # that — a context map over 0 confirmed events, 1 confirmed / 12+ candidate, a two-day stall, then
+    # a full rollback — every structural gate green throughout. This reads how much of the sliced
+    # timeline a PERSON confirmed vs a mining run proposed. Fires only when a decompose artifact
+    # already exists (a bare, still-thin discovery is honestly mid-flight; the 3-decompose skill hard-
+    # rule covers the moment BEFORE decompose). `info` per the graduation rule: warning-only until the
+    # slip rate is measured, blocking on opt-in --strict-grounding (mirrors --strict-symmetry).
+    g = _grounding(docs)
+    if g is not None and (bool(ctx) or (docs / "context-map.md").exists()):
+        fl = _grounding_floors()
+        conf, cand = g["confirmed"], g["candidate"]
+        ce, cr = g["confirmed_events"], g["confirmed_rules"]
+        ratio = conf / cand if cand else float("inf")
+        why = []
+        if ce is not None and ce < fl["min_confirmed_events"]:
+            why.append(f"{ce} confirmed event(s), floor {fl['min_confirmed_events']}")
+        if cr is not None and cr < fl["min_confirmed_rules"]:
+            why.append(f"{cr} confirmed rule(s), floor {fl['min_confirmed_rules']}")
+        if cand and ratio < fl["ratio_floor"]:
+            why.append(f"confirmed:candidate {conf}:{cand} below floor {fl['ratio_floor']:.2f}")
+        if why:
+            slice_x = next(iter(ctx)) if len(ctx) == 1 else "the discovery timeline"
+            out.append(Finding(
+                "grounding-under-ratified", "info",
+                f"under-grounded: {conf} confirmed / {cand} candidate on {slice_x} — "
+                "ratify or mine before deepening",
+                [f"{g['source']}: " + "; ".join(why),
+                 f"open hotspots still on the wall: {g['hotspots']}",
+                 "a boundary cut from candidates reproduces the source it was mined from; only a "
+                 "person flips candidate->confirmed (structure cross-checks language, never leads it)",
+                 "warning-only — run with --strict-grounding to block once the slip rate is measured"],
+                "2-discover"))
+
     order = {"high": 0, "medium": 1, "info": 2}
     return sorted(out, key=lambda f: (order[f.severity], f.id))
 
@@ -850,6 +885,54 @@ def _budgets(config: Path | None = None) -> dict:
     return _steps_config(config).get("budgets") or {}
 
 
+def _grounding(docs: Path) -> dict | None:
+    """Confirmed-vs-candidate strength on the discovery timeline, split by element type.
+
+    None when 2-discover has not run. Reads discovery/model.json first — the canonical source, the
+    only one carrying a `type` per element, so confirmed EVENTS and confirmed RULES (policies) are
+    told apart from the rest. Falls back to the markdown tally, which cannot split by type, so it
+    degrades to the whole-timeline ratio and reports the event/rule counts as None rather than guess.
+    """
+    d = docs / "discovery"
+    if not d.is_dir():
+        return None
+    f = d / "model.json"
+    if f.exists():
+        try:
+            doc = json.loads(f.read_text(errors="ignore"))
+            tl = doc.get("timeline")
+            if isinstance(tl, list):
+                rows = [e for e in tl if isinstance(e, dict)]
+                st = lambda e: str(e.get("status", "")).strip().lower()  # noqa: E731
+                ty = lambda e: str(e.get("type", "")).strip().lower()    # noqa: E731
+                conf = sum(1 for e in rows if st(e).startswith("confirm"))
+                cand = sum(1 for e in rows if st(e).startswith("cand"))
+                ce = sum(1 for e in rows if ty(e) == "event" and st(e).startswith("confirm"))
+                cr = sum(1 for e in rows if ty(e) == "policy" and st(e).startswith("confirm"))
+                hots = doc.get("hotspots")
+                return {"confirmed": conf, "candidate": cand, "confirmed_events": ce,
+                        "confirmed_rules": cr,
+                        "hotspots": len(hots) if isinstance(hots, list) else 0,
+                        "source": "discovery/model.json"}
+        except Exception:
+            pass
+    counts, hotspots, _dupes, _rules = discovery_from_markdown(docs)
+    if not counts:
+        return None
+    return {"confirmed": counts.get("confirmed", 0), "candidate": counts.get("candidate", 0),
+            "confirmed_events": None, "confirmed_rules": None, "hotspots": len(hotspots),
+            "source": "discovery/*.md (no model.json — event/rule split unavailable)"}
+
+
+def _grounding_floors(config: Path | None = None) -> dict:
+    """The readiness floor, config-not-code. Defaults ARE the design skill's decompose heuristic:
+    one human-confirmed event and one stated rule. steps.yml `grounding:` overrides any of them."""
+    g = _steps_config(config).get("grounding") or {}
+    return {"min_confirmed_events": int(g.get("min_confirmed_events", 1)),
+            "min_confirmed_rules": int(g.get("min_confirmed_rules", 1)),
+            "ratio_floor": float(g.get("ratio_floor", 0.34))}
+
+
 
 
 # --------------------------------------------------------------------------- cli
@@ -864,6 +947,9 @@ def main() -> int:
     ap.add_argument("--strict-symmetry", action="store_true",
                     help="exit 1 when a relationship is one-way or its two sides disagree "
                          "(check 15 is `info` by default, so it cannot block without this)")
+    ap.add_argument("--strict-grounding", action="store_true",
+                    help="exit 1 when the sliced discovery is under-ratified "
+                         "(check 16 is `info` by default, so it cannot block without this)")
     args = ap.parse_args()
 
     root = Path(args.root).resolve()
@@ -893,6 +979,8 @@ def main() -> int:
     if args.strict and any(f.severity == "high" for f in findings):
         return 1
     if args.strict_symmetry and any(f.id in SYMMETRY_IDS for f in findings):
+        return 1
+    if args.strict_grounding and any(f.id == "grounding-under-ratified" for f in findings):
         return 1
     return 0
 

@@ -1,0 +1,4 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Entity name="MeterReading" schema="fo_meterreading" package="addon" version="1.4.0">
+  <Display>MeterReading</Display>
+</Entity>

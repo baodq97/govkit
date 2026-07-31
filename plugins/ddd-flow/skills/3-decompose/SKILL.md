@@ -1,14 +1,22 @@
 ---
 name: 3-decompose
 description: >
-  DDD loop 2 — decompose: bounded contexts, aggregates, entities, value objects and events, right-sized by sub-domain type; delta-merges on re-run. Writes docs/domain/.
-disable-model-invocation: true
+  DDD step 3 — bounded contexts, aggregates, entities, events. Writes docs/domain/.
 ---
 
 # Domain Decompose
 
 ## Hard rules
 
+- **Grounding-readiness gate — check it before you cut.** Run `ddd_check.py` (check 16,
+  `grounding-under-ratified`) or read `docs/domain/discovery/model.json`: if the slice you are about
+  to decompose has **0 confirmed events, 0 confirmed rules, or a confirmed:candidate ratio below the
+  floor**, stop and print `under-grounded: N confirmed / M candidate on slice X — ratify or mine
+  before deepening`. A boundary drawn over candidates a mining run proposed reproduces the legacy
+  schema it was mined from — the exact failure this step exists to avoid. Back to `2-discover` to
+  mine or confirm; never forward with a caveat. Only a person flips candidate→confirmed. (btm-systems
+  shipped a context map on 0 confirmed events with every govkit gate green, stalled two days, rolled
+  back.)
 - **Length budget: `context-map.md` ≤ 180 lines**, and the first-pass context `README.md` stays a
   sketch — `7-define` owns the canvas depth. A budget caps prose, not findings: over it, cut
   rationale a reader can infer and anything restated from an upstream artifact — never open
@@ -20,7 +28,14 @@ disable-model-invocation: true
   don't. Fresh docs start `status: draft`, `owner: TBD`. In update mode,
   **preserve** whatever a human set — never reset an escalated status, assigned owner, or
   hand-written rule back to draft/TBD. Setting status (or reverting it) is a human act, not yours.
-- Model from the **domain description, not code**.
+- Model from the **domain description, not code** — with one brownfield exception. When
+  `2-discover` has **mined a structured corpus** (a committed `.ddd-flow/mine/` holding a
+  `facts.jsonl` and a coverage manifest that passed `mine_coverage.py --strict`), route those
+  **mined signals** in as *candidate* evidence — polysemy senses, behaviour events, FK clusters.
+  That is not reverse-engineering code by reading it ad hoc; it is consuming **measured facts with
+  a locator and a coverage number behind them**. Ad-hoc code-reading stays out of scope; a
+  validated mine does not. Everything mined enters as `candidate`, carries its `facts.jsonl`
+  locator, and only a human flips it to `confirmed` (steps 2b and 6).
 - **Ownership vs. audit metadata.** Model the *owning party* (user / team / org) as a real domain
   relationship when the business actually has one — that ownership belongs in the model. But
   technical audit metadata (`created_at/by`, `updated_at/by`) and tenancy isolation columns are
@@ -50,6 +65,14 @@ code. Ask for a one-page sketch — main capabilities, key events (past-tense th
 any hard rules — enough for a first-pass model; step 5 refines the rest. If domain docs/PRDs *do*
 exist, step 1 already picks them up.
 
+**Brownfield with a mined corpus** (the legacy model lives in code *and* `2-discover` already
+measured it): this is the case the "not code" rule was **not** written to block. If the repo holds
+a committed `.ddd-flow/mine/` — `facts.jsonl` (L0), one or more `model/<subject>.yaml` (L1), and a
+coverage manifest that passed `mine_coverage.py --strict` — consume those mined signals as the
+step-2 raw material, and triangulate them in **step 2b**. No manifest, or one that did not pass
+`--strict`? Fall back to the plain brownfield case above and ask for the one-page sketch — an
+unvalidated mine is a guess with a number attached, not evidence.
+
 ## Reference files (read as needed)
 
 - `references/ddd-methodology.md` — theory and heuristics behind every step (sub-domain types,
@@ -59,6 +82,14 @@ exist, step 1 already picks them up.
 - `references/aggregate-design-canvas.md` — template + rules for modelling each aggregate.
 - `references/output-template.md` — **the exact output contract** (where to write, file layout,
   schemas, frontmatter, hard rules). Read before emitting anything.
+- `${CLAUDE_PLUGIN_ROOT}/skills/2-discover/references/measure-playbook.md` — the mining method
+  whose outputs you consume in the brownfield-with-corpus case: the seven stages, the polysemy
+  report (stage 6) and FK-graph clusters (stage 7), and the `facts.jsonl`/manifest contract. Read
+  it before step 2b so you use each output as intended — **polysemy as the seam, FK clusters as a
+  cross-check only.**
+- `references/brownfield-triangulation.md` — the detail behind step 2b and step 6's single-source-of-
+  truth / shared-concept rules: the three triangulation axes, the legacy-cluster trap, generated-view
+  freshness, and the thin-reference-vs-Shared-Kernel answer. Read when decomposing from a mined corpus.
 
 ## Process
 
@@ -83,6 +114,16 @@ conflict is mandatory — a silently swallowed conflict is worse than an openly 
 Skim the description and extract, in business language: **domain events** (past-tense things that
 happen), the **commands/actors** that cause them, and the recurring **nouns**. Raw material — see
 ddd-methodology.md §3. Don't formalize yet.
+
+### 2b. Triangulate the mined corpus (brownfield-with-corpus only)
+When step 2's raw material is a mined corpus, don't read boundaries off any single axis. Triangulate
+three, **language-led**: polysemy (measure-playbook stage 6) *leads* the boundary; mined behaviour
+events *confirm* which side of a seam a concept sits on; FK-graph clusters (stage 7) **cross-check
+only** — community detection reproduces the legacy's table clusters, so structure never leads a
+boundary. Everything is **candidate**, tagged with its `facts.jsonl` locator, landed in
+`docs/domain/discovery/` — never a `model.yaml` from a mine, never `confirmed`; a human confirms the
+subset. Full method (the three axes, the legacy-cluster trap, freshness, the shared-concept answer):
+`references/brownfield-triangulation.md`.
 
 ### 3. First-pass strategic decomposition
 - Group events/nouns into **bounded contexts** by the boundary heuristics — a boundary is where
@@ -164,10 +205,23 @@ frontmatter, `INDEX.md` rows, per-context `model.yaml`):
   Close with a short **changelog** (added / updated / preserved / flagged). The exact merge rules
   are in output-template.md §"Delta merge".
 
+**One model, generated views (single source of truth).** The per-context `model.yaml` files are the
+single source of truth; `context-map.md` (a **C4 L2** view) and each aggregate canvas (**C4 L3**) are
+**derived** from them — regenerate a view, never hand-patch it to say what no `model.yaml` says, and
+preserve the map's human-authored **Conflicts table + Changelog** verbatim on any regeneration. Stamp
+`generated_from:`/`generated_at:` so a stale view says so. Keep the L2 map coarse — don't deepen it
+into L3 detail. Detail: `references/brownfield-triangulation.md`.
+
 In `context-map.md` (either mode), **label every cross-context shared artifact with its sharing
-level** — Building Blocks / Published Language / Shared Kernel (ddd-methodology.md §2.4) — and
-**flag any shared entity or domain class as Shared Kernel coupling with a stated cost** (mutual-
-consent change, drift risk), rather than leaving it on the map unlabeled.
+level** — Building Blocks / Published Language / Shared Kernel (ddd-methodology.md §2.4).
+
+**The shared-concept answer — a thin reference, not a fat shared blob.** When several contexts lean
+on one concept, do **not** mint a single "Shared" / "Common" / "Core" context (the universal model
+bounded contexts exist to remove, §2.6; a mined corpus tempts it via the FK graph). Publish a
+**Published Language** from a thin reference / Foundation context, or use a **Shared Kernel only with
+its cost written down** (last resort, smallest possible). A shared entity left on the map is
+Shared-Kernel coupling — flag it with that cost or split it. Detail:
+`references/brownfield-triangulation.md`.
 
 ## Naming conventions
 

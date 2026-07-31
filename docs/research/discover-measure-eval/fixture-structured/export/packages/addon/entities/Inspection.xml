@@ -1,0 +1,28 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Entity name="Inspection" schema="fo_inspection" package="addon" version="1.4.0">
+  <Display>Inspection</Display>
+  <Labels>
+    <Label lcid="1033" value="Inspection" />
+    <Label lcid="1066" value="Inspection (vi)" />
+    <Label lcid="1036" value="Inspection (fr)" />
+  </Labels>
+  <Attributes>
+      <Attribute name="Name" type="string" required="false" />
+      <Attribute name="Result" type="string" required="false" />
+      <Attribute name="Inspector" type="string" required="false" />
+    <Attribute name="fo_createdon" type="datetime" required="false" platform="true" />
+    <Attribute name="fo_modifiedon" type="datetime" required="false" platform="true" />
+    <Attribute name="fo_versionnumber" type="bigint" required="false" platform="true" />
+  </Attributes>
+  <Relationships>
+  </Relationships>
+  <Forms>
+    <Form name="main" layout="two-column" formid="{form-inspection-0001}">
+      <Section label="General" columns="2">
+        <Field name="Name" width="100" />
+        <Field name="Result" width="115" />
+        <Field name="Inspector" width="130" />
+      </Section>
+    </Form>
+  </Forms>
+</Entity>

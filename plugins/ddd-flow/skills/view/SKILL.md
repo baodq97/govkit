@@ -1,8 +1,7 @@
 ---
 name: view
 description: >
-  DDD — the review surface: one command turns the whole docs/domain tree into a browsable workspace (context map, core domain chart, message flows, discovery wall, every context and aggregate canvas, plus state and findings), served live to an open browser.
-disable-model-invocation: true
+  DDD — renders docs/domain as a live browsable workspace in the browser.
 ---
 
 # Domain Visualize

@@ -1,8 +1,7 @@
 ---
 name: 6-organise
 description: >
-  DDD loop 2 — organise: Team Topologies over the context map — team types, cognitive-load budget, interaction modes, Independent Service Heuristics. Writes docs/domain/team-topology.md.
-disable-model-invocation: true
+  DDD step 6 — team topologies, cognitive load, interaction modes. Writes docs/domain/team-topology.md.
 ---
 
 # Domain Organise

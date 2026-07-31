@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Workflow name="CrewAssign" primaryentity="fo_crew" trigger="update" filteringattributes="lead">
+  <Step type="condition" />
+  <Step type="setvalue" />
+  <Step type="sendmail" />
+</Workflow>

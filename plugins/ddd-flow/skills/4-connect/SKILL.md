@@ -1,8 +1,7 @@
 ---
 name: 4-connect
 description: >
-  DDD loop 2 — connect: Domain Message Flow Modelling per use case — typed messages, coupling smells, boundary deltas handed back to decompose. Writes docs/domain/message-flows/.
-disable-model-invocation: true
+  DDD step 4 — message flows per use case, coupling smells. Writes docs/domain/message-flows/.
 ---
 
 # Domain Connect

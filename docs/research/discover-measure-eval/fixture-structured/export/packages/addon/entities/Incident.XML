@@ -1,0 +1,29 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Entity name="Incident" schema="fo_incident" package="addon" version="1.4.0">
+  <Display>Incident</Display>
+  <Labels>
+    <Label lcid="1033" value="Incident" />
+    <Label lcid="1066" value="Incident (vi)" />
+    <Label lcid="1036" value="Incident (fr)" />
+  </Labels>
+  <Attributes>
+      <Attribute name="Name" type="string" required="false" />
+      <Attribute name="Asset" type="lookup" target="Asset" required="false" />
+      <Attribute name="Severity" type="picklist" target="severity" required="false" />
+    <Attribute name="fo_createdon" type="datetime" required="false" platform="true" />
+    <Attribute name="fo_modifiedon" type="datetime" required="false" platform="true" />
+    <Attribute name="fo_versionnumber" type="bigint" required="false" platform="true" />
+  </Attributes>
+  <Relationships>
+    <Relationship name="fo_incident_asset" type="many-to-one" target="Asset" />
+  </Relationships>
+  <Forms>
+    <Form name="main" layout="two-column" formid="{form-incident-0001}">
+      <Section label="General" columns="2">
+        <Field name="Name" width="100" />
+        <Field name="Asset" width="115" />
+        <Field name="Severity" width="130" />
+      </Section>
+    </Form>
+  </Forms>
+</Entity>

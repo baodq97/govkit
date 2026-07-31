@@ -1,0 +1,4 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Entity name="Shift" schema="fo_shift" package="addon" version="1.4.0">
+  <Display>Shift</Display>
+</Entity>

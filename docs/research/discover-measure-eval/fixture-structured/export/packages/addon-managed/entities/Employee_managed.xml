@@ -1,0 +1,36 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Entity name="Employee" schema="fo_employee" package="addon-managed" version="1.4.0">
+  <Display>Employee</Display>
+  <Labels>
+    <Label lcid="1033" value="Employee" />
+    <Label lcid="1066" value="Employee (vi)" />
+    <Label lcid="1036" value="Employee (fr)" />
+  </Labels>
+  <Attributes>
+      <Attribute name="FullName" type="string" required="false" />
+      <Attribute name="Depot" type="lookup" target="Depot" required="false" />
+      <Attribute name="Trade" type="picklist" target="trade" required="false" />
+      <Attribute name="Cost" type="lookup" target="CostCentre" required="false" />
+      <Attribute name="HiredOn" type="datetime" required="false" />
+    <Attribute name="fo_createdon" type="datetime" required="false" platform="true" />
+    <Attribute name="fo_modifiedon" type="datetime" required="false" platform="true" />
+    <Attribute name="fo_versionnumber" type="bigint" required="false" platform="true" />
+  </Attributes>
+  <Relationships>
+    <Relationship name="fo_employee_depot" type="many-to-one" target="Depot" />
+    <Relationship name="fo_employee_cost" type="many-to-one" target="CostCentre" />
+  </Relationships>
+  <Forms>
+    <Form name="main" layout="two-column" formid="{form-employee-0001}">
+      <Section label="General" columns="2">
+        <Field name="FullName" width="100" />
+        <Field name="Depot" width="115" />
+        <Field name="Trade" width="130" />
+        <Field name="Cost" width="145" />
+      </Section>
+      <Section label="Details" columns="1">
+        <Field name="HiredOn" width="90" />
+      </Section>
+    </Form>
+  </Forms>
+</Entity>

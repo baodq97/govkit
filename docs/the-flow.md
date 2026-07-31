@@ -22,6 +22,67 @@ Then open the repo in Claude Code and accept the trust prompt. The three plugins
 Decline it and everything deterministic still works — the plugins author artifacts, they are
 never the gate.
 
+## The three altitudes — where does your idea start?
+
+The chain below runs "one feature, start to finish," but it assumes you already know what the
+feature *is* and that it is grounded in something real. Getting there is the **ground-first**
+half, and it lives at three altitudes you climb down one rung at a time.
+
+| Altitude | Artifact | Cadence | Governed? |
+|---|---|---|---|
+| **L1 — vision map** | a coarse capability map: stable ids, connections, core/supporting/generic, open questions | rots in **years**, hand-drawn | **yes** — a PRD, ratified to `approved`, rarely moved |
+| **L2 — walking skeleton** | the first RFC on a capability: one thin **end-to-end** slice | per capability | yes — an RFC on the normal chain |
+| **L3 — deepen a slice** | aggregates, one grounded slice at a time | **weekly**, generated | via the slice's own RFC/US |
+
+Two rules keep the ladder honest:
+
+- **Walking-skeleton before you deepen.** The first RFC on a capability is a vertical cut through
+  the whole of it — never a horizontal layer, never a breadth-first fan across every context at
+  once. This is the one difference between the two consumers we watched. **mandat** stayed healthy
+  because it cut a skeleton first and deepened afterward. **btm** stalled for two days and took a
+  full rollback at the domain→RFC edge because it modelled breadth-first on evidence nobody had
+  confirmed — many candidate contexts, zero `aggregates/` dirs, zero confirmed events to decompose
+  from. And the whole time, `govkit verify` said OK and `eval` said 100/100. The gate cannot see
+  grounding, so a green here is not proof you are ready.
+- **Grounding before depth.** A slice is ready to deepen only when it carries **at least one
+  confirmed event and one stated rule**. Below that floor the honest move is back to discovery, not
+  forward to aggregates. Agents write *candidates*; a human is the only one who flips a candidate to
+  confirmed (a discovery round with no domain expert has discovered nothing).
+
+### The vision is governed; the roadmap is not
+
+Split the PRD in two. The **vision** — the capability charter, the L1 map — is stable and governed:
+it changes on the scale of years, so it earns a `draft→approved` lifecycle and a place in the
+chain. The **roadmap** — which slice ships next, in what order, at what priority — churns monthly,
+and putting a monthly-churning list under a draft→approved gate manufactures the exact stale doc
+govkit exists to prevent. So the roadmap lives *ungoverned*, beside the chain the same way
+`docs/ui` and `docs/api` do: **`docs/ROADMAP.md`** — outside every governed type dir, no
+front-matter, no status, no INDEX row. Scaffold a new vision from `docs/product/_TEMPLATE.md`.
+
+### Handing off to the chain (and to sdlc.js)
+
+The ground-first half **stops at a grounded walking-skeleton RFC** and hands the rest to the
+ordinary chain:
+
+1. **Diagnose + ground-inventory** — read-only. Quantify the corpus, find the stall edge, join
+   `verify`/`eval` exit with the confirmed:candidate ratio. No document moves here.
+2. **Author the vision PRD** from `_TEMPLATE.md` at `draft`, `owner: TBD`. → *Human gate: the owner
+   ratifies the core/supporting/generic call and flips the vision PRD `draft→approved` (R0_owner).*
+3. **Decompose one grounding-ready slice** into a **candidate** context/aggregate model
+   (candidate-tagged, never `confirmed`, never written to `model.yaml` from a mine). → *Human gate:
+   the owner confirms a subset candidate→confirmed and picks the slice.*
+4. **Hand to `sdlc.js`** with `{ feature: "<the confirmed slice>", skipPrd: true }` — the vision PRD
+   is the stable charter, so it is not re-authored per slice. `sdlc.js` authors the walking-skeleton
+   RFC and drives RFC-gate → ADR → US → Foundation → Code, reviewer-gated. Because the
+   walking-skeleton discipline lives in `AGENTS.md`, the RFC-phase reviewer enforces the thin
+   end-to-end shape — no change to `sdlc.js` is needed. **Every status flip stays a human act.**
+5. **Deepen the next slice** — repeat 3→4 one grounded slice at a time. The living `docs/ROADMAP.md`
+   tracks the order; it is never gated.
+
+`sdlc.js` is deliberately blind to grounding — it *assumes* a grounded PRD/RFC. That is exactly why
+the ground-first half must not hand off until the skeleton is genuinely grounded: the two halves
+stay honest together only if the upstream one stops at *grounded*, not at *green*.
+
 ## The map
 
 ```

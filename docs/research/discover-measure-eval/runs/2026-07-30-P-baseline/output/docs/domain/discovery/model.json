@@ -1,0 +1,809 @@
+{
+  "schemaVersion": 1,
+  "kind": "discovery",
+  "source": {
+    "mode": "discover",
+    "date": "2026-07-30",
+    "attendance": {
+      "domainExpert": false,
+      "endUser": false,
+      "productStrategy": false,
+      "developers": false
+    },
+    "attendanceNote": "Nobody attended. Every element is a candidate; 0 confirmed."
+  },
+  "timeline": [
+    {
+      "seq": 1,
+      "name": "Customer",
+      "type": "actor",
+      "status": "candidate",
+      "state": "as-is",
+      "actor": null,
+      "command": null,
+      "source": "product-brief.md:3"
+    },
+    {
+      "seq": 2,
+      "name": "BookingEnquiryReceived",
+      "type": "event",
+      "status": "candidate",
+      "state": "as-is",
+      "actor": "Customer",
+      "command": "emails or calls",
+      "source": "ops-walkthrough.md:3"
+    },
+    {
+      "seq": 3,
+      "name": "Whoever picks it up",
+      "type": "actor",
+      "status": "candidate",
+      "state": "as-is",
+      "actor": "role explicitly indeterminate — H14",
+      "command": null,
+      "source": "ops-walkthrough.md:3"
+    },
+    {
+      "seq": 4,
+      "name": "BookingWrittenToSheet",
+      "type": "event",
+      "status": "candidate",
+      "state": "as-is",
+      "actor": "Whoever picks it up",
+      "command": "write the row",
+      "source": "ops-walkthrough.md:3-4"
+    },
+    {
+      "seq": 5,
+      "name": "The sheet (shared spreadsheet)",
+      "type": "read-model",
+      "status": "candidate",
+      "state": "as-is",
+      "actor": "system of record today",
+      "command": null,
+      "source": "README.md:3; ops-walkthrough.md:3"
+    },
+    {
+      "seq": 6,
+      "name": "QuoteWorkedOutByHand",
+      "type": "event",
+      "status": "candidate",
+      "state": "as-is",
+      "actor": "Commercial",
+      "command": "quote by hand",
+      "source": "product-brief.md:8"
+    },
+    {
+      "seq": 7,
+      "name": "Rate card — weekly, per lane, per container type",
+      "type": "read-model",
+      "status": "candidate",
+      "state": "as-is",
+      "actor": null,
+      "command": null,
+      "source": "Mai, 2026-05-14, meeting-2026-05-14-pricing.md:5"
+    },
+    {
+      "seq": 8,
+      "name": "SpaceCheckedWithCarrier",
+      "type": "event",
+      "status": "candidate",
+      "state": "as-is",
+      "actor": "Operations",
+      "command": "phone the carrier",
+      "source": "ops-walkthrough.md:6"
+    },
+    {
+      "seq": 9,
+      "name": "Carrier with a booking API",
+      "type": "external-system",
+      "status": "candidate",
+      "state": "as-is",
+      "actor": null,
+      "command": null,
+      "source": "decision-memo-carrier-integration.md:3"
+    },
+    {
+      "seq": 10,
+      "name": "Carrier taking email, replies within the day",
+      "type": "external-system",
+      "status": "candidate",
+      "state": "as-is",
+      "actor": null,
+      "command": null,
+      "source": "decision-memo-carrier-integration.md:3"
+    },
+    {
+      "seq": 11,
+      "name": "SlotAvailabilityConfirmedByPhone",
+      "type": "event",
+      "status": "candidate",
+      "state": "as-is",
+      "actor": "Carrier",
+      "command": "phone reply",
+      "source": "ops-walkthrough.md:6; decision-memo:6"
+    },
+    {
+      "seq": 12,
+      "name": "BookingConfirmed **(pivotal)**",
+      "type": "event",
+      "status": "candidate",
+      "state": "as-is",
+      "actor": "Operations",
+      "command": "tell the customer it is confirmed",
+      "source": "ops-walkthrough.md:7"
+    },
+    {
+      "seq": 13,
+      "name": "NextSailingOffered",
+      "type": "event",
+      "status": "candidate",
+      "state": "as-is",
+      "actor": "Operations",
+      "command": "offer the next sailing",
+      "source": "ops-walkthrough.md:7-8"
+    },
+    {
+      "seq": 14,
+      "name": "AlternativeSailingAccepted",
+      "type": "event",
+      "status": "candidate",
+      "state": "as-is",
+      "actor": "Customer — \"usually accepts\"",
+      "command": null,
+      "source": "ops-walkthrough.md:8"
+    },
+    {
+      "seq": 15,
+      "name": "BookingDispatchedToTruck",
+      "type": "event",
+      "status": "candidate",
+      "state": "as-is",
+      "actor": "Operations — the booking becomes a \"job\"",
+      "command": null,
+      "source": "ops-walkthrough.md:10; glossary-draft.txt:5"
+    },
+    {
+      "seq": 16,
+      "name": "Driver",
+      "type": "actor",
+      "status": "candidate",
+      "state": "as-is",
+      "actor": null,
+      "command": null,
+      "source": "ops-walkthrough.md:10"
+    },
+    {
+      "seq": 17,
+      "name": "BoxPickedUp",
+      "type": "event",
+      "status": "candidate",
+      "state": "as-is",
+      "actor": "Driver",
+      "command": "texts",
+      "source": "ops-walkthrough.md:10"
+    },
+    {
+      "seq": 18,
+      "name": "BoxArrivedAtPortGate",
+      "type": "event",
+      "status": "candidate",
+      "state": "as-is",
+      "actor": "Driver",
+      "command": "texts",
+      "source": "ops-walkthrough.md:10-11"
+    },
+    {
+      "seq": 19,
+      "name": "whenever the driver texts, someone updates the sheet — \"usually the same day, not always\"",
+      "type": "policy",
+      "status": "candidate",
+      "state": "as-is",
+      "actor": null,
+      "command": null,
+      "source": "ops-walkthrough.md:10-11"
+    },
+    {
+      "seq": 20,
+      "name": "SheetUpdated",
+      "type": "event",
+      "status": "candidate",
+      "state": "as-is",
+      "actor": "Someone",
+      "command": "update the sheet",
+      "source": "ops-walkthrough.md:11"
+    },
+    {
+      "seq": 21,
+      "name": "Yard",
+      "type": "actor",
+      "status": "candidate",
+      "state": "as-is",
+      "actor": "knows a box's location only while it is in the yard",
+      "command": null,
+      "source": "Duc, 2026-06-02, meeting-2026-06-02-tracking.md:8"
+    },
+    {
+      "seq": 22,
+      "name": "DeclarationSubmittedToBroker",
+      "type": "event",
+      "status": "candidate",
+      "state": "as-is",
+      "actor": "Operations",
+      "command": "send declaration + packing list",
+      "source": "ops-walkthrough.md:13"
+    },
+    {
+      "seq": 23,
+      "name": "Customs broker",
+      "type": "external-system",
+      "status": "candidate",
+      "state": "as-is",
+      "actor": null,
+      "command": null,
+      "source": "ops-walkthrough.md:13"
+    },
+    {
+      "seq": 24,
+      "name": "BrokerQueryRaised",
+      "type": "event",
+      "status": "candidate",
+      "state": "as-is",
+      "actor": "Broker",
+      "command": null,
+      "source": "ops-walkthrough.md:14"
+    },
+    {
+      "seq": 25,
+      "name": "whenever a broker query is raised, the box sits at the gate until it is answered",
+      "type": "policy",
+      "status": "candidate",
+      "state": "as-is",
+      "actor": null,
+      "command": null,
+      "source": "ops-walkthrough.md:14"
+    },
+    {
+      "seq": 26,
+      "name": "SailingDepartedWithoutBox",
+      "type": "event",
+      "status": "candidate",
+      "state": "as-is",
+      "actor": "— \"the worst outcome we have\", ~twice a month (self-described as approximate)",
+      "command": null,
+      "source": "ops-walkthrough.md:14-15"
+    },
+    {
+      "seq": 27,
+      "name": "BoxLoadedOnVessel **(pivotal)**",
+      "type": "event",
+      "status": "candidate",
+      "state": "as-is",
+      "actor": null,
+      "command": null,
+      "source": "ops-walkthrough.md:17"
+    },
+    {
+      "seq": 28,
+      "name": "JobConsideredDone",
+      "type": "event",
+      "status": "candidate",
+      "state": "as-is",
+      "actor": "Operations",
+      "command": null,
+      "source": "ops-walkthrough.md:17"
+    },
+    {
+      "seq": 29,
+      "name": "HandedToBilling",
+      "type": "event",
+      "status": "candidate",
+      "state": "as-is",
+      "actor": "Operations",
+      "command": null,
+      "source": "ops-walkthrough.md:17"
+    },
+    {
+      "seq": 30,
+      "name": "SurchargesCollectedFromThreePeople",
+      "type": "event",
+      "status": "candidate",
+      "state": "as-is",
+      "actor": "Finance",
+      "command": null,
+      "source": "product-brief.md:15"
+    },
+    {
+      "seq": 31,
+      "name": "InvoiceIssued",
+      "type": "event",
+      "status": "candidate",
+      "state": "as-is",
+      "actor": "Finance — \"invoices go out late\"",
+      "command": null,
+      "source": "product-brief.md:15"
+    },
+    {
+      "seq": 32,
+      "name": "SurchargeDisputed",
+      "type": "event",
+      "status": "candidate",
+      "state": "as-is",
+      "actor": "Customer — \"a surcharge the customer says was never quoted\"",
+      "command": null,
+      "source": "support-log-digest.md:5-6"
+    },
+    {
+      "seq": 33,
+      "name": "CollectionMissedOnAgreedDay",
+      "type": "event",
+      "status": "candidate",
+      "state": "as-is",
+      "actor": null,
+      "command": null,
+      "source": "support-log-digest.md:6-7"
+    },
+    {
+      "seq": 34,
+      "name": "CustomsQueryHeardTooLateToAct",
+      "type": "event",
+      "status": "candidate",
+      "state": "as-is",
+      "actor": "Customer",
+      "command": null,
+      "source": "support-log-digest.md:7"
+    },
+    {
+      "seq": 35,
+      "name": "UnprofitableBookingReportedByFinance",
+      "type": "event",
+      "status": "candidate",
+      "state": "as-is",
+      "actor": "Finance — reaches operations \"a month later\"",
+      "command": null,
+      "source": "Tuan, 2026-05-14, meeting-2026-05-14-pricing.md:11-12"
+    },
+    {
+      "seq": 36,
+      "name": "whenever a customer gives their own purchase-order number, staff keep it in the notes column — \"when they remember\"",
+      "type": "policy",
+      "status": "candidate",
+      "state": "as-is",
+      "actor": null,
+      "command": null,
+      "source": "support-log-digest.md:9-10"
+    },
+    {
+      "seq": 37,
+      "name": "Container location — \"nobody can say where a container is without phoning the yard\"",
+      "type": "read-model",
+      "status": "candidate",
+      "state": "could-be",
+      "actor": "absent today; nobody has committed to building it",
+      "command": null,
+      "source": "product-brief.md:14; meeting-2026-06-02-tracking.md:5-6"
+    },
+    {
+      "seq": 38,
+      "name": "Rate visibility for operations — \"operations do not see the rate at all\"",
+      "type": "read-model",
+      "status": "candidate",
+      "state": "could-be",
+      "actor": "absent today; no owner named",
+      "command": null,
+      "source": "Tuan, 2026-05-14, meeting-2026-05-14-pricing.md:11"
+    },
+    {
+      "seq": 39,
+      "name": "we will stop quoting by hand",
+      "type": "policy",
+      "status": "candidate",
+      "state": "to-be",
+      "actor": "decided; owner undecided — H5",
+      "command": null,
+      "source": "product-brief.md:17"
+    },
+    {
+      "seq": 40,
+      "name": "QuoteExpired",
+      "type": "event",
+      "status": "candidate",
+      "state": "could-be",
+      "actor": "Mai wants it; \"Not decided\" — H4",
+      "command": null,
+      "source": "Mai, 2026-05-14, meeting-2026-05-14-pricing.md:14-15"
+    },
+    {
+      "seq": 41,
+      "name": "SlotCheckedViaCarrierApi",
+      "type": "event",
+      "status": "candidate",
+      "state": "could-be",
+      "actor": "recommended; \"Nobody has signed off on this yet\" — H12",
+      "command": null,
+      "source": "decision-memo-carrier-integration.md:6,10-11"
+    },
+    {
+      "seq": 42,
+      "name": "booking",
+      "type": "aggregate",
+      "status": "candidate",
+      "state": "as-is",
+      "actor": "DDL-derived: 6 columns, no status enumeration",
+      "command": null,
+      "source": "db/schema.sql:2 (measured, facts.jsonl)"
+    },
+    {
+      "seq": 43,
+      "name": "quote",
+      "type": "aggregate",
+      "status": "candidate",
+      "state": "as-is",
+      "actor": "DDL-derived: 5 columns, FK → booking.id, no expiry column",
+      "command": null,
+      "source": "db/schema.sql:11 (measured, facts.jsonl)"
+    },
+    {
+      "seq": 44,
+      "name": "movement",
+      "type": "aggregate",
+      "status": "candidate",
+      "state": "as-is",
+      "actor": "DDL-derived: 4 columns, FK → booking.id; the words `movement`",
+      "command": "`event`/`noted_at` occur in **0 of 8** prose files — H13",
+      "source": "db/schema.sql:19 (measured, facts.jsonl)"
+    }
+  ],
+  "ubiquitousLanguage": [
+    {
+      "term": "booking",
+      "definition": "the row in the sheet",
+      "heldBy": "glossary, unattributed",
+      "status": "candidate",
+      "occurrences": "15 in 7 docs",
+      "source": "glossary-draft.txt:3"
+    },
+    {
+      "term": "booking",
+      "definition": "the thing the customer asked for, before anything was confirmed",
+      "heldBy": "Mai and Tuan — \"both ways in the same sentence\"",
+      "status": "candidate",
+      "occurrences": "15 in 7 docs",
+      "source": "glossary-draft.txt:3-4"
+    },
+    {
+      "term": "job",
+      "definition": "operations word for a booking that has been dispatched to a truck",
+      "heldBy": "Operations",
+      "status": "candidate",
+      "occurrences": "2 in 2 docs",
+      "source": "glossary-draft.txt:5"
+    },
+    {
+      "term": "consignment",
+      "definition": "what the customs paperwork calls the goods",
+      "heldBy": "Customs paperwork / broker",
+      "status": "candidate",
+      "occurrences": "1 in 1 doc",
+      "source": "glossary-draft.txt:6"
+    },
+    {
+      "term": "consignment",
+      "definition": "the invoice line",
+      "heldBy": "Finance",
+      "status": "candidate",
+      "occurrences": "1 in 1 doc",
+      "source": "glossary-draft.txt:6"
+    },
+    {
+      "term": "delivered",
+      "definition": "on the vessel",
+      "heldBy": "Duc (yard/ops), 2026-06-02",
+      "status": "candidate",
+      "occurrences": "2 in 2 docs",
+      "source": "meeting-2026-06-02-tracking.md:12; glossary-draft.txt:7"
+    },
+    {
+      "term": "delivered",
+      "definition": "reached the consignee — \"which is not something we even see\"",
+      "heldBy": "Customers, reported by Ha (customer service), 2026-06-02",
+      "status": "candidate",
+      "occurrences": "2 in 2 docs",
+      "source": "meeting-2026-06-02-tracking.md:12-13"
+    },
+    {
+      "term": "container",
+      "definition": "a **type** — a rate-card dimension, per lane per container type",
+      "heldBy": "Mai (commercial); Operations writing the sheet",
+      "status": "candidate",
+      "occurrences": "7 in 6 docs",
+      "source": "meeting-2026-05-14-pricing.md:5; ops-walkthrough.md:4"
+    },
+    {
+      "term": "container",
+      "definition": "a **physical box** whose location a customer asks for",
+      "heldBy": "Ha (customer service); Customers",
+      "status": "candidate",
+      "occurrences": "7 in 6 docs",
+      "source": "meeting-2026-06-02-tracking.md:5; product-brief.md:14"
+    },
+    {
+      "term": "box",
+      "definition": "the physical container",
+      "heldBy": "Operations, Yard, Driver",
+      "status": "candidate",
+      "occurrences": "—",
+      "source": "ops-walkthrough.md:10; meeting-2026-06-02-tracking.md:8"
+    },
+    {
+      "term": "slot",
+      "definition": "space on a sailing",
+      "heldBy": "Harbourline",
+      "status": "candidate",
+      "occurrences": "3 in 3 docs",
+      "source": "glossary-draft.txt:9"
+    },
+    {
+      "term": "allocation",
+      "definition": "the carrier's word for a slot",
+      "heldBy": "Carrier",
+      "status": "candidate",
+      "occurrences": "1 in 1 doc",
+      "source": "glossary-draft.txt:9"
+    },
+    {
+      "term": "lane",
+      "definition": "origin/destination pair",
+      "heldBy": "glossary, unattributed",
+      "status": "candidate",
+      "occurrences": "5 in 5 docs",
+      "source": "glossary-draft.txt:10"
+    },
+    {
+      "term": "lane",
+      "definition": "origin/destination pair **including** container type — \"sometimes includes it, sometimes not\"",
+      "heldBy": "glossary, unattributed",
+      "status": "candidate",
+      "occurrences": "5 in 5 docs",
+      "source": "glossary-draft.txt:10"
+    },
+    {
+      "term": "documentation fee",
+      "definition": "revenue",
+      "heldBy": "Linh (finance)",
+      "status": "candidate",
+      "occurrences": "2 in 1 doc",
+      "source": "meeting-2026-05-14-pricing.md:8"
+    },
+    {
+      "term": "documentation fee",
+      "definition": "a pass-through",
+      "heldBy": "Commercial",
+      "status": "candidate",
+      "occurrences": "2 in 1 doc",
+      "source": "meeting-2026-05-14-pricing.md:8"
+    },
+    {
+      "term": "surcharge",
+      "definition": "added on top of a base rate — fuel, congestion, documentation fee",
+      "heldBy": "Mai (commercial)",
+      "status": "candidate",
+      "occurrences": "4 in 3 docs",
+      "source": "meeting-2026-05-14-pricing.md:5-6"
+    },
+    {
+      "term": "base rate",
+      "definition": "the per-lane, per-container-type rate before surcharges",
+      "heldBy": "Mai (commercial)",
+      "status": "candidate",
+      "occurrences": "1 in 1 doc",
+      "source": "meeting-2026-05-14-pricing.md:5"
+    },
+    {
+      "term": "rate card",
+      "definition": "weekly price list, per lane, per container type",
+      "heldBy": "Mai (commercial)",
+      "status": "candidate",
+      "occurrences": "4 in 2 docs",
+      "source": "meeting-2026-05-14-pricing.md:5"
+    },
+    {
+      "term": "quote",
+      "definition": "the price given to a customer (noun)",
+      "heldBy": "Commercial",
+      "status": "candidate",
+      "occurrences": "6 in 2 docs",
+      "source": "product-brief.md:7-8"
+    },
+    {
+      "term": "quote",
+      "definition": "to price a lane (verb) — \"two people quote the same lane differently\"",
+      "heldBy": "Commercial",
+      "status": "candidate",
+      "occurrences": "6 in 2 docs",
+      "source": "product-brief.md:9"
+    },
+    {
+      "term": "the sheet",
+      "definition": "the shared spreadsheet that is today's system of record",
+      "heldBy": "everyone",
+      "status": "candidate",
+      "occurrences": "—",
+      "source": "README.md:3; ops-walkthrough.md:3"
+    },
+    {
+      "term": "sailing",
+      "definition": "the vessel departure a box is loaded onto",
+      "heldBy": "Operations",
+      "status": "candidate",
+      "occurrences": "8 in 5 docs",
+      "source": "ops-walkthrough.md:6; decision-memo:3"
+    },
+    {
+      "term": "slot availability",
+      "definition": "whether the carrier has space — a phone call today",
+      "heldBy": "Operations",
+      "status": "candidate",
+      "occurrences": "—",
+      "source": "ops-walkthrough.md:6; decision-memo:6"
+    },
+    {
+      "term": "status",
+      "definition": "**no holder and no definition anywhere.** `booking.status TEXT`, no CHECK, no enumeration; the word occurs in **0 of 8** prose files",
+      "heldBy": "nobody",
+      "status": "candidate (absence)",
+      "occurrences": "0 in prose",
+      "source": "db/schema.sql:8 measured — H1"
+    },
+    {
+      "term": "movement",
+      "definition": "**DDL-only vocabulary.** A table named `movement` with `event` and `noted_at`; none of the three words occurs in any prose file",
+      "heldBy": "nobody",
+      "status": "candidate (absence)",
+      "occurrences": "0 in prose",
+      "source": "db/schema.sql:19 measured — H13"
+    }
+  ],
+  "hotspots": [
+    {
+      "id": "H1",
+      "question": "What values can a booking's status take? `booking.status` is `TEXT` with no CHECK and no enumeration (measured: 0 enumeration facts in `facts.jsonl`), and the word \"status\" occurs in **0 of 8** prose files",
+      "raisedBy": "measurement — nobody uses the word",
+      "blocks": "booking lifecycle; any state machine",
+      "whoCouldAnswer": "Tuan (operations)"
+    },
+    {
+      "id": "H2",
+      "question": "Does \"delivered\" mean on the vessel or received by the consignee?",
+      "raisedBy": "Ha vs Duc, 2026-06-02 — \"Two meanings, both in daily use. Nobody picked one.\"",
+      "blocks": "the completion event; customer notification; UL seam",
+      "whoCouldAnswer": "Ha, Duc, and a **real customer**"
+    },
+    {
+      "id": "H3",
+      "question": "Is the documentation fee revenue or a pass-through?",
+      "raisedBy": "Linh, 2026-05-14 — \"Both have been true at different times. Left unresolved in the meeting.\"",
+      "blocks": "quote/invoice seam; what a quote total means",
+      "whoCouldAnswer": "Linh (finance) + Mai (commercial)"
+    },
+    {
+      "id": "H4",
+      "question": "How long is a quote good for? 7 days (Mai) or the rate-card week (Linh)?",
+      "raisedBy": "Mai vs Linh, 2026-05-14 — \"Not decided.\"",
+      "blocks": "whether `QuoteExpired` exists at all",
+      "whoCouldAnswer": "Mai + Linh"
+    },
+    {
+      "id": "H5",
+      "question": "Who owns the rate card?",
+      "raisedBy": "product-brief.md:17 — \"We have not decided who owns the rate card.\"",
+      "blocks": "authority over pricing; the to-be \"stop quoting by hand\" has no owner",
+      "whoCouldAnswer": "Mai + Linh"
+    },
+    {
+      "id": "H6",
+      "question": "Is a \"booking\" the sheet row, or the customer's request before confirmation?",
+      "raisedBy": "glossary-draft.txt:3-4 — \"Mai and Tuan use it both ways in the same sentence.\"",
+      "blocks": "aggregate identity; when the lifecycle starts",
+      "whoCouldAnswer": "Mai + Tuan"
+    },
+    {
+      "id": "H7",
+      "question": "Is a \"job\" a different thing from a booking, or the same thing after dispatch?",
+      "raisedBy": "glossary-draft.txt:5",
+      "blocks": "whether dispatch creates a second aggregate",
+      "whoCouldAnswer": "Tuan (operations)"
+    },
+    {
+      "id": "H8",
+      "question": "Does `container` mean a container **type** (rate-card dimension) or a **physical box**? Measured: one `TEXT` column, 7 prose occurrences across 6 documents, both senses present",
+      "raisedBy": "measurement + Ha vs Mai's usage",
+      "blocks": "the tracking model and the pricing model at once",
+      "whoCouldAnswer": "Mai + Ha + Duc"
+    },
+    {
+      "id": "H9",
+      "question": "Where is a box once it leaves the yard?",
+      "raisedBy": "Duc, 2026-06-02 — \"Once it leaves, only the driver knows.\" Tuan: making drivers update the sheet \"lasted three weeks.\"",
+      "blocks": "the location read model; who is the source of truth",
+      "whoCouldAnswer": "Duc + Tuan + the **drivers** (quoted by nobody)"
+    },
+    {
+      "id": "H10",
+      "question": "A booking is confirmed before anyone knows a slot exists. Is confirmation conditional, or is the invariant \"no confirmation without a slot\"?",
+      "raisedBy": "product-brief.md:13 — ranked the #1 pain",
+      "blocks": "ordering of rows 11/12; the invariant",
+      "whoCouldAnswer": "Tuan + Mai + the carriers"
+    },
+    {
+      "id": "H11",
+      "question": "Is there a concept for the customer's own purchase-order number? Customers identify bookings by it; \"we do not store [it] anywhere\"; staff keep it in the notes column \"when they remember\". Measured: no DDL name matches `purchase order` **or** `notes`",
+      "raisedBy": "support-log-digest.md:9-10 + measurement",
+      "blocks": "booking identity and aliases",
+      "whoCouldAnswer": "Ha + Mai"
+    },
+    {
+      "id": "H12",
+      "question": "Is there one carrier concept or two?",
+      "raisedBy": "decision-memo:10-11 — \"do not pretend in the model that the two are the same thing… Nobody has signed off on this yet.\"",
+      "blocks": "external-system modelling; the slot-check path",
+      "whoCouldAnswer": "the memo's **unnamed author** + Mai"
+    },
+    {
+      "id": "H13",
+      "question": "Does anybody use the `movement` model? Measured: `movement`, `event` and `noted_at` occur in **0 of 8** prose files",
+      "raisedBy": "measurement",
+      "blocks": "whether tracking is an event log or a status field",
+      "whoCouldAnswer": "the DDL's unnamed author; Tuan"
+    },
+    {
+      "id": "H14",
+      "question": "Who writes a booking down? \"Whoever picks it up\" — the role is explicitly indeterminate",
+      "raisedBy": "ops-walkthrough.md:3",
+      "blocks": "actor modelling; authority to create a booking",
+      "whoCouldAnswer": "Tuan (operations)"
+    },
+    {
+      "id": "H15",
+      "question": "What are the real complaint proportions? The digest says outright \"Rough proportions, not counts\" and was \"grouped by hand\"",
+      "raisedBy": "support-log-digest.md:3",
+      "blocks": "`5-strategize` prioritisation, which would otherwise rank on an estimate",
+      "whoCouldAnswer": "Ha, with the mailbox actually counted"
+    },
+    {
+      "id": "H16",
+      "question": "Is there a rate-card entity, and at what granularity (week × lane × container type)? Measured: **0** tables or columns match `rate card`",
+      "raisedBy": "measurement vs Mai, 2026-05-14",
+      "blocks": "the pricing model; the to-be automated quote",
+      "whoCouldAnswer": "Mai (commercial)"
+    },
+    {
+      "id": "H17",
+      "question": "What happens to a booking whose box misses the sailing? The corpus states the outcome occurs (\"the sailing may go without it… perhaps twice a month\") and stops there",
+      "raisedBy": "ops-walkthrough.md:14-15",
+      "blocks": "the exception path; compensation; customer comms",
+      "whoCouldAnswer": "Tuan + Ha + the broker"
+    },
+    {
+      "id": "H18",
+      "question": "Is anything ever cancelled? Measured: `rg -i -e cancel -e void -e abort` over the 9 corpus files (6,136 bytes) → **0 matches, 9 files searched**. So nothing written down cancels a booking, a quote or a slot",
+      "raisedBy": "measurement — a **stated absence in this corpus**, not a designed simplicity",
+      "blocks": "whether the lifecycle has a terminal failure path",
+      "whoCouldAnswer": "Tuan + Mai"
+    },
+    {
+      "id": "H19",
+      "question": "Is `db/schema.sql` a design anyone stands behind? Its own first line: \"The spreadsheet replacement someone started and abandoned.\" No author is named anywhere in the corpus",
+      "raisedBy": "db/schema.sql:1",
+      "blocks": "how much weight rows 42-44 of the timeline may carry",
+      "whoCouldAnswer": "whoever wrote it"
+    }
+  ],
+  "counts": {
+    "elements": 44,
+    "confirmed": 0,
+    "candidates": 44,
+    "terms": 26,
+    "hotspots": 19
+  }
+}

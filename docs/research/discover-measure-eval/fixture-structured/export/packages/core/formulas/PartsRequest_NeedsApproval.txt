@@ -1,0 +1,4 @@
+entity=PartsRequest
+field=NeedsApproval
+kind=calculated
+expression=If(Cost > 5000, true, false)

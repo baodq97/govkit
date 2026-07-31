@@ -1,0 +1,10 @@
+Words we use, written down after an argument about them. Not agreed.
+
+booking      - the row in the sheet. Also used for the thing the customer asked for, before we
+               confirmed anything. Mai and Tuan use it both ways in the same sentence.
+job          - operations word for a booking that has been dispatched to a truck.
+consignment  - what the customs paperwork calls the goods. Finance uses it to mean the invoice line.
+delivered    - on the vessel (yard/ops) OR received by the consignee (customer service). See the
+               2 June notes.
+slot         - space on a sailing. Carrier calls it an allocation.
+lane         - origin/destination pair. Sometimes includes the container type, sometimes not.

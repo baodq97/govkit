@@ -1,0 +1,4 @@
+entity=Asset
+field=NextPmDue
+kind=rollup
+expression=PmSchedule.LastRun + Days(PmSchedule.IntervalDays)

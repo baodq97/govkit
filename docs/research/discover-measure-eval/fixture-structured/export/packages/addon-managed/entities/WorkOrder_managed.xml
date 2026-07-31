@@ -1,0 +1,52 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Entity name="WorkOrder" schema="fo_workorder" package="addon-managed" version="1.4.0">
+  <Display>Work Order</Display>
+  <Labels>
+    <Label lcid="1033" value="WorkOrder" />
+    <Label lcid="1066" value="WorkOrder (vi)" />
+    <Label lcid="1036" value="WorkOrder (fr)" />
+  </Labels>
+  <Attributes>
+      <Attribute name="Name" type="string" required="false" />
+      <Attribute name="Owner" type="lookup" target="Employee" required="false" />
+      <Attribute name="Cost" type="decimal" required="false" />
+      <Attribute name="CostCentre" type="lookup" target="CostCentre" required="false" />
+      <Attribute name="Asset" type="lookup" target="Asset" required="false" />
+      <Attribute name="Status" type="picklist" target="wo_status" required="false" />
+      <Attribute name="OpenedOn" type="datetime" required="false" />
+      <Attribute name="ClosedOn" type="datetime" required="false" />
+      <Attribute name="Priority" type="picklist" target="priority" required="false" />
+      <Attribute name="Downtime" type="decimal" required="false" />
+      <Attribute name="Notes" type="memo" required="false" />
+      <Attribute name="CreatedBy" type="lookup" target="SystemUser" required="false" />
+    <Attribute name="fo_createdon" type="datetime" required="false" platform="true" />
+    <Attribute name="fo_modifiedon" type="datetime" required="false" platform="true" />
+    <Attribute name="fo_versionnumber" type="bigint" required="false" platform="true" />
+  </Attributes>
+  <Relationships>
+    <Relationship name="fo_workorder_owner" type="many-to-one" target="Employee" />
+    <Relationship name="fo_workorder_costcentre" type="many-to-one" target="CostCentre" />
+    <Relationship name="fo_workorder_asset" type="many-to-one" target="Asset" />
+    <Relationship name="fo_workorder_createdby" type="many-to-one" target="SystemUser" />
+  </Relationships>
+  <Forms>
+    <Form name="main" layout="two-column" formid="{form-workorder-0001}">
+      <Section label="General" columns="2">
+        <Field name="Name" width="100" />
+        <Field name="Owner" width="115" />
+        <Field name="Cost" width="130" />
+        <Field name="CostCentre" width="145" />
+      </Section>
+      <Section label="Details" columns="1">
+        <Field name="Asset" width="90" />
+        <Field name="Status" width="100" />
+        <Field name="OpenedOn" width="110" />
+        <Field name="ClosedOn" width="120" />
+        <Field name="Priority" width="130" />
+        <Field name="Downtime" width="140" />
+        <Field name="Notes" width="150" />
+        <Field name="CreatedBy" width="160" />
+      </Section>
+    </Form>
+  </Forms>
+</Entity>

@@ -1,8 +1,7 @@
 ---
 name: 5-strategize
 description: >
-  DDD loop 2 — strategize: Core Domain Chart (measured complexity × sourced differentiation), build/buy/outsource, and the investment-mismatch report. Writes docs/domain/core-domain-chart.md.
-disable-model-invocation: true
+  DDD step 5 — core domain chart, build/buy, investment mismatch. Writes docs/domain/core-domain-chart.md.
 ---
 
 # Domain Strategize

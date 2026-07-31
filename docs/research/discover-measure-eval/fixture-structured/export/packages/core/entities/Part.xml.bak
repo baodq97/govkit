@@ -1,0 +1,35 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Entity name="Part" schema="fo_part" package="core" version="3.1.0">
+  <Display>Part</Display>
+  <Labels>
+    <Label lcid="1033" value="Part" />
+    <Label lcid="1066" value="Part (vi)" />
+    <Label lcid="1036" value="Part (fr)" />
+  </Labels>
+  <Attributes>
+      <Attribute name="Name" type="string" required="false" />
+      <Attribute name="Sku" type="string" required="false" />
+      <Attribute name="Cost" type="decimal" required="false" />
+      <Attribute name="Supplier" type="lookup" target="Supplier" required="false" />
+      <Attribute name="OnHand" type="int" required="false" />
+    <Attribute name="fo_createdon" type="datetime" required="false" platform="true" />
+    <Attribute name="fo_modifiedon" type="datetime" required="false" platform="true" />
+    <Attribute name="fo_versionnumber" type="bigint" required="false" platform="true" />
+  </Attributes>
+  <Relationships>
+    <Relationship name="fo_part_supplier" type="many-to-one" target="Supplier" />
+  </Relationships>
+  <Forms>
+    <Form name="main" layout="two-column" formid="{form-part-0001}">
+      <Section label="General" columns="2">
+        <Field name="Name" width="100" />
+        <Field name="Sku" width="115" />
+        <Field name="Cost" width="130" />
+        <Field name="Supplier" width="145" />
+      </Section>
+      <Section label="Details" columns="1">
+        <Field name="OnHand" width="90" />
+      </Section>
+    </Form>
+  </Forms>
+</Entity>

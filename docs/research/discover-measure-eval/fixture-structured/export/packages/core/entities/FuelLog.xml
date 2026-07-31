@@ -1,0 +1,31 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Entity name="FuelLog" schema="fo_fuellog" package="core" version="3.2.1">
+  <Display>Fuel Log</Display>
+  <Labels>
+    <Label lcid="1033" value="FuelLog" />
+    <Label lcid="1066" value="FuelLog (vi)" />
+    <Label lcid="1036" value="FuelLog (fr)" />
+  </Labels>
+  <Attributes>
+      <Attribute name="Asset" type="lookup" target="Asset" required="false" />
+      <Attribute name="Litres" type="decimal" required="false" />
+      <Attribute name="Cost" type="decimal" required="false" />
+      <Attribute name="LoggedOn" type="datetime" required="false" />
+    <Attribute name="fo_createdon" type="datetime" required="false" platform="true" />
+    <Attribute name="fo_modifiedon" type="datetime" required="false" platform="true" />
+    <Attribute name="fo_versionnumber" type="bigint" required="false" platform="true" />
+  </Attributes>
+  <Relationships>
+    <Relationship name="fo_fuellog_asset" type="many-to-one" target="Asset" />
+  </Relationships>
+  <Forms>
+    <Form name="main" layout="two-column" formid="{form-fuellog-0001}">
+      <Section label="General" columns="2">
+        <Field name="Asset" width="100" />
+        <Field name="Litres" width="115" />
+        <Field name="Cost" width="130" />
+        <Field name="LoggedOn" width="145" />
+      </Section>
+    </Form>
+  </Forms>
+</Entity>

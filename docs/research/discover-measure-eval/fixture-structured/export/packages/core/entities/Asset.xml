@@ -1,0 +1,44 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Entity name="Asset" schema="fo_asset" package="core" version="3.2.1">
+  <Display>Asset</Display>
+  <Labels>
+    <Label lcid="1033" value="Asset" />
+    <Label lcid="1066" value="Asset (vi)" />
+    <Label lcid="1036" value="Asset (fr)" />
+  </Labels>
+  <Attributes>
+      <Attribute name="Name" type="string" required="false" />
+      <Attribute name="Owner" type="lookup" target="Depot" required="false" />
+      <Attribute name="SerialNo" type="string" required="false" />
+      <Attribute name="Cost" type="decimal" required="false" />
+      <Attribute name="AcquiredOn" type="datetime" required="false" />
+      <Attribute name="Category" type="lookup" target="Category" required="false" />
+      <Attribute name="Meter" type="decimal" required="false" />
+      <Attribute name="Status" type="picklist" target="asset_status" required="false" />
+      <Attribute name="ModifiedOn" type="datetime" required="false" />
+    <Attribute name="fo_createdon" type="datetime" required="false" platform="true" />
+    <Attribute name="fo_modifiedon" type="datetime" required="false" platform="true" />
+    <Attribute name="fo_versionnumber" type="bigint" required="false" platform="true" />
+  </Attributes>
+  <Relationships>
+    <Relationship name="fo_asset_owner" type="many-to-one" target="Depot" />
+    <Relationship name="fo_asset_category" type="many-to-one" target="Category" />
+  </Relationships>
+  <Forms>
+    <Form name="main" layout="two-column" formid="{form-asset-0001}">
+      <Section label="General" columns="2">
+        <Field name="Name" width="100" />
+        <Field name="Owner" width="115" />
+        <Field name="SerialNo" width="130" />
+        <Field name="Cost" width="145" />
+      </Section>
+      <Section label="Details" columns="1">
+        <Field name="AcquiredOn" width="90" />
+        <Field name="Category" width="100" />
+        <Field name="Meter" width="110" />
+        <Field name="Status" width="120" />
+        <Field name="ModifiedOn" width="130" />
+      </Section>
+    </Form>
+  </Forms>
+</Entity>

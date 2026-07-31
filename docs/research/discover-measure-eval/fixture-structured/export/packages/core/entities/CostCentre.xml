@@ -1,0 +1,28 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Entity name="CostCentre" schema="fo_costcentre" package="core" version="3.2.1">
+  <Display>Cost Centre</Display>
+  <Labels>
+    <Label lcid="1033" value="CostCentre" />
+    <Label lcid="1066" value="CostCentre (vi)" />
+    <Label lcid="1036" value="CostCentre (fr)" />
+  </Labels>
+  <Attributes>
+      <Attribute name="Name" type="string" required="false" />
+      <Attribute name="Code" type="string" required="false" />
+      <Attribute name="Budget" type="decimal" required="false" />
+    <Attribute name="fo_createdon" type="datetime" required="false" platform="true" />
+    <Attribute name="fo_modifiedon" type="datetime" required="false" platform="true" />
+    <Attribute name="fo_versionnumber" type="bigint" required="false" platform="true" />
+  </Attributes>
+  <Relationships>
+  </Relationships>
+  <Forms>
+    <Form name="main" layout="two-column" formid="{form-costcentre-0001}">
+      <Section label="General" columns="2">
+        <Field name="Name" width="100" />
+        <Field name="Code" width="115" />
+        <Field name="Budget" width="130" />
+      </Section>
+    </Form>
+  </Forms>
+</Entity>

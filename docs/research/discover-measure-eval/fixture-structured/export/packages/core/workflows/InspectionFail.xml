@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Workflow name="InspectionFail" primaryentity="fo_inspection" trigger="update" filteringattributes="result">
+  <Step type="condition" />
+  <Step type="setvalue" />
+  <Step type="sendmail" />
+</Workflow>

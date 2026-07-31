@@ -1,0 +1,4 @@
+entity=Asset
+field=Utilisation
+kind=calculated
+expression=Sum(MeterReading.Value) / Max(Downtime.Hours, 1)

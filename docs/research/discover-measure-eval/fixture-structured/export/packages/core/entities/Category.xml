@@ -1,0 +1,27 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Entity name="Category" schema="fo_category" package="core" version="3.2.1">
+  <Display>Category</Display>
+  <Labels>
+    <Label lcid="1033" value="Category" />
+    <Label lcid="1066" value="Category (vi)" />
+    <Label lcid="1036" value="Category (fr)" />
+  </Labels>
+  <Attributes>
+      <Attribute name="Name" type="string" required="false" />
+      <Attribute name="Parent" type="lookup" target="Category" required="false" />
+    <Attribute name="fo_createdon" type="datetime" required="false" platform="true" />
+    <Attribute name="fo_modifiedon" type="datetime" required="false" platform="true" />
+    <Attribute name="fo_versionnumber" type="bigint" required="false" platform="true" />
+  </Attributes>
+  <Relationships>
+    <Relationship name="fo_category_parent" type="many-to-one" target="Category" />
+  </Relationships>
+  <Forms>
+    <Form name="main" layout="two-column" formid="{form-category-0001}">
+      <Section label="General" columns="2">
+        <Field name="Name" width="100" />
+        <Field name="Parent" width="115" />
+      </Section>
+    </Form>
+  </Forms>
+</Entity>

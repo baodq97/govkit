@@ -1,0 +1,34 @@
+{
+  "schemaVersion": 1,
+  "kind": "discovery",
+  "source": {
+    "mode": "discover",
+    "date": "2026-07-31",
+    "attendance": { "domainExpert": false, "endUser": false }
+  },
+  "timeline": [
+    { "seq": 1, "name": "InvoiceRaised", "type": "event", "status": "candidate", "state": "as-is" },
+    {
+      "seq": 2,
+      "name": "InvoiceApproved",
+      "type": "event",
+      "status": "candidate",
+      "state": "as-is"
+    },
+    { "seq": 3, "name": "PaymentPosted", "type": "event", "status": "candidate", "state": "as-is" },
+    {
+      "seq": 4,
+      "name": "ApprovalRequiredOverLimit",
+      "type": "policy",
+      "status": "candidate",
+      "state": "as-is"
+    }
+  ],
+  "hotspots": [
+    {
+      "question": "Who owns the approval threshold?",
+      "raisedBy": "mining run",
+      "blocks": "aggregate boundary"
+    }
+  ]
+}

@@ -1,0 +1,4 @@
+entity=WorkOrder
+field=TotalCost
+kind=rollup
+expression=Cost + Sum(PartsRequest.Cost) * 1.1

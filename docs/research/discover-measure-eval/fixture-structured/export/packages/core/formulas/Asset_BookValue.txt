@@ -1,0 +1,4 @@
+entity=Asset
+field=BookValue
+kind=calculated
+expression=Cost - (Cost * 0.15 * YearsSince(AcquiredOn))

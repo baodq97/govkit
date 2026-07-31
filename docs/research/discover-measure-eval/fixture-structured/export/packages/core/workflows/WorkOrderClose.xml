@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Workflow name="WorkOrderClose" primaryentity="fo_workorder" trigger="update" filteringattributes="status">
+  <Step type="condition" />
+  <Step type="setvalue" />
+  <Step type="sendmail" />
+</Workflow>

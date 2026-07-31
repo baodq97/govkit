@@ -1,8 +1,7 @@
 ---
 name: 8-code
 description: >
-  DDD loop 3 — code, in two phases: (1) event-model the scenario into handover-ready slices with Given/When/Then; (2) Aggregate Design Canvas v1.1 for the aggregates those slices touch — invariants vs corrective policies, contention, size. Writes docs/domain/<context>/aggregates/.
-disable-model-invocation: true
+  DDD step 8 — event-modelled slices and aggregate design canvases. Writes docs/domain/<context>/aggregates/.
 ---
 
 # Domain Code

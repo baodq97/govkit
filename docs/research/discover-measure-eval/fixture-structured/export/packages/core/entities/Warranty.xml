@@ -1,0 +1,27 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Entity name="Warranty" schema="fo_warranty" package="core" version="3.2.1">
+  <Display>Warranty</Display>
+  <Labels>
+    <Label lcid="1033" value="Warranty" />
+    <Label lcid="1066" value="Warranty (vi)" />
+    <Label lcid="1036" value="Warranty (fr)" />
+  </Labels>
+  <Attributes>
+      <Attribute name="Asset" type="lookup" target="Asset" required="false" />
+      <Attribute name="ExpiresOn" type="datetime" required="false" />
+    <Attribute name="fo_createdon" type="datetime" required="false" platform="true" />
+    <Attribute name="fo_modifiedon" type="datetime" required="false" platform="true" />
+    <Attribute name="fo_versionnumber" type="bigint" required="false" platform="true" />
+  </Attributes>
+  <Relationships>
+    <Relationship name="fo_warranty_asset" type="many-to-one" target="Asset" />
+  </Relationships>
+  <Forms>
+    <Form name="main" layout="two-column" formid="{form-warranty-0001}">
+      <Section label="General" columns="2">
+        <Field name="Asset" width="100" />
+        <Field name="ExpiresOn" width="115" />
+      </Section>
+    </Form>
+  </Forms>
+</Entity>

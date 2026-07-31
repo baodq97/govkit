@@ -47,6 +47,14 @@ budgets:
     event-model/README.md: { lines: 200, owner: 8-code }
     discovery/*.md:       { lines: 120, owner: 2-discover }
     message-flows/*.md:   { lines: 90,  owner: 4-connect }
+# Grounding-readiness floor (R2): the one measure `govkit verify`/`eval` are blind to — how much of
+# the sliced discovery a PERSON confirmed vs a mining run merely proposed. ddd_check.py check 16
+# reads this; absent, it defaults to the decompose heuristic (one confirmed event, one stated rule).
+# Warning-only by default; --strict-grounding makes it block once the slip rate is measured.
+grounding:
+  min_confirmed_events: 1     # 0 confirmed events = nothing to cut a boundary on (the btm case)
+  min_confirmed_rules: 1      # a context with no confirmed rule is a capability, not a context
+  ratio_floor: 0.34           # confirmed:candidate below this = a schema was mined, not discovered
 journal: docs/domain/.ddd-journal.jsonl
 log: docs/domain/MODELLING-LOG.md
 

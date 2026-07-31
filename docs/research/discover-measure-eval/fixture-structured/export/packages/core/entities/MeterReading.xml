@@ -1,0 +1,29 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Entity name="MeterReading" schema="fo_meterreading" package="core" version="3.2.1">
+  <Display>Meter Reading</Display>
+  <Labels>
+    <Label lcid="1033" value="MeterReading" />
+    <Label lcid="1066" value="MeterReading (vi)" />
+    <Label lcid="1036" value="MeterReading (fr)" />
+  </Labels>
+  <Attributes>
+      <Attribute name="Asset" type="lookup" target="Asset" required="false" />
+      <Attribute name="Value" type="decimal" required="false" />
+      <Attribute name="ReadOn" type="datetime" required="false" />
+    <Attribute name="fo_createdon" type="datetime" required="false" platform="true" />
+    <Attribute name="fo_modifiedon" type="datetime" required="false" platform="true" />
+    <Attribute name="fo_versionnumber" type="bigint" required="false" platform="true" />
+  </Attributes>
+  <Relationships>
+    <Relationship name="fo_meterreading_asset" type="many-to-one" target="Asset" />
+  </Relationships>
+  <Forms>
+    <Form name="main" layout="two-column" formid="{form-meterreading-0001}">
+      <Section label="General" columns="2">
+        <Field name="Asset" width="100" />
+        <Field name="Value" width="115" />
+        <Field name="ReadOn" width="130" />
+      </Section>
+    </Form>
+  </Forms>
+</Entity>

@@ -1,0 +1,4 @@
+entity=WorkOrder
+field=SlaBreached
+kind=calculated
+expression=If(ClosedOn > OpenedOn + Hours(Priority.SlaHours), true, false)

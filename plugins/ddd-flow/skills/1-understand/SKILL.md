@@ -1,8 +1,7 @@
 ---
 name: 1-understand
 description: >
-  DDD loop 1 — understand: Business Model Canvas + User Story Map + the business_role / evolution_stage / differentiation inputs that decide which sub-domains are core. Writes docs/domain/business-model.md.
-disable-model-invocation: true
+  DDD step 1 — business model canvas, story map, differentiation inputs. Writes docs/domain/business-model.md.
 ---
 
 # Domain Understand

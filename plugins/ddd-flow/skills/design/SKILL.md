@@ -4,14 +4,14 @@ description: >
   Orchestrate the DDD modelling process end to end. Reads repo state with a deterministic script,
   then decides what to do next against your goal instead of following a fixed pipeline: which
   step to run, which to skip and at what cost, what a change invalidates, and which of the eight
-  hidden step sub-skills (understand · discover · decompose · connect · strategize · organise ·
+  step sub-skills (understand · discover · decompose · connect · strategize · organise ·
   define · code, plus a live visual surface) to hand it to. Use for "let's do DDD", "model this
   domain properly", "design the domain end to end", "what's next in our domain modelling",
   "resume the domain modelling", "we're adding a new business line — how does that fit", "làm
   DDD cho hệ thống này", "thiết kế domain từ đầu", "tiếp theo làm gì". Also trigger when a
   change lands in an already-modelled domain, or when a model exists and nobody knows how much
   of the process was really done — restarting finished work is the failure this prevents.
-allowed-tools: Bash(python3 ${CLAUDE_SKILL_DIR}/scripts/*.py *)
+allowed-tools: Bash(python3 ${CLAUDE_SKILL_DIR}/scripts/*.py *), Skill
 ---
 
 # DDD Design — control flow for the modelling loop
@@ -19,7 +19,7 @@ allowed-tools: Bash(python3 ${CLAUDE_SKILL_DIR}/scripts/*.py *)
 ## Hard rules
 
 - **Never do a step's work inline.** Each step skill carries its own rules — provenance,
-  confirmed-vs-candidate, propose-don't-apply — and none survive paraphrase. Name the command.
+  confirmed-vs-candidate, propose-don't-apply — and none survive paraphrase. Invoke the skill.
 - **Read state before planning.** Every claim about what has been done cites the script's output.
 - **Decide, don't sequence.** If the goal makes a different step right, run that and say why. If it
   makes the whole process wrong, say that too.
@@ -98,12 +98,19 @@ discovery, and the second owes `connect` and `define` afterwards, because a boun
 slice building is a hypothesis. Record the deviation with what it left unvalidated, so the debt
 resurfaces instead of setting.
 
-## 3. Route — name the command, do not run it
+## 3. Route — invoke the step, having said why
 
-The step skills are hidden from context (`disable-model-invocation: true`), so you cannot invoke
-them. Tell the user exactly what to type:
+Invoke the step yourself via the Skill tool (`ddd-flow:1-understand`, …), passing the goal and the
+sources it should read. Say which step you chose and why **before** invoking — routing silently is
+how a step runs against the wrong goal.
 
-| Step | Command | Answers |
+The step skills carry their own rules — provenance, confirmed-vs-candidate, propose-don't-apply.
+Invoking them is how those rules apply; paraphrasing their work inline is how they are lost.
+
+The user can also drive any step directly by typing its command, which is the right move when they
+want to run the workshop themselves:
+
+| Step | Skill / command | Answers |
 |---|---|---|
 | understand | `/ddd-flow:1-understand` | what the business sells, and what differentiates it |
 | discover | `/ddd-flow:2-discover` | what actually happens, in the words of the people who do it |
@@ -185,6 +192,17 @@ cheaply. Say when the design effort being asked for exceeds what the decision is
 
 Ask before advancing. When one fails, going back beats pushing through with a caveat.
 
+**The decompose row is a measurement, not a vibe — take it from the script.** Before `3-decompose`,
+`7-define`, or `8-code` on a slice, the grounding line from `ddd_check.py` (check 16,
+`grounding-under-ratified`) reads `docs/domain/discovery/model.json` and counts how much of the
+sliced timeline a person *confirmed* vs how much a mining run *proposed*. **0 confirmed events, 0
+confirmed rules, or confirmed:candidate below the floor → do not deepen** — print `under-grounded: N
+confirmed / M candidate on slice X — ratify or mine before deepening` and go back to `2-discover`,
+not forward with a caveat. The check is warning-only (`info`) by design: this is the judgement
+`govkit verify` and `govkit eval` cannot make — both were green on btm-systems while its author
+stalled two days over a context map cut from 0 confirmed events, then rolled it all back. A green
+grounding line is **necessary, not sufficient**; only a person flips candidate→confirmed.
+
 | About to run | Ask | If the answer is bad |
 |---|---|---|
 | decompose | one human-confirmed event and one stated rule? | it would paraphrase a schema — back to discover |
@@ -215,12 +233,18 @@ python3 ${CLAUDE_SKILL_DIR}/scripts/ddd_state.py --root . --record \
   --deviation "organise deferred — single team"
 ```
 
-Appends to `docs/domain/.ddd-journal.jsonl` and regenerates `docs/domain/MODELLING-LOG.md`. The log
-is generated — append an entry, never hand-edit it.
+Appends to `docs/domain/.ddd-journal.jsonl` (and `--render-log` regenerates `MODELLING-LOG.md`).
 
-Record what the artifact tree cannot show: who was in the room, what was decided, what was skipped
-and why, what is still open. The script resurfaces open items as candidate actions on the next run,
-which is how a hotspot from three weeks ago stops disappearing.
+**This is OPTIONAL — not a per-step chore.** State is DERIVED from the artifact tree on disk (§1,
+`ddd_state.py` reads what exists), never from this journal, so resume works with no journal at all.
+The *narrative* it would carry — who was in the room, what was decided, what was skipped and why —
+already lives, richer, in your session history, `tmem`, `atuin`, and `git log`; do not hand-copy it
+here (a hand-written journal is a redundant, rot-prone second copy). Record only **one** thing, and
+only when it earns it: an **open item** you want `ddd_state` to resurface as a candidate action next
+run (a hotspot that must not disappear). Everything else the artifacts and `git log` already show.
+
+Not to be confused with the gate/learning-loop journal: the R7 distiller reads a *different* file,
+`.govkit/journal.jsonl`, written by the govkit gate — never by you.
 
 ## 8. Exit
 

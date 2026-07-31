@@ -1,0 +1,4 @@
+entity=Contract
+field=Expiring
+kind=calculated
+expression=If(EndsOn < Today() + Days(30), true, false)

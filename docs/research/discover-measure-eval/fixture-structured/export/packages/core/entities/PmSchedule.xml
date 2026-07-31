@@ -1,0 +1,31 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Entity name="PmSchedule" schema="fo_pmschedule" package="core" version="3.2.1">
+  <Display>Pm Schedule</Display>
+  <Labels>
+    <Label lcid="1033" value="PmSchedule" />
+    <Label lcid="1066" value="PmSchedule (vi)" />
+    <Label lcid="1036" value="PmSchedule (fr)" />
+  </Labels>
+  <Attributes>
+      <Attribute name="Name" type="string" required="false" />
+      <Attribute name="Asset" type="lookup" target="Asset" required="false" />
+      <Attribute name="IntervalDays" type="int" required="false" />
+      <Attribute name="LastRun" type="datetime" required="false" />
+    <Attribute name="fo_createdon" type="datetime" required="false" platform="true" />
+    <Attribute name="fo_modifiedon" type="datetime" required="false" platform="true" />
+    <Attribute name="fo_versionnumber" type="bigint" required="false" platform="true" />
+  </Attributes>
+  <Relationships>
+    <Relationship name="fo_pmschedule_asset" type="many-to-one" target="Asset" />
+  </Relationships>
+  <Forms>
+    <Form name="main" layout="two-column" formid="{form-pmschedule-0001}">
+      <Section label="General" columns="2">
+        <Field name="Name" width="100" />
+        <Field name="Asset" width="115" />
+        <Field name="IntervalDays" width="130" />
+        <Field name="LastRun" width="145" />
+      </Section>
+    </Form>
+  </Forms>
+</Entity>

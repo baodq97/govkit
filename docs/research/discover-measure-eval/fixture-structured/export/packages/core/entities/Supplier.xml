@@ -1,0 +1,29 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Entity name="Supplier" schema="fo_supplier" package="core" version="3.2.1">
+  <Display>Supplier</Display>
+  <Labels>
+    <Label lcid="1033" value="Supplier" />
+    <Label lcid="1066" value="Supplier (vi)" />
+    <Label lcid="1036" value="Supplier (fr)" />
+  </Labels>
+  <Attributes>
+      <Attribute name="Name" type="string" required="false" />
+      <Attribute name="Tin" type="string" required="false" />
+      <Attribute name="Region" type="lookup" target="Region" required="false" />
+    <Attribute name="fo_createdon" type="datetime" required="false" platform="true" />
+    <Attribute name="fo_modifiedon" type="datetime" required="false" platform="true" />
+    <Attribute name="fo_versionnumber" type="bigint" required="false" platform="true" />
+  </Attributes>
+  <Relationships>
+    <Relationship name="fo_supplier_region" type="many-to-one" target="Region" />
+  </Relationships>
+  <Forms>
+    <Form name="main" layout="two-column" formid="{form-supplier-0001}">
+      <Section label="General" columns="2">
+        <Field name="Name" width="100" />
+        <Field name="Tin" width="115" />
+        <Field name="Region" width="130" />
+      </Section>
+    </Form>
+  </Forms>
+</Entity>

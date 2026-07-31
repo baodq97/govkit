@@ -1,0 +1,4 @@
+entity=Part
+field=ReorderFlag
+kind=rollup
+expression=If(OnHand < 5, true, false)
