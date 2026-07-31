@@ -1,7 +1,7 @@
 ---
 id: RFC-0032
 title: Plugin-contract conformance — make the three plugins obey Claude Code's skill/agent/hook contracts
-status: accepted
+status: implemented
 owner: baodq97
 date: 2026-07-31
 governs:
@@ -246,3 +246,52 @@ gate, removing it returns a consumer to today's behaviour with no state migratio
 - **F3 scope.** "agents whose embed genuinely mirrors a skill" needs a census in Phase 3 — not
   every role agent has a canonical skill twin, and preloading a skill an agent only half-mirrors
   would inject misleading context.
+
+## As-built
+
+All four phases shipped, each slice authored then adversarially verified (a workflow per phase;
+the lead integrated shared state and ran the full `bun run check` before every commit).
+
+- **Phase 0 — F5.** `scripts/skill-lint.mjs` now errors when a non-orchestrator skill's description
+  is neither trigger-shaped nor `disable-model-invocation`-guarded (US-0006).
+- **Phase 1 — F2, F1.** The 9 ddd-flow step skills are `disable-model-invocation: true` +
+  `paths: docs/domain/**` (US-0007). `swe-flow` ships the Stop gate as a plugin hook
+  (`plugins/swe-flow/hooks/hooks.json`) pinned byte-identical to the settings template by a new
+  `check-sync` `stopHookCommandPin` (US-0008).
+- **Phase 2 — F8, F-freeze, F9.** `AGENTS.md` split into path-scoped `.claude/rules/*.md` with a
+  new `scripts/agents-rules.test.mjs` content-preservation gate (US-0009). `gate-close` carries a
+  skill-scoped PreToolUse `decideFreeze` hook denying agent status flips (US-0010). `spec-author`
+  and `gate-close` route owner decisions through `AskUserQuestion` (US-0011).
+- **Phase 3 — F3, F-cmd, F7, F6.** `skills:`-preload on the 3 mirror agents (US-0012); four
+  `.claude/commands/*.md` workflow wrappers (US-0013); live `!npx govkit verify --json` state +
+  `LEARNING-LOOP` Gotchas in the gate/authoring skills (US-0014).
+
+Commits: `6fd8a11` (F5+F2), `83c3d2b`/`a43a0ea` (F1+probe), `f584aa7` (F8), `040197c` (F9/F3/F-cmd),
+`d7312c5` (F-freeze), `6249e39` (F7+F6). All six US at `done`.
+
+## Deviations from design
+
+What the implementation learned that the design did not foresee — each an adversarial-verify or
+live-probe finding, none a silent change:
+
+1. **F1 dedup is NOT available (measured, not assumed).** A live `claude -p --debug` probe proved a
+   `[Plugin]`-source and a `[Project]`-source byte-identical Stop hook BOTH fire — no cross-source
+   dedup (CC 2.1.220). Design accepts the idempotent double-fire (same verdict, duplicate work); the
+   `check-sync` mirror pair survives for byte-identity honesty, not to collapse the hooks.
+2. **`AGENTS.md` is not mirror-pinned (F8 premise corrected).** Only the two consumer template copies
+   are mirrored; the root is not. Each new consumer rule file therefore needs its own 3-artifact
+   lockstep + init scaffold entry, and a new `agents-rules.test.mjs` guards content-preservation —
+   a gate the RFC did not call for but the split requires to be safe.
+3. **F-freeze `replace_all` under-block (found + fixed).** `decideFreeze` first modelled only the
+   first match, so a `replace_all` Edit could hide a status flip behind an earlier token. Fixed to
+   honour `replace_all`; INDEX code-fence / pipe-in-cell recorded as accepted over-block limitations
+   (defence-in-depth — the Stop gate backstops).
+4. **F9 was inert as first written.** `spec-author`'s exclusive `allowed-tools` omitted
+   `AskUserQuestion`, so the instruction could never fire; the tool was added to the allowlist.
+5. **F7 adds no `allowed-tools` (footgun avoided).** A SKILL.md body `!command` is a documented
+   preprocessing feature needing no tool grant; the RFC's implied `allowed-tools` entry would have
+   been the exact exclusive-allowlist trap F3 warns about, so it was dropped (US-0014 AC reconciled).
+6. **F3 census: 3 of 11 agents.** Only `distiller`/`drafter`/`red-teamer` genuinely mirror one skill;
+   the rest were excluded rather than blanket-preloaded.
+7. **F-cmd: `gate-loop` has no `SKILL.md`.** It is a deterministic workflow; the wrappers front the
+   `.claude/workflows/*.js` and degrade to the by-hand order when workflows are disabled.
