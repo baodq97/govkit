@@ -6,6 +6,20 @@ description: >-
   status, or when the user says "close this slice", "prep the flips", "ready to flip". For a
   single doc with NO code landed yet (a draft heading to proposed/accepted), use spec-red-team
   instead — gate-close already contains a red team per flip.
+hooks:
+  # US-0010 (RFC-0032 F-freeze): DENY any agent Edit|Write that would flip a governed-doc
+  # `status:` front-matter value or an INDEX.md Status-column cell, so a status advance stays an
+  # owner ratification and never an agent's incidental edit. Skill-scoped BY DESIGN: this block
+  # lives ONLY here, never in settings.default.json, so the freeze is active only during a
+  # gate-close run and clears on the next message — an owner-authorized flip applied OUTSIDE an
+  # active run is not intercepted. DOCUMENTED GAP (accepted, stated not hidden): the matcher is
+  # Edit|Write only, so a flip driven through Bash (`sed -i ...`) or any other tool bypasses this
+  # hook entirely; the always-on Stop gate re-checks the whole tree.
+  PreToolUse:
+    - matcher: Edit|Write
+      hooks:
+        - type: command
+          command: node "${CLAUDE_SKILL_DIR}/freeze-status-edit.mjs"
 ---
 
 # Gate Close
