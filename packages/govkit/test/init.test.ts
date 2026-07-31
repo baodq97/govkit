@@ -43,6 +43,22 @@ describe("runInit", () => {
     expect(agents).toMatch(/never flip\s+a `status:`/);
   });
 
+  // RFC-0032 F8: the scaffold also emits the path-scoped half of the contract — a
+  // `.claude/rules/*.md` whose `paths:` glob lazy-loads it only on a matching session, so the
+  // per-surface rules split out of the always-on AGENTS.md still reach a scaffolded consumer.
+  // Asserting the file lands in `created` (byte-shipped from the bundled template, mirror-pinned to
+  // template/), carries a non-empty `paths:` key (the lazy-load trigger), and — like every entry —
+  // is skipped, never clobbered, on a re-run. The always-on AGENTS.md must carry NO `paths:` key.
+  it("scaffolds the path-scoped .claude/rules/*.md governance split", () => {
+    const r = runInit({ root: dir });
+    expect(r.created).toContain(".claude/rules/governed-docs.md");
+    const rule = readFileSync(join(dir, ".claude/rules/governed-docs.md"), "utf8");
+    expect(rule).toMatch(/^paths:\s*\S/m);
+    expect(readFileSync(join(dir, "AGENTS.md"), "utf8")).not.toMatch(/^paths:/m);
+    const again = runInit({ root: dir });
+    expect(again.skipped).toContain(".claude/rules/governed-docs.md");
+  });
+
   // An AGENTS.md is far more likely than govkit.yml to be hand-written already (any repo that
   // has ever run a coding agent has one). Scaffolding over it would destroy the very contract
   // it is meant to supply, so the idempotence guarantee is load-bearing HERE specifically.

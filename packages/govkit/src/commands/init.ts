@@ -90,6 +90,17 @@ function scaffold(docsRoot: string): Array<{ path: string; content: string }> {
     // same bytes template/ carries, so both adoption paths land the identical contract.
     // Idempotent like every other entry: an existing AGENTS.md is skipped, never clobbered.
     { path: "AGENTS.md", content: bundledDefault("AGENTS.default.md") },
+    // RFC-0032 F8: the path-scoped half of the contract. Claude Code lazy-loads a
+    // `.claude/rules/*.md` only when the session touches a path its `paths:` glob matches, so the
+    // governed-doc authoring rules load on a `docs/**` session and never weigh on a code-only one —
+    // the split that lets the always-on AGENTS.md shrink to the global contract. Shipped as the
+    // same bytes template/ carries (check-sync Check B pins the pair). Idempotent like every entry:
+    // an existing rule file is skipped, never clobbered. A NEW rule file needs its own entry here —
+    // this array is hardcoded, not a rules-dir read, so an un-added file silently un-scaffolds.
+    {
+      path: ".claude/rules/governed-docs.md",
+      content: bundledDefault("rules/governed-docs.default.md"),
+    },
     ...typeIndexStubs(prefix),
   ];
 }

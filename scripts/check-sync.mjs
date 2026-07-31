@@ -130,6 +130,22 @@ export function stopHookCommandPin({ pluginHooksText, settingsText }) {
   ];
 }
 
+// Core of Check B's per-pair verdict, factored out as a PURE function — no filesystem — so the
+// mirror-drift guard is unit-testable in-memory like `findOrphans` / `stopHookCommandPin` above.
+// Given a pair's file names and the bytes already read for each, it returns the drift failure the
+// CLI reports, or [] when the two are byte-identical. The CLI keeps the read + try/catch (an
+// unreadable file is its own failure class); this owns only the equality verdict, so the message
+// text and the OK path stay byte-identical to before the extraction. Every pair rides the same
+// check — the AGENTS pair and each per-file consumer rule template (RFC-0032 F8) alike.
+export function mirrorPairDrift({ rootFile, templateFile, rootBytes, templateBytes }) {
+  if (rootBytes.equals(templateBytes)) return [];
+  return [
+    `mirror drift: ${rootFile} and ${templateFile} are no longer byte-identical.\n` +
+      `  Fix: these files are intentionally the same artifact shipped twice — edit one, then ` +
+      `copy it over the other so consumers scaffolded from template/ get the current version.`,
+  ];
+}
+
 function runCli() {
   const failures = [];
 
@@ -185,6 +201,13 @@ function runCli() {
       "template/.claude/hooks/session-freshness.mjs",
     ],
     ["packages/govkit/templates/AGENTS.default.md", "template/AGENTS.md"],
+    // RFC-0032 F8: each path-scoped consumer rule file `init` scaffolds is pinned like the AGENTS
+    // pair — the bundled template `init` reads at runtime ↔ the byte copy template/ ships for
+    // copy-the-directory adoption. A rule added to only one side drifts the instant either is edited.
+    [
+      "packages/govkit/templates/rules/governed-docs.default.md",
+      "template/.claude/rules/governed-docs.md",
+    ],
   ];
 
   for (const [rootFile, templateFile] of mirrorPairs) {
@@ -201,12 +224,8 @@ function runCli() {
       );
       continue;
     }
-    if (!rootBytes.equals(templateBytes)) {
-      failures.push(
-        `mirror drift: ${rootFile} and ${templateFile} are no longer byte-identical.\n` +
-          `  Fix: these files are intentionally the same artifact shipped twice — edit one, then ` +
-          `copy it over the other so consumers scaffolded from template/ get the current version.`,
-      );
+    for (const failure of mirrorPairDrift({ rootFile, templateFile, rootBytes, templateBytes })) {
+      failures.push(failure);
     }
   }
 

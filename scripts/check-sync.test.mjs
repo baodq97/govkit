@@ -7,7 +7,7 @@
 // package.json wiring is part of the same change (see scripts/check-sync.mjs Check D comment).
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { findOrphans, stopHookCommandPin } from "./check-sync.mjs";
+import { findOrphans, mirrorPairDrift, stopHookCommandPin } from "./check-sync.mjs";
 
 // A test file present in the "check" script value is reachable from the gate → not an orphan.
 test("*.test.mjs named in the check script is not flagged", () => {
@@ -174,6 +174,39 @@ test("stopHookCommandPin: missing Stop hook in plugin text returns a failure", (
   });
   const failures = stopHookCommandPin({ pluginHooksText, settingsText });
   assert.equal(failures.length, 1);
+});
+
+// US-0009 (RFC-0032 F8): Check B gains a mirror pair per consumer rule file `init` scaffolds.
+// `mirrorPairDrift` is the pure per-pair verdict — the CLI reads both files, this diffs the bytes.
+// Same guard class as the existing `AGENTS.default.md ↔ template/AGENTS.md` pair: byte-identical
+// copies must PASS, and any divergence (a bundled rule template edited without its template/ twin)
+// must FAIL. Built in-memory from Buffers, matching the findOrphans / stopHookCommandPin style.
+test("mirrorPairDrift: byte-identical copies of a rule-file pair pass (no failures)", () => {
+  const rootFile = "packages/govkit/templates/rules/governed-docs.default.md";
+  const templateFile = "template/.claude/rules/governed-docs.md";
+  const bytes = Buffer.from("---\npaths: docs/**\n---\n\n# Governed-doc authoring rules\n");
+  const failures = mirrorPairDrift({
+    rootFile,
+    templateFile,
+    rootBytes: bytes,
+    templateBytes: Buffer.from(bytes),
+  });
+  assert.deepEqual(failures, []);
+});
+
+test("mirrorPairDrift: a rule-file pair that diverges fails, naming both files", () => {
+  const rootFile = "packages/govkit/templates/rules/governed-docs.default.md";
+  const templateFile = "template/.claude/rules/governed-docs.md";
+  const failures = mirrorPairDrift({
+    rootFile,
+    templateFile,
+    rootBytes: Buffer.from("---\npaths: docs/**\n---\n\n# authoring rules\n"),
+    templateBytes: Buffer.from("---\npaths: docs/**\n---\n\n# authoring rules EDITED\n"),
+  });
+  assert.equal(failures.length, 1);
+  assert.match(failures[0], /mirror drift/);
+  assert.ok(failures[0].includes(rootFile), "failure must name the bundled rule template");
+  assert.ok(failures[0].includes(templateFile), "failure must name the shipped template/ copy");
 });
 
 // The real repo state must be clean: every top-level scripts/*.mjs (this file included) is wired.
