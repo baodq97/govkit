@@ -1,8 +1,8 @@
 ---
 id: US-0008
 title: Plugin-scoped Stop hook so a plugin-only consumer gets the gate (with a LIVE cross-source dedup probe first)
-status: open
-owner: TBD
+status: done
+owner: baodq97
 date: 2026-07-31
 priority: P1
 parent: RFC-0032

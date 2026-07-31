@@ -1,8 +1,8 @@
 ---
 id: US-0007
 title: Mark the 9 ddd-flow step skills orchestrator-only (disable-model-invocation + paths)
-status: open
-owner: TBD
+status: done
+owner: baodq97
 date: 2026-07-31
 priority: P1
 parent: RFC-0032

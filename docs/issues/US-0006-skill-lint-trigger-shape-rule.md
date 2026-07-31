@@ -1,8 +1,8 @@
 ---
 id: US-0006
 title: skill-lint rule — a non-orchestrator skill must be trigger-shaped or declare disable-model-invocation
-status: open
-owner: TBD
+status: done
+owner: baodq97
 date: 2026-07-31
 priority: P1
 parent: RFC-0032
