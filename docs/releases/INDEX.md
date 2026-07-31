@@ -8,4 +8,4 @@
 | [REL-0004](./REL-0004-govkit-0.10.0.md) | govkit 0.10.0 — init scaffolds the whole schema, not four hardcoded dirs | released | baodq97 | 2026-07-29 |
 | [REL-0005](./REL-0005-govkit-0.10.1.md) | govkit 0.10.1 — the referential gates 0.10.0 claimed but did not wire | released | baodq97 | 2026-07-29 |
 | [REL-0006](./REL-0006-govkit-0.10.2.md) | govkit 0.10.2 — the anti-filler rubric stops rejecting ordinary English | released | baodq97 | 2026-07-29 |
-| [REL-0007](./REL-0007-govkit-0.11.0.md) | govkit 0.11.0 — plugin-contract conformance (RFC-0032) + init scaffolds path-scoped rules | draft | TBD | 2026-07-31 |
+| [REL-0007](./REL-0007-govkit-0.11.0.md) | govkit 0.11.0 — plugin-contract conformance (RFC-0032) + init scaffolds path-scoped rules | released | baodq97 | 2026-07-31 |

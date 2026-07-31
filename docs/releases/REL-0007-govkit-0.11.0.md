@@ -1,8 +1,8 @@
 ---
 id: REL-0007
 title: govkit 0.11.0 — plugin-contract conformance (RFC-0032) + init scaffolds path-scoped rules
-status: draft
-owner: TBD
+status: released
+owner: baodq97
 date: 2026-07-31
 ---
 
@@ -67,5 +67,14 @@ outside this monorepo, driven exactly as a consumer would. Both directions check
   `npx govkit verify` → `FAIL — 1 doc(s) checked, 1 violation, 1 blocking` naming the missing key,
   **exit 1**. The gate still blocks the thing it exists for.
 
-Post-publish smoke (`npm view govkit version` → `0.11.0`, `npx --yes govkit@latest` in a clean
-repo) is recorded here by the owner after `npm publish`, before the `draft → released` flip.
+## Post-publish smoke (executed 2026-07-31)
+
+The tag-push release path ran green — GitHub Actions `release` run `30621152206` (45s): `bun run
+check`, tag-matches-version assert, `pack:proof`, `npm publish --access public`, and the GitHub
+Release creation all passed. Confirmed from the registry, not the CI log:
+
+- `npm view govkit version` → `0.11.0`; `dist-tags.latest` → `0.11.0`.
+- GitHub Release **`govkit v0.11.0`** published (not draft):
+  <https://github.com/baodq97/govkit/releases/tag/v0.11.0>.
+- **The published artifact works end to end.** `npx --yes govkit@latest init && npx --yes
+  govkit@latest verify` in a fresh clean repo → `OK — 0 doc(s), 0 violations`, **exit 0**.
