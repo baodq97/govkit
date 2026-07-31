@@ -1,8 +1,8 @@
 ---
 id: RFC-0032
 title: Plugin-contract conformance — make the three plugins obey Claude Code's skill/agent/hook contracts
-status: draft
-owner: TBD
+status: accepted
+owner: baodq97
 date: 2026-07-31
 governs:
   - packages/govkit/templates/settings.default.json
