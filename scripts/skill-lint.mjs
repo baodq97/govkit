@@ -66,6 +66,23 @@ function cosine(a, b) {
   return na && nb ? dot / (na * nb) : 0;
 }
 
+// US-0006 / RFC-0032 F5: a description is how the model decides whether to
+// auto-invoke a skill/agent, so it must read as a trigger — naming the
+// moment or intent that calls it — not as a terse label. This is a small,
+// deliberately loose set of common trigger phrasings; anything that fails
+// all of them either needs a rewrite or an explicit
+// `disable-model-invocation: true` guard (checked by the caller, not here).
+export function isTriggerShaped(desc) {
+  const s = desc.toLowerCase();
+  // "Use <subject> when/to/for/before <intent>" — the standard imperative shape.
+  if (/\buse\b.*\b(when|to|for|before)\b/.test(s)) return true;
+  // explicit trigger vocabulary
+  if (/\btrigger/.test(s)) return true;
+  // conditional phrasing naming the invoking moment
+  if (/when the user|whenever|\bwhen you\b/.test(s)) return true;
+  return false;
+}
+
 function collect(root) {
   const docs = [];
   for (const kind of ["agents", "skills"]) {
@@ -95,6 +112,10 @@ function collect(root) {
         description: fm?.description ?? "",
         tools: fm?.tools ?? "",
         model: fm?.model ?? "",
+        // Front-matter values come through parseFrontMatter as strings, but
+        // tolerate an actual boolean too in case a caller hands us parsed YAML.
+        disableModelInvocation:
+          fm?.["disable-model-invocation"] === true || fm?.["disable-model-invocation"] === "true",
       });
     }
   }
@@ -111,10 +132,16 @@ export function lintSurface(root) {
     else if (d.name !== d.stem)
       errors.push(`${d.file}: name "${d.name}" does not match filename stem "${d.stem}"`);
     if (!d.description) errors.push(`${d.file}: missing front-matter key "description"`);
-    else if (d.description.length > MAX_DESCRIPTION)
-      errors.push(
-        `${d.file}: description is ${d.description.length} chars, over the ${MAX_DESCRIPTION} limit`,
-      );
+    else {
+      if (d.description.length > MAX_DESCRIPTION)
+        errors.push(
+          `${d.file}: description is ${d.description.length} chars, over the ${MAX_DESCRIPTION} limit`,
+        );
+      if (!d.disableModelInvocation && !isTriggerShaped(d.description))
+        errors.push(
+          `${d.file}: description is not trigger-shaped and does not declare "disable-model-invocation: true"`,
+        );
+    }
     if (d.kind === "agents" && !d.tools) errors.push(`${d.file}: agent must declare "tools"`);
     if (d.kind === "agents" && !d.model) errors.push(`${d.file}: agent must declare "model"`);
   }

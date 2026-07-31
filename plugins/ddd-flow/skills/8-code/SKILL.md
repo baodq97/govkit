@@ -1,5 +1,7 @@
 ---
 name: 8-code
+disable-model-invocation: true
+paths: docs/domain/**
 description: >
   DDD step 8 — event-modelled slices and aggregate design canvases. Writes docs/domain/<context>/aggregates/.
 ---

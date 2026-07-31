@@ -1,5 +1,7 @@
 ---
 name: 3-decompose
+disable-model-invocation: true
+paths: docs/domain/**
 description: >
   DDD step 3 — bounded contexts, aggregates, entities, events. Writes docs/domain/.
 ---

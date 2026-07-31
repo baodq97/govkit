@@ -1,5 +1,7 @@
 ---
 name: 7-define
+disable-model-invocation: true
+paths: docs/domain/**
 description: >
   DDD step 7 — bounded context canvas, quality storming. Deepens docs/domain/<context>/README.md.
 ---

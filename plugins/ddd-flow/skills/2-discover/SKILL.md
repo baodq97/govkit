@@ -1,5 +1,7 @@
 ---
 name: 2-discover
+disable-model-invocation: true
+paths: docs/domain/**
 description: >
   DDD step 2 — EventStorming timeline, ubiquitous language, hotspots. Writes docs/domain/discovery/.
 ---

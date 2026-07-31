@@ -1,5 +1,7 @@
 ---
 name: 4-connect
+disable-model-invocation: true
+paths: docs/domain/**
 description: >
   DDD step 4 — message flows per use case, coupling smells. Writes docs/domain/message-flows/.
 ---

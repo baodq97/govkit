@@ -1,5 +1,7 @@
 ---
 name: 1-understand
+disable-model-invocation: true
+paths: docs/domain/**
 description: >
   DDD step 1 — business model canvas, story map, differentiation inputs. Writes docs/domain/business-model.md.
 ---

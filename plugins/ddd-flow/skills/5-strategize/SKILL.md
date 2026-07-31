@@ -1,5 +1,7 @@
 ---
 name: 5-strategize
+disable-model-invocation: true
+paths: docs/domain/**
 description: >
   DDD step 5 — core domain chart, build/buy, investment mismatch. Writes docs/domain/core-domain-chart.md.
 ---

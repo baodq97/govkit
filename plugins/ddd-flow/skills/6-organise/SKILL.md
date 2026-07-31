@@ -1,5 +1,7 @@
 ---
 name: 6-organise
+disable-model-invocation: true
+paths: docs/domain/**
 description: >
   DDD step 6 — team topologies, cognitive load, interaction modes. Writes docs/domain/team-topology.md.
 ---

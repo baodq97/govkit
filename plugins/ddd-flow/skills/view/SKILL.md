@@ -1,5 +1,7 @@
 ---
 name: view
+disable-model-invocation: true
+paths: docs/domain/**
 description: >
   DDD — renders docs/domain as a live browsable workspace in the browser.
 ---

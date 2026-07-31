@@ -4,7 +4,7 @@ title: Domain-decompose right-sizing — proportional tactical modelling and an 
 status: implemented
 owner: baodq97
 date: 2026-07-24
-reconciled: sha256:04b2e528a0dd813a
+reconciled: sha256:59fc9f4d02cf63d7
 governs:
   - plugins/ddd-flow/skills/3-decompose/SKILL.md
   - plugins/ddd-flow/skills/3-decompose/references/ddd-methodology.md
