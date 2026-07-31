@@ -33,6 +33,18 @@ After the change has **landed and been committed**, and before proposing any sta
 Do not run it while agents are still editing the tree — the verifier reads the working tree, so
 a mid-edit tree yields a false BLOCK. Commit first, then close.
 
+## Current gate verdict (live)
+
+Injected at invocation so the packet is read against ground truth, not a reconstruction — this is
+the repo's real verify, read-only:
+
+!`npx govkit verify --json`
+
+The injection is an accelerant, not a dependency: if that command is unavailable (govkit not
+installed, or a non-Node repo), ignore this block and discover the real gate from `package.json`
+below. `verify` reads the working tree, so a non-empty violation list here usually means the tree
+is still dirty — commit first (see above), then close.
+
 ## How to run it
 
 ```
@@ -162,6 +174,27 @@ the real commands and their real exit codes — not typed by hand. That turns th
 `docs/ledger.json` `check` field from testimony ("I ran it, it passed") into evidence (the exact
 command a reader can re-run). Never write a `released` flip whose ledger `check` is not backed by
 a `ranCommands` entry that exited 0.
+
+## Gotchas
+
+The failure modes this ritual keeps re-learning, written where you meet them (seeded from
+`LEARNING-LOOP.md`; the distiller extends this list from new escapes):
+
+- **Premature `drift --ack`.** `drift` hashes the **staged/committed** blob, not the working tree.
+  Acking while the governed change is still unstaged pins the *old* blob — the gate goes green, then
+  drift re-fires the moment you commit. Always stage/commit the governed change **first**, then
+  `drift --ack`. (Round 23; hit twice in one gate-close session.)
+- **Front-matter ↔ INDEX drift.** A doc's `status:`/`owner:` and its INDEX row cell must match;
+  `verify` catches a mismatch. When you flip a status, edit **both** the front-matter and the INDEX
+  row in the same change, or the close goes red on the next run.
+- **Status flip is an owner act, in its own commit.** A sub-agent never flips a `status:` (the
+  skill-scoped freeze hook now denies it at the tool boundary). The main agent flips only on the
+  owner's in-session authorization, in a **separate** commit that cites it — never folded into the
+  implementation commit. (RFC-0027/RFC-0032 F-freeze.)
+- **Never pipe the gate through `head`/`grep` in a `&&` chain** — the pipe swallows the failing exit
+  code and a red gate reads green. Capture to a file or check `$?` before chaining. (Round 12.)
+- **Act on the *same* green.** `bun run check && <flip/merge/push>` in one chain — a green captured a
+  few edits ago certifies the previous tree, not this one. (Round 22.)
 
 ## Why one packet
 

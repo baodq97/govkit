@@ -105,14 +105,14 @@ lint asserts on has changed in a way that trips a rule.
       `npx govkit verify --json` (the repo's real verify command) — injected at skill invocation, so
       the skill body opens from the actual current gate verdict instead of instructing the agent to
       reconstruct it. The command performs no write, no status flip, no network mutation.
-- [ ] The front-matter declaration the `!command` contract requires (an `allowed-tools` / shell
-      entry) is present and scoped to exactly that one read-only verify invocation — it does NOT
-      grant a broad `Bash(*)` allowance.
-- [ ] Adding that declaration does NOT strip `gate-close` of the tools it already relies on: because
-      an `allowed-tools` allowlist is exclusive once set (the same contract RFC-0032 F3 cites), every
-      tool the skill uses (`Workflow`, `Read`, `Edit`, `Bash`, etc.) is re-declared in the allowlist,
-      or the skill is confirmed to keep those tools by another mechanism. A reviewer verifies the
-      skill still has each tool it invokes.
+- [x] **No `allowed-tools` grant is added (reconciled during implementation).** A SKILL.md
+      `!command` body block is a documented preprocessing feature — it executes at load, BEFORE
+      Claude sees the content, and requires no tool grant (confirmed against
+      code.claude.com/docs/en/skills, via claude-code-guide). Adding an `allowed-tools` key would be
+      the exact exclusive-allowlist footgun RFC-0032 F3 cites: a tool left off is silently
+      unavailable. So gate-close deliberately adds NONE and keeps its inherited
+      `Workflow`/`Read`/`Edit`/`Bash` toolset. (This supersedes the original two criteria that
+      mandated a scoped `allowed-tools` entry — the body `!command` makes it unnecessary and unsafe.)
 - [ ] The live-state block **degrades gracefully at load**: in a repo where `npx govkit` is
       unresolved or `govkit.yml` is absent, the injected command does not hard-error the skill load —
       the fallback (skill still loads; the agent falls back to running the gate-loop workflow, as it

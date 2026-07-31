@@ -139,3 +139,19 @@ review"; do not flip status, assign an owner, approve, or merge.
 
 If the change class needs an artifact the user didn't ask for (e.g. an ADR before code for an
 arch decision), say so and let the user decide — don't silently skip a gate.
+
+## Gotchas
+
+Recurring authoring escapes, seeded from `LEARNING-LOOP.md`:
+
+- **Author at the schema's START status, owner `TBD`.** Never open a doc at `accepted`/`done` — a
+  doc born past its start status passes `verify`/`eval` clean (the gate is stateless), so nothing
+  catches it. The write-time hook only *nudges*; the human flips later, in a separate commit.
+- **The INDEX row must match the front-matter.** Add the row with the SAME `status`/`owner`/`date`
+  as the doc; a mismatch is front-matter↔INDEX drift that `verify` blocks on.
+- **A `parent:` must resolve.** A US/domain doc pointing at a non-existent RFC fails the reference
+  check — write the parent id exactly, and don't mark a child `done` under a parent RFC that is not
+  yet `accepted`.
+- **`allowed-tools` is an EXCLUSIVE allowlist.** If this skill declares `allowed-tools`, it must
+  list EVERY tool it uses — a tool left off is silently unavailable, and no gate catches it
+  (`AskUserQuestion` was once omitted here, making the type-pick prompt inert).
