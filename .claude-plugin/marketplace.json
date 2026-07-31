@@ -12,7 +12,7 @@
         "path": "plugins/swe-flow"
       },
       "description": "LLM authoring companion to the govkit governance engine: skills and role agents that author the governed SDLC chain (PRD/RFC/ADR/US, API + data design, gate-loop close-out) and call `npx govkit verify` \u2014 never embedding the deterministic gate. Domain modelling lives in the sibling ddd-flow plugin, experience design in design-flow; siblings meet at artifacts, never imports.",
-      "version": "0.11.1",
+      "version": "0.12.0",
       "author": {
         "name": "baodq97"
       },
@@ -37,7 +37,7 @@
         "path": "plugins/ddd-flow"
       },
       "description": "The DDD modelling loop as skills: one orchestrator (/ddd-flow:design) reads repo state, decides the next step and invokes it, eight step skills own the workshops, and /ddd-flow:view renders the whole model live in the browser. Episodic by design \u2014 greenfield projects and DDD migrations. Hands off to swe-flow through docs/domain/; authors drafts, never flips a status.",
-      "version": "0.2.0",
+      "version": "0.3.0",
       "author": {
         "name": "baodq97"
       },

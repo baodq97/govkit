@@ -1,6 +1,6 @@
 {
   "name": "ddd-flow",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "description": "The DDD modelling loop as skills: one orchestrator (/ddd-flow:design) reads repo state, decides the next step and invokes it, eight step skills own the workshops, and /ddd-flow:view renders the whole model live in the browser. Episodic by design — greenfield projects and DDD migrations. Hands off to swe-flow through docs/domain/; authors drafts, never flips a status.",
   "author": {
     "name": "baodq97"

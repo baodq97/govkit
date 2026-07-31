@@ -1,6 +1,6 @@
 {
   "name": "swe-flow",
-  "version": "0.11.1",
+  "version": "0.12.0",
   "description": "LLM authoring companion to the govkit governance engine: skills and role agents that author the governed SDLC chain (PRD/RFC/ADR/US, API + data design, gate-loop close-out) and call `npx govkit verify` — never embedding the deterministic gate. Domain modelling lives in the sibling ddd-flow plugin, experience design in design-flow; siblings meet at artifacts, never imports.",
   "author": {
     "name": "baodq97"
