@@ -46,9 +46,33 @@ pair below is load-bearing (dedup spans sources → byte-identity collapses the 
 graceful-degradation story (dedup does not span sources → both fire, but the command is idempotent,
 so a double-fire is duplicate work, not a contradiction).
 
-`Blocked by:` none in artifact terms — but its acceptance is gated on the live probe (below), which
-must complete and be recorded before the hook is written. Independent of US-0006/US-0007 (disjoint
-files → parallel-safe with them).
+### Probe result — recorded 2026-07-31 (Claude Code 2.1.220)
+
+**Cross-source dedup does NOT happen — measured, not inferred.** A byte-identical `Stop` hook
+registered by both a `[Plugin]` source (`--plugin-dir`) and a `[Project]` source
+(`.claude/settings.json`) fired **twice** on a single Stop.
+
+| Configuration | Stop-hook firings |
+|---|---|
+| settings-only (control) | 1 |
+| plugin-only (control) | 1 |
+| settings + plugin, byte-identical command | **2** |
+
+Method: a scratch plugin (`hooks/hooks.json`) + scratch project settings, each running the identical
+command `bash -c 'echo fired >> <log>'`; `claude -p --plugin-dir …` run three times, counting lines
+in the shared log. Independently, the claude-code-guide agent confirmed the official docs list plugin
+hooks as a *separate* location from settings locations and that cross-source dedup is undocumented.
+
+**Consequence:** the `check-sync` mirror pair is **NOT** a dedup-collapse mechanism — byte-identity
+does not merge the two hooks, they both fire. It survives only as the graceful-degradation story:
+both fire, but `npx --yes govkit check --hook` is idempotent (same engine, same flags, same verdict),
+so a double-fire is duplicate *work*, not a contradiction. A consumer that runs `init` AND enables
+the plugin pays two Stop-gate runs per turn. Whether to **avoid** the double-registration
+(init/plugin mutual awareness) or **accept** it (idempotent; keep byte-identity + mirror pair for
+honesty) is the design choice this US now hands to implementation.
+
+`Blocked by:` none in artifact terms — the blocking live probe is now COMPLETE and recorded above.
+Independent of US-0006/US-0007 (disjoint files → parallel-safe with them).
 
 `Touches:` one of `plugins/*/.claude-plugin/plugin.json` (add a `hooks` block) **or**
 `plugins/*/hooks/hooks.json` (new file) per plugin; `scripts/check-sync.mjs` (a new mirror-pair
@@ -57,11 +81,9 @@ the byte source of truth (does not modify it).
 
 ## Acceptance criteria
 
-- [ ] **BLOCKING — live dedup probe runs and is recorded BEFORE the hook is written.** In a scratch
-      consumer that has BOTH a `[Plugin]`-source Stop hook and an identical `[Project]`/`[Local]`-source
-      Stop hook, observe whether the command runs once or twice on a single Stop. The observed
-      answer (dedups-across-sources: yes/no) is written into this US or a linked note with the
-      evidence (how it was observed).
+- [x] **BLOCKING — live dedup probe runs and is recorded BEFORE the hook is written.** DONE (see
+      *Probe result*, 2026-07-31, CC 2.1.220): dedups-across-sources = **NO** — the byte-identical
+      `[Plugin]` + `[Project]` Stop hooks both fired (2 firings vs 1 for each control).
 - [ ] The plugin-bundled Stop hook shells the command **byte-identical** to the Stop hook in
       `packages/govkit/templates/settings.default.json`:
       `npx --yes govkit check --hook --root "${CLAUDE_PROJECT_DIR}"` — same flags, same root, no
