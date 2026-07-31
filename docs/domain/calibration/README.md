@@ -26,7 +26,7 @@ judgement call — and so that a loop which improves the gates cannot quietly we
 |---|---|---|
 | Domain type | `supporting` in `model.yaml` — **and contested** | `core-domain-chart.md`, Disagreements row |
 | Business-model role | the product's stated north star metric | `PRD-0001:37-42` |
-| Evolution | custom-built; the first slice of roadmap theme R7 | `PRD-0001:64`, `:70-78` |
+| Evolution | custom-built; the first slice of roadmap theme R7 | `ROADMAP.md:27`, `:33-41` |
 
 Carried, not re-derived. The label says "a regression harness for QualityEval, not a capability a
 consumer runs". The chart says its OUTPUT — false positives at zero, and an adversarial corpus

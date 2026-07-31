@@ -26,7 +26,7 @@ the **contributor** who would otherwise discover the divergence at review time.
 | Facet | Value | Source |
 |---|---|---|
 | Domain type | `core` — the one place a source outside this repo is cited for differentiation | `PRD-0001:64` (Fowler SDD review: *"no tool has deterministic drift detection"*) |
-| Business-model role | revenue/adoption driver — the capability the roadmap points at | `PRD-0001:64`, theme R7 |
+| Business-model role | revenue/adoption driver — the capability the roadmap points at | `ROADMAP.md:27`, theme R7 |
 | Evolution | custom-built, and amended in flight once (commit-sha claims → content-hash claims) | `RFC-0015` as amended; `drift.ts:14-24` |
 
 Carried, not re-derived.

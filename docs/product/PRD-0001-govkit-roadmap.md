@@ -1,12 +1,17 @@
 ---
 id: PRD-0001
-title: govkit roadmap & product vision
+title: govkit product vision
 status: approved
 owner: baodq97
 date: 2026-06-09
 ---
 
-# PRD-0001 — govkit roadmap & product vision
+# PRD-0001 — govkit product vision
+
+> **This is the stable charter — the north star, personas, non-goals.** The *volatile* half —
+> which slice ships next, in what order, at what priority — lives ungoverned in
+> [`docs/ROADMAP.md`](../ROADMAP.md), per the vision/roadmap split in
+> [`the-flow.md`](../the-flow.md). Do not add sequencing or theme priority here; it belongs there.
 
 ## Problem / context
 
@@ -47,35 +52,18 @@ grounds: alert-triage's quality loop lifted its judge mean from 73.8 to 84.1 and
 verify-hook false flags from 10 to 3 cases — that eval loop is the measurement template
 this roadmap generalizes into govkit.
 
-## Scope — roadmap themes (R0–R7)
+## Scope — capabilities, not sequencing
 
-Sequenced by leverage and dependency. Each theme cites the consumer evidence that
-justifies it.
+This charter fixes *what govkit is for* and *what would make it fail*; it deliberately does not
+fix *what ships next*. The theme roadmap (R0–R7 — publish, generality, substance-judge, init
+scaffold, glue plugins, harness generator, adoption loop, learning flywheel), the evidence behind
+each, the running friction-log spine, and their sequencing all live in the ungoverned
+[`docs/ROADMAP.md`](../ROADMAP.md), because priority order churns monthly and a governed doc that
+churns monthly is the stale doc govkit exists to prevent.
 
-| # | Theme | Deliverable | Evidence (where it came from) |
-|---|---|---|---|
-| **R0** | Publish to npm | `npx govkit` resolves from the registry; retire vendored tarball / private install | Both consumers vendored or `gh auth switch`-installed govkit (n=2 onboarding wall) |
-| **R1** | Generality hardening | `govkit.yml` fully parameterizes the diverging surface (status vocabularies, extra required keys, extra doc types); add a 3rd dissimilar usecase | `diff govkit.yml` customs↔alert: kernel (shared) vs config-surface (diverged) |
-| **R2** | Substance-judge plugin (Layer 3) | Productize the keyed, opt-in eval judge govkit defers to today: pinned judge, cross-model run, scoring anchors, deepeval-compatible | alert-triage already built a working reference impl (`docs/evals/`); RFC-0001 defers this layer |
-| **R3** | `init` scaffold (kit) | `govkit init` emits governance (pinned, drift-free) **and** a pluggable monorepo template (copied, consumer-owned) as two distinct outputs | ADR-0001, `template/`; need to absorb sibling `monorepo-template` without baking one stack |
-| **R4** | Glue / loop plugins | One-person-company automation layer; strictly one-directional (plugins consume govkit, govkit never consumes a plugin) | customs `.claude/` wave harness; loop/harness-engineering discourse |
-| **R5** | Harness generator | Meta-plugin that emits per-usecase skill/agent **structure** + a product-domain glossary; never fabricates rules | n=2 kernel defines what is generatable; **gated until n≥3** |
-| **R6** | Adoption-driven feature loop | Make RFC-0008/0009/0010 opt-in with onboarding that pulls real consumer need; measure features by consumer adoption | Both consumers needed as-built honesty yet adopted it by hand, not via RFC-0010 |
-| **R7** | Learning flywheel | Deterministic gate-outcome journal (`--journal` JSONL sensor) + `govkit calibrate` (confusion-matrix precision/recall/F1 vs the labeled adversarial corpus, pinned baseline, FP>0 fails CI) as the no-key foundation; then an opt-in, keyed swe-flow `learning-distiller` that turns journal + escape-log into PROPOSED corpus fixtures / AGENTS.md rules via PR (never auto-applied; corpus append-only; every gate change must pass calibrate) | Evidence: 2026-07 deep-research sweep — OpenAI agentic-governance cookbook ("run evals on every policy repo change"), Anthropic hooks guidance (deterministic enforcement), Fowler SDD review (at the time, no tool had deterministic drift detection — since stale: VeriContext ships hash-based fail-closed doc↔code verification, catalogued as prior art in US-0005; govkit's differentiators remain calibrate + the labeled corpus + anchored FP-tolerant citations); RFC-0012 is the first slice. |
-
-Running spine across all themes: a **friction log** (per consumer wave, classify each
-`verify`/`eval` outcome as FP / FN / scope-escape) feeding the confusion matrix and the
-adversarial corpus.
-
-### R7 rationale — closing the loop
-
-The running spine above is today manual: a human classifies each wave outcome and
-hand-feeds the confusion matrix. R7 automates SENSE (the journal, deterministic core)
-and DISTILL (the keyed plugin, proposal-only) while RATIFY stays human — proposals land
-as PRs, never as applied changes. `calibrate` is the immune system that makes
-self-improvement safe: a learning loop that can weaken its own gates would otherwise
-learn to pass itself. The 2025-07 research finding was that the F1–F5 candidates map
-onto R1/R2/R4/R5/R6 extensions; R7 is the only genuinely new theme.
+What stays fixed here: the confusion-matrix north star, the three personas (maker / external
+consumer / no-key CI contributor), and the non-goals below. A theme is only in scope for the
+product at all if it serves the north star and violates no non-goal.
 
 ## Non-goals
 
@@ -106,9 +94,8 @@ onto R1/R2/R4/R5/R6 extensions; R7 is the only genuinely new theme.
 - **Author-DNA monoculture.** n=2 are dissimilar in stack and domain but share one
   author, one week, one meta-taste (doc-chain-first, never-self-flip,
   ubiquitous-language, adversarial-eval). n=2 unlocks generator *design*, not proven
-  generality — R5 needs an external n=3 first.
-- **Sequencing.** R0 (npm) unblocks adoption measurement that R1/R6 depend on; do it
-  first.
+  generality — R5 needs an external n=3 first. (Sequencing consequences of this risk live in
+  [`docs/ROADMAP.md`](../ROADMAP.md) § *Sequencing*.)
 - **govkit over-fitting itself.** The advanced chain features were built for govkit's own
   repo and adopted by neither consumer — R6 must measure adoption, not self-use.
 
@@ -119,3 +106,4 @@ onto R1/R2/R4/R5/R6 extensions; R7 is the only genuinely new theme.
 | 2026-06-09 | Initial draft — first govkit roadmap, grounded in n=2 consumer evidence. |
 | 2026-07-07 | R7 (learning flywheel) added from the harness/loop-engineering deep-research sweep (23 claims survived 3-vote adversarial verification); RFC-0011 (working-discipline skill) shipped and mapped to R4; RFC-0012 (journal + calibrate) drafted as R7's first slice. |
 | 2026-07-29 | R7 evidence row corrected: the "no tool has deterministic drift detection" claim is stale — VeriContext (hash-based, fail-closed) verified as shipping prior art; catalogued in US-0005 rather than treated as a threat to R7 (calibrate + corpus remain uncontested). Field-verification session, web-sourced. |
+| 2026-07-31 | Split into charter + roadmap: the R0–R7 theme table, running spine, R7 rationale, and sequencing moved verbatim to the ungoverned `docs/ROADMAP.md`; this doc retitled *govkit product vision* and reduced to the stable charter, per the vision/roadmap doctrine in `the-flow.md`. No content lost — relocated. |

@@ -17,8 +17,9 @@ still pass it.
 The 2026-07-29 field verification confirmed prior art: **VeriContext**
 (github.com/amsminn/vericontext, npm) embeds a SHA-256 content hash in every code
 citation at write time and verifies fail-closed — "either the hash matches or it
-doesn't. No fuzzy matching." This also stales PRD-0001's R7 evidence line ("no tool has
-deterministic drift detection"), corrected in the same change-set as this US.
+doesn't. No fuzzy matching." This also stales the R7 evidence line ("no tool has
+deterministic drift detection") in `docs/ROADMAP.md` (relocated there from PRD-0001),
+corrected in the same change-set as this US.
 
 govkit already occupies the tolerant end of this trade-off, deliberately:
 
@@ -46,8 +47,8 @@ worth the re-hash tax, as an opt-in tier".
       (`kind: hash`), or reject with the FP analysis as evidence.
 - [ ] If adopted: a follow-up RFC is drafted before any code (AGENTS.md lifecycle —
       system-boundary change to the gate logic classifies up).
-- [ ] PRD-0001's R7 evidence row cites VeriContext as catalogued prior art (done in the
-      same change-set that authored this US).
+- [ ] The R7 evidence row (in `docs/ROADMAP.md`, relocated from PRD-0001) cites VeriContext
+      as catalogued prior art (done in the same change-set that authored this US).
 
 ## Non-goals
 
