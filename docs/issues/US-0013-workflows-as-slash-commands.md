@@ -1,8 +1,8 @@
 ---
 id: US-0013
 title: Expose the .claude/workflows/*.js orchestrations as / slash-commands via thin wrappers that degrade to the by-hand order
-status: open
-owner: TBD
+status: done
+owner: baodq97
 date: 2026-07-31
 priority: P2
 parent: RFC-0032

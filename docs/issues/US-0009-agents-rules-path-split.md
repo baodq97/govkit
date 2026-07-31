@@ -1,8 +1,8 @@
 ---
 id: US-0009
 title: Split AGENTS.md's per-path rules into path-scoped .claude/rules/*.md for lazy governance load
-status: open
-owner: TBD
+status: done
+owner: baodq97
 date: 2026-07-31
 priority: P2
 parent: RFC-0032

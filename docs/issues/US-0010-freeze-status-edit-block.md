@@ -1,8 +1,8 @@
 ---
 id: US-0010
 title: F-freeze — a skill-scoped PreToolUse hook that blocks agent status edits (status front-matter + INDEX status columns)
-status: open
-owner: TBD
+status: done
+owner: baodq97
 date: 2026-07-31
 priority: P2
 parent: RFC-0032

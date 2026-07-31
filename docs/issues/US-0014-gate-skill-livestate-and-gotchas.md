@@ -1,8 +1,8 @@
 ---
 id: US-0014
 title: F7 + F6 — inject live gate-verify state into the gate-close skill, and add LEARNING-LOOP-seeded Gotchas sections to the gate + spec-author skills
-status: open
-owner: TBD
+status: done
+owner: baodq97
 date: 2026-07-31
 priority: P2
 parent: RFC-0032

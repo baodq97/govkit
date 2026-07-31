@@ -1,8 +1,8 @@
 ---
 id: US-0012
 title: Preload the canonical skill into genuinely-mirrored role agents via the skills:/tools frontmatter (kill embed drift)
-status: open
-owner: TBD
+status: done
+owner: baodq97
 date: 2026-07-31
 priority: P2
 parent: RFC-0032

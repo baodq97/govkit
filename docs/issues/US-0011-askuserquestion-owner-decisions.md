@@ -1,8 +1,8 @@
 ---
 id: US-0011
 title: Structure owner decisions as AskUserQuestion — artifact-type pick and gate-close ratification prompt
-status: open
-owner: TBD
+status: done
+owner: baodq97
 date: 2026-07-31
 priority: P2
 parent: RFC-0032
