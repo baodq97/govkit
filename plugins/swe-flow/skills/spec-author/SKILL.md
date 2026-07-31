@@ -9,7 +9,7 @@ description: >
   governed doc that has to pass govkit. The user picks which artifact type. Trigger even when
   the user names only the artifact ("write the ADR", "draft a US for this") as long as the
   output is a governed PRD/RFC/ADR/US doc.
-allowed-tools: Read, Grep, Glob, Bash, Edit, Write
+allowed-tools: Read, Grep, Glob, Bash, Edit, Write, AskUserQuestion
 ---
 
 # Spec Author
@@ -33,7 +33,11 @@ design (`docs/data`) — into a **governed lifecycle artifact**: a PRD, RFC, ADR
 Code`. You **author** the artifact and **call `npx govkit verify`** to self-validate; you
 never reimplement the gate.
 
-The user picks the artifact type. If they haven't, ask — the type drives the doc dir, the
+The user picks the artifact type. If they haven't, ask with the `AskUserQuestion` tool — one
+structured option per type (PRD, RFC, ADR, US), each labeled with what it captures (the
+`## Picking the type` table below), so the pick is a deliberate structured choice, not a
+free-prose ask. If the user already named the artifact ("write the ADR", "draft a US for this"),
+take that and proceed without a redundant prompt — don't re-ask. The type drives the doc dir, the
 required front-matter, and the start status.
 
 ## The non-negotiable rules (bake these into every artifact)
@@ -72,7 +76,10 @@ Note per-type differences: a US may require an extra key (e.g. `priority`) that 
 don't. Take the list from the file every time.
 
 ### 2. Confirm the type and gather source material
-Confirm which artifact the user wants. Read the design output it derives from — the relevant
+Confirm which artifact the user wants: if the type is still unknown, make the pick with the
+`AskUserQuestion` tool (one option per type — PRD / RFC / ADR / US — each labeled from the
+`## Picking the type` table); if the user already named it, proceed without a re-ask. Read the
+design output it derives from — the relevant
 `docs/domain`, `docs/api`, or `docs/data` files (and any upstream artifact: a US cites its
 RFC/ADR; an ADR cites its RFC; an RFC cites its PRD). Capture only what those sources state —
 do not invent requirements, decisions, or acceptance criteria the design never describes.

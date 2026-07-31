@@ -1,7 +1,8 @@
 ---
 name: distiller
 description: Use this agent to run the DISTILL step of the R7 learning flywheel (RFC-0017). It reads the gate journal (.govkit/journal.jsonl), the escape log (LEARNING-LOOP.md), and the git delta since the last distill round, and emits PROPOSALS only — corpus fixtures, AGENTS.md rule lines, govkit.yml tweaks, ledger entries — each with cited evidence, packaged for a reviewable change-set. It never merges, never flips a status, never touches the baseline, never removes fixtures; with a thin journal it says "insufficient data" and stops.
-tools: Read, Grep, Glob, Bash
+tools: Read, Grep, Glob, Bash, Skill
+skills: [swe-flow:distill-learnings]
 model: sonnet
 ---
 

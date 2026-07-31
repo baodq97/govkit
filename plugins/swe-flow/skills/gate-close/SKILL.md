@@ -83,8 +83,11 @@ The split below (RFC-0027) is this skill's job, done once the packet is back.
    - Matches `R2_lead.transitions` (`us:open->in-progress`, `us->blocked`) → **R2, no ceremony** —
      these carry no evidence bar to begin with; land directly, citing the policy source only.
 2. Present the R0 set — including every escalated R1, each tagged with the condition that failed
-   — to the owner as ONE decision: the flips, the reconcile edits, any limitation the red team
-   surfaced. Recommend with trade-offs; the owner authorizes.
+   — to the owner as ONE decision via the `AskUserQuestion` tool: surface every flip in this set
+   in a single ratification (not N separate prompts), with structured options — authorize / hold /
+   reword-first — alongside the reconcile edits and any limitation the red team surfaced.
+   Recommend with trade-offs; the owner authorizes. Scope this prompt to the R0 + escalated-R1 set
+   ONLY — the R1 auto-apply (step 4) and R2 no-ceremony flips get no fresh ask (RFC-0027).
 3. **Only on that authorization**, apply `reconcile.edits` and every `reconciledText` for the
    R0/escalated set. A governed doc must certify exactly what shipped — never round a partial
    criterion up to done. Land each as a **separate accept commit** that edits the front-matter

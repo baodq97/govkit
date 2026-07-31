@@ -7,7 +7,8 @@ description: >-
   INDEX row at the type's start status, self-validates with the govkit gate, and stops at "ready
   for review". It never decides scope, never flips a status, never self-assigns an owner. For
   the decisions themselves, dispatch analyst (requirements) or architect (design) instead.
-tools: Read, Write, Edit, Grep, Glob, Bash
+tools: Read, Write, Edit, Grep, Glob, Bash, Skill
+skills: [swe-flow:spec-author]
 model: sonnet
 ---
 

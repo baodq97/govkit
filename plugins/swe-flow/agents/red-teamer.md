@@ -7,7 +7,8 @@ description: >-
   edits, never flips, and never touches INDEX.md; a red team that can edit its target has an
   incentive problem. Returns a verdict of flip-as-is, flip-after-reconcile, or blocked, with the
   exact reconciled text when the status is only honest after a rewording.
-tools: Read, Grep, Glob, Bash
+tools: Read, Grep, Glob, Bash, Skill
+skills: [swe-flow:spec-red-team]
 model: opus
 ---
 
