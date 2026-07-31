@@ -84,6 +84,12 @@ function scaffold(docsRoot: string): Array<{ path: string; content: string }> {
       path: ".claude/hooks/session-freshness.mjs",
       content: bundledDefault("session-freshness.default.mjs"),
     },
+    // RFC-0031: the agent-facing half of the contract. Without it an `npx`-scaffolded repo
+    // gets the enforcement (gate + hooks) but never the rules an agent reads BEFORE it writes
+    // — the chain, the change-class gates, the never-self-flip constraints. Shipped as the
+    // same bytes template/ carries, so both adoption paths land the identical contract.
+    // Idempotent like every other entry: an existing AGENTS.md is skipped, never clobbered.
+    { path: "AGENTS.md", content: bundledDefault("AGENTS.default.md") },
     ...typeIndexStubs(prefix),
   ];
 }

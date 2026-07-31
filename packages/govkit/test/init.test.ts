@@ -29,6 +29,30 @@ describe("runInit", () => {
     );
   });
 
+  // RFC-0031. The gap 0.10.2 shipped with: an `npx govkit init` repo got the enforcement
+  // (govkit.yml, the hooks) but no AGENTS.md, so an agent working in it never read the chain,
+  // the change-class gates, or the never-self-flip constraints — those reached only the repos
+  // that copied template/ by hand. Asserting the file exists is not enough: an empty or
+  // truncated bundled default would still "exist", so this pins the load-bearing clauses.
+  it("scaffolds the AGENTS.md agent contract, not just the enforcement", () => {
+    const r = runInit({ root: dir });
+    expect(r.created).toContain("AGENTS.md");
+    const agents = readFileSync(join(dir, "AGENTS.md"), "utf8");
+    expect(agents).toContain("PRD → RFC → ADR → Issue (US) → Code");
+    expect(agents).toContain("npx govkit verify");
+    expect(agents).toMatch(/never flip\s+a `status:`/);
+  });
+
+  // An AGENTS.md is far more likely than govkit.yml to be hand-written already (any repo that
+  // has ever run a coding agent has one). Scaffolding over it would destroy the very contract
+  // it is meant to supply, so the idempotence guarantee is load-bearing HERE specifically.
+  it("never clobbers a repo's existing AGENTS.md", () => {
+    writeFileSync(join(dir, "AGENTS.md"), "# our own rules\n");
+    const r = runInit({ root: dir });
+    expect(r.skipped).toContain("AGENTS.md");
+    expect(readFileSync(join(dir, "AGENTS.md"), "utf8")).toBe("# our own rules\n");
+  });
+
   it("is idempotent — a second run skips everything", () => {
     runInit({ root: dir });
     const r = runInit({ root: dir });

@@ -138,6 +138,7 @@ function runCli() {
       "packages/govkit/templates/session-freshness.default.mjs",
       "template/.claude/hooks/session-freshness.mjs",
     ],
+    ["packages/govkit/templates/AGENTS.default.md", "template/AGENTS.md"],
   ];
 
   for (const [rootFile, templateFile] of mirrorPairs) {

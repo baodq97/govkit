@@ -8,7 +8,7 @@
 export const HELP = `govkit — deterministic docs-as-code governance engine
 
 Getting started:
-  1. govkit init      scaffold govkit.yml, the doc dirs and the write-time hook
+  1. govkit init      scaffold govkit.yml, AGENTS.md, the doc dirs and the write-time hook
      (already have docs? \`govkit init --adopt\` migrates their prose metadata instead)
   2. govkit doctor    read-only map: what is configured, what is governed, what to do next
   3. govkit check     the no-API-key CI gate — verify + eval in one pass
@@ -94,8 +94,9 @@ Usage:
   govkit init --adopt [--root <dir>] [--apply]
 
 Scaffold mode writes govkit.yml (the schema govkit itself ships), .claude/settings.json
-(the PreToolUse write-time hook) and one INDEX.md stub per doc type. Idempotent — an
-existing file is skipped, never clobbered, unless --force.
+(the PreToolUse write-time hook), AGENTS.md (the agent-facing contract: the doc chain, the
+change-class gates, the never-self-flip constraints) and one INDEX.md stub per doc type.
+Idempotent — an existing file is skipped, never clobbered, unless --force.
 
 --adopt is the brownfield mode instead: for docs that LACK front-matter it lifts DECLARED
 prose metadata (\`**Status**: accepted\`) into a YAML block and writes \`<MISSING — fill in>\`
@@ -111,7 +112,7 @@ Flags:
   --apply            Write the proposed front-matter to disk (--adopt only).
 
 Examples:
-  govkit init                   # greenfield: config, hook and INDEX stubs
+  govkit init                   # greenfield: config, contract, hook and INDEX stubs
   govkit init --adopt --apply   # brownfield: write front-matter for legacy docs
 
 init ends by naming the next command for YOUR repo; \`govkit doctor\` recomputes it.

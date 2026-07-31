@@ -12,7 +12,7 @@ One bundled file, zero runtime dependencies. `npx govkit` installs nothing.
 ## 60 seconds
 
 ```bash
-npx govkit init      # govkit.yml + a write-time hook + docs/{product,rfc,adr,issues,domain,releases}/
+npx govkit init      # govkit.yml + AGENTS.md + a write-time hook + docs/{product,rfc,adr,issues,domain,releases}/
 npx govkit verify    # green on the empty scaffold
 ```
 

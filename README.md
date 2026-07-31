@@ -25,7 +25,7 @@ so `npx --yes govkit …` works with nothing installed.
 **Any repo, new or existing:**
 
 ```bash
-npx govkit init                  # govkit.yml + the write-time hook + docs/*/INDEX.md — idempotent
+npx govkit init                  # govkit.yml + AGENTS.md + the write-time hook + docs/*/INDEX.md — idempotent
 npx govkit verify                # green on a fresh scaffold; this is what CI will run
 ```
 
