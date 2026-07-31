@@ -7,7 +7,7 @@
 // package.json wiring is part of the same change (see scripts/check-sync.mjs Check D comment).
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { findOrphans } from "./check-sync.mjs";
+import { findOrphans, stopHookCommandPin } from "./check-sync.mjs";
 
 // A test file present in the "check" script value is reachable from the gate → not an orphan.
 test("*.test.mjs named in the check script is not flagged", () => {
@@ -129,6 +129,51 @@ test("fixtures/** files are ignored while a real orphan beside them is still fla
     !failures.some((f) => f.includes("fixtures/")),
     "no fixtures path should ever be reported",
   );
+});
+
+// US-0008/F1: the plugin-bundled Stop hook command must stay byte-identical to the Stop command in
+// the settings template. `stopHookCommandPin` is the pure comparator — it extracts
+// `hooks.Stop[0].hooks[0].command` from each raw JSON text and diffs the two strings. No filesystem:
+// both texts are built in-memory, matching the findOrphans style above.
+test("stopHookCommandPin: identical Stop commands in both texts returns no failures", () => {
+  const command = 'npx --yes govkit check --hook --root "${CLAUDE_PROJECT_DIR}"';
+  const pluginHooksText = JSON.stringify({
+    hooks: { Stop: [{ hooks: [{ type: "command", command, timeout: 60 }] }] },
+  });
+  const settingsText = JSON.stringify({
+    hooks: { Stop: [{ hooks: [{ type: "command", command, timeout: 60 }] }] },
+  });
+  const failures = stopHookCommandPin({ pluginHooksText, settingsText });
+  assert.deepEqual(failures, []);
+});
+
+// Divergence: the plugin's copy drops `--yes`. Both commands must appear in the failure text so a
+// human reading the output can see exactly what diverged without re-opening either file.
+test("stopHookCommandPin: divergent Stop commands returns a failure naming both", () => {
+  const settingsCommand = 'npx --yes govkit check --hook --root "${CLAUDE_PROJECT_DIR}"';
+  const pluginCommand = 'npx govkit check --hook --root "${CLAUDE_PROJECT_DIR}"';
+  const pluginHooksText = JSON.stringify({
+    hooks: { Stop: [{ hooks: [{ type: "command", command: pluginCommand, timeout: 60 }] }] },
+  });
+  const settingsText = JSON.stringify({
+    hooks: { Stop: [{ hooks: [{ type: "command", command: settingsCommand, timeout: 60 }] }] },
+  });
+  const failures = stopHookCommandPin({ pluginHooksText, settingsText });
+  assert.equal(failures.length, 1);
+  assert.ok(failures[0].includes(pluginCommand), "failure must name the plugin's command");
+  assert.ok(failures[0].includes(settingsCommand), "failure must name the settings command");
+});
+
+// Unextractable: the plugin text has no Stop hook at all — this must be reported as a failure, not
+// silently treated as a match or thrown as an uncaught exception.
+test("stopHookCommandPin: missing Stop hook in plugin text returns a failure", () => {
+  const settingsCommand = 'npx --yes govkit check --hook --root "${CLAUDE_PROJECT_DIR}"';
+  const pluginHooksText = JSON.stringify({ hooks: { Notification: [] } });
+  const settingsText = JSON.stringify({
+    hooks: { Stop: [{ hooks: [{ type: "command", command: settingsCommand, timeout: 60 }] }] },
+  });
+  const failures = stopHookCommandPin({ pluginHooksText, settingsText });
+  assert.equal(failures.length, 1);
 });
 
 // The real repo state must be clean: every top-level scripts/*.mjs (this file included) is wired.

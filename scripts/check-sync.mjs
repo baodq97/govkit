@@ -20,6 +20,10 @@
 // Check D is the orphan-artifact detector (RFC-0026 C2): every scripts/*.test.mjs must be named in
 // a package.json script (so a gate runs it) and every non-test scripts/*.mjs must be referenced by
 // a package.json script or imported by another script — a file reached by neither is a dead orphan.
+// Check E (US-0008/F1) pins the swe-flow plugin's own Stop hook command byte-identical to the Stop
+// command in the settings template — the plugin ships that hook so a marketplace consumer who never
+// runs `govkit init` still gets it enforced (see plugins/swe-flow/README.md for the accepted,
+// idempotent double-fire this pin keeps honest).
 import { readdirSync, readFileSync, realpathSync } from "node:fs";
 import { basename, dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -82,6 +86,48 @@ export function findOrphans({ files, pkgScripts, sourceTexts, scriptsDir = "scri
   }
 
   return failures;
+}
+
+// Core of Check E (US-0008/F1), factored out as a PURE function — no filesystem access — so it is
+// unit-testable in-memory like `findOrphans` above. The swe-flow plugin ships its OWN Stop hook
+// (plugins/swe-flow/hooks/hooks.json) so a marketplace consumer who never runs `govkit init` still
+// gets the gate enforced; a consumer who also ran `init` gets the SAME command from both sources,
+// which the owner accepted as idempotent duplicate work, not a contradiction (measured: no
+// cross-source hook dedup — see plugins/swe-flow/README.md). That acceptance only holds if the two
+// commands are byte-identical, which is what this pin enforces. Extraction never throws: malformed
+// JSON or a missing `hooks.Stop[0].hooks[0].command` path both degrade to "unextractable" rather
+// than an uncaught exception, because a drift check crashing is worse than a drift check that fails
+// loudly with a diagnosable message.
+export function stopHookCommandPin({ pluginHooksText, settingsText }) {
+  const extractStopCommand = (text) => {
+    try {
+      const command = JSON.parse(text)?.hooks?.Stop?.[0]?.hooks?.[0]?.command;
+      return typeof command === "string" ? command : undefined;
+    } catch {
+      return undefined;
+    }
+  };
+
+  const pluginCommand = extractStopCommand(pluginHooksText);
+  const settingsCommand = extractStopCommand(settingsText);
+
+  if (pluginCommand !== undefined && pluginCommand === settingsCommand) {
+    return [];
+  }
+
+  const describe = (command) =>
+    command ?? "<unextractable — no hooks.Stop[0].hooks[0].command found, or malformed JSON>";
+
+  return [
+    `Stop hook command drift: plugins/swe-flow/hooks/hooks.json's Stop command is not byte-identical ` +
+      `to packages/govkit/templates/settings.default.json's Stop command.\n` +
+      `  plugin:   ${describe(pluginCommand)}\n` +
+      `  settings: ${describe(settingsCommand)}\n` +
+      `  Fix: the plugin-bundled Stop hook is a second enforcement path for marketplace consumers who ` +
+      `never ran \`govkit init\` (plugins/swe-flow/README.md) — the accepted double-fire stays ` +
+      `idempotent duplicate work, not drift, only while both commands run the identical gate. Copy one ` +
+      `command over the other so they match exactly.`,
+  ];
 }
 
 function runCli() {
@@ -207,6 +253,38 @@ function runCli() {
     failures.push(failure);
   }
 
+  // Check E: plugin Stop hook ↔ settings template Stop command (US-0008/F1). Read both files
+  // defensively — a missing plugin hooks file is a failure to report, not a crash to throw.
+  const pluginHooksPath = "plugins/swe-flow/hooks/hooks.json";
+  const settingsTemplatePath = "packages/govkit/templates/settings.default.json";
+  let pluginHooksText;
+  let settingsTemplateText;
+  try {
+    pluginHooksText = readFileSync(join(repoRoot, pluginHooksPath), "utf8");
+  } catch (err) {
+    failures.push(
+      `${pluginHooksPath} is unreadable: ${err instanceof Error ? err.message : String(err)}.\n` +
+        `  Fix: the swe-flow plugin must ship this file so a marketplace consumer who never runs ` +
+        `\`govkit init\` still gets the Stop gate enforced.`,
+    );
+  }
+  try {
+    settingsTemplateText = readFileSync(join(repoRoot, settingsTemplatePath), "utf8");
+  } catch (err) {
+    failures.push(
+      `${settingsTemplatePath} is unreadable: ${err instanceof Error ? err.message : String(err)}.\n` +
+        `  Fix: this file is the byte source of truth for the Stop hook command — it must exist.`,
+    );
+  }
+  if (pluginHooksText !== undefined && settingsTemplateText !== undefined) {
+    for (const failure of stopHookCommandPin({
+      pluginHooksText,
+      settingsText: settingsTemplateText,
+    })) {
+      failures.push(failure);
+    }
+  }
+
   if (failures.length > 0) {
     console.error(`check-sync: FAIL — ${failures.length} drift issue(s):\n`);
     for (const failure of failures) console.error(`- ${failure}\n`);
@@ -217,8 +295,9 @@ function runCli() {
     `check-sync: OK — marketplace entries match plugin.json for swe-flow, ddd-flow, and design-flow ` +
       `(version + description byte-identical), ${mirrorPairs.length} ` +
       `root↔template mirror pair(s) are byte-identical, ${onDisk.size} agent/skill(s) are ` +
-      `all named in ${readmePath}, and all ${scriptFiles.length} ${scriptsDir}/*.mjs are wired to ` +
-      `a gate or imported (no orphans).`,
+      `all named in ${readmePath}, all ${scriptFiles.length} ${scriptsDir}/*.mjs are wired to ` +
+      `a gate or imported (no orphans), and the plugin Stop hook is byte-identical to the settings ` +
+      `template's Stop command.`,
   );
 }
 

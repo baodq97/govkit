@@ -167,6 +167,15 @@ Idempotent by construction: the markers make the splice **replace-not-append** (
 added only when no span exists yet), and determinism means re-running on unchanged governance
 state is a byte-identical no-op — the block changes only when the state does.
 
+## Hooks — the bundled Stop gate (US-0008/F1)
+
+`hooks/hooks.json` ships the same `npx govkit check --hook` Stop gate the settings template
+installs, so a marketplace consumer who never runs `govkit init` still gets it enforced. A
+consumer who *also* ran `init` sees the gate fire twice per turn-end — measured, no cross-source
+hook dedup — which is idempotent duplicate work (same verdict, run twice), not a contradiction.
+`scripts/check-sync.mjs`'s `stopHookCommandPin` pins the two commands byte-identical so that
+acceptance keeps holding.
+
 ## Install
 
 This repo is its own marketplace (`.claude-plugin/marketplace.json`).
