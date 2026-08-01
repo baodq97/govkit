@@ -38,13 +38,23 @@ class Finding:
 # --------------------------------------------------------------------------- loading
 
 
+class ModelYamlError(Exception):
+    """model.yaml exists but does not parse. Carries the parser's reason; the caller turns it into
+    a normal finding so verify stays a gate, not a stack trace."""
+
+
 def _yaml(text: str) -> dict:
     try:
         import yaml  # type: ignore
-
-        return yaml.safe_load(text) or {}
     except ImportError:
         return _mini(text)
+    try:
+        return yaml.safe_load(text) or {}
+    except yaml.YAMLError as e:
+        # The `except ImportError` above guards only the import (fall back to _mini); a genuine YAML
+        # syntax error is caught here and re-raised wrapped, per the repo's "no silent catch" rule —
+        # load_contexts turns it into a finding rather than letting it crash the run.
+        raise ModelYamlError(" ".join(str(e).split())) from e
 
 
 def _mini(text: str) -> dict:
@@ -316,16 +326,25 @@ def discovery_from_markdown(docs: Path) -> tuple[dict, list[dict], list[str], li
     return counts, hotspots, dupes, rules
 
 
-def load_contexts(docs: Path, root: Path | None = None) -> dict[str, dict]:
+def load_contexts(docs: Path, root: Path | None = None,
+                  errors: list[tuple[str, str]] | None = None) -> dict[str, dict]:
     ctx = {}
     if not docs.is_dir():
         return ctx
     for d in sorted(p for p in docs.iterdir() if p.is_dir()):
         f = d / "model.yaml"
         if f.exists():
-            data = _yaml(f.read_text(errors="ignore"))
+            rel = str(f.relative_to(root)) if root else str(f)
+            try:
+                data = _yaml(f.read_text(errors="ignore"))
+            except ModelYamlError as e:
+                # A file that does not parse is not a context; do not invent an empty one (that would
+                # mis-fire check 4). Record it for run_checks to report; degrade rather than explode.
+                if errors is not None:
+                    errors.append((rel, str(e)))
+                continue
             data["_dir"] = d.name
-            data["_path"] = str(f.relative_to(root)) if root else str(f)
+            data["_path"] = rel
             ctx[str(data.get("context") or d.name)] = data
     return ctx
 
@@ -375,9 +394,22 @@ def _mass(c: dict) -> int:
 
 
 def run_checks(root: Path, docs: Path) -> list[Finding]:
-    ctx = load_contexts(docs, root)
+    parse_errors: list[tuple[str, str]] = []
+    ctx = load_contexts(docs, root, parse_errors)
     caps = load_business_model(docs)
     out: list[Finding] = []
+
+    # 0 — a model.yaml that does not parse. Report it, do not die on it: a gate that crashes on a bad
+    # file teaches the author nothing, while a high finding naming the file and the parser's reason
+    # tells them exactly what to fix. The file is skipped, so every cross-context check is blind to it.
+    for rel, reason in parse_errors:
+        out.append(Finding(
+            "model-yaml-unparseable", "high",
+            f"{rel} is not valid YAML and was skipped — every cross-context check is blind to it",
+            [rel, reason,
+             "usual cause: a bare `: ` inside a plain multi-line bullet (e.g. an open_questions "
+             "entry) — quote the value or drop the colon"],
+            "3-decompose"))
 
     # 1 — the label and the business evidence disagree
     for name, c in ctx.items():

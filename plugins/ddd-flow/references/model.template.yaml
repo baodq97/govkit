@@ -1,0 +1,59 @@
+# model.yaml — one per bounded context at docs/domain/<context-slug>/model.yaml
+# SCHEMA-EXACT to ddd_check.py (govkit plugins/ddd-flow/skills/design/scripts).
+# Ground truth = the parser's key reads + golden/docs/domain/{demand,taxonomy}/model.yaml (both PASS).
+# Only the keys below are read by ddd_check; extra keys are ignored, MISSHAPED keys are silently unread.
+
+context: <ContextName>                 # PascalCase UL noun. load_contexts keys the context on this (falls back to dir name).
+subdomain_type: core                   # core | supporting | generic | master-data — right-size: drives checks 1,2,12.
+tactical_pattern: full-domain-model    # full-domain-model | transaction-script | crud | bought-adapter — match to subdomain_type.
+# mass: { attributes: 12 }             # OPTIONAL. check 3 reads mass.attributes|mass.tables for investment-mismatch. Omit if unmodelled (golden omits it).
+
+# ubiquitous_language — NOT parsed by ddd_check, but every golden + the canvas carry it. Keep it; never-invent definitions.
+ubiquitous_language:
+  - term: <Term>
+    definition: <one line — only meaning the input actually stated>
+
+# aggregates — right-size: core -> real aggregates; supporting/generic/master-data -> usually []  (see LIGHT VARIANT at bottom).
+# When an aggregate IS present it MUST carry entities + value_objects + domain_events (use [] if none) so the shape stays machine-consumable.
+aggregates:
+  - name: <AggregateName>              # = its root entity name.
+    root: <RootEntity>
+    exposed_to_api: false              # never-invent: default false; true ONLY for a real Published-Language / Open-Host element.
+    entities:
+      - { name: <Entity>, attributes: [<attr>] }                      # check 5 reads each entity name (shared-entity across contexts).
+    value_objects:
+      - { name: <VO>, attributes: [<attr>], exposed_to_api: false }   # nouns, no identity; equal by value.
+    domain_events:
+      # only-confirmed-events: past-tense; ONLY events a described flow emits — never invent one. check 6 reads each event name.
+      - { name: <EventPastTense>, payload: [<field>] }
+    invariants:                        # aggregates[].invariants (PLURAL) — check 4 via _invariants(). NOT `holds`, NOT singular `invariant`.
+      # never-invent: ONLY rules the user/PRD stated; cite the source. Aggregates present + zero invariants => check 4 context-without-invariant (MED).
+      - "<stated rule, one scalar> [INV1, source]"
+
+# notes — empty-aggregates-need-notes: REQUIRED as the right-sizing rationale. check 4 empty-without-reason fires when aggregates is [] AND neither notes nor aggregates_rationale is present.
+notes: >
+  <why this consistency boundary — one paragraph; for a light context, why it has no aggregates>
+
+# open_questions — REQUIRED by convention (mirrors the canvas "open question" marker, check 8 on README.md; ddd_check does NOT parse it here).
+# Each entry MUST be a simple quoted scalar. A bare `: ` mid-line makes YAML a mapping, not a string, and breaks the file (the previous template's failure).
+open_questions:
+  - "<Q1 — one unresolved modelling question, fully quoted so any colon stays inside the string>"
+  - "<Q2 — quote it>"
+
+# relationships — TWO axes: direction = who depends on whom; roles = how each side governs. checks 14 (presence) + 15 (symmetry).
+relationships:
+  - to: <OtherContext>                 # must match another context's name for check 15 to judge symmetry; an actor/device is skipped.
+    direction: downstream              # upstream | downstream | peer — check 14 needs it present; check 15 needs the mirror to face it.
+    our_roles: [conformist]            # how THIS context governs it. check 14 wants >=1 role that is not just `other`.
+    their_roles: [open-host]           # how the OTHER context governs it. The other file MUST declare the mirror (roles swapped) or check 15 flags one-way/asymmetric.
+    note: <free text — use it for a relationship DDD has no name for; `other` role + this note is a valid answer>
+
+# ============================================================================================================
+# LIGHT-CONTEXT VARIANT (generic / master-data / bought-adapter) — replace the `aggregates:` block above with:
+#
+#   aggregates: []          # empty-aggregates-need-notes: [] is a VALID, correct model for a light context — not a gap.
+#   notes: >                # ...but it MUST be paired with notes: (or aggregates_rationale:) stating WHY.
+#     Master-data lookup CRUD on purpose — explicitly no aggregates, roots, or domain events.
+#
+# (Taxonomy golden is exactly this: `aggregates: []` + a notes paragraph + one mirrored relationship. It passes.)
+# ============================================================================================================
