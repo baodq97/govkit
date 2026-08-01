@@ -46,6 +46,12 @@ relationships:
     direction: downstream              # upstream | downstream | peer — check 14 needs it present; check 15 needs the mirror to face it.
     our_roles: [conformist]            # how THIS context governs it. check 14 wants >=1 role that is not just `other`.
     their_roles: [open-host]           # how the OTHER context governs it. The other file MUST declare the mirror (roles swapped) or check 15 flags one-way/asymmetric.
+    # role vocabulary (same words label the context-map edges):
+    #   open-host · published-language · conformist · acl · customer · supplier
+    #   partnership · shared-kernel · separate-ways · other
+    # `other` is legal but check 14 will not count it: a side named only `other` is a side no
+    # contract can be generated from, and an upstream that names nothing is why each consumer
+    # builds its own ACL. Put what IS known in `note`.
     note: <free text — use it for a relationship DDD has no name for; `other` role + this note is a valid answer>
 
 # ============================================================================================================

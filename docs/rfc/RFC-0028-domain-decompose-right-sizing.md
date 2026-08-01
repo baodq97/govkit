@@ -202,6 +202,29 @@ DDD modelling loop was carved out as its own plugin (swe-flow v0.11.0 deleted th
 The `governs` pathspecs above track the new location; prose references to the swe-flow path in
 this doc are historical and left as written.
 
+**Thinning (2026-08-01, branch `optimize/ddd-flow-thin`, commit `f23287f` onward) — RECONCILE
+PENDING OWNER ACK.** `3-decompose/SKILL.md`, one of the four files this RFC governs, was rewritten
+from 272 lines to 33 as part of thinning all eight step skills. **No decision in this RFC was
+reversed**; each moved to a single-sourced location, and the governed content hash moved with it:
+
+| This RFC's decision | Now lives in |
+|---|---|
+| right-sizing: match tactical depth to subdomain type; `aggregates: []` + rationale is a *correct* result | `plugins/ddd-flow/references/RULES.md` § Right-size |
+| capability-vs-context test (ownership polysemy, audit-as-capability) + escalation condition | `RULES.md` § Boundaries |
+| sharing-coupling discipline (no Shared/Common context; Published Language or a costed Shared Kernel) | `RULES.md` § Boundaries |
+| the additive `model.yaml` contract — `subdomain_type` incl. `master-data`, `tactical_pattern`, `notes`, relations incl. `partnership`/`customer-supplier` | `plugins/ddd-flow/references/model.template.yaml`, single-sourced with `ddd_check`'s parser |
+
+The three governed `references/` files are **retained, not deleted** — a coverage audit of them
+against the new shared references found 18 machine-contract and 31 normative instructions with no
+counterpart, so their removal is a separate, evidence-backed decision for the owner rather than a
+side effect of thinning. `governs:` is therefore unchanged and no pathspec is a ghost.
+
+What this note does **not** do is re-vouch the claim: the reconciled hash is stale
+(`sha256:95e09ab0e8622faf` → `sha256:5e48df00087a82f2`) and `bun run check` is red on
+`govkit drift` until the owner runs
+`bun packages/govkit/dist/cli.js drift --ack docs/rfc/RFC-0028-domain-decompose-right-sizing.md`.
+The gate never acks itself, and neither does the AI that made the change.
+
 ## Deviations from design
 
 None against the accepted text. One pre-accept correction is on record: the draft misdescribed

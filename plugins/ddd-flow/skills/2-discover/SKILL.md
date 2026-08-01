@@ -23,10 +23,27 @@ without them.
   `H1..` ids), and the session/attendance record; drive the live surface via `model.json`.
 
 ## Output contract (what the gate parses — obey exactly)
-Author every `discovery/*.md` to the shape in **`references/output-template.md`** (this skill's own
-template — the exact output contract, including `model.json`). Budget and gate markers:
-**`../../references/artifact-shapes.md`** (check 12 caps each `discovery/*.md` at 120 lines; any
-`Hnn` cited must be defined here). No `model.yaml` here — boundaries and their schema are `3-decompose`.
+Author `discovery/*.md` **and `discovery/model.json`** to the shapes in
+**`../../references/artifact-shapes.md`**. `model.json` is canonical: checks 13 and 16 read it
+first, and the markdown fallback cannot tell a confirmed *event* from a confirmed *rule*, so the
+grounding floor silently degrades to a whole-timeline ratio without it. Keep `status` (evidence)
+and `state` (time) as two independent columns. No `model.yaml` here — boundaries and their schema
+are `3-decompose`.
+
+## MEASURE mode — a structured corpus is counted, not read
+When RULES sends you to measure (structured **and** large: ≥20 files of one shape, or ≥200
+definitions), write throwaway miners into `.ddd-flow/mine/` **in the consumer repo and commit
+them** — they are the provenance. Every stage emits `out/manifest.yaml` (or `.json`) carrying
+`source`, `invocation`, `total`, `parsed`, `skipped[]`, `failed[]` — each skip with a reason, each
+failure with an error, and `parsed + skipped + failed == total`. Validate before quoting any number:
+
+```bash
+python3 ${CLAUDE_PLUGIN_ROOT}/skills/2-discover/scripts/mine_coverage.py \
+  --manifest .ddd-flow/mine/out/manifest.yaml --corpus '<root>/**/*.<ext>' --strict
+```
+
+An unvalidated count is a guess with a number on it, and "not found" from a partial scan is an
+unmeasured absence. Mined signals enter `discovery/` as `candidate`, never `confirmed`.
 
 ## The one rule most often broken (echoed for salience; full set in RULES.md)
 **Documented is not discovered.** Every event, term, and rule carries whether a *human* confirmed it

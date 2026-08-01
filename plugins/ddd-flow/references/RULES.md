@@ -107,6 +107,9 @@ rule governs (`1-understand … 8-code`); artifact shapes, budgets, and `ddd_che
 
 ## Honesty — say what you don't know, keep the provenance
 
+- Write into the INVOKING project's docs root, never into this plugin's repo: `docs/domain/` if it
+  exists, else create it under an existing `docs/`, else STOP and ask — a guessed path produces
+  artifacts the gate never sees. Artifacts already there mean UPDATE mode, not overwrite. [1-8]
 - Fresh docs start `status: draft`, `owner: TBD`; setting or reverting status is a human act — in
   update mode never reset an escalated status, assigned owner, or hand-written rule, and never delete
   a dropped context (flag it). [1-8]

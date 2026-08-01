@@ -350,12 +350,20 @@ def load_contexts(docs: Path, root: Path | None = None,
 
 
 def load_business_model(docs: Path) -> dict[str, dict]:
-    """Capability -> {business_role, evolution_stage, differentiation} from the classification table."""
+    """Capability -> {business_role, evolution_stage, differentiation} from the classification table.
+
+    The 4th cell being a differentiation value IS the row filter, so no name-based header guard is
+    needed — and one used to be here, skipping any row whose first cell began with `capability`.
+    That silently dropped a capability NAMED "Capability return loop", which is exactly the name a
+    capability-centric domain reaches for; the run stayed green because a table that parses to
+    nothing and a domain with no mismatches print the same thing. A header row is still rejected
+    (its 4th cell reads `Differentiation`), as is a `---` separator.
+    """
     rows: dict[str, dict] = {}
     for f in docs.glob("business-model*.md"):
         for line in f.read_text(errors="ignore").splitlines():
             cells = [c.strip() for c in line.strip().strip("|").split("|")] if "|" in line else []
-            if len(cells) < 4 or cells[0].lower().startswith(("capability", "---", ":--")):
+            if len(cells) < 4:
                 continue
             diff = cells[3].lower()
             if diff.startswith(("yes", "no", "partial", "unknown", "**yes", "**no")):

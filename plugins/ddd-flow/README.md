@@ -80,6 +80,27 @@ business evidence?"* — and the answer improves once the flows exist.
 The order is a prior, not a constraint: `skills/design/references/steps.yml` declares staleness per step rather
 than deriving it from position, so running strategize before connect costs nothing but the caveat.
 
+## How the skills are shaped
+
+Each step skill is deliberately small (~40 lines) and carries four things only: what it consumes
+and produces, the **output contract a script parses**, one echoed rule, and a pointer to the
+plugin-wide law. It does not re-teach EventStorming, context mapping, aggregate design or the
+canvases — a capable model already knows those, and re-teaching them crowds out the part it gets
+wrong.
+
+Everything normative is single-sourced at the plugin root, so a rule is stated once and every step
+that needs it reads the same sentence:
+
+| `references/` | Holds |
+|---|---|
+| `RULES.md` | the plugin-wide law — only the corrective imperatives that fight a confident-wrong default, tagged by the step(s) they govern |
+| `artifact-shapes.md` | every artifact's shape, line budget, and exactly what `ddd_check.py` parses out of it |
+| `model.template.yaml` | the `model.yaml` schema, field-for-field with the checker's parser |
+
+The two cross-cutting skills keep their own references because nothing else reads them:
+`design/references/steps.yml` (step configuration) and `view/references/model-json.md` (the view
+payload contract).
+
 ## Skills
 
 **Orchestrator**
@@ -219,11 +240,11 @@ skills are unmeasured.
 
 Adapted from the [ddd-crew](https://github.com/ddd-crew) starter modelling process and its canvases
 (CC BY / CC BY-SA), Team Topologies and the Independent Service Heuristics (CC BY-SA), Michael
-Plöd's context-map and Quality Storming material, and Wardley Mapping. Each skill's `references/`
-cites its own sources.
+Plöd's context-map and Quality Storming material, and Wardley Mapping.
 
 Five techniques ddd-crew lists are **chosen against, not missed**: BPMN and sequence diagrams (the
-message-flow notation has no time axis on purpose — `skills/4-connect/references/message-flow-notation.md`
-argues it), C4 component diagrams (the aggregate canvas and the layering contract carry the same
-information closer to the decision), Dynamic Reteaming and Mob Programming (practices for a room,
-with no artifact for a skill to write or check).
+message-flow notation carries no time axis on purpose — a flow is judged on who talks to whom and
+how often, and a time axis invites transport detail the boundary question does not need), C4
+component diagrams (the aggregate canvas and the layering contract carry the same information
+closer to the decision), Dynamic Reteaming and Mob Programming (practices for a room, with no
+artifact for a skill to write or check).

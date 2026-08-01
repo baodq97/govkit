@@ -23,10 +23,17 @@ without them.
 
 ## Output contract (what the gate parses — obey exactly)
 Author `business-model.md` to the shape and **150-line budget** in
-**`../../references/artifact-shapes.md`**. Number open questions `Q1`, `Q2`, … and never renumber
-them — every later artifact cites them by id, and a `Qnn` cited downstream with no definition here
-trips check 11 (`dangling-reference`). Record provenance per block (interview: who/when · document:
-which file).
+**`../../references/artifact-shapes.md`**. Two contracts there are load-bearing and easy to lose:
+
+- The **capability classification table** — fixed column order, 4th column beginning `yes`/`no`/
+  `partial`/`unknown`. Checks 1–3 (`classification-mismatch`, `too-many-core`,
+  `investment-mismatch`) compare each context's label against this table; if it does not parse they
+  report nothing and nobody is told the comparison never ran.
+- Open questions numbered `Q1`, `Q2`, … never renumbered, each **defined on a line starting with
+  the id** — every later artifact cites them, and a `Qnn` cited downstream but defined nowhere here
+  trips check 11 (`dangling-reference`).
+
+Record provenance per block (interview: who/when · document: which file).
 
 ## The one rule most often broken (echoed for salience; full set in RULES.md)
 **Never invent a business model.** A revenue stream, value proposition, or differentiation nobody
