@@ -101,6 +101,12 @@ The two cross-cutting skills keep their own references because nothing else read
 `design/references/steps.yml` (step configuration) and `view/references/model-json.md` (the view
 payload contract).
 
+The per-step `skills/*/references/` directories are **background reading for people**, not part of
+any skill's load path — no `SKILL.md` points at them, so they cost nothing at runtime. They hold the
+sourced method material (ddd-crew canvases, EventStorming grammar, Team Topologies, the measure
+playbook) behind the rules above. Treat them as provenance: a rule in `RULES.md` is the instruction,
+and the reference is where it came from.
+
 ## Skills
 
 **Orchestrator**

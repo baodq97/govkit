@@ -16,3 +16,4 @@
 | [US-0012](./US-0012-agent-skills-preload.md) | Preload the canonical skill into genuinely-mirrored role agents via the skills:/tools frontmatter (kill embed drift) | done | baodq97 | 2026-07-31 |
 | [US-0013](./US-0013-workflows-as-slash-commands.md) | Expose the .claude/workflows/*.js orchestrations as / slash-commands via thin wrappers that degrade to the by-hand order | done | baodq97 | 2026-07-31 |
 | [US-0014](./US-0014-gate-skill-livestate-and-gotchas.md) | F7 + F6 — inject live gate-verify state into the gate-close skill, and add LEARNING-LOOP-seeded Gotchas sections to the gate + spec-author skills | done | baodq97 | 2026-07-31 |
+| [US-0015](./US-0015-ddd-flow-routing-contract-reconcile.md) | Reconcile the ddd-flow routing contract — US-0007/RFC-0032 F2 mandate a guard the shipped skills no longer carry | open | TBD | 2026-08-01 |
