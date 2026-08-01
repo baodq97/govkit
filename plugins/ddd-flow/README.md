@@ -28,21 +28,31 @@ shape:
 | | Before | After |
 |---|---|---|
 | DDD descriptions inside `swe-flow` | ~14,000 chars — **64% of that plugin's budget** | moved out |
-| Always-in-context cost of this plugin | 10 descriptions | **1** (`design`, 1,417 chars) |
+| Always-in-context cost of this plugin | 10 descriptions, ~5,400 chars | unchanged — all 10 still load |
+| Per-run cost: the 8 step skill bodies | 90.3 KB | **23.5 KB (−74%)** |
+
+The saving is in the **per-run** column, not the always-on one. All ten descriptions stay in
+context, because a skill is only invocable if its description is there — "the agent can trigger it"
+and "it costs nothing to carry" cannot both be true. What shrank is what gets *loaded when a step
+actually runs*: the step bodies no longer re-teach EventStorming, context mapping or the canvases,
+because a capable model already holds those.
 
 `design` reads state, decides the next step, and **invokes it**. The eight steps and `view` are
-model-invocable, so an agent can drive the loop end to end; you can still run any of them directly
-by typing its command when you want to hold the workshop yourself.
+model-invocable, so an agent can drive the loop end to end, and each carries a trigger-shaped
+description; you can still run any of them directly by typing its command when you want to hold the
+workshop yourself.
 
-That costs context, and the trade is deliberate. A skill is only invocable if its description is in
-context, so "the agent can trigger it" and "it costs nothing to carry" cannot both be true. The
-steps therefore carry the shortest descriptions that still distinguish them — what the step does and
-what it writes, no trigger phrasing, since `design` routes them rather than intent matching them.
+An earlier design marked the nine non-orchestrator skills `disable-model-invocation: true` so
+`design` was the only router. That is reversed on this branch — the key blocks the orchestrator's
+own `Skill` call too, so it bought "human-slash-command-only" rather than "orchestrator-only". A
+44-utterance × 3-router eval put the description-only surface at 129/132 with **zero** false claims
+on eight negative cases (`docs/research/ddd-flow-thin-eval/RESULTS.md` §6). The reconciliation of
+that reversal against the governed record is open in `US-0015`.
 
-What that removes is the mechanical guarantee that `design` could not silently chain three steps.
-The guarantee is now a rule rather than a lock: one step per turn, then re-read state. It matters
-because half these steps are conversations with people a skill cannot summon — chaining them
-unattended produces artifacts resting on assumptions nobody checked.
+What the reversal removes is the mechanical guarantee that `design` could not silently chain three
+steps. The guarantee is now a rule rather than a lock: one step per turn, then re-read state. It
+matters because half these steps are conversations with people a skill cannot summon — chaining
+them unattended produces artifacts resting on assumptions nobody checked.
 
 The two plugins meet at an artifact, not an import: **`docs/domain/`**. `ddd-flow` writes it;
 `swe-flow`'s `api-designer`, `data-model` and `spec-author` read it. Install either without the other.
@@ -79,6 +89,33 @@ business evidence?"* — and the answer improves once the flows exist.
 
 The order is a prior, not a constraint: `skills/design/references/steps.yml` declares staleness per step rather
 than deriving it from position, so running strategize before connect costs nothing but the caveat.
+
+## How the skills are shaped
+
+Each step skill is deliberately small (~40 lines) and carries four things only: what it consumes
+and produces, the **output contract a script parses**, one echoed rule, and a pointer to the
+plugin-wide law. It does not re-teach EventStorming, context mapping, aggregate design or the
+canvases — a capable model already knows those, and re-teaching them crowds out the part it gets
+wrong.
+
+Everything normative is single-sourced at the plugin root, so a rule is stated once and every step
+that needs it reads the same sentence:
+
+| `references/` | Holds |
+|---|---|
+| `RULES.md` | the plugin-wide law — only the corrective imperatives that fight a confident-wrong default, tagged by the step(s) they govern |
+| `artifact-shapes.md` | every artifact's shape, line budget, and exactly what `ddd_check.py` parses out of it |
+| `model.template.yaml` | the `model.yaml` schema, field-for-field with the checker's parser |
+
+The two cross-cutting skills keep their own references because nothing else reads them:
+`design/references/steps.yml` (step configuration) and `view/references/model-json.md` (the view
+payload contract).
+
+The per-step `skills/*/references/` directories are **background reading for people**, not part of
+any skill's load path — no `SKILL.md` points at them, so they cost nothing at runtime. They hold the
+sourced method material (ddd-crew canvases, EventStorming grammar, Team Topologies, the measure
+playbook) behind the rules above. Treat them as provenance: a rule in `RULES.md` is the instruction,
+and the reference is where it came from.
 
 ## Skills
 
@@ -219,11 +256,11 @@ skills are unmeasured.
 
 Adapted from the [ddd-crew](https://github.com/ddd-crew) starter modelling process and its canvases
 (CC BY / CC BY-SA), Team Topologies and the Independent Service Heuristics (CC BY-SA), Michael
-Plöd's context-map and Quality Storming material, and Wardley Mapping. Each skill's `references/`
-cites its own sources.
+Plöd's context-map and Quality Storming material, and Wardley Mapping.
 
 Five techniques ddd-crew lists are **chosen against, not missed**: BPMN and sequence diagrams (the
-message-flow notation has no time axis on purpose — `skills/4-connect/references/message-flow-notation.md`
-argues it), C4 component diagrams (the aggregate canvas and the layering contract carry the same
-information closer to the decision), Dynamic Reteaming and Mob Programming (practices for a room,
-with no artifact for a skill to write or check).
+message-flow notation carries no time axis on purpose — a flow is judged on who talks to whom and
+how often, and a time axis invites transport detail the boundary question does not need), C4
+component diagrams (the aggregate canvas and the layering contract carry the same information
+closer to the decision), Dynamic Reteaming and Mob Programming (practices for a room, with no
+artifact for a skill to write or check).

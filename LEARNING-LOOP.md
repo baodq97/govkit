@@ -435,3 +435,60 @@ because it re-ran the specific scenario that motivated the release — a done-US
 draft-RFC — rather than checking that the command exited zero. A smoke that only asserts the
 happy path confirms the release happened, not that it worked. REL-0004 records its own failure
 in that section instead of reading as a clean run.
+
+## Round 25 — 2026-08-01: thinning that deleted contracts, and a check that paid for the wrong label
+
+The ddd-flow step skills were cut 92.5KB → 22.8KB against a golden dataset, blind-verified
+grounded-clean on eight steps, and committed. Applying the same recipe to the two cross-cutting
+skills failed — and the failure was only visible because the same verification was pointed at the
+thinning itself rather than at its output.
+
+**Lesson 1 — "thin" is a property of the CONTENT, not of the skill.** The eight step skills
+thinned because their bulk was re-taught DDD, which the model already holds. The `design`
+orchestrator did not, because its bulk is un-derivable repo fact: script flags, doc-id grammar,
+which check is guarded and when. Two blind judges, run with the A/B labels swapped to catch
+position bias, both ranked the pre-thin orchestrator higher and listed the same losses. The
+thinning was reversed; `design` ended 9% smaller and materially more correct, while the step
+skills stayed at 75% smaller. One recipe, two answers — and the difference is legible only after
+someone measures, because "looks derivable" and "is derivable" read identically in a diff.
+
+**Lesson 2 — a silent contract failure survives every audit that reads only the output.** The
+thinned `1-understand` pointed at a shared `artifact-shapes.md` that had no business-model shape,
+so the capability classification table stopped parsing and `ddd_check` checks 1–3 went dark. The
+run was green, the artifact looked complete, and a blind grounding audit of eight steps had
+already passed it. What found it was running `load_business_model` over three corpora and
+comparing: euro-parking 13 rows, golden 8, thin **0**. When a consumer treats a misshaped key as
+an absent one, only executing the consumer distinguishes "nothing to report" from "reporting
+nothing" — Round 24's `F-GATE-INERT` again, one layer up.
+
+**Lesson 3 — a check that is cheaper to satisfy by lying is worse than no check.**
+`context-is-future-only` fired once per context. On a greenfield product every context is
+future-only by construction, so the honest model drew four findings and a model that labelled a
+not-yet-built product `as-is` drew zero. Measured on exactly that pair. Both are now one finding
+that names every context and says not to relabel to silence it — but the general form is the
+lesson: before shipping a check, ask what the *cheapest* way to make it green is, and whether
+that path is the one you wanted.
+
+**Lesson 4 — the golden is not the ground truth, confirmed a second time and independently.**
+Two judges, neither told which model was which, named the same six *enforced* invariants in the
+golden that no source states — freeze-on-approve, an approve cardinality guard, a seed-import
+rejection rule, a ranking-scope exemption, AuthZ as five dimensions where the operator's own
+words say seven, and a currency attribute lifted from a milestone three ahead. One judge found
+none in the challenger; the other found two, both self-labelled as inference. A golden built by a
+richer process is a stronger *deliverable* and not therefore a more *grounded* one, so
+golden-match is the wrong scoring function. Grounded-vs-source is the right one.
+
+**Lesson 5 — Round 23 did not stick, and the shape of the recurrence is the finding.** The
+previous commit reported "full `bun run check` GREEN". It was green *before staging*, so
+`drift` compared the previous blobs and certified a state that no longer existed; the branch has
+been red on RFC-0028 ever since. The rule was already written down in `code-change.md`, quoting
+Round 23, and it still did not fire — because the claim is made in prose at the end of a long
+session, where nothing checks it. A lesson that lives only in a rules file is a lesson that
+depends on someone remembering to read it at exactly the wrong moment.
+
+**Lesson 6 — absence of correction is not evidence of competence.** Mining 68 operator turns
+from a real pilot showed zero corrections about DDD craft, which reads as proof the model needs
+no teaching. But that pilot ran with the *heavy* skills loaded, so the corrections that did not
+happen may be the ones the heavy skills prevented. The honest reading needs the independent
+from-scratch run, and it is the same error class as Lesson 2: a quiet channel and a healthy one
+look identical until something is executed against them.

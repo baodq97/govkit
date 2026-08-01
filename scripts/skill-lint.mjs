@@ -5,6 +5,7 @@
 // so it is deliberately not a `govkit` CLI subcommand.
 import { readdirSync, readFileSync, statSync } from "node:fs";
 import { join } from "node:path";
+import { parse as parseYaml } from "yaml";
 
 const MAX_DESCRIPTION = 1024; // agents inject this into the system prompt
 const COLLIDE_ERROR = 0.75;
@@ -25,6 +26,33 @@ const STOP = new Set([
   "are",
   "you",
 ]);
+
+/** Does this front-matter block parse as YAML, the way a consumer's loader will read it?
+ *
+ *  The line reader below is deliberately permissive — it joins block scalars and tolerates shapes
+ *  YAML rejects — and that permissiveness hid a real, shipped defect: two descriptions written as
+ *  unquoted plain scalars containing `: ` ("…before any boundary is drawn: mining PRDs…") are
+ *  invalid YAML, so `claude plugin validate` failed the whole plugin and the skills would have
+ *  loaded with EVERY front-matter field silently dropped — no name, no description, no `paths`,
+ *  unroutable. This lint reported 0 errors throughout. A gate that parses more permissively than
+ *  the consumer cannot see the bug the consumer hits (LEARNING-LOOP Round 24, F-GATE-INERT).
+ *
+ *  Returns an error string, or null when the block is clean. `yaml` is already a workspace
+ *  dependency (packages/govkit); this is the same parser govkit's own `verify` uses on doc
+ *  front-matter, now applied to the plugin surface too. */
+export function frontMatterYamlError(text) {
+  const m = /^---\r?\n([\s\S]*?)\r?\n---/.exec(text);
+  if (!m) return "missing YAML front-matter (expected a leading `---` block)";
+  let doc;
+  try {
+    doc = parseYaml(m[1]);
+  } catch (e) {
+    return `front-matter is not valid YAML: ${String(e.message).split("\n")[0]} — a \`: \` inside an unquoted value is the usual cause; quote it, use \`>\`, or reword`;
+  }
+  if (!doc || typeof doc !== "object" || Array.isArray(doc))
+    return "front-matter parses but is not a mapping — every field would load empty";
+  return null;
+}
 
 /** Parse front-matter, joining folded/block scalars into one line. */
 export function parseFrontMatter(text) {
@@ -107,6 +135,7 @@ function collect(root) {
       docs.push({
         kind,
         file,
+        yamlError: frontMatterYamlError(text),
         stem: statSync(p).isDirectory() ? e : e.replace(/\.md$/, ""),
         name: fm?.name ?? "",
         description: fm?.description ?? "",
@@ -128,6 +157,9 @@ export function lintSurface(root) {
   const warnings = [];
 
   for (const d of docs) {
+    // First, and unconditionally: if the block does not parse as YAML the consumer's loader drops
+    // every field, so each check below would be reasoning about values that will never exist.
+    if (d.yamlError) errors.push(`${d.file}: ${d.yamlError}`);
     if (!d.name) errors.push(`${d.file}: missing front-matter key "name"`);
     else if (d.name !== d.stem)
       errors.push(`${d.file}: name "${d.name}" does not match filename stem "${d.stem}"`);
@@ -146,6 +178,16 @@ export function lintSurface(root) {
     if (d.kind === "agents" && !d.model) errors.push(`${d.file}: agent must declare "model"`);
   }
 
+  // Lexical overlap is a PROXY for mis-routing, and a measured-poor one — read a warning as "look
+  // at this pair", never as "this pair mis-routes". A 44-case / 3-router routing eval over the
+  // ddd-flow surface (2026-08-01) scored 129/132: the two pairs this check warns on
+  // (2-discover<->3-decompose 55.2%, 3-decompose<->7-define 50.9%) produced ZERO routing errors,
+  // while the only real confusion — 3-decompose<->4-connect — scores UNDER the warn floor and so
+  // never appeared at all: this check was silent on the one pair that bit. Lowering the floor would
+  // only add noise:
+  // the ranking itself is what does not track. Kept because a cheap keyless proxy still catches
+  // copy-paste descriptions, but do not spend effort "fixing" a warned pair without a routing
+  // measurement that shows it failing.
   const pairs = [];
   for (let i = 0; i < docs.length; i++) {
     for (let j = i + 1; j < docs.length; j++) {

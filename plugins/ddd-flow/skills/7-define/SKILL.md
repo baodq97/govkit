@@ -1,193 +1,53 @@
 ---
 name: 7-define
-disable-model-invocation: true
+description: Deepen each bounded context into a canvas — purpose, inbound/outbound messages, business decisions, quality attributes, assumptions and open questions — in the ddd-flow modelling loop. Use whenever a domain has drawn contexts (3-decompose ran) and each needs its responsibility, interface, and assumptions made explicit, or an existing canvas needs revising — invoked by ddd-flow:design or directly. This deepens canvases; it does NOT draw or move a boundary (that is 3-decompose).
 paths: docs/domain/**
-description: >
-  DDD step 7 — bounded context canvas, quality storming. Deepens docs/domain/<context>/README.md.
 ---
 
-# Domain Define
+# Define — what is each context responsible for, and what is it assuming?
 
-## Hard rules
+You already know the Bounded Context Canvas, quality storming, and context-mapping relationships.
+This skill does **not** re-teach them — it gives only what a strong model gets wrong by default
+here, plus the exact output contract the gate parses.
 
-- **Length budget, by sub-domain type: core ≤ 180 lines, supporting ≤ 90, generic and master-data
-  ≤ 35.** Right-sizing is the doctrine that stops happening silently — a 160-line canvas for a
-  context you have just declared bought is the failure, and the ratio between a core canvas and a
-  generic one should be nearer ten to one than two to one. A budget caps prose, not findings:
-  over it, cut rationale a reader can infer and anything restated from an upstream artifact —
-  never open questions, provenance, or a stated absence.
-- **Never invent a business decision, a rule, or a message.** Take them from discovery, the flows,
-  or the people in the room. Anything you inferred goes under *assumptions*, labelled as inferred,
-  where somebody can knock it down. That relabelling is the whole safety mechanism of this step.
-- **Assumptions and open questions stay populated.** A canvas with both empty is not a confident
-  design; it is an unexamined one. If the room genuinely had no open questions on a core context,
-  say who was in it — that is usually the real finding.
-- **No technical detail in the purpose.** Frameworks, databases and endpoints in the purpose field
-  mean the context is being described as a component instead of a capability, and the canvas stops
-  being reviewable by the people who know the business.
-- **Don't re-classify.** Strategic classification comes from `5-strategize` / `1-understand`
-  by citation. Disagreement is a finding, not a local edit.
-- **Don't redraw boundaries.** A context whose purpose needs an "and also" is evidence for
-  `3-decompose`; write the finding, keep the canvas honest, and let the owning skill move the
-  line.
-- **Verification metrics must be collectable.** Name the source — CI, tracker, production telemetry.
-  A metric with no source is decoration.
+## Step 0 — load the law
+Read **`../../references/RULES.md`** (the shared ddd-flow rules). The **Right-size**, **Honesty**,
+**Boundaries**, and **Grounding** sections carry this step's `[7]` rules. They are the rules, not
+the method — do not proceed without them.
 
-> *"Before committing to a design, make explicit decisions about the choices which can have a
-> significant impact on the overall design. Have these conversations early while it is still easy
-> to change your mind and explore alternative models."* — ddd-crew, Define
+## Consumes → produces
+- **Read:** `docs/domain/<context>/` (the first-pass canvas `3-decompose` wrote + `model.yaml` for
+  `subdomain_type`), `message-flows/` (the real inbound/outbound messages), `discovery/` (ubiquitous
+  language + stated rules, with attribution), and `core-domain-chart.md` (classification — cite it,
+  never re-derive).
+- **Write:** update each `docs/domain/<context>/README.md` **in place** (delta-merge: preserve human
+  edits, keep the id, add the missing sections) — never a parallel document.
 
-Loop 2 decided where the boundaries are. Loop 3 decides what lives inside one, and the first half
-of that is a contract: what this context is responsible for, what it accepts, what it publishes,
-and what it is assuming while it does so.
+## Output contract (what the gate parses — obey exactly)
+Fill each canvas to the shape in **`../../references/artifact-shapes.md`**. Check 8 skips a canvas as
+a not-yet-deepened sketch below 2 of its three markers — `assumption`, `verification metric`, `open
+question` — so include all three to pass clean at define depth. The line budget is per
+`subdomain_type` from `model.yaml` (core 180 · supporting 90 · generic/master-data 35).
 
-The Bounded Context Canvas is not documentation. It is a **forcing function** — it makes a team say
-out loud the things that otherwise get decided implicitly by whoever writes the first endpoint. The
-sections people skip are the ones that pay: *assumptions* (design always happens on incomplete
-knowledge, and unwritten assumptions become invisible constraints), *verification metrics* (how you
-would find out the boundary was wrong), and *open questions* (whose count is a direct read on how
-confident the team actually is).
+## Critique the interface before you call a core canvas done
+The public interface has a large blast radius and is expensive to change, so on a **core** context
+challenge the filled canvas: are the message names coherent with each other and with the context's
+description · is each message the right type (should a command be an event?) · is the interface too
+big · is it exposing internals · does any message belong elsewhere. Keep technical detail out of the
+purpose — a framework, a database or an endpoint there means the context is being described by its
+implementation. Then the move that finds the most: **relocate something to another context and see
+what breaks.** Record the experiment and its outcome including the rejections — a design that has
+never been perturbed has never been tested.
 
-## Inputs
+## The one rule most often broken (echoed for salience; full set in RULES.md)
+**Don't canvas every context to the same depth.** Match canvas depth to `subdomain_type` — core
+gets the full canvas, generic a bought-adapter stub; core-to-generic depth should be nearer 10:1
+than 2:1. Nine identical canvases signal ceremony; two deep + five stubs signal judgement. Say which
+you deepened and why the rest got less. A budget caps prose, never findings.
 
-| Input | Supplies | If missing |
-|---|---|---|
-| `docs/domain/<context>/` | the first-pass canvas `3-decompose` wrote, plus `model.yaml` | run `3-decompose` — there is no context to define |
-| `docs/domain/core-domain-chart.md` | strategic classification — do not re-derive it | classify from `1-understand`'s inputs, or mark it unknown; do not invent a new classification here |
-| `docs/domain/message-flows/` | the real inbound/outbound messages and their collaborators | the interface sections become a guess from the model rather than from observed use |
-| `docs/domain/discovery/` | ubiquitous language and stated business rules, with attribution | do not fill business decisions from inference |
-
-## Reference files (read as needed)
-
-- `references/bounded-context-canvas.md` — every section of canvas v5, what it asks, how to fill it
-  from evidence, the collaborator and relationship types, the swimlane format, and the five
-  interface-critique questions. Read before filling the first canvas.
-- `references/quality-storming.md` — eliciting quality attributes per context, turning them into
-  numbers, and the ones that change a domain model rather than just an infrastructure choice.
-
-## Who to involve
-
-- people who design, build and test software
-- people who have domain knowledge
-- **people who are responsible for the product**
-
-That third group is specific to this step. Responsibilities and public interfaces are product
-decisions as much as technical ones — which messages a context accepts determines what other teams
-can ask of it, and that is a commitment somebody has to own.
-
-## Process
-
-### 1. Right-size — do not canvas everything
-
-A full canvas per context is exactly the cargo-cult failure `3-decompose` right-sizes against.
-Use the classification:
-
-| Context type | What it gets |
-|---|---|
-| **Core** | full canvas, all sections, plus the interface critique |
-| **Supporting** | purpose, language, inbound/outbound, business decisions; skip the deep sections unless something is contested |
-| **Generic / bought** | a stub: purpose, what it is bought from, the adapter's interface. That is complete, not lazy |
-
-Say which contexts you are defining and why the others got less. Nine identical canvases signal
-ceremony; two deep ones and five stubs signal judgement.
-
-### 2. Name and purpose
-
-A few sentences, in **business language, with no technical detail**, naming the key actors this
-context serves. If the purpose cannot be stated in a couple of sentences without an "and also", the
-boundary is probably carrying two responsibilities — that is a finding for `3-decompose`, not
-something to write around.
-
-### 3. Strategic classification — carry it, don't re-derive it
-
-Three facets: **domain type** (core / supporting / generic), **business-model role** (revenue
-generator / engagement creator / compliance enforcer), and **evolution** (genesis / custom-built /
-product / commodity). All three already exist upstream — the chart from `5-strategize` and the
-capability table from `1-understand`. Cite them.
-
-Re-deriving a classification here silently forks it, and two documents that disagree about whether
-a context is core is worse than one that admits it does not know.
-
-### 4. Domain roles
-
-How does this context *behave*? An analysis context that crunches data into insight behaves nothing
-like an execution context that enforces a workflow, or a gateway that translates for an external
-system. Naming the role is how you notice a context that has quietly taken on two — the most common
-source of tangled responsibilities inside a boundary that looked fine from outside.
-
-### 5. Inbound and outbound communication
-
-For each message: its **name**, its **type** (command / query / event), the **collaborator** on the
-other end, and the **relationship type** with that collaborator (the context-mapping patterns —
-conformist, ACL, open-host, published language, shared kernel, customer/supplier, partnership).
-
-Inbound = collaborations others start. Outbound = collaborations this context starts. Note that
-"message" here is implementation-neutral: an HTML form POST is a command.
-
-Where message flows exist, the **swimlane format** is the more useful arrangement: *message in →
-decision(s) made → message(s) out*. It shows what the context actually decides, which is the
-question the canvas is really asking.
-
-### 6. Ubiquitous language and business decisions
-
-The key terms **as they mean in this context** — a word that means something different next door is
-the justification for the boundary, and it belongs here explicitly.
-
-Business decisions are the rules and policies the context enforces. Take them from discovery, with
-attribution. A rule nobody stated is not a business decision; it is an assumption, and it goes in
-the next section where it can be challenged.
-
-### 7. Quality Storming
-
-Walk the quality attributes with the room (see the reference): what must be fast, what must be
-correct-under-concurrency, what must be auditable, what must survive a partition, what is
-regulated. Attach numbers where anyone can supply them.
-
-Do this **now**, not at implementation, because a subset of these change the domain model itself:
-an availability requirement that forbids a synchronous dependency, an auditability requirement that
-makes history a first-class domain concept rather than a log, a regulatory retention rule that
-turns a capability into a context of its own.
-
-### 8. Assumptions, verification metrics, open questions
-
-The three sections that get left blank, and the reason to run the canvas at all:
-
-- **Assumptions** — every design rests on beliefs about volumes, behaviours, and what the business
-  will want next. Write them down where they can be attacked. An assumption on a canvas is
-  reviewable; the same assumption in someone's head is a constraint nobody knows about.
-- **Verification metrics** — how would you learn this boundary is wrong? Pick things you can
-  actually observe: change coupling (how often this context changes together with another),
-  cross-team pull requests, lead time for a change contained here, the ratio of inbound queries to
-  events. These are available from CI, the issue tracker, and production. A metric nobody can
-  collect is a wish.
-- **Open questions** — everything the room could not answer. The count is a signal: many open
-  questions on a core context means the design is not ready to build, and that is worth knowing
-  before someone starts.
-
-### 9. Critique the interface
-
-The canvas exists to be challenged. Run the five questions over the finished interface:
-
-1. Are the message names coherent with each other and with the context's description?
-2. Is each message the right **type** — should this command actually be an event?
-3. Is the interface **too big** — too many unique message types for one responsibility?
-4. Is the context **exposing its internals** through its messages?
-5. Do any messages look like they **belong elsewhere**?
-
-Then try the general tip: move something on the canvas to another context and see what improves.
-Record what you moved and what it cost — a design that has never been perturbed has never been
-tested.
-
-### 10. Emit
-
-**Update the existing** `docs/domain/<context>/README.md` — the first-pass canvas
-`3-decompose` wrote — rather than creating a parallel document. Delta-merge: preserve human
-edits, keep the id, add the sections that were missing, and record what changed. Where the canvas
-contradicts `model.yaml`, propose the delta; `3-decompose` owns that file.
-
-Optionally add a **C4 System Context** diagram when a context talks to external systems or several
-user types — it answers "what sits around this thing", which the canvas does not.
-
-## Worked example
-
-A full worked run is in `references/worked-example.md` — read it when the shape of the output is unclear.
+## Done
+Run `ddd_check` (canvas-marker + budget gate); resolve blocking gaps; keep `assumptions` and
+`open_questions` populated honestly — **beside** the decisions, not instead of them: a core canvas an
+engineer cannot build from has failed even with all three markers present. A canvas whose purpose
+needs an "and also", or that contradicts `model.yaml`, is a delta for `3-decompose` — write the
+finding, never redraw the line yourself.

@@ -1,168 +1,170 @@
 ---
 name: design
 description: >
-  Orchestrate the DDD modelling process end to end. Reads repo state with a deterministic script,
-  then decides what to do next against your goal instead of following a fixed pipeline: which
-  step to run, which to skip and at what cost, what a change invalidates, and which of the eight
-  step sub-skills (understand · discover · decompose · connect · strategize · organise ·
-  define · code, plus a live visual surface) to hand it to. Use for "let's do DDD", "model this
-  domain properly", "design the domain end to end", "what's next in our domain modelling",
-  "resume the domain modelling", "we're adding a new business line — how does that fit", "làm
-  DDD cho hệ thống này", "thiết kế domain từ đầu", "tiếp theo làm gì". Also trigger when a
-  change lands in an already-modelled domain, or when a model exists and nobody knows how much
-  of the process was really done — restarting finished work is the failure this prevents.
+  Orchestrate the DDD modelling loop — read repo state with a deterministic script, decide the next
+  step against the user's goal instead of following a fixed pipeline, and hand it to the step skill
+  that owns it. Use for "let's do DDD", "model this domain properly", "design the domain end to
+  end", "what's next in our domain modelling", "resume the domain modelling", "we're adding a new
+  business line — how does that fit", "làm DDD cho hệ thống này", "thiết kế domain từ đầu", "tiếp
+  theo làm gì". Also trigger when a change lands in an already-modelled domain, or when a model
+  exists and nobody knows how much of the process was really done — restarting finished work is the
+  failure this prevents.
 allowed-tools: Bash(python3 ${CLAUDE_SKILL_DIR}/scripts/*.py *), Skill
 ---
 
 # DDD Design — control flow for the modelling loop
 
+You already know DDD and how to run a modelling process. This skill does **not** re-teach that — it
+gives the repo's state scripts, the one gate that must stop a bad advance, and the routing calls a
+strong model gets wrong by default.
+
 ## Hard rules
 
-- **Never do a step's work inline.** Each step skill carries its own rules — provenance,
-  confirmed-vs-candidate, propose-don't-apply — and none survive paraphrase. Invoke the skill.
-- **Read state before planning.** Every claim about what has been done cites the script's output.
-- **Decide, don't sequence.** If the goal makes a different step right, run that and say why. If it
-  makes the whole process wrong, say that too.
+- **Never do a step's work inline.** Each step skill loads `../../references/RULES.md` — grounding,
+  provenance, confirmed-vs-candidate, propose-don't-apply. None of it survives paraphrase, so
+  summarising a step *instead of invoking it* silently drops every rule the step exists to enforce.
+- **Read state before planning.** Every claim about what has been done cites the script's output;
+  asking a team which steps they ran gets an optimistic answer.
+- **Decide, don't sequence.** Name the step you chose, why, and what you are *not* doing. If the
+  goal makes the whole process wrong, say that too.
+- **One step per turn, then re-read state.** Three chained unattended produce three artifacts
+  resting on assumptions nobody checked — and half these steps are conversations with people a
+  skill cannot summon.
 - **Never skip discovery silently.** Time-box it; do not replace it with reading documents. With no
   domain expert available, say the model will only be as good as the documents.
-- **One step per turn, then re-read state.**
 - **Record deviations, not just progress.** A log showing only completed steps hides the two
   heuristics that failed and the workshop that had no domain expert in it.
 - **Never flip a governed doc's status.** Artifacts land `status: draft`, `owner: TBD`.
 
-```
-loop 1  understand → discover                           what the business is, and what happens
-loop 2  decompose → connect → strategize → organise     where the boundaries are, and who owns them
-loop 3  define    → code                                what each context is, and how it is built
-```
-
-A starter shape, not a pipeline. The cases that matter are the ones the arrows do not cover — a new
-business line mid-flow, an incident that invalidates a boundary, someone needing a build-vs-buy
-answer this week. So: read state, decide against the goal, route, record.
-
-Two failures this prevents: redoing work already done, and running all eight steps on a domain that
-needed three.
-
 ## 1. Read state
 
 ```bash
-python3 ${CLAUDE_SKILL_DIR}/scripts/ddd_state.py --root . [--json]
+python3 ${CLAUDE_SKILL_DIR}/scripts/ddd_state.py --root . [--json]  # per step: done/partial/missing/STALE, evidence, journal open items, candidate actions
+python3 ${CLAUDE_SKILL_DIR}/scripts/ddd_check.py --root . [--json]  # cross-artifact findings  (--strict blocks on high; --strict-grounding, --strict-symmetry opt in)
+python3 ${CLAUDE_SKILL_DIR}/scripts/ddd_state.py --root . --review  # both, printed to stdout as the review payload
 ```
 
-Per step: `done` / `partial` / `missing` / `STALE`, the evidence files, the journal's open items, and
-**candidate actions with reasons** — a list, not a next step.
+`ddd_state` answers *what ran*. `ddd_check` answers *what disagrees between files* — a context
+labelled `core` whose capability the business model rates non-differentiating, an entity modelled
+in two contexts, a flow over the nine-message limit, a canvas missing its falsifiable sections.
+Reading files one at a time cannot find those, which is why both run before you propose anything.
+Candidate actions are **a list with reasons, not a next step**: which one is right depends on the
+goal, and treating the first as an instruction is how the loop turns back into a pipeline.
 
-What counts as evidence is configuration, not code: `references/steps.yml` declares each step's
-artifact globs, the markers separating a defined context from a sketched one, and which upstream
-step invalidates it. Override with `--config` for a repo with different conventions.
+What counts as evidence is **configuration, not code**: `references/steps.yml` declares each step's
+artifact globs, the markers that separate a defined context from a sketched one, the line budgets,
+the grounding floor, and the `invalidated_by` back-edges that make a step STALE. `ddd_state.py
+--config` points at another file for a repo with different conventions (`ddd_check.py` has no
+`--config` — it reads `steps.yml` directly).
 
-Run it before proposing anything. Asking a team which steps they ran gets an optimistic answer.
+Offer the review before any approval: a markdown tree gets skimmed, and skimming is exactly how a
+contradiction between two files survives. `--review` **prints to stdout** — never redirect it over
+a `model.json`, which would replace the whole workspace payload with a review-only one and collapse
+the view's document rail.
 
-**Cross-artifact findings** come from a second script, and they catch what reading files one at a
-time cannot — a contradiction that lives *between* two files (a context labelled `core` whose
-capability the business model rates as non-differentiating), an entity modelled inside two contexts,
-a flow over the nine-message limit, a canvas missing its falsifiable sections:
+## 2. The gate — grounding readiness
 
-```bash
-python3 ${CLAUDE_SKILL_DIR}/scripts/ddd_check.py --root .          # human-readable
-python3 ${CLAUDE_SKILL_DIR}/scripts/ddd_state.py --root . --review # both, as a view payload
+Before `3-decompose`, `7-define` or `8-code` on a slice, read the grounding line from
+`ddd_check.py` (check 16, `grounding-under-ratified`, severity `info`): reading
+`docs/domain/discovery/model.json`, it counts how much of the sliced timeline a **person
+confirmed** versus how much a mining run merely **proposed**. Zero confirmed events, zero confirmed
+rules, or confirmed:candidate under the floor (`steps.yml` `grounding:`) →
+
+```
+under-grounded: N confirmed / M candidate on slice X — ratify or mine before deepening
 ```
 
-The `--review` form writes the payload `/ddd-flow:view` renders as its **Review** lens. Offer it
-whenever someone has to approve a model: a markdown tree gets skimmed, and skimming is exactly how
-a contradiction between two files survives.
+and go back to `2-discover`. **Not forward with a caveat.** Warning-only by design — this is the
+judgement `govkit verify` and `govkit eval` cannot make; both were green on btm-systems while its
+author stalled two days over a context map cut from 0 confirmed events, then rolled it back. A
+green line is **necessary, not sufficient**: only a person flips candidate → confirmed.
 
-## 2. Decide
+> **Silence is not a pass, and this is the trap.** Check 16 fires only once a decompose artifact
+> already exists (`ctx` non-empty or `context-map.md` present). On a fresh domain — discovery
+> written, nothing decomposed — it prints **nothing**, which is exactly the moment the gate is for.
+> Ask the first row below by hand; the script cannot answer it for you yet.
 
-Three inputs: **the goal** — what decision is the user trying to make? "Do DDD properly" and "settle
-invoicing build-vs-buy this week" want different work. **The state.** **The cost** — most steps need
-domain experts in a room, the scarcest input here.
+Six asks, each a measurement rather than a vibe. When one fails, going back beats a caveat.
 
-Then pick, and say why, including what you are not doing.
-
-Priors, not rules:
-
-| Situation | Usually starts at | Because |
+| About to run | Ask | If the answer is bad |
 |---|---|---|
-| Nothing written | understand | boundaries without a business model are guesses |
-| Code exists, nothing modelled | discover, DISCOVER mode | mine artifacts, then interview gaps — never reverse a model out of a schema |
-| Half-finished docs | the cheapest step that could still invalidate the rest | finding the boundaries wrong beats deepening them |
-| A step is `STALE` | that step, update mode | its input changed underneath it |
-| User names one artifact | that step, directly | the process serves the artifact |
-| A system landscape already exists and boundaries are the question | connect, on the flows that already run | what today's systems say to each other constrains every boundary you could propose; modelling them as wished-for first produces a map nobody can act on |
-| The domain is contested and the argument is going in circles | code, on one slice | some boundaries only settle once someone builds one; a canvas cannot referee a disagreement about behaviour |
+| decompose | at least one human-confirmed event and one stated rule? | it would paraphrase a schema — back to discover |
+| connect | does every context own a real invariant? | one with none is a capability — back to decompose |
+| strategize | is differentiation sourced from business evidence? | the y axis is a guess — back to understand |
+| organise | is real headcount known? | it is a template, not a proposal — ask |
+| define | were connect's findings triaged? | you would define a context that is about to move |
+| code | invariants traceable to stated rules, none spanning two contexts? | a distributed invariant belongs in connect |
 
-The last two enter the loop away from step 1, which is deliberate — the process is a loop, and where
-you join it depends on what is already true. They are entry points, not shortcuts: both still owe
-discovery, and the second owes `connect` and `define` afterwards, because a boundary drawn to get one
-slice building is a hypothesis. Record the deviation with what it left unvalidated, so the debt
-resurfaces instead of setting.
+These gate *advancing through* the loop. They do **not** gate deliberately coding early to settle a
+contested domain — that is a recognised way to run the process, and refusing it turns a design
+disagreement into a scheduling one. What the gate buys there is honesty about the price: name the
+unverified invariants and assumed boundaries, record the deviation, and treat the resulting
+aggregate as evidence for `connect` rather than as a decision.
 
-## 3. Route — invoke the step, having said why
+Two failed attempts to leave discovery usually means the people who know the domain were never in
+the room — a scheduling problem, not a modelling one. Say so.
 
-Invoke the step yourself via the Skill tool (`ddd-flow:1-understand`, …), passing the goal and the
-sources it should read. Say which step you chose and why **before** invoking — routing silently is
-how a step runs against the wrong goal.
+## 3. Decide and route
 
-The step skills carry their own rules — provenance, confirmed-vs-candidate, propose-don't-apply.
-Invoking them is how those rules apply; paraphrasing their work inline is how they are lost.
+Three inputs: **the goal** (what decision is the user trying to make — "do DDD properly" and
+"settle invoicing build-vs-buy this week" want different work), **the state**, and **the cost**
+(most steps need domain experts in a room, the scarcest input here).
 
-The user can also drive any step directly by typing its command, which is the right move when they
-want to run the workshop themselves:
+Entry is a prior, not a rule, and where the ordinary answer is obvious it *is* the answer — nothing
+written → `1-understand`; a **`STALE` step → that step, in update mode**, because its input changed
+underneath it; the **user names one artifact → that step directly**, because the process serves the
+artifact. Four cases are not obvious. Half-finished docs start at the **cheapest step that could
+still invalidate the rest** (finding the boundaries wrong beats deepening them). Code exists but
+nothing is modelled → `2-discover`, mining the artifacts and then interviewing the gaps —
+**never reverse a model out of a schema**, which reproduces the legacy's table clusters as if they
+were boundaries. And two entries join the loop away from step 1 entirely:
 
-| Step | Skill / command | Answers |
-|---|---|---|
-| understand | `/ddd-flow:1-understand` | what the business sells, and what differentiates it |
-| discover | `/ddd-flow:2-discover` | what actually happens, in the words of the people who do it |
-| decompose | `/ddd-flow:3-decompose` | where the boundaries are, and what each context owns |
-| connect | `/ddd-flow:4-connect` | do real use cases cross those boundaries without hidden coupling |
-| strategize | `/ddd-flow:5-strategize` | which parts deserve investment, what to buy instead of build |
-| organise | `/ddd-flow:6-organise` | which team owns which context, at what cognitive load |
-| define | `/ddd-flow:7-define` | what each context is responsible for, and what it assumes |
-| code | `/ddd-flow:8-code` | what stays consistent in one transaction, what is repaired after |
-| — | `/ddd-flow:view` | put the model on a screen, at any point |
+- **A system landscape already exists and boundaries are the question → `connect`,** on the flows
+  that already run. What today's systems say to each other constrains every boundary you could
+  propose; modelling them as wished-for first produces a map nobody can act on.
+- **The domain is contested and the argument circles → `code`, on one slice.** Some boundaries only
+  settle once someone builds one; a canvas cannot referee a disagreement about behaviour.
 
-One step per turn. Chaining three unattended produces three artifacts resting on assumptions nobody
-checked — and half these steps are conversations with people a skill cannot summon.
+Both are entry points, not shortcuts — both still owe discovery, the second also owes `connect` and
+`define`. Record what the deviation left unvalidated so the debt resurfaces instead of setting.
 
-### When the screen earns its place
+Then invoke the step **via the Skill tool**, passing the goal and the sources it should read, having
+first said which you chose and why — routing silently is how a step runs against the wrong goal.
+The ids are numbered and do not resolve without the number; the user can type the same names as
+slash commands when they want to run the workshop themselves:
 
-`view` is cross-cutting, which in practice means forgotten. Offer it at the moments below — each is
-a point where the artifact **hides** something a lens makes obvious, so this is not "show the pretty
-version", it is "the markdown cannot answer the question you are about to decide on".
+`ddd-flow:1-understand` · `2-discover` · `3-decompose` · `4-connect` · `5-strategize` ·
+`6-organise` · `7-define` · `8-code` — and `/ddd-flow:view`, which is not a step.
 
-A document is `?doc=<id>`; the map document additionally carries three lenses as `&view=map|mass|matrix`.
+**Offer the view when the markdown hides the finding**, naming the question first. A document is
+addressed `?doc=<id>`, and the map document additionally carries lenses as `&view=map|mass|matrix`
+(plus `relations` when any relationship exists):
 
 | Just finished | Offer | Because the document cannot show it |
 |---|---|---|
 | understand | `?doc=bmc` | nine blocks read as a list, and a list makes absence look like brevity — the empty ones are the finding |
-| discover | `?doc=timeline` | confirmed-vs-candidate and as-is-vs-to-be are counts across dozens of rows; nobody sums them by reading |
-| decompose | `?doc=map`, then `&view=mass` | the map draws a 3-table context the same size as a 30-table one, and mass is the correction |
+| discover | `?doc=timeline` | confirmed-vs-candidate is a count across dozens of rows; nobody sums it by reading |
+| decompose | `?doc=map`, then `&view=mass` | the map draws a 3-table context the same size as a 30-table one |
 | decompose or connect | `?doc=map&view=matrix` | a mutual dependency is invisible among crossing lines, and cycles are what move a boundary |
-| connect | `?doc=flow:<id>` | a table of numbered steps is a flow nobody can picture; the diagram is what a room argues over |
+| connect | `?doc=flow:<file-stem>` | a table of numbered steps is a flow nobody can picture |
 | strategize | `?doc=chart` | placement is two coordinates — a paragraph claiming "core" cannot be disagreed with the way a dot can |
-| organise | `?doc=map` | team colour over the boundaries is where Conway's law stops being a slogan |
-| define / code | `?doc=bc:<slug>` · `?doc=agg:<Name>` | one canvas at a time, so a missing section reads as a hole rather than as a shorter file |
+| organise | `?doc=chart&view=chart-teams` | team colour over the portfolio is where Conway's law stops being a slogan — **not** `?doc=map`, which renders no team colour |
+| define / code | `?doc=bc:<context-dir>` · `?doc=agg:<file-stem>` | one canvas at a time, so a missing section reads as a hole rather than as a shorter file |
 | **before any approval** | `?doc=review` | the only lens whose content comes from scripts, so it does not depend on anyone remembering to check |
 
-Two things this is not. It is **not** a step: nothing is written, so it never appears in the journal
-as progress. And it is **not** a default closing move — offering the screen when the artifact already
-answers the question trains people to close it unread, which costs you the one moment it mattered.
-Name the question first; if the markdown answers it, skip the screen.
+The view writes nothing, so it is never progress in the journal; and offering it when the markdown
+already answers the question trains people to close it unread, costing you the one moment it
+mattered.
 
-## 4. When a change arrives mid-loop
+## 4. A change arrives mid-loop
 
-Do not restart, and do not bolt it on. Decide the **scope**, and let that decide the re-entry:
+Do not restart, and do not bolt it on. Classify the change — new capability inside a context · new
+capability that may be its own context · a rule change · a change in what the business competes on
+· a change in who does the work — then re-enter at the **narrowest step that is honest**, in update
+mode, for the affected contexts only (the step skills delta-merge and preserve human edits), and
+re-read state to see what went stale downstream.
 
-1. What kind of change — new capability inside a context · new capability that may be its own
-   context · a rule change · a change in what the business competes on · a change in who does the
-   work.
-2. What it invalidates — `steps.yml` declares the mechanical dependencies, and the script flags files
-   older than their inputs. Judgement covers the rest: a new revenue stream invalidates the core
-   domain chart though no file changed.
-3. Re-enter at the **narrowest step that is honest**, in update mode, for the affected contexts only.
-   The step skills delta-merge and preserve human edits.
-4. Re-read state to see what the change made stale downstream.
+Naming what a change *leaves alone* is half the decision:
 
 | Change | Re-enters at | Leaves alone |
 |---|---|---|
@@ -172,90 +174,53 @@ Do not restart, and do not bolt it on. Decide the **scope**, and let that decide
 | Production race condition | connect to trace it → code for the aggregate boundary | everything upstream |
 | Team splits in two | organise | the domain model, unless the split cannot work with these contexts |
 
-Re-running everything is safe and wasteful; patching one file leaves three documents disagreeing.
+`steps.yml` `invalidated_by` declares the mechanical dependencies and the script flags files older
+than their inputs; judgement covers the rest — a new revenue stream invalidates the core domain
+chart though no file changed. Re-running everything is safe and wasteful; patching one file leaves
+three documents disagreeing.
 
 ## 5. Right-size
 
-| Skip | Defensible when | What you lose |
-|---|---|---|
-| **organise** | one team, or fewer contexts than it can hold | nothing yet — Conway's law bills you when a second team appears |
-| **strategize** | no build/buy or staffing decision pending | the investment-mismatch check |
-| **connect** | two contexts, one obvious interaction | coupling only shows up in motion; at three or more contexts it pays |
-| **define / code depth** | supporting, generic, master-data contexts | nothing — a stub is correct there |
-| **discover** | **never** | a model sourced only from documents has zero confirmed events and invents invariants |
+Most skips are defensible — `organise` with one team, `strategize` with no build/buy or staffing
+decision pending, `connect` at two contexts and one obvious interaction (at **three or more** it
+pays, because coupling only shows up in motion), canvas depth on
+supporting/generic/master-data (a stub is *correct* there). Name what each costs instead of
+pretending it costs nothing: no `strategize` is the investment-mismatch check gone, no `organise`
+is Conway's law billing you when a second team appears. **`discover` is never skippable** — a model
+sourced only from documents has zero confirmed events and invents invariants.
 
 **Offer the thin slice**: one capability end to end — understand → discover → decompose → define on
 the most commercially loaded flow — then widen. Buildable in days, and it exposes process problems
 cheaply. Say when the design effort being asked for exceeds what the decision is worth.
 
-## 6. Readiness heuristics
-
-Ask before advancing. When one fails, going back beats pushing through with a caveat.
-
-**The decompose row is a measurement, not a vibe — take it from the script.** Before `3-decompose`,
-`7-define`, or `8-code` on a slice, the grounding line from `ddd_check.py` (check 16,
-`grounding-under-ratified`) reads `docs/domain/discovery/model.json` and counts how much of the
-sliced timeline a person *confirmed* vs how much a mining run *proposed*. **0 confirmed events, 0
-confirmed rules, or confirmed:candidate below the floor → do not deepen** — print `under-grounded: N
-confirmed / M candidate on slice X — ratify or mine before deepening` and go back to `2-discover`,
-not forward with a caveat. The check is warning-only (`info`) by design: this is the judgement
-`govkit verify` and `govkit eval` cannot make — both were green on btm-systems while its author
-stalled two days over a context map cut from 0 confirmed events, then rolled it all back. A green
-grounding line is **necessary, not sufficient**; only a person flips candidate→confirmed.
-
-| About to run | Ask | If the answer is bad |
-|---|---|---|
-| decompose | one human-confirmed event and one stated rule? | it would paraphrase a schema — back to discover |
-| connect | does every context own a real invariant? | one with none is a capability — back to decompose |
-| strategize | is differentiation sourced from business evidence? | the y axis is a guess — back to understand |
-| organise | is real headcount known? | it is a template, not a proposal — ask |
-| define | were connect's findings triaged? | you would define a context that is about to move |
-| code | invariants traceable to stated rules, none spanning two contexts? | a distributed invariant belongs in connect |
-
-These gate *advancing through* the loop. They do not gate **deliberately coding early to settle a
-contested domain** — that is a recognised way to run the process, and refusing it turns a design
-disagreement into a scheduling one. What the heuristic buys there is honesty about the price: say
-which invariants are unverified and which boundaries the slice is assuming, record it as a
-deviation, and treat the resulting aggregate as evidence for `connect` rather than a decision.
-
-Two failed attempts to leave discovery usually means the people who know the domain were never in
-the room — a scheduling problem, not a modelling one. Say so.
-
-## 7. Record
+## 6. Record — optional, and rarely
 
 ```bash
-python3 ${CLAUDE_SKILL_DIR}/scripts/ddd_state.py --root . --record \
-  --step connect --skill 4-connect \
-  --room "2 planners" --room "3 devs" \
-  --artifact docs/domain/message-flows/booking.md \
-  --note "traced 3 use cases; check-then-act race found" \
-  --open "who owns release when the depot changes mid-rental" \
-  --deviation "organise deferred — single team"
+python3 ${CLAUDE_SKILL_DIR}/scripts/ddd_state.py --root . --record --step connect --skill 4-connect \
+  --open "who owns release when the depot changes mid-rental"
+# also available, each repeatable except --note/--date:
+#   --room "3 devs"  --artifact docs/domain/message-flows/booking.md  --note "…"
+#   --deviation "organise deferred — single team"   --date YYYY-MM-DD
 ```
 
-Appends to `docs/domain/.ddd-journal.jsonl` (and `--render-log` regenerates `MODELLING-LOG.md`).
+State is DERIVED from the artifact tree (§1), never from this journal, so resume works with no
+journal at all. The narrative it would carry already lives, richer, in session history, `tmem`,
+`atuin` and `git log` — hand-copying it here creates a rot-prone second copy. So record **one**
+thing, and only when it earns it: an open item you want `ddd_state` to resurface as a candidate
+action next run, or a **deviation** whose debt must not quietly set (the one case the hard rule
+above is about). Not a per-step chore. Appends to `docs/domain/.ddd-journal.jsonl`; `--render-log`
+regenerates `MODELLING-LOG.md`.
 
-**This is OPTIONAL — not a per-step chore.** State is DERIVED from the artifact tree on disk (§1,
-`ddd_state.py` reads what exists), never from this journal, so resume works with no journal at all.
-The *narrative* it would carry — who was in the room, what was decided, what was skipped and why —
-already lives, richer, in your session history, `tmem`, `atuin`, and `git log`; do not hand-copy it
-here (a hand-written journal is a redundant, rot-prone second copy). Record only **one** thing, and
-only when it earns it: an **open item** you want `ddd_state` to resurface as a candidate action next
-run (a hotspot that must not disappear). Everything else the artifacts and `git log` already show.
+Not the gate/learning-loop journal: the R7 distiller reads `.govkit/journal.jsonl`, written by the
+govkit gate — never by you.
 
-Not to be confused with the gate/learning-loop journal: the R7 distiller reads a *different* file,
-`.govkit/journal.jsonl`, written by the govkit gate — never by you.
-
-## 8. Exit
+## 7. Exit
 
 Hand off, naming what each consumer takes: `swe-flow:data-model` (aggregates, entities, value
-objects, identity, and which invariants a schema can enforce) · `swe-flow:api-designer` (commands
-and queries, and which events are public contracts) · `swe-flow:spec-author` (the governed
-PRD/RFC/ADR).
-
+objects, identity, which invariants a schema can enforce) · `swe-flow:api-designer` (commands,
+queries, which events are public contracts) · `swe-flow:spec-author` (the governed PRD/RFC/ADR).
 Say what brings the loop back: a new capability, a failed verification metric, a boundary finding
 from production, a competitor reaching parity with a core domain.
 
-## Worked example
-
-A full worked run is in `references/worked-example.md` — read it when the shape of the output is unclear.
+A full worked run is in `references/worked-example.md` — read it when the shape of the output is
+unclear.

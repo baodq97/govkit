@@ -6,11 +6,12 @@
       "name": "govkit-monorepo",
       "devDependencies": {
         "@biomejs/biome": "^2.2.0",
+        "yaml": "^2.6.0",
       },
     },
     "packages/govkit": {
       "name": "govkit",
-      "version": "0.2.0",
+      "version": "0.11.0",
       "bin": {
         "govkit": "./dist/cli.js",
       },

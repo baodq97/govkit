@@ -1,12 +1,22 @@
 ---
 id: US-0007
 title: Mark the 9 ddd-flow step skills orchestrator-only (disable-model-invocation + paths)
-status: done
+status: wontfix
 owner: baodq97
 date: 2026-07-31
 priority: P1
 parent: RFC-0032
 ---
+
+> **Withdrawn 2026-08-01 (`wontfix`), superseded in substance by `US-0015`, on the owner's
+> in-session direction.** `wontfix` is the nearest true value the `us` status set offers — the
+> story is not open, not done-and-standing, and `superseded` is not a legal `us` status here. The guard this
+> story added was withdrawn: `disable-model-invocation` blocks the orchestrator's own `Skill` call
+> too, so it bought human-slash-command-only rather than orchestrator-only, and a 44-utterance ×
+> 3-router eval measured the mis-fire it was bought to prevent at 0/24 on negative cases without it.
+> The amendment and its limits are in `RFC-0032` §As-built (F2 AMENDED); the shipped shape is a
+> trigger-shaped description on every step, which `skill-lint` still enforces (F5, unchanged).
+> The work described below did ship and was correct at the time — this is a reversal, not a defect.
 
 As an operator running the ddd-flow domain-modelling loop, I want the 8 numbered step skills and
 `view` to be reachable only through the `ddd-flow:design` orchestrator (or a deliberate `/` type),

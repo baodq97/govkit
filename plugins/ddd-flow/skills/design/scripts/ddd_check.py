@@ -38,13 +38,23 @@ class Finding:
 # --------------------------------------------------------------------------- loading
 
 
+class ModelYamlError(Exception):
+    """model.yaml exists but does not parse. Carries the parser's reason; the caller turns it into
+    a normal finding so verify stays a gate, not a stack trace."""
+
+
 def _yaml(text: str) -> dict:
     try:
         import yaml  # type: ignore
-
-        return yaml.safe_load(text) or {}
     except ImportError:
         return _mini(text)
+    try:
+        return yaml.safe_load(text) or {}
+    except yaml.YAMLError as e:
+        # The `except ImportError` above guards only the import (fall back to _mini); a genuine YAML
+        # syntax error is caught here and re-raised wrapped, per the repo's "no silent catch" rule —
+        # load_contexts turns it into a finding rather than letting it crash the run.
+        raise ModelYamlError(" ".join(str(e).split())) from e
 
 
 def _mini(text: str) -> dict:
@@ -279,7 +289,13 @@ def discovery_from_markdown(docs: Path) -> tuple[dict, list[dict], list[str], li
                 continue
             cells = _cells(line)
             low = [c.lower() for c in cells]
-            if any(n in low for n in (*NAME_COLS, *HOT_COLS, "rule")):
+            # A table has exactly ONE header, so only the first matching row counts as one. Without
+            # the `idx is None` guard any row containing a column NAME was re-read as a header —
+            # and `event` is both a NAME_COLS entry and the documented value of the `Type` column,
+            # so on the prescribed timeline shape every event row was swallowed: a 4-row timeline
+            # parsed as 1 element, 0 confirmed. Silent, and it lands on check 16's fallback, where
+            # "0 confirmed" reads the same whether discovery was thin or the parser ate it.
+            if idx is None and any(n in low for n in (*NAME_COLS, *HOT_COLS, "rule")):
                 idx = {k: low.index(k) for k in (*NAME_COLS, *HOT_COLS, "rule", "status", "state",
                                                  "confirmed by", "held by", "who raised it",
                                                  "who could answer", "blocks", "stated by")
@@ -316,27 +332,44 @@ def discovery_from_markdown(docs: Path) -> tuple[dict, list[dict], list[str], li
     return counts, hotspots, dupes, rules
 
 
-def load_contexts(docs: Path, root: Path | None = None) -> dict[str, dict]:
+def load_contexts(docs: Path, root: Path | None = None,
+                  errors: list[tuple[str, str]] | None = None) -> dict[str, dict]:
     ctx = {}
     if not docs.is_dir():
         return ctx
     for d in sorted(p for p in docs.iterdir() if p.is_dir()):
         f = d / "model.yaml"
         if f.exists():
-            data = _yaml(f.read_text(errors="ignore"))
+            rel = str(f.relative_to(root)) if root else str(f)
+            try:
+                data = _yaml(f.read_text(errors="ignore"))
+            except ModelYamlError as e:
+                # A file that does not parse is not a context; do not invent an empty one (that would
+                # mis-fire check 4). Record it for run_checks to report; degrade rather than explode.
+                if errors is not None:
+                    errors.append((rel, str(e)))
+                continue
             data["_dir"] = d.name
-            data["_path"] = str(f.relative_to(root)) if root else str(f)
+            data["_path"] = rel
             ctx[str(data.get("context") or d.name)] = data
     return ctx
 
 
 def load_business_model(docs: Path) -> dict[str, dict]:
-    """Capability -> {business_role, evolution_stage, differentiation} from the classification table."""
+    """Capability -> {business_role, evolution_stage, differentiation} from the classification table.
+
+    The 4th cell being a differentiation value IS the row filter, so no name-based header guard is
+    needed — and one used to be here, skipping any row whose first cell began with `capability`.
+    That silently dropped a capability NAMED "Capability return loop", which is exactly the name a
+    capability-centric domain reaches for; the run stayed green because a table that parses to
+    nothing and a domain with no mismatches print the same thing. A header row is still rejected
+    (its 4th cell reads `Differentiation`), as is a `---` separator.
+    """
     rows: dict[str, dict] = {}
     for f in docs.glob("business-model*.md"):
         for line in f.read_text(errors="ignore").splitlines():
             cells = [c.strip() for c in line.strip().strip("|").split("|")] if "|" in line else []
-            if len(cells) < 4 or cells[0].lower().startswith(("capability", "---", ":--")):
+            if len(cells) < 4:
                 continue
             diff = cells[3].lower()
             if diff.startswith(("yes", "no", "partial", "unknown", "**yes", "**no")):
@@ -375,9 +408,22 @@ def _mass(c: dict) -> int:
 
 
 def run_checks(root: Path, docs: Path) -> list[Finding]:
-    ctx = load_contexts(docs, root)
+    parse_errors: list[tuple[str, str]] = []
+    ctx = load_contexts(docs, root, parse_errors)
     caps = load_business_model(docs)
     out: list[Finding] = []
+
+    # 0 — a model.yaml that does not parse. Report it, do not die on it: a gate that crashes on a bad
+    # file teaches the author nothing, while a high finding naming the file and the parser's reason
+    # tells them exactly what to fix. The file is skipped, so every cross-context check is blind to it.
+    for rel, reason in parse_errors:
+        out.append(Finding(
+            "model-yaml-unparseable", "high",
+            f"{rel} is not valid YAML and was skipped — every cross-context check is blind to it",
+            [rel, reason,
+             "usual cause: a bare `: ` inside a plain multi-line bullet (e.g. an open_questions "
+             "entry) — quote the value or drop the colon"],
+            "3-decompose"))
 
     # 1 — the label and the business evidence disagree
     for name, c in ctx.items():
@@ -682,16 +728,42 @@ def run_checks(root: Path, docs: Path) -> list[Finding]:
              "around a running system"],
             "2-discover"))
     elif states:
+        # Collapse when it is universal. Per-context was the original shape, and on a greenfield
+        # product — where nothing this system does runs yet, by construction — it emitted one copy
+        # per context: N restatements of a single fact, reading as N problems. Worse, the cheapest
+        # way to silence it was to relabel the timeline `as-is`, so the check paid better for the
+        # wrong label than the right one (measured: an honest greenfield model drew 4 findings, one
+        # that called a not-yet-built product `as-is` drew 0). When only SOME contexts qualify the
+        # per-context finding is real signal — a migration whose new boundary rests on nothing
+        # running — so that shape is kept.
+        qualifying, future_only = [], []
         for name in sorted(ctx):
             known = {e: states[e] for e, src in emitted.items() if src == name and e in states}
-            if len(known) >= 2 and all(v != "as-is" for v in known.values()):
+            if len(known) < 2:
+                continue
+            qualifying.append(name)
+            if all(v != "as-is" for v in known.values()):
+                future_only.append((name, known))
+        if future_only and len(future_only) == len(qualifying):
+            names = ", ".join(n for n, _ in future_only)
+            out.append(Finding(
+                "context-is-future-only", "info",
+                f"every modelled context rests entirely on behaviour that does not happen yet "
+                f"({len(future_only)} of {len(qualifying)}) — this is a greenfield model",
+                [names,
+                 *(ctx[n]["_path"] for n, _ in future_only[:4]),
+                 "expected on greenfield, and not a defect: it means no boundary here can yet be "
+                 "falsified by a running system, so the flows and invariants carry the whole "
+                 "argument. Do NOT relabel the timeline `as-is` to silence this."],
+                "3-decompose"))
+        else:
+            for name, known in future_only:
                 out.append(Finding(
                     "context-is-future-only", "info",
                     f"{name}'s boundary rests entirely on behaviour that does not happen yet — "
-                    f"{len(known)} events, none `as-is`",
+                    f"{len(known)} events, none `as-is`, while other contexts model running behaviour",
                     [ctx[name]["_path"], *(f"{e} → {v}" for e, v in sorted(known.items())[:4]),
-                     "expected on greenfield; on a migration it is a boundary nothing running can "
-                     "falsify"],
+                     "on a migration this is a boundary nothing running can falsify"],
                     "3-decompose"))
 
     # 14 — direction and pattern are two axes, and one field cannot carry both. Which way the

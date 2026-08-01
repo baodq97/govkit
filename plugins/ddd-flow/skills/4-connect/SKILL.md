@@ -1,186 +1,56 @@
 ---
 name: 4-connect
-disable-model-invocation: true
-paths: docs/domain/**
 description: >
-  DDD step 4 — message flows per use case, coupling smells. Writes docs/domain/message-flows/.
+  Trace real business use cases as message flows across the bounded contexts to surface hidden
+  coupling, in the ddd-flow modelling loop. Use whenever a domain has an initial cut (contexts +
+  events) and you need to test whether concrete scenarios cross those boundaries cleanly, or to
+  re-check flows after a boundary moved — invoked by ddd-flow:design or directly. Also use when one
+  rule or invariant appears to span two contexts and the flow must be traced before anyone decides
+  where it belongs — a distributed invariant is this step's finding to produce. Needs a cut to
+  refute; not a discovery technique (that is 2-discover), and it never redraws a boundary itself
+  (it hands 3-decompose the evidence).
+paths: docs/domain/**
 ---
 
-# Domain Connect
+# Connect — do real use cases flow across these boundaries without hidden coupling?
 
-## Hard rules
+You already know message-flow notation, message typing, and the coupling smell catalogue. This
+skill does **not** re-teach that — it gives only what a strong model gets wrong by default here,
+plus the exact output contract the gate parses.
 
-- **Length budget: ≤ 90 lines per flow file.** A flow longer than that is usually two scenarios.
-  A budget caps prose, not findings: over it, cut rationale a reader can infer and anything
-  restated from an upstream artifact — never open questions, provenance, or a stated absence.
-- **Never invent a message.** A flow is only as real as the events, commands and queries that were
-  discovered or modelled. Inferring `PaymentRefunded` because a refund "must exist somewhere"
-  produces a diagram that validates a design against fiction. If the flow has a gap, the gap is an
-  open question with a name attached.
-- **Domain messages, not transport.** No HTTP verbs, no queue names, no retry policy, no
-  serialization format. The moment a flow becomes an integration design, it stops being able to
-  challenge the boundary — every coupling problem starts looking like a technology choice.
-- **Type every message.** An untyped arrow hides the difference between a broadcast fact and a
-  blocking read, which is the difference the whole step exists to surface.
-- **A temporal rule belongs in the `When` column, never only in the scenario paragraph.** If the
-  scenario says "within fifteen minutes", some message is the one that must happen within fifteen
-  minutes — name it and put the rule on that row. Stated only in prose, the rule cannot be drawn,
-  cannot be checked, and is invisible to everyone reading the diagram instead of the paragraph.
-  `ddd_check` reports this as `temporal-rule-in-prose`.
-- **A query states what comes back.** `Contents` for a query reads `sent fields → returned fields`.
-  Without the `→` half, the row records a question nobody answered.
-- **Propose boundary changes; never apply them.** `3-decompose` owns the model — it holds the
-  reconciliation rules, the stable ids, the human edits and the extraction seam. A boundary quietly
-  redrawn here is a change nobody reviewed.
-- **Findings carry evidence.** Message numbers, not adjectives. "Feels coupled" is not a finding;
-  "messages 2–5 are synchronous queries crossing three contexts before the planner gets an answer"
-  is.
-- A flow that turns out clean is a real result. Say so — a use case that crosses four contexts with
-  four events and no queries is evidence the split is working, and it is worth recording as such.
+## Step 0 — load the law
+Read **`../../references/RULES.md`** (the shared ddd-flow rules). The **Grounding**, **Boundaries**,
+and **Honesty** sections govern this step. They are the rules, not the method — do not proceed
+without them.
 
-> *"It is necessary to challenge the initial design by applying concrete use-cases to uncover
-> hidden complexity."* — ddd-crew, Connect
+## Consumes → produces
+- **Read:** `docs/domain/` (the contexts and the events each emits — the design under test) and
+  `docs/domain/discovery/` (the confirmed timeline; a flow built from context names alone is
+  speculation). No `docs/domain/`? Say so — there is no cut to refute, `3-decompose` runs first.
+- **Write:** one `docs/domain/message-flows/<scenario>.md` per traced use case, plus a `README.md`
+  index that collects every finding in one place.
 
-A context map tells you which contexts exist and that they are related. It cannot tell you whether
-the split *works*, because it never moves. A **message flow** moves: one real business scenario,
-message by message, in order, across the boundaries you just drew. That motion is what exposes the
-coupling — a boundary looks clean until you watch four synchronous hops cross it to satisfy one
-customer request.
+## Output contract (what the gate parses — obey exactly)
+Author every flow file to the shape in **`../../references/artifact-shapes.md`**: ≤9 numbered
+message rows (`flow-overflow`), a message table carrying a `Message` and a `To` column, and — when
+the scenario prose states a `within/after/every` rule — a `When` column with that rule on the row it
+belongs to (`temporal-rule-in-prose`). `status: draft`, `owner: TBD`.
 
-**What this skill produces:** a small set of flows for the use cases that matter, plus the findings
-those flows forced into the open — and, where a flow proves a boundary wrong, a **proposed** change
-handed back to `3-decompose`. Proposed, not applied: a boundary redrawn by the skill that
-discovered the problem skips the reconciliation, seam, and delta-merge discipline that decomposition
-owns.
+## Which flows to trace
+Trace **three**, not the backlog, and pick them by role rather than by taste: the **happy path**
+(the design's own story — if this one is ugly nothing else will be better), the **path with money on
+it** (what the business is actually paid for, so coupling here has a price), and the **failure path**
+(rejection, cancellation, refusal — models are built happy-path-first, so this is where the missing
+messages live). A fourth only for a known hotspot: something discovery flagged, or that the team
+already argues about.
 
-## Inputs
+## The one rule most often broken (echoed for salience; full set in RULES.md)
+**Type every message** — event, command, or query. An undifferentiated arrow hides exactly the
+coupling this step exists to surface: a synchronous query chain and a broadcast fact read identical
+until they are typed, and a flow of generic arrows passes the structural gate while proving nothing.
 
-- `docs/domain/` — contexts, relationships, and the domain events each context emits. This is the
-  design under test.
-- `docs/domain/discovery/` — the event timeline, if discovery ran. Flows built from a discovered
-  timeline are grounded; flows built from context names alone are speculation.
-- The **use cases** to trace. If nobody names them, propose candidates and get agreement before
-  drawing — see step 1.
-
-Nothing under `docs/domain/`? Say so plainly: there is no design to challenge yet, and
-`3-decompose` runs first. Modelling flows between contexts you are inventing as you go
-produces a diagram that validates itself.
-
-## Reference files (read as needed)
-
-- `references/message-flow-notation.md` — the notation: message types and what each one costs in
-  coupling, the three parts of a message (name, contents, order), separate vs combined format, the
-  5-to-9 message rule and why exceeding it is a finding, temporal semantics (`within` / `after` /
-  `every`). Read before drawing the first flow.
-- `references/coupling-heuristics.md` — the smell catalogue: what each smell looks like on a flow,
-  what it usually means, and the boundary move that resolves it. Read at step 3.
-
-## Who to involve
-
-- people who design, build and test software
-- people who have domain knowledge
-
-Flows are where developers and domain experts disagree productively: the developer knows what the
-system does, the expert knows what the business does, and the gap between those two is the finding.
-
-## Process
-
-### 1. Choose the use cases — the three backbone scenarios
-
-Trace **three**, not the whole backlog, and pick them by role rather than by taste:
-
-| # | Scenario | Why this one |
-|---|---|---|
-| 1 | **the happy path** | the design's own story — if this one is ugly, nothing else will be better |
-| 2 | **the path with money on it** | the scenario the business is actually paid for; coupling here has a price |
-| 3 | **the failure path** | rejection, cancellation, refusal. Models are built happy-path-first, so this is where the missing messages live |
-
-Add a fourth only for a known hotspot — something discovery flagged, or that the team already argues
-about.
-
-The failure path is the one teams skip and the one that pays. A model with no rejection message
-anywhere is not a clean design; it is a design where nobody asked what happens when the answer is no.
-
-A flow for a single-context CRUD scenario teaches nothing — it crosses no boundary. Say which
-scenarios you chose and why, and let people add the one you missed.
-
-**A prerequisite worth stating:** message flows are *not* a discovery technique. They exist to break
-a cut that already exists — *"when you have an initial cut of your architecture… you can begin
-design the message flows"*. If there is no `docs/domain/` yet, this step has nothing to refute.
-
-### 2. Build the flow
-
-For each use case, in order: identify the **sender** (actor, bounded context, or external system),
-the **message** it sends, and the **recipient**. Each message carries three things — its **name**,
-its **significant contents**, and its **order number**. Type every message:
-
-| Type | What it is | Coupling it creates |
-|---|---|---|
-| **Event** | a fact that already happened, broadcast | lowest — the sender does not know who listens |
-| **Command** | a request that another context do something | medium — the sender knows the receiver and expects it to act |
-| **Query** | the sender needs the receiver's data *now*, with a response | highest — a runtime dependency; the sender cannot proceed without the receiver being up |
-
-Getting the type wrong is not a labelling slip. It is the whole point: a flow drawn entirely with
-undifferentiated arrows hides exactly the coupling this step exists to find.
-
-Keep each diagram to **5–9 messages**. Beyond that, nobody in the room can hold the flow in their
-head — and in practice a scenario that needs fifteen messages is telling you either that it is two
-scenarios or that the boundaries are wrong. Treat the overflow as a finding, not a layout problem.
-
-When a scenario is time-dependent, be exact about which temporal relation holds: *within* an
-interval, *after* an event, or *every* period. These are three different business rules and they
-generate three different designs.
-
-### 3. Read the flow back for coupling
-
-This is the step that pays for the diagram. Walk the finished flow and check for the smells in
-`references/coupling-heuristics.md`. The ones worth naming here:
-
-- **Synchronous query chain across a boundary** — context A cannot act without asking B, then C.
-  Availability multiplies and latency accumulates. Usually the data is on the wrong side, or B
-  should publish a read model A owns a copy of.
-- **Cycle inside one use case** — A → B → A. Two contexts that must talk back and forth to complete
-  one scenario are temporally coupled; often they are one context wearing two names.
-- **Distributed invariant** — one business rule enforced across two contexts within the flow. Either
-  the rule belongs to a single aggregate, or the business must accept eventual consistency *and*
-  name the compensating action. Leaving it unstated is how double-bookings ship.
-- **God context** — one context appears in every flow, usually as a coordinator forwarding messages.
-  Orchestration is legitimate; a context that decides nothing of its own is a hop, not a boundary.
-- **Pass-through** — a context receives a message and forwards it without making a decision.
-- **Chatty pair** — two contexts exchanging many messages in one flow. Count them; a pair that talks
-  more inside a scenario than either talks to anyone else is a candidate merge.
-
-Every finding gets: the flow it came from, the messages that show it, and what it would take to
-resolve it. A smell with no evidence attached is an opinion.
-
-### 4. Feed findings back — do not redraw
-
-**Two conditions refute the decomposition outright**, and they are the only place in the whole
-modelling loop where a design is rejected by evidence rather than by opinion:
-
-> **more than 9 messages in one scenario**, or **one context appearing at every step** ⇒ go back and
-> re-cut.
-
-Say it in those words when either fires. It is not a diagram-tidiness note; it is the loop-back
-trigger, and `3-decompose` becomes stale the moment it fires.
-
-Where a flow proves a boundary wrong, write it as a **proposed change** with its evidence, and hand
-it to `3-decompose` (update mode) to merge. Where a flow reveals a domain event nobody discovered,
-hand it to `2-discover` to confirm with people — do not promote your own inference to a confirmed
-event.
-
-This is the loop working as intended. The modelling process is iterative; connect is where decompose
-gets its corrections.
-
-### 5. Emit
-
-Write one file per flow under `docs/domain/message-flows/`, plus a `README.md` index that lists the
-flows and collects every finding in one place. `status: draft`, `owner: TBD`.
-
-## Output shape
-
-The exact output contract is in `references/output-template.md` — read it before emitting.
-
-## Worked example
-
-A full worked run is in `references/worked-example.md` — read it when the shape of the output is unclear.
+## Done
+Run `ddd_check` (flow-overflow + temporal-rule gate); resolve blocking gaps; keep `open_questions`
+honest and record a clean flow as the real result it is. Where a flow refutes the cut (>9 messages,
+or one context at every step), hand a **proposed** change with its message-number evidence to
+`3-decompose` — never redraw the boundary here.

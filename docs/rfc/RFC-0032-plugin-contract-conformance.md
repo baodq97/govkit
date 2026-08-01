@@ -249,6 +249,41 @@ gate, removing it returns a consumer to today's behaviour with no state migratio
 
 ## As-built
 
+> **F2 AMENDED 2026-08-01 — the guard is withdrawn; the trigger-shaped description replaces it.**
+> Owner-directed in session, implemented on `optimize/ddd-flow-thin`, tracked in `US-0015`
+> (`US-0007` moves to `superseded`).
+>
+> F2 chose `disable-model-invocation: true` to make `ddd-flow:design` "the single router". Two
+> things falsify that reasoning:
+>
+> 1. **The key does not buy orchestrator-only, it buys human-slash-command-only.** It blocks *all*
+>    model invocation including the orchestrator's own `Skill` call, so under F2 as written `design`
+>    could not invoke the steps it routes to — leaving it to paraphrase their work inline, which is
+>    the one thing `design`'s first hard rule forbids, because the step skills carry provenance and
+>    grounding rules that do not survive paraphrase.
+> 2. **The mis-fire it was bought to prevent does not occur without it.** A 44-utterance × 3-router
+>    eval, ground truth taken from `steps.yml` rather than from the descriptions under test, scored
+>    **129/132** with **24/24 on negatives** — no ddd-flow skill claimed a PRD, a failing test, a
+>    release, a review, a migration or a CI problem. Full method and limits:
+>    `docs/research/ddd-flow-thin-eval/RESULTS.md` §6.
+>
+> The rejected alternative *"give each step its own rich trigger set"* is therefore now the chosen
+> one, and its stated objection — "nine skills competing to win the same request deepens the
+> collision" — is measured as not occurring at this surface size. **F5 stands unchanged and is what
+> makes this safe**: the lint still requires every non-orchestrator description to be trigger-shaped
+> *or* guarded, so the two shapes remain interchangeable and neither can ship untriggerable.
+>
+> Honest bound: the eval covers ddd-flow in isolation. Cross-plugin negatives against the ~30 skills
+> a live session carries are untested, and by the rule of three 0/8 clean negatives bounds the true
+> false-claim rate at ≲37%, not zero. This licenses the withdrawal; it does not prove the guard was
+> unnecessary. Re-open if a mis-route is observed in a live session.
+>
+> One more finding from the same work, recorded because it changes how F5's sibling check should be
+> read: `skill-lint`'s description-collision warning is a **lexical proxy that did not track
+> measured mis-routing** — its two warned ddd-flow pairs produced zero routing errors, while the one
+> pair that did confuse sat below the warn floor. Kept as a copy-paste guard, with that caveat
+> written into the script.
+
 All four phases shipped, each slice authored then adversarially verified (a workflow per phase;
 the lead integrated shared state and ran the full `bun run check` before every commit).
 
