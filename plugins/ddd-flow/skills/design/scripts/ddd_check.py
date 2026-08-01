@@ -289,7 +289,13 @@ def discovery_from_markdown(docs: Path) -> tuple[dict, list[dict], list[str], li
                 continue
             cells = _cells(line)
             low = [c.lower() for c in cells]
-            if any(n in low for n in (*NAME_COLS, *HOT_COLS, "rule")):
+            # A table has exactly ONE header, so only the first matching row counts as one. Without
+            # the `idx is None` guard any row containing a column NAME was re-read as a header —
+            # and `event` is both a NAME_COLS entry and the documented value of the `Type` column,
+            # so on the prescribed timeline shape every event row was swallowed: a 4-row timeline
+            # parsed as 1 element, 0 confirmed. Silent, and it lands on check 16's fallback, where
+            # "0 confirmed" reads the same whether discovery was thin or the parser ate it.
+            if idx is None and any(n in low for n in (*NAME_COLS, *HOT_COLS, "rule")):
                 idx = {k: low.index(k) for k in (*NAME_COLS, *HOT_COLS, "rule", "status", "state",
                                                  "confirmed by", "held by", "who raised it",
                                                  "who could answer", "blocks", "stated by")

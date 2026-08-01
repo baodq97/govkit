@@ -10,7 +10,7 @@ generated domain model whose value is the score, not the text. Reproduction inst
 
 | Surface | Before | After | Δ |
 |---|---:|---:|---:|
-| 8 step skills (`1-understand … 8-code`) | 92.5 KB | 22.8 KB | **−75%** |
+| 8 step skill bodies (`1-understand … 8-code`) | 90.3 KB | 23.5 KB | **−74%** |
 | `design` orchestrator | 16.7 KB | 15.2 KB | −9% |
 | `view` | 9.0 KB | 8.4 KB (+ lazy `references/model-json.md`) | −7% |
 
@@ -55,7 +55,8 @@ the pre-decompose and `8-code` readiness rows, the `?doc=` grammar and its eight
 skill ids, `--json`, `--deviation`/`--room`/`--artifact`/`--note`, `discovery/model.json` as the
 grounding source, the `info` severity token, the nine-message limit.
 
-Decisive finding: **check 16 is silent before a decompose artifact exists** (`ddd_check.py:881`),
+Decisive finding: **check 16 is silent before a decompose artifact exists** (the `bool(ctx) or
+context-map.md` guard, `ddd_check.py:907` at this commit),
 so deleting the human-judgement readiness row made silence read as a pass. Restored, with the
 defects the judges found in the *old* version corrected rather than reinstated (`--review` does not
 write, it prints; `ddd_check` has no `--config`).
@@ -101,12 +102,14 @@ Utterance wording lifted from the 68 verbatim operator turns; half Vietnamese.
 | Vietnamese · English | 100% · 95% |
 
 `skill-lint`'s two warned pairs produced **zero** errors; the one real confusion
-(`3-decompose`↔`4-connect`, 43.6%) sits *below* the warn floor. Lexical cosine did not track
+(`3-decompose`↔`4-connect`) scores *below* the warn floor and never appeared at all. Lexical cosine did not track
 measured mis-routing — recorded as a caveat inside `skill-lint.mjs` rather than a threshold change.
 
 **Limits.** 44 cases, 3 routers, one corpus author, descriptions in isolation; cross-plugin
 negatives untested against the ~30 skills a live session carries. By the rule of three, 0/8 clean
-negatives bounds the true false-claim rate at ≈≤12%, not zero. This licenses keeping the reversal of
+negatives bounds the true false-claim rate at ≈≤37% (3/8 — the eight CASES are the independent
+units; the 24 decisions are three routers over the same eight, so they do not multiply the
+evidence), not zero. This licenses keeping the reversal of
 RFC-0032 F2; it does not prove the guard was unnecessary. Decision pending in **US-0015**.
 
 ## 7. Defects this eval found (all fixed on the branch)

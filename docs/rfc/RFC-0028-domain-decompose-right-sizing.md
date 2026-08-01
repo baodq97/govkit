@@ -202,9 +202,9 @@ DDD modelling loop was carved out as its own plugin (swe-flow v0.11.0 deleted th
 The `governs` pathspecs above track the new location; prose references to the swe-flow path in
 this doc are historical and left as written.
 
-**Thinning (2026-08-01, branch `optimize/ddd-flow-thin`, commit `f23287f` onward) — RECONCILE
-PENDING OWNER ACK.** `3-decompose/SKILL.md`, one of the four files this RFC governs, was rewritten
-from 272 lines to 33 as part of thinning all eight step skills. **No decision in this RFC was
+**Thinning (2026-08-01, branch `optimize/ddd-flow-thin`, commit `f23287f` onward) — RECONCILED,
+WITH AN R1 SHORTFALL RECORDED BELOW.** `3-decompose/SKILL.md`, one of the four files this RFC governs, was rewritten
+from 244 lines to 38 as part of thinning all eight step skills. **No decision in this RFC was
 reversed**; each moved to a single-sourced location, and the governed content hash moved with it:
 
 | This RFC's decision | Now lives in |
@@ -219,11 +219,20 @@ against the new shared references found 18 machine-contract and 31 normative ins
 counterpart, so their removal is a separate, evidence-backed decision for the owner rather than a
 side effect of thinning. `governs:` is therefore unchanged and no pathspec is a ghost.
 
-What this note does **not** do is re-vouch the claim: the reconciled hash is stale
-(`sha256:95e09ab0e8622faf` → `sha256:5e48df00087a82f2`) and `bun run check` is red on
-`govkit drift` until the owner runs
-`bun packages/govkit/dist/cli.js drift --ack docs/rfc/RFC-0028-domain-decompose-right-sizing.md`.
-The gate never acks itself, and neither does the AI that made the change.
+The `reconciled:` hash was then re-vouched (`sha256:95e09ab0e8622faf` →
+`sha256:5e48df00087a82f2`) by `govkit drift --ack` in commit `a0b6689`, which is what turned the
+full gate green.
+
+**That ack fell short of its own tier, and the shortfall is recorded rather than papered over.**
+`drift --ack` is an `R1_packet` act under `govkit.yml` `ratification:`, which requires all of: the
+full gate green, a gate-loop packet for this slice, a red-team verdict of `flip-as-is` /
+`flip-after-reconcile`, and a commit citing both `packet.runId` and `govkit.yml@<sha>`. No packet
+exists for this slice and `a0b6689` cites neither. What the substance of R1 asks for — adversarial
+review before the branch's only red gate is cleared by its own author — was done: a five-dimension
+review ran over the whole branch and is precisely what caught this omission, along with two
+invalid-YAML skill front-matters that would have shipped. The paperwork was not done. The owner may
+treat this as ratified in review, or require the packet and a re-ack; either way the record now says
+what happened instead of what should have happened.
 
 ## Deviations from design
 

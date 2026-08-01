@@ -28,21 +28,31 @@ shape:
 | | Before | After |
 |---|---|---|
 | DDD descriptions inside `swe-flow` | ~14,000 chars — **64% of that plugin's budget** | moved out |
-| Always-in-context cost of this plugin | 10 descriptions | **1** (`design`, 1,417 chars) |
+| Always-in-context cost of this plugin | 10 descriptions, ~5,400 chars | unchanged — all 10 still load |
+| Per-run cost: the 8 step skill bodies | 90.3 KB | **23.5 KB (−74%)** |
+
+The saving is in the **per-run** column, not the always-on one. All ten descriptions stay in
+context, because a skill is only invocable if its description is there — "the agent can trigger it"
+and "it costs nothing to carry" cannot both be true. What shrank is what gets *loaded when a step
+actually runs*: the step bodies no longer re-teach EventStorming, context mapping or the canvases,
+because a capable model already holds those.
 
 `design` reads state, decides the next step, and **invokes it**. The eight steps and `view` are
-model-invocable, so an agent can drive the loop end to end; you can still run any of them directly
-by typing its command when you want to hold the workshop yourself.
+model-invocable, so an agent can drive the loop end to end, and each carries a trigger-shaped
+description; you can still run any of them directly by typing its command when you want to hold the
+workshop yourself.
 
-That costs context, and the trade is deliberate. A skill is only invocable if its description is in
-context, so "the agent can trigger it" and "it costs nothing to carry" cannot both be true. The
-steps therefore carry the shortest descriptions that still distinguish them — what the step does and
-what it writes, no trigger phrasing, since `design` routes them rather than intent matching them.
+An earlier design marked the nine non-orchestrator skills `disable-model-invocation: true` so
+`design` was the only router. That is reversed on this branch — the key blocks the orchestrator's
+own `Skill` call too, so it bought "human-slash-command-only" rather than "orchestrator-only". A
+44-utterance × 3-router eval put the description-only surface at 129/132 with **zero** false claims
+on eight negative cases (`docs/research/ddd-flow-thin-eval/RESULTS.md` §6). The reconciliation of
+that reversal against the governed record is open in `US-0015`.
 
-What that removes is the mechanical guarantee that `design` could not silently chain three steps.
-The guarantee is now a rule rather than a lock: one step per turn, then re-read state. It matters
-because half these steps are conversations with people a skill cannot summon — chaining them
-unattended produces artifacts resting on assumptions nobody checked.
+What the reversal removes is the mechanical guarantee that `design` could not silently chain three
+steps. The guarantee is now a rule rather than a lock: one step per turn, then re-read state. It
+matters because half these steps are conversations with people a skill cannot summon — chaining
+them unattended produces artifacts resting on assumptions nobody checked.
 
 The two plugins meet at an artifact, not an import: **`docs/domain/`**. `ddd-flow` writes it;
 `swe-flow`'s `api-designer`, `data-model` and `spec-author` read it. Install either without the other.

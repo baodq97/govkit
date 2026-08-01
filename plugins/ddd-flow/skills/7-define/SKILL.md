@@ -29,6 +29,16 @@ a not-yet-deepened sketch below 2 of its three markers — `assumption`, `verifi
 question` — so include all three to pass clean at define depth. The line budget is per
 `subdomain_type` from `model.yaml` (core 180 · supporting 90 · generic/master-data 35).
 
+## Critique the interface before you call a core canvas done
+The public interface has a large blast radius and is expensive to change, so on a **core** context
+challenge the filled canvas: are the message names coherent with each other and with the context's
+description · is each message the right type (should a command be an event?) · is the interface too
+big · is it exposing internals · does any message belong elsewhere. Keep technical detail out of the
+purpose — a framework, a database or an endpoint there means the context is being described by its
+implementation. Then the move that finds the most: **relocate something to another context and see
+what breaks.** Record the experiment and its outcome including the rejections — a design that has
+never been perturbed has never been tested.
+
 ## The one rule most often broken (echoed for salience; full set in RULES.md)
 **Don't canvas every context to the same depth.** Match canvas depth to `subdomain_type` — core
 gets the full canvas, generic a bought-adapter stub; core-to-generic depth should be nearer 10:1

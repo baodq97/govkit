@@ -1,6 +1,12 @@
 ---
 name: 2-discover
-description: Surface a domain's EventStorming timeline, ubiquitous language, and hotspots from what the people who do the work actually say — the discovery step of the ddd-flow modelling loop. Use whenever a domain needs its behaviour discovered before any boundary is drawn: mining PRDs/specs/schemas for candidate events, interviewing for the gaps, or merging a discovery delta — invoked by ddd-flow:design or directly. This is initial event discovery; drawing bounded-context boundaries is 3-decompose.
+description: >
+  Surface a domain's EventStorming timeline, ubiquitous language, and hotspots from what the people
+  who do the work actually say — the discovery step of the ddd-flow modelling loop. Use whenever a
+  domain needs its behaviour discovered before any boundary is drawn: mining PRDs/specs/schemas for
+  candidate events, interviewing for the gaps, or merging a discovery delta — invoked by
+  ddd-flow:design or directly. This is initial event discovery; drawing bounded-context boundaries
+  is 3-decompose.
 paths: docs/domain/**
 ---
 

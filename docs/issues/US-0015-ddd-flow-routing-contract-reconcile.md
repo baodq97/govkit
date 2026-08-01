@@ -62,14 +62,16 @@ prevent, and it did not occur without the guard.
 
 **The two `skill-lint` collisions are false alarms, as measured.** `2-discover`↔`3-decompose`
 (55.2%) and `3-decompose`↔`7-define` (50.9%) produced **zero** errors in 132 decisions. The one
-real confusion — `3-decompose`↔`4-connect` — scores 43.6%, *below* the warn floor, so the lint was
-silent on the only pair that bit. Lexical cosine did not track measured mis-routing here. The check
+real confusion — `3-decompose`↔`4-connect` — scores *below* the warn floor and never appeared, so
+the lint was silent on the only pair that bit. Lexical cosine did not track measured mis-routing here. The check
 is kept as a cheap copy-paste guard with that caveat written into it.
 
 **Limits, stated plainly.** 44 cases, 3 routers, one corpus author, descriptions in isolation. In a
 live session the model sees roughly 30 competing skills across swe-flow and design-flow, and
 cross-plugin negatives were never tested. By the rule of three, 0/8 clean negative cases bounds the
-true false-claim rate at roughly ≤12%, not at zero. **This licenses keeping the reversal; it does
+true false-claim rate at roughly ≤37% (3/8) — the eight negative CASES are the independent units,
+and the 24 decisions are three routers over the same eight, so they do not multiply the evidence.
+Not at zero, and not as tight as a decision-count would flatter it into looking. **This licenses keeping the reversal; it does
 not prove the guard was unnecessary.**
 
 One description change followed, and not to chase the failing case: `4-connect` now says it also
@@ -97,6 +99,9 @@ the call is not the AI's to make.
 
 ## Notes
 
-Related debt on the same branch: `RFC-0028`'s `reconciled:` hash is stale and `bun run check` is
-red on `govkit drift` until the owner re-vouches it. That is mechanical and separate from this
-decision.
+Related, and separate from this decision: `RFC-0028`'s `reconciled:` hash was re-vouched on this
+branch with `govkit drift --ack` (commit `a0b6689`), which turned the full gate green. That ack is
+an `R1_packet` act under `govkit.yml` `ratification:` and it was taken **without the full R1
+ceremony** — there is no gate-loop packet for this slice and the commit cites neither a
+`packet.runId` nor `govkit.yml@<sha>`. The substance of R1 was met (an adversarial review ran over
+the whole branch and is what caught this), the paperwork was not. Flagged for the owner in the PR.

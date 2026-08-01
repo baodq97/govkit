@@ -41,14 +41,20 @@ artifact tree; read on only when hand-writing or patching one.
     "id": "DOMAIN-0001", "name": "Allocation", "subdomainType": "core",
     "tacticalPattern": "full-domain-model", "purpose": "…",
     "tableCount": 30, "attrCount": 141, "densestAttrs": 112, "layer": 2,
-    "tables": ["…"], "aggregates": [{"name": "…"}],
+    "tables": ["…"], "aggregates": ["OrderLine", "Allocation"],
     "ubiquitousLanguage": [{"term": "…", "definition": "…"}],
     "assumptions": ["…"], "openQuestions": ["…"]
   }],
   "relationships": [{ "from": "Allocation", "to": "Logistics", "type": "shared-kernel" }],
-  "external": [{ "name": "…", "kind": "…" }]
+  "externals": ["Carrier API"]
 }
 ```
+
+Two shapes are easy to get wrong because the natural guess is richer than the truth: `aggregates`
+is a list of **plain name strings**, not objects (`ddd_view.py` runs `model.yaml`'s aggregate list
+through `check._names`), and the key is **`externals`**, also a list of plain strings — it is
+derived, being every relationship target that is not itself a modelled context, so an external node
+has a name and nothing else.
 
 `subdomainType`: `core` · `supporting` · `generic` · `master-data`.
 
