@@ -38,8 +38,44 @@ governed doc disagree, and the doc is the one a stranger would trust.**
 - F2's original motivation stands: nine sibling skills with similar descriptions can mis-route.
   `skill-lint` still warns on two description collisions (`2-discover`↔`3-decompose`,
   `3-decompose`↔`7-define`), which is that risk, measured and unresolved.
-- No eval has been run on mis-routing specifically. The evidence gathered so far measures output
-  quality, not router accuracy, so the claim "descriptions are enough" is untested.
+- ~~No eval has been run on mis-routing specifically.~~ **Now measured — see below.**
+
+## Measured (2026-08-01): a router-accuracy eval
+
+44 utterances × 3 independent routers = 132 decisions. Ground truth was set from `steps.yml`
+(`question:`/`artifacts:` — configuration describing what each step *does*); the corpus author was
+forbidden to read the descriptions, and each router saw **only** the description surface — no repo,
+no history. Utterance wording was lifted from the 68 verbatim operator turns of the btm pilot, half
+Vietnamese, half English.
+
+| Slice | Score |
+|---|---|
+| Overall | **129/132 (98%)** — all 3 errors are the same case, no router disagreed with another |
+| Negatives (PRD, failing test, release, review, migration, CI) | **24/24 — zero false claims** |
+| Orchestration · step-specific · view | 100% each |
+| Vietnamese · English | 100% · 95% |
+| Ambiguous | 3/4 |
+
+**The negative rate is the number that matters**: not once did a ddd-flow skill claim a request
+that was not its business. That is the exact failure mode F2's invocation guard was bought to
+prevent, and it did not occur without the guard.
+
+**The two `skill-lint` collisions are false alarms, as measured.** `2-discover`↔`3-decompose`
+(55.2%) and `3-decompose`↔`7-define` (50.9%) produced **zero** errors in 132 decisions. The one
+real confusion — `3-decompose`↔`4-connect` — scores 43.6%, *below* the warn floor, so the lint was
+silent on the only pair that bit. Lexical cosine did not track measured mis-routing here. The check
+is kept as a cheap copy-paste guard with that caveat written into it.
+
+**Limits, stated plainly.** 44 cases, 3 routers, one corpus author, descriptions in isolation. In a
+live session the model sees roughly 30 competing skills across swe-flow and design-flow, and
+cross-plugin negatives were never tested. By the rule of three, 0/8 clean negative cases bounds the
+true false-claim rate at roughly ≤12%, not at zero. **This licenses keeping the reversal; it does
+not prove the guard was unnecessary.**
+
+One description change followed, and not to chase the failing case: `4-connect` now says it also
+handles a rule or invariant that appears to span two contexts. That is the plugin's own doctrine
+already — `design` §2 gates `8-code` on "none spanning two contexts? → a distributed invariant
+belongs in connect" — and the description did not carry it.
 
 ## Acceptance criteria
 

@@ -146,6 +146,15 @@ export function lintSurface(root) {
     if (d.kind === "agents" && !d.model) errors.push(`${d.file}: agent must declare "model"`);
   }
 
+  // Lexical overlap is a PROXY for mis-routing, and a measured-poor one — read a warning as "look
+  // at this pair", never as "this pair mis-routes". A 44-case / 3-router routing eval over the
+  // ddd-flow surface (2026-08-01) scored 129/132: the two pairs this check warns on
+  // (2-discover<->3-decompose 55.2%, 3-decompose<->7-define 50.9%) produced ZERO routing errors,
+  // while the only real confusion — 3-decompose<->4-connect — sits at 43.6%, under the warn floor,
+  // so this check was silent on the one pair that bit. Lowering the floor would only add noise:
+  // the ranking itself is what does not track. Kept because a cheap keyless proxy still catches
+  // copy-paste descriptions, but do not spend effort "fixing" a warned pair without a routing
+  // measurement that shows it failing.
   const pairs = [];
   for (let i = 0; i < docs.length; i++) {
     for (let j = i + 1; j < docs.length; j++) {

@@ -1,6 +1,6 @@
 ---
 name: 4-connect
-description: Trace real business use cases as message flows across the bounded contexts to surface hidden coupling, in the ddd-flow modelling loop. Use whenever a domain has an initial cut (contexts + events) and you need to test whether concrete scenarios cross those boundaries cleanly, or to re-check flows after a boundary moved — invoked by ddd-flow:design or directly. Needs a cut to refute; not a discovery technique (that is 2-discover), and it never redraws a boundary (that is 3-decompose).
+description: Trace real business use cases as message flows across the bounded contexts to surface hidden coupling, in the ddd-flow modelling loop. Use whenever a domain has an initial cut (contexts + events) and you need to test whether concrete scenarios cross those boundaries cleanly, or to re-check flows after a boundary moved — invoked by ddd-flow:design or directly. Also use when one rule or invariant appears to span two contexts and you need the flow traced before anyone decides where it belongs: a distributed invariant is this step's finding to produce. Needs a cut to refute; not a discovery technique (that is 2-discover), and it never redraws a boundary itself (it hands 3-decompose the evidence).
 paths: docs/domain/**
 ---
 
