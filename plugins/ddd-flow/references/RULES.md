@@ -73,6 +73,10 @@ rule governs (`1-understand … 8-code`); artifact shapes, budgets, and `ddd_che
   result — not a gap. [3,8]
 - Core-to-generic canvas depth should be nearer 10:1 than 2:1; nine identical canvases signal ceremony,
   two deep + five stubs signal judgement — say which you deepened and why the rest got less. [7,8]
+- A `core` artifact must DECIDE, not only ask: name the aggregate's states and the transitions between
+  them, number the invariants, and map each command to the event it emits. An open question belongs
+  BESIDE a decision, never in place of one — a canvas that only asks is a question list wearing a
+  canvas's name, and the slice it was written for cannot be built from it. [7,8]
 - Keep the L2 map coarse and the first-pass README a sketch — `7-define` owns canvas depth; carry
   forward only the aggregates the slices actually touch, the rest are speculative — say so. [3,8]
 - Propose no more teams than the org can staff; count engineers/teams/contexts first, else mark every

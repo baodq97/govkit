@@ -722,16 +722,42 @@ def run_checks(root: Path, docs: Path) -> list[Finding]:
              "around a running system"],
             "2-discover"))
     elif states:
+        # Collapse when it is universal. Per-context was the original shape, and on a greenfield
+        # product — where nothing this system does runs yet, by construction — it emitted one copy
+        # per context: N restatements of a single fact, reading as N problems. Worse, the cheapest
+        # way to silence it was to relabel the timeline `as-is`, so the check paid better for the
+        # wrong label than the right one (measured: an honest greenfield model drew 4 findings, one
+        # that called a not-yet-built product `as-is` drew 0). When only SOME contexts qualify the
+        # per-context finding is real signal — a migration whose new boundary rests on nothing
+        # running — so that shape is kept.
+        qualifying, future_only = [], []
         for name in sorted(ctx):
             known = {e: states[e] for e, src in emitted.items() if src == name and e in states}
-            if len(known) >= 2 and all(v != "as-is" for v in known.values()):
+            if len(known) < 2:
+                continue
+            qualifying.append(name)
+            if all(v != "as-is" for v in known.values()):
+                future_only.append((name, known))
+        if future_only and len(future_only) == len(qualifying):
+            names = ", ".join(n for n, _ in future_only)
+            out.append(Finding(
+                "context-is-future-only", "info",
+                f"every modelled context rests entirely on behaviour that does not happen yet "
+                f"({len(future_only)} of {len(qualifying)}) — this is a greenfield model",
+                [names,
+                 *(ctx[n]["_path"] for n, _ in future_only[:4]),
+                 "expected on greenfield, and not a defect: it means no boundary here can yet be "
+                 "falsified by a running system, so the flows and invariants carry the whole "
+                 "argument. Do NOT relabel the timeline `as-is` to silence this."],
+                "3-decompose"))
+        else:
+            for name, known in future_only:
                 out.append(Finding(
                     "context-is-future-only", "info",
                     f"{name}'s boundary rests entirely on behaviour that does not happen yet — "
-                    f"{len(known)} events, none `as-is`",
+                    f"{len(known)} events, none `as-is`, while other contexts model running behaviour",
                     [ctx[name]["_path"], *(f"{e} → {v}" for e, v in sorted(known.items())[:4]),
-                     "expected on greenfield; on a migration it is a boundary nothing running can "
-                     "falsify"],
+                     "on a migration this is a boundary nothing running can falsify"],
                     "3-decompose"))
 
     # 14 — direction and pattern are two axes, and one field cannot carry both. Which way the

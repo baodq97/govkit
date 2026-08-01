@@ -37,5 +37,7 @@ you deepened and why the rest got less. A budget caps prose, never findings.
 
 ## Done
 Run `ddd_check` (canvas-marker + budget gate); resolve blocking gaps; keep `assumptions` and
-`open_questions` populated honestly. A canvas whose purpose needs an "and also", or that contradicts
-`model.yaml`, is a delta for `3-decompose` — write the finding, never redraw the line yourself.
+`open_questions` populated honestly — **beside** the decisions, not instead of them: a core canvas an
+engineer cannot build from has failed even with all three markers present. A canvas whose purpose
+needs an "and also", or that contradicts `model.yaml`, is a delta for `3-decompose` — write the
+finding, never redraw the line yourself.
