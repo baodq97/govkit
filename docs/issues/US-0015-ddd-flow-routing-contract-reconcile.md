@@ -1,7 +1,7 @@
 ---
 id: US-0015
 title: Reconcile the ddd-flow routing contract — US-0007/RFC-0032 F2 mandate a guard the shipped skills no longer carry
-status: open
+status: in-progress
 owner: TBD
 date: 2026-08-01
 priority: P1
@@ -81,21 +81,36 @@ belongs in connect" — and the description did not carry it.
 
 ## Acceptance criteria
 
-1. The governed record and the shipped skills agree — whichever way the owner decides.
-2. If the reversal stands: `RFC-0032` F2 carries an amendment stating the guard's real blast
-   radius and why a trigger-shaped description replaced it; `US-0007` moves out of `done` to a
-   status that is true (owner's call — `wontfix`, or superseded by this US).
-3. If the reversal does not stand: the key returns to all nine skills, and `design`'s "never do a
-   step's work inline" rule is re-written to say what an orchestrator that cannot invoke should do
-   instead.
-4. Either way, the two `skill-lint` description collisions are closed or explicitly accepted with
-   a reason.
+1. ✅ The governed record and the shipped skills agree.
+2. ✅ **The reversal stands.** `RFC-0032` §As-built carries an `F2 AMENDED` block stating the
+   guard's real blast radius, the measured negative rate, and the honest bound; `US-0007` moved
+   `done → wontfix` with a withdrawal note pointing here.
+3. n/a — the reversal stands, so the key does not return.
+4. ✅ The two `skill-lint` collisions are **accepted with a reason**: they produced zero routing
+   errors in 132 decisions, while the one pair that did confuse scored below the warn floor. The
+   caveat is written into `skill-lint.mjs`; the check is kept as a copy-paste guard, not as a
+   mis-routing predictor.
 
-## Owner decision required
+## Decision (2026-08-01, owner-directed in session)
 
-This US exists because an agent may not resolve it. `US-0007` is at `done` with an assigned owner;
-moving it, or amending an `implemented` RFC's design, is a doc-owner act. The evidence is above;
-the call is not the AI's to make.
+Keep the reversal. Two reasons, in order of weight:
+
+1. The guard is **not what F2 thought it was** — it blocks the orchestrator's own `Skill` call, so
+   "orchestrator-only" was never what it bought, and under it `design` must paraphrase the steps it
+   routes to, which its own first hard rule forbids.
+2. The failure it was bought to prevent **did not occur without it**: 24/24 clean on negatives.
+
+Rejected: reverting. It would restore a guard that breaks the orchestrator to defend against a
+mis-fire measured at zero, and F5's lint already prevents an untriggerable skill from shipping.
+
+## What remains before `done`
+
+The `in-progress → done` flip is `R1_packet`: it needs a gate-loop packet for this slice, a
+red-team verdict of `flip-as-is` / `flip-after-reconcile`, and a commit citing both `packet.runId`
+and `govkit.yml@<sha>`. None of those exist yet, so this story stays `in-progress` rather than
+being flipped on the strength of the work reading as finished. The remaining substantive item is
+the one the eval could not cover: **cross-plugin negatives** against the ~30 skills a live session
+carries. Re-open the question if a mis-route is observed live.
 
 ## Notes
 

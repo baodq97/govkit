@@ -8,7 +8,7 @@
 | [US-0004](./US-0004-marketplace-entry-drift.md) | swe-flow marketplace entry drifted from plugin.json — version and description stale | done | baodq97 | 2026-07-08 |
 | [US-0005](./US-0005-hash-anchored-citation-mode.md) | Evaluate an opt-in hash-anchored strict mode for citations (VeriContext prior art) | open | baodq97 | 2026-07-29 |
 | [US-0006](./US-0006-skill-lint-trigger-shape-rule.md) | skill-lint rule — a non-orchestrator skill must be trigger-shaped or declare disable-model-invocation | done | baodq97 | 2026-07-31 |
-| [US-0007](./US-0007-ddd-flow-step-skills-orchestrator-only.md) | Mark the 9 ddd-flow step skills orchestrator-only (disable-model-invocation + paths) | done | baodq97 | 2026-07-31 |
+| [US-0007](./US-0007-ddd-flow-step-skills-orchestrator-only.md) | Mark the 9 ddd-flow step skills orchestrator-only (disable-model-invocation + paths) | wontfix | baodq97 | 2026-07-31 |
 | [US-0008](./US-0008-plugin-scoped-stop-gate-hook.md) | Plugin-scoped Stop hook so a plugin-only consumer gets the gate (with a LIVE cross-source dedup probe first) | done | baodq97 | 2026-07-31 |
 | [US-0009](./US-0009-agents-rules-path-split.md) | Split AGENTS.md's per-path rules into path-scoped .claude/rules/*.md for lazy governance load | done | baodq97 | 2026-07-31 |
 | [US-0010](./US-0010-freeze-status-edit-block.md) | F-freeze — a skill-scoped PreToolUse hook that blocks agent status edits (status front-matter + INDEX status columns) | done | baodq97 | 2026-07-31 |
@@ -16,4 +16,4 @@
 | [US-0012](./US-0012-agent-skills-preload.md) | Preload the canonical skill into genuinely-mirrored role agents via the skills:/tools frontmatter (kill embed drift) | done | baodq97 | 2026-07-31 |
 | [US-0013](./US-0013-workflows-as-slash-commands.md) | Expose the .claude/workflows/*.js orchestrations as / slash-commands via thin wrappers that degrade to the by-hand order | done | baodq97 | 2026-07-31 |
 | [US-0014](./US-0014-gate-skill-livestate-and-gotchas.md) | F7 + F6 — inject live gate-verify state into the gate-close skill, and add LEARNING-LOOP-seeded Gotchas sections to the gate + spec-author skills | done | baodq97 | 2026-07-31 |
-| [US-0015](./US-0015-ddd-flow-routing-contract-reconcile.md) | Reconcile the ddd-flow routing contract — US-0007/RFC-0032 F2 mandate a guard the shipped skills no longer carry | open | TBD | 2026-08-01 |
+| [US-0015](./US-0015-ddd-flow-routing-contract-reconcile.md) | Reconcile the ddd-flow routing contract — US-0007/RFC-0032 F2 mandate a guard the shipped skills no longer carry | in-progress | TBD | 2026-08-01 |
