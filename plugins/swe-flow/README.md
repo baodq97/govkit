@@ -111,6 +111,28 @@ none self-assigns an owner — those stay human doc-owner acts.
   agents. `skills/gate-close` is the Tier-2 orchestrator — when to run the loop, how to read the
   packet, how to land the accept commit.
 
+## Tier-2 orchestrator skills — thin fronts onto the workflows
+
+Four skills front the `.claude/workflows/*.js` orchestrations. Each reimplements none of the
+workflow's logic — the `.js` stays the single source of truth — and each carries a fully
+specified BY-HAND fallback, because workflows are research-preview, globally disableable
+(`disableWorkflows`), and **cannot be bundled in a plugin**: there is no `workflows` field in
+`plugin.json`. A consumer who installs this plugin therefore gets the procedure and the agent
+dispatch order, not the script. That is the degraded mode these skills are written for, and it
+is why the doctrine above still holds: the LOOP is not a skill, these are fronts onto it.
+
+- **`skills/sdlc`** — drive the whole chain PRD → RFC → ADR → US → Foundation → Code, one
+  reviewer-gated phase at a time, fanning out file-disjoint implementer packages in waves.
+- **`skills/gate-loop`** — the five-station loop before a status advance (gate re-run, drift
+  reconcile, live build-and-run at a release gate, one adversarial pass per flip candidate) into
+  ONE ratification packet. Use `skills/gate-close` instead once code has landed and a release
+  record is due.
+- **`skills/review-changes`** — review the current branch diff across correctness, reuse and
+  governance, then adversarially verify each finding and report only the survivors.
+- **`skills/ground-first`** — the upstream capstone for a stalled legacy repo: inventory, a
+  coarse C4-L1 vision map, a HALT for human ratification, then one walking-skeleton RFC handed
+  to `skills/sdlc`.
+
 ## The substance layer — R2 Layer 3 (RFC-0019)
 
 - **`skills/substance-judge`** + **`agents/judge`** — the keyed, opt-in verdict the

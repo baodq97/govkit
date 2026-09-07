@@ -1,10 +1,11 @@
 ---
+name: ground-first
 description: >-
-  Upstream capstone: DIAGNOSE the flow-block, GROUND-INVENTORY the legacy corpus,
-  author a coarse C4-L1 VISION map, emit a GROUNDING-READINESS signal and HALT before
-  a breadth-first DECOMPOSE, run a grounding-driven triangulated decompose to a CANDIDATE
-  model, then author ONE walking-skeleton RFC and hand off to the sdlc workflow.
-  Warning-first; proposes into every human ratification gate and flips nothing.
+  Diagnose a stalled flow on a legacy codebase: inventory the existing corpus, author a coarse
+  C4-L1 vision map, HALT for human ratification before decomposing, then hand one
+  walking-skeleton RFC to the sdlc chain. Use when asked to "ground this repo first", "we are
+  stuck, where do we start", "map the legacy system", "chưa hiểu hệ thống thì bắt đầu từ đâu", or
+  before any breadth-first decomposition of an unfamiliar codebase.
 background: true
 ---
 

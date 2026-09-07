@@ -4,7 +4,7 @@
 // Runs in `bun run check`; it scores THIS repo's plugin, never a consumer's docs,
 // so it is deliberately not a `govkit` CLI subcommand.
 import { readdirSync, readFileSync, statSync } from "node:fs";
-import { join } from "node:path";
+import { basename, join } from "node:path";
 import { parse as parseYaml } from "yaml";
 
 const MAX_DESCRIPTION = 1024; // agents inject this into the system prompt
@@ -140,6 +140,7 @@ function collect(root) {
         name: fm?.name ?? "",
         description: fm?.description ?? "",
         tools: fm?.tools ?? "",
+        skills: fm?.skills ?? "",
         model: fm?.model ?? "",
         // Front-matter values come through parseFrontMatter as strings, but
         // tolerate an actual boolean too in case a caller hands us parsed YAML.
@@ -149,6 +150,16 @@ function collect(root) {
     }
   }
   return docs;
+}
+
+// `skills:` arrives as a raw string from parseFrontMatter — either inline (`[a:b, c]`) or a block
+// sequence flattened to `- a:b - c`. Pull the plugin:name tokens out of both shapes.
+function parseSkillRefs(raw) {
+  return raw
+    .replace(/[[\],]/g, " ")
+    .split(/\s+/)
+    .map((tok) => tok.replace(/^-+/, "").trim())
+    .filter((tok) => /^[\w-]+(?::[\w-]+)?$/.test(tok));
 }
 
 export function lintSurface(root) {
@@ -176,6 +187,34 @@ export function lintSurface(root) {
     }
     if (d.kind === "agents" && !d.tools) errors.push(`${d.file}: agent must declare "tools"`);
     if (d.kind === "agents" && !d.model) errors.push(`${d.file}: agent must declare "model"`);
+  }
+
+  // An agent's `skills:` list is a PRELOAD hint, and a preload draws from the same set the model
+  // may invoke. So a skill carrying `disable-model-invocation` can be neither preloaded (Claude
+  // Code skips it and logs a warning to the debug log) nor reached through the Skill tool: the
+  // hint and the flag together are a SILENT contradiction, and the agent ends up with neither the
+  // content nor the call. Measured 2026-09-07 against swe-flow 0.12.1: this fired on 2 of the 3
+  // agents that use `skills:` at all — red-teamer -> spec-red-team and distiller ->
+  // distill-learnings — the first after 39 refusals and zero briefs in a consumer corpus, the
+  // second never dispatched, so latent at 100%. A cross-plugin hint is SKIPPED, not flagged: this
+  // root cannot see the other plugin's front-matter, and guessing would be a false positive.
+  const plugin = basename(root);
+  const skillsByName = new Map(
+    docs.filter((d) => d.kind === "skills").map((d) => [d.name || d.stem, d]),
+  );
+  for (const d of docs) {
+    if (d.kind !== "agents" || !d.skills) continue;
+    for (const ref of parseSkillRefs(d.skills)) {
+      const [ns, bare] = ref.includes(":") ? ref.split(":") : [plugin, ref];
+      if (ns !== plugin) continue;
+      const target = skillsByName.get(bare);
+      if (target?.disableModelInvocation)
+        errors.push(
+          `${d.file}: skills: hints "${ref}", but ${target.file} declares ` +
+            `"disable-model-invocation: true" — a flagged skill can be neither preloaded nor ` +
+            `Skill-invoked, so the hint is dead`,
+        );
+    }
   }
 
   // Lexical overlap is a PROXY for mis-routing, and a measured-poor one — read a warning as "look

@@ -1,8 +1,11 @@
 ---
+name: gate-loop
 description: >-
-  Run the five-station gate loop over one or more governed docs whose status the owner
-  intends to advance: verify the gate, reconcile doc drift, red-team each flip, return
-  one ratification packet.
+  Run the five-station gate loop BEFORE an owner advances a governed doc's status: independent
+  gate re-run, drift reconcile, a live build-and-run at a release gate, then one adversarial pass
+  per flip candidate, assembled into ONE ratification packet. Use when asked to "run the gate
+  loop", "prep the flips", "chạy gate loop", or before advancing several docs at once. After code
+  has landed and you want a release record, use gate-close instead.
 context: fork
 ---
 
