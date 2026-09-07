@@ -1,8 +1,11 @@
 ---
+name: sdlc
 description: >-
-  Drive the doc chain PRD -> RFC -> ADR -> US -> Foundation -> Code, one
-  reviewer-gated phase at a time; fan out file-disjoint implementer packages
-  in dependency-ordered waves during the Code phase.
+  Drive the whole governed chain PRD -> RFC -> ADR -> US -> Foundation -> Code, one
+  reviewer-gated phase at a time, fanning out file-disjoint implementer packages in
+  dependency-ordered waves during the Code phase. Use when asked to "run the sdlc", "take this
+  from PRD to code", "drive this feature end to end", "chạy sdlc", or when a feature needs the
+  whole chain rather than one document — for a single doc use spec-author.
 background: true
 ---
 

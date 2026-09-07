@@ -62,3 +62,25 @@ test("does not flag a trigger-shaped description", () => {
     `expected no trigger-shape error for trigger-shaped, got: ${JSON.stringify(r.errors)}`,
   );
 });
+
+test("flags an agent whose skills: hint names a disable-model-invocation skill", () => {
+  const r = lintSurface(join(FIX, "dead-hint"));
+  const hit = r.errors.filter((e) => e.includes("the hint is dead"));
+  assert.equal(hit.length, 1, `expected exactly one dead hint, got: ${r.errors.join(" | ")}`);
+  assert.match(hit[0], /hinter\.md/);
+  assert.match(hit[0], /dead-hint:guarded/);
+});
+
+test("does not flag a cross-plugin skills: hint — this root cannot resolve it", () => {
+  const r = lintSurface(join(FIX, "dead-hint"));
+  assert.equal(
+    r.errors.filter((e) => e.includes("cross.md")).length,
+    0,
+    "a hint into another plugin must be skipped, never guessed at",
+  );
+});
+
+test("does not flag a block-sequence skills: hint naming an unguarded skill", () => {
+  const r = lintSurface(join(FIX, "dead-hint"));
+  assert.equal(r.errors.filter((e) => e.includes("fine.md")).length, 0);
+});

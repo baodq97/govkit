@@ -1,8 +1,10 @@
 ---
+name: review-changes
 description: >-
-  Review the current branch diff across {correctness, reuse, governance} via
-  swe-flow:reviewer, adversarially verify each finding, and surface only the issues that
-  survive refutation.
+  Review the current branch diff for correctness, reuse and governance, then adversarially verify
+  each finding and report only the ones that survive refutation. Use when asked to "review my
+  changes", "review this branch", "review the diff", "review trước khi push", or before opening a
+  PR — for an unlanded design document use spec-red-team instead.
 context: fork
 ---
 
