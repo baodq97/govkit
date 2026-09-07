@@ -1,18 +1,11 @@
 ---
 name: govkit-adopt
-disable-model-invocation: true
 description: >
-  Get govkit governance INTO a repo — from nothing (greenfield: `govkit init` scaffolds
-  govkit.yml, the PreToolUse write-time hook, and docs/{product,rfc,adr,issues}/INDEX.md,
-  idempotently) or onto an existing corpus of prose docs that predate front-matter (adopt:
-  `govkit init --adopt` extracts declared metadata like **Status**: X, sentinels what it
-  cannot find so the gate still catches it, and reports status values outside the enum as
-  a suggested govkit.yml patch — dry-run unless --apply). Use whenever the user says
-  "adopt govkit", "set up governance", "govkit init", "migrate our docs", "bring govkit
-  into this repo", "onboard this repo to govkit", or asks how to start gating their docs.
-  Decides greenfield vs adopt from evidence on disk, never by asking. Never flips a status
-  or assigns an owner. A repo is RED right after adopting — expected, not a bug — and this
-  skill gives the triage order.
+  Get govkit governing a repo — greenfield scaffold, or adopt an existing corpus of prose docs
+  that predate front-matter — deciding which from evidence on disk, never by asking. Use
+  whenever the user says "adopt govkit", "set up governance", "govkit init", "migrate our
+  docs", "bring govkit into this repo", "onboard this repo to govkit", or asks how to start
+  gating their docs.
 allowed-tools: Read, Grep, Glob, Bash
 ---
 

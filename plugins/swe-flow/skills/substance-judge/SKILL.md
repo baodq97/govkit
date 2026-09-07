@@ -1,17 +1,11 @@
 ---
 name: substance-judge
-disable-model-invocation: true
 context: fork
 description: >
-  Runs the keyed Layer-3 substance evaluation (RFC-0019, PRD-0001 R2) over a repo's governed
-  docs: discovers the corpus from govkit.yml, gates on the deterministic floor first
-  (npx govkit check), proves the judge itself before any verdict (RFC-0020 selftest —
-  calibrate green + a strict good-above-weak ranking probe, else refuse), fans out one
-  swe-flow:judge per doc against the pinned scoring anchors (rubric substance-v1), appends
-  deepeval-compatible verdicts to .govkit/evals/, and in cross-model mode re-judges on a
-  second model and reports per-doc agreement spread. Use when asked to "judge substance",
-  "score the docs", "run the substance judge", or "chấm chất lượng tài liệu". Opt-in and
-  API-keyed — NEVER wire it into no-key CI, hooks, or exit codes.
+  Score the substance of a repo's governed docs against pinned anchors, and refuse to return
+  any verdict unless the judge itself passes its selftest first. Opt-in and API-keyed — NEVER
+  wire it into no-key CI, hooks, or exit codes. Use when asked to "judge substance", "score
+  the docs", "run the substance judge", or "chấm chất lượng tài liệu".
 allowed-tools: Read, Grep, Glob, Bash, Write, Task
 ---
 

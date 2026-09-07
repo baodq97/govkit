@@ -4,7 +4,7 @@ title: spec-red-team — an adversarial review skill for governed docs (swe-flow
 status: implemented
 owner: baodq97
 date: 2026-07-08
-reconciled: sha256:a263e0b065c9f02f
+reconciled: sha256:f5fa0d3a34b352da
 governs:
   - plugins/swe-flow/skills/spec-red-team
 ---

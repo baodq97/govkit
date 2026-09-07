@@ -1,16 +1,10 @@
 ---
 name: distill-learnings
-disable-model-invocation: true
 description: >
-  Runs the DISTILL step of the R7 learning flywheel (RFC-0017): reads the gate journal
-  (.govkit/journal.jsonl), the escape log (LEARNING-LOOP.md), and the git delta since the
-  last round, clusters incidents into evidence-backed lessons, encodes each at the
-  lowest-cost surface (AGENTS.md rule, corpus fixture, govkit.yml tweak, ledger entry),
-  validates gate-touching proposals with `govkit calibrate` (FP=0, non-regressing recall),
-  and hands off as a PR — proposal-only, never merged by the agent. Use when asked to
-  "distill learnings", "chưng cất bài học", "run the learning loop", or "update the corpus
-  from the journal", and after incidents or retrospectives. Exits early with "insufficient
-  data" on a thin journal rather than inventing lessons.
+  Turn what the gate actually caught into evidence-backed rule changes, each encoded at the
+  lowest-cost surface and handed off as a PR — proposal-only, never merged by the agent. Use
+  when asked to "distill learnings", "chưng cất bài học", "run the learning loop", or "update
+  the corpus from the journal", and after incidents or retrospectives.
 allowed-tools: Read, Grep, Glob, Bash, Write, Edit
 ---
 

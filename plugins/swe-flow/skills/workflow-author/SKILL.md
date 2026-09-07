@@ -1,14 +1,11 @@
 ---
 name: workflow-author
-disable-model-invocation: true
 description: >-
-  Author a reusable, deterministic DYNAMIC WORKFLOW — a `.claude/workflows/<name>.js`
-  orchestration script — from a plain description of a repeatable, multi-step process.
-  Use whenever the user wants to create or scaffold a workflow, automate a repeatable flow
-  ("we always do X then Y then Z"), fan work out across agents, set up a review-then-verify
-  pipeline, run a migration over many files, or extend the `sdlc` workflow. Trigger on
-  "tạo workflow", "scaffold a workflow", "automate this flow", "make a reusable
-  orchestration", "fan this out", "set up a review pipeline".
+  Author a reusable `.claude/workflows/<name>.js` orchestration script. Use whenever the user
+  wants to create or scaffold a workflow, automate a repeatable flow ("we always do X then Y
+  then Z"), fan work out across agents, set up a review-then-verify pipeline, run a migration
+  over many files, or extend the `sdlc` workflow. Trigger on "tạo workflow", "scaffold a
+  workflow", "automate this flow", "make a reusable orchestration", "fan this out".
 allowed-tools: Read, Grep, Glob, Bash, Write, Edit
 ---
 
